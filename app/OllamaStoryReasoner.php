@@ -4,7 +4,9 @@ final class OllamaStoryReasoner implements StoryReasoner
     public function selectOption(array $context,array $options): array
     {
         if(!$options)throw new RuntimeException('No valid options supplied to reasoner.');
-        $endpoint=rtrim((string)AiInteractionLogger::setting('ollama_endpoint','http://127.0.0.1:11434'),'/').'/api/chat';
+        $endpointOverride=trim((string)getenv('GAME2_AI_ENDPOINT'));
+        $base=$endpointOverride!==''?$endpointOverride:(string)AiInteractionLogger::setting('ollama_endpoint','http://127.0.0.1:11434');
+        $endpoint=rtrim($base,'/').'/api/chat';
         $model=(string)AiInteractionLogger::setting('ollama_model','qwen3:8b');
         $timeout=max(3,(int)AiInteractionLogger::setting('timeout_seconds','20'));
         $payload=$this->payload($model,$context,$options);
@@ -15,7 +17,10 @@ final class OllamaStoryReasoner implements StoryReasoner
         try{
             if(!function_exists('curl_init'))throw new RuntimeException('PHP cURL extension is unavailable.');
             $json=json_encode($payload,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);if($json===false)throw new RuntimeException('Unable to encode Ollama request.');
-            $ch=curl_init($endpoint);curl_setopt_array($ch,[CURLOPT_POST=>true,CURLOPT_RETURNTRANSFER=>true,CURLOPT_HTTPHEADER=>['Content-Type: application/json'],CURLOPT_POSTFIELDS=>$json,CURLOPT_CONNECTTIMEOUT=>min(5,$timeout),CURLOPT_TIMEOUT=>$timeout]);
+            $headers=['Content-Type: application/json'];
+            $clientId=trim((string)getenv('GAME2_AI_ACCESS_CLIENT_ID'));$clientSecret=trim((string)getenv('GAME2_AI_ACCESS_CLIENT_SECRET'));
+            if($clientId!==''&&$clientSecret!==''){$headers[]='CF-Access-Client-Id: '.$clientId;$headers[]='CF-Access-Client-Secret: '.$clientSecret;}
+            $ch=curl_init($endpoint);curl_setopt_array($ch,[CURLOPT_POST=>true,CURLOPT_RETURNTRANSFER=>true,CURLOPT_HTTPHEADER=>$headers,CURLOPT_POSTFIELDS=>$json,CURLOPT_CONNECTTIMEOUT=>min(5,$timeout),CURLOPT_TIMEOUT=>$timeout]);
             $raw=(string)curl_exec($ch);$status=(int)curl_getinfo($ch,CURLINFO_HTTP_CODE);$curlError=curl_error($ch);curl_close($ch);
             if($raw===''&&$curlError!=='')throw new RuntimeException($curlError);if($status<200||$status>=300)throw new RuntimeException('Ollama HTTP '.$status.'.');
             $outer=json_decode($raw,true,512,JSON_THROW_ON_ERROR);$content=(string)($outer['message']['content']??'');$parsed=json_decode($content,true,512,JSON_THROW_ON_ERROR);
@@ -24,12 +29,8 @@ final class OllamaStoryReasoner implements StoryReasoner
             $confidence=max(0,min(100,(float)($parsed['confidence']??0)));$reason=trim((string)($parsed['reason']??''));
             AiInteractionLogger::complete($interactionId,['success'=>true,'http_status'=>$status,'latency_ms'=>(hrtime(true)-$started)/1e6,'response_raw'=>$raw,'parsed'=>$parsed,'prompt_eval_count'=>$outer['prompt_eval_count']??null,'eval_count'=>$outer['eval_count']??null,'total_duration_ns'=>$outer['total_duration']??null,'load_duration_ns'=>$outer['load_duration']??null,'prompt_eval_duration_ns'=>$outer['prompt_eval_duration']??null,'eval_duration_ns'=>$outer['eval_duration']??null,'selected_action'=>$selected,'confidence'=>$confidence,'reason'=>$reason]);
             return['selected_action'=>$selected,'confidence'=>$confidence,'reason'=>$reason,'provider'=>'ollama','model'=>$model,'interaction_id'=>$interactionId];
-        }catch(Throwable$e){
-            AiInteractionLogger::complete($interactionId,['success'=>false,'http_status'=>$status,'latency_ms'=>(hrtime(true)-$started)/1e6,'response_raw'=>$raw,'error'=>$e->getMessage()]);
-            throw $e;
-        }
+        }catch(Throwable$e){AiInteractionLogger::complete($interactionId,['success'=>false,'http_status'=>$status,'latency_ms'=>(hrtime(true)-$started)/1e6,'response_raw'=>$raw,'error'=>$e->getMessage()]);throw$e;}
     }
-
     private function payload(string$model,array$context,array$options): array
     {
         $safeOptions=[];foreach($options as$o)$safeOptions[]=['code'=>(string)$o['option_code'],'label'=>(string)($o['label']??''),'result'=>(string)($o['result_text']??''),'rationale'=>(string)($o['rationale_text']??'')];
