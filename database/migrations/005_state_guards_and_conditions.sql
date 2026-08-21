@@ -62,4 +62,18 @@ JOIN plot_decision_templates t ON t.template_id=o.template_id
 WHERE t.plot_id=@plot_id AND t.event_code='REAR_EXIT' AND t.role_code='FARAH'
   AND NOT EXISTS(SELECT 1 FROM plot_option_conditions c WHERE c.template_option_id=o.template_option_id AND c.state_key='FARAH_EXIT_STATUS');
 
+-- Niko's climax inaction can only let Farah leave when she is actually attempting to leave.
+INSERT INTO plot_no_action_conditions(no_action_effect_id,state_key,operator,compare_value,reason_text,sort_order)
+SELECT e.no_action_effect_id,'FARAH_EXIT_STATUS','EQ','ATTEMPTING','Farah is not currently attempting to leave.',1
+FROM plot_no_action_effects e
+WHERE e.plot_id=@plot_id AND e.event_code='REAR_EXIT' AND e.role_code='NIKO' AND e.target_code='FARAH_EXIT_STATUS'
+  AND NOT EXISTS(SELECT 1 FROM plot_no_action_conditions c WHERE c.no_action_effect_id=e.no_action_effect_id AND c.state_key='FARAH_EXIT_STATUS');
+
+-- Kellan's climax inaction only grants Farah extra room if an exit attempt is actually underway.
+INSERT INTO plot_no_action_conditions(no_action_effect_id,state_key,operator,compare_value,reason_text,sort_order)
+SELECT e.no_action_effect_id,'FARAH_EXIT_STATUS','EQ','ATTEMPTING','There is no active exit attempt for Kellan to leave unchallenged.',1
+FROM plot_no_action_effects e
+WHERE e.plot_id=@plot_id AND e.event_code='REAR_EXIT' AND e.role_code='KELLAN' AND e.target_code='CONTROL'
+  AND NOT EXISTS(SELECT 1 FROM plot_no_action_conditions c WHERE c.no_action_effect_id=e.no_action_effect_id AND c.state_key='FARAH_EXIT_STATUS');
+
 INSERT IGNORE INTO schema_migrations(migration) VALUES('005_state_guards_and_conditions.sql');
