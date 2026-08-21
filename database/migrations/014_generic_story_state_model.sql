@@ -4,6 +4,10 @@
 -- CHARACTER STATE: location, goal, fear, stats, knowledge, relationships
 -- OBJECTIVE STATE: plot-specific finite state machines stored in simulation_state.
 
+-- Expand the reusable effect vocabulary before later migrations insert GOAL/FEAR effects.
+ALTER TABLE plot_option_effects MODIFY effect_scope ENUM('FACTOR','STAT','LOCATION','KNOWLEDGE','RELATIONSHIP','WORLD_STATE','GOAL','FEAR') NOT NULL;
+ALTER TABLE plot_no_action_effects MODIFY effect_scope ENUM('FACTOR','STAT','LOCATION','KNOWLEDGE','RELATIONSHIP','WORLD_STATE','GOAL','FEAR') NOT NULL;
+
 CREATE TABLE IF NOT EXISTS story_factor_types (
   factor_type_code VARCHAR(40) PRIMARY KEY,
   label VARCHAR(120) NOT NULL,
