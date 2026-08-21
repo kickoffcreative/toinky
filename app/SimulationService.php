@@ -6,7 +6,7 @@ final class SimulationService {
         try{
             $pdo->prepare('INSERT INTO simulations(plot_id,duration_seconds,mode,status,current_phase) VALUES(?,?,"MANUAL","READY","SETUP")')->execute([$plot['plot_id'],$duration]);$sid=(int)$pdo->lastInsertId();
             $f=$pdo->prepare('SELECT * FROM plot_factors WHERE plot_id=?');$f->execute([$plot['plot_id']]);foreach($f->fetchAll()as$r)$pdo->prepare('INSERT INTO simulation_factors(simulation_id,factor_code,label,current_value,min_value,max_value) VALUES(?,?,?,?,?,?)')->execute([$sid,$r['factor_code'],$r['label'],$r['initial_value'],$r['min_value'],$r['max_value']]);
-            $roles=$pdo->prepare('SELECT * FROM plot_roles WHERE plot_id=? ORDER BY role_type DESC,slot_no');$roles->execute([$plot['plot_id']]);
+            $roles=$pdo->prepare('SELECT * FROM plot_roles WHERE plot_id=? ORDER BY CASE WHEN role_type="PLAYER" THEN 0 ELSE 1 END,slot_no');$roles->execute([$plot['plot_id']]);
             foreach($roles->fetchAll()as$r){
                 $pdo->prepare('INSERT INTO characters(simulation_id,plot_role_id,actor_type,slot_no,name,description,private_knowledge,current_location,goal_text,fear_text) VALUES(?,?,?,?,?,?,?,?,?,?)')->execute([$sid,$r['plot_role_id'],$r['role_type'],$r['slot_no'],$r['name'],$r['public_description'],$r['private_knowledge'],$r['starting_location'],$r['goal_text'],$r['fear_text']]);$cid=(int)$pdo->lastInsertId();
                 $s=$pdo->prepare('SELECT * FROM plot_role_stats WHERE plot_role_id=?');$s->execute([$r['plot_role_id']]);foreach($s->fetchAll()as$st)$pdo->prepare('INSERT INTO character_stats(character_id,stat_code,label,current_value) VALUES(?,?,?,?)')->execute([$cid,$st['stat_code'],$st['label'],$st['initial_value']]);
@@ -63,8 +63,18 @@ final class SimulationService {
 
     public static function snapshot(int $sid): array {
         $pdo=db();$s=$pdo->prepare('SELECT s.*,p.title,p.archetype,p.genre,p.setting_name FROM simulations s JOIN plots p ON p.plot_id=s.plot_id WHERE s.simulation_id=?');$s->execute([$sid]);$sim=$s->fetch();if(!$sim)throw new RuntimeException('Simulation not found.');
-        $f=$pdo->prepare('SELECT * FROM simulation_factors WHERE simulation_id=? ORDER BY simulation_factor_id');$f->execute([$sid]);$c=$pdo->prepare('SELECT * FROM characters WHERE simulation_id=? ORDER BY actor_type DESC,slot_no');$c->execute([$sid]);$chars=$c->fetchAll();
-        foreach($chars as&$ch){$st=$pdo->prepare('SELECT * FROM character_stats WHERE character_id=? ORDER BY character_stat_id');$st->execute([$ch['character_id']]);$ch['stats']=$st->fetchAll();$h=$pdo->prepare('SELECT * FROM character_history WHERE character_id=? ORDER BY event_second,history_id');$h->execute([$ch['character_id']]);$ch['history']=$h->fetchAll();$d=$pdo->prepare('SELECT d.* FROM decisions d WHERE d.character_id=? AND d.status="OPEN" ORDER BY d.opens_at_second,d.decision_id');$d->execute([$ch['character_id']]);$ch['open_decisions']=$d->fetchAll();foreach($ch['open_decisions']as&$dec){$o=$pdo->prepare('SELECT * FROM decision_options WHERE decision_id=? ORDER BY sort_order,decision_option_id');$o->execute([$dec['decision_id']]);$dec['options']=$o->fetchAll();}unset($dec);}
+        $f=$pdo->prepare('SELECT * FROM simulation_factors WHERE simulation_id=? ORDER BY simulation_factor_id');$f->execute([$sid]);
+        $c=$pdo->prepare('SELECT * FROM characters WHERE simulation_id=? ORDER BY CASE WHEN actor_type="PLAYER" THEN 0 ELSE 1 END,slot_no');$c->execute([$sid]);$chars=$c->fetchAll();
+        foreach($chars as&$ch){
+            $st=$pdo->prepare('SELECT * FROM character_stats WHERE character_id=? ORDER BY character_stat_id');$st->execute([$ch['character_id']]);$ch['stats']=$st->fetchAll();
+            $h=$pdo->prepare('SELECT * FROM character_history WHERE character_id=? ORDER BY event_second,history_id');$h->execute([$ch['character_id']]);$ch['history']=$h->fetchAll();
+            $d=$pdo->prepare('SELECT d.* FROM decisions d WHERE d.character_id=? AND d.status="OPEN" ORDER BY d.opens_at_second,d.decision_id');$d->execute([$ch['character_id']]);$ch['open_decisions']=$d->fetchAll();
+            foreach($ch['open_decisions']as&$dec){
+                $o=$pdo->prepare('SELECT do.*,pdto.template_option_id FROM decision_options do JOIN decisions d ON d.decision_id=do.decision_id JOIN simulation_events se ON se.event_id=d.event_id JOIN characters c ON c.character_id=d.character_id JOIN plot_roles pr ON pr.plot_role_id=c.plot_role_id JOIN plot_decision_templates pdt ON pdt.plot_id=pr.plot_id AND pdt.role_code=pr.role_code AND pdt.event_code=se.event_code JOIN plot_decision_template_options pdto ON pdto.template_id=pdt.template_id AND pdto.option_code=do.option_code WHERE do.decision_id=? ORDER BY do.sort_order,do.decision_option_id');
+                $o->execute([$dec['decision_id']]);$options=[];foreach($o->fetchAll()as$opt){if(class_exists('CausalService')&&!CausalService::optionAllowed($sid,(int)$opt['template_option_id']))continue;$options[]=$opt;}$dec['options']=$options;
+            }unset($dec);
+            $ch['open_decisions']=array_values(array_filter($ch['open_decisions'],fn($d)=>!empty($d['options'])));
+        }
         unset($ch);$e=$pdo->prepare('SELECT se.*,c.name actor_name FROM simulation_events se LEFT JOIN characters c ON c.character_id=se.actor_character_id WHERE se.simulation_id=? AND se.visibility="WORLD" ORDER BY se.event_second,se.event_id');$e->execute([$sid]);
         return['simulation'=>$sim,'factors'=>$f->fetchAll(),'characters'=>$chars,'world'=>$e->fetchAll()];
     }
