@@ -6,7 +6,14 @@ final class SimulationService {
         try{
             $pdo->prepare('INSERT INTO simulations(plot_id,duration_seconds,mode,status,current_phase) VALUES(?,?,"MANUAL","READY","SETUP")')->execute([$plot['plot_id'],$duration]);$sid=(int)$pdo->lastInsertId();
             $f=$pdo->prepare('SELECT * FROM plot_factors WHERE plot_id=?');$f->execute([$plot['plot_id']]);foreach($f->fetchAll()as$r)$pdo->prepare('INSERT INTO simulation_factors(simulation_id,factor_code,label,current_value,min_value,max_value) VALUES(?,?,?,?,?,?)')->execute([$sid,$r['factor_code'],$r['label'],$r['initial_value'],$r['min_value'],$r['max_value']]);
-            $initialState=['GUEST_STATUS'=>'INJURED','GUEST_HELPERS'=>'1','WEST_ROUTE'=>'UNKNOWN','FARAH_EXIT_STATUS'=>'INSIDE'];
+            $initialState=[
+                'GUEST_STATUS'=>'INJURED',
+                'GUEST_HELPERS'=>'1',
+                'WEST_ROUTE'=>'UNKNOWN',
+                'FARAH_EXIT_STATUS'=>'INSIDE',
+                'REPORT_HOLDER'=>'NONE',
+                'FAILED_REPORT_STATE'=>'UNSECURED'
+            ];
             $is=$pdo->prepare('INSERT INTO simulation_state(simulation_id,state_key,state_value,updated_at_second) VALUES(?,?,?,0)');foreach($initialState as$k=>$v)$is->execute([$sid,$k,$v]);
             $roles=$pdo->prepare('SELECT * FROM plot_roles WHERE plot_id=? ORDER BY CASE WHEN role_type="PLAYER" THEN 0 ELSE 1 END,slot_no');$roles->execute([$plot['plot_id']]);
             foreach($roles->fetchAll()as$r){
@@ -47,10 +54,20 @@ final class SimulationService {
     }
 
     private static function reportEvent(int $sid): void {
-        $pdo=db();$q=$pdo->prepare('SELECT state_value FROM simulation_state WHERE simulation_id=? AND state_key="REPORT_HOLDER"');$q->execute([$sid]);$holder=(string)$q->fetchColumn();
-        if($holder==='FARAH')$text='Alden reaches his office and finds the copied failed inspection report gone. Farah reached the evidence first.';
-        elseif($holder==='ALDEN')$text='Alden secures the copied failed inspection report before it can disappear. Farah now has to challenge the evidence rather than simply remove it.';
-        else $text='Alden checks the office and realizes the copied failed inspection report is exposed during the confusion. Nobody has clearly secured it yet.';
+        $pdo=db();
+        $s=$pdo->prepare('SELECT state_key,state_value FROM simulation_state WHERE simulation_id=? AND state_key IN ("REPORT_HOLDER","FAILED_REPORT_STATE")');$s->execute([$sid]);$state=[];foreach($s->fetchAll()as$r)$state[$r['state_key']]=$r['state_value'];
+        $holder=(string)($state['REPORT_HOLDER']??'NONE');
+        $q=$pdo->prepare('SELECT c.current_location FROM characters c JOIN plot_roles pr ON pr.plot_role_id=c.plot_role_id WHERE c.simulation_id=? AND pr.role_code="ALDEN" LIMIT 1');$q->execute([$sid]);$aldenLocation=(string)($q->fetchColumn()?:'unknown location');
+
+        if($holder==='FARAH'){
+            if($aldenLocation==='Office')$text='Alden reaches the office, but the copied failed inspection report is already gone. Farah secured it first.';
+            else $text='While Alden remains at '.$aldenLocation.', the copied failed inspection report disappears from the office. Farah secured it during the confusion.';
+        }elseif($holder==='ALDEN'){
+            $text='Alden has secured the copied failed inspection report. Farah now has to challenge the evidence rather than simply remove it.';
+        }else{
+            if($aldenLocation==='Office')$text='Alden reaches the office and finds the copied failed inspection report still unsecured. Nobody has taken control of it yet.';
+            else $text='The copied failed inspection report remains unsecured in the office while Alden is still at '.$aldenLocation.'. Nobody has clearly taken control of it yet.';
+        }
         self::worldEvent($sid,90,'INCITING_INCIDENT','REPORT_MISSING','The Report Becomes The Conflict',$text);
     }
 
