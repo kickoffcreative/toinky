@@ -7,18 +7,9 @@ final class SimulationService {
             $pdo->prepare('INSERT INTO simulations(plot_id,duration_seconds,mode,status,current_phase) VALUES(?,?,"MANUAL","READY","SETUP")')->execute([$plot['plot_id'],$duration]);$sid=(int)$pdo->lastInsertId();
             $f=$pdo->prepare('SELECT * FROM plot_factors WHERE plot_id=?');$f->execute([$plot['plot_id']]);foreach($f->fetchAll()as$r)$pdo->prepare('INSERT INTO simulation_factors(simulation_id,factor_code,label,current_value,min_value,max_value) VALUES(?,?,?,?,?,?)')->execute([$sid,$r['factor_code'],$r['label'],$r['initial_value'],$r['min_value'],$r['max_value']]);
             $initialState=[
-                'GUEST_STATUS'=>'INJURED',
-                'GUEST_HELPERS'=>'1',
-                'WEST_ROUTE'=>'UNKNOWN',
-                'FARAH_EXIT_STATUS'=>'INSIDE',
-                'REPORT_HOLDER'=>'NONE',
-                'FAILED_REPORT_STATE'=>'UNSECURED',
-                'ALDEN_EVIDENCE_KNOWLEDGE'=>'KNOWN',
-                'ALDEN_SHAREABLE_EVIDENCE'=>'NO',
-                'REPORT_COPY_STATE'=>'NONE',
-                'EVIDENCE_WITNESSES'=>'ALDEN_ONLY',
-                'EVIDENCE_EXTERNALIZED'=>'NO',
-                'EVIDENCE_DISTRIBUTION'=>'PRIVATE'
+                'GUEST_STATUS'=>'INJURED','GUEST_HELPERS'=>'1','GUEST_SECOND_HELPER'=>'NONE','WEST_ROUTE'=>'UNKNOWN','FARAH_EXIT_STATUS'=>'INSIDE',
+                'REPORT_HOLDER'=>'NONE','FAILED_REPORT_STATE'=>'UNSECURED','ALDEN_EVIDENCE_KNOWLEDGE'=>'KNOWN','ALDEN_SHAREABLE_EVIDENCE'=>'NO',
+                'REPORT_COPY_STATE'=>'NONE','EVIDENCE_WITNESSES'=>'ALDEN_ONLY','EVIDENCE_EXTERNALIZED'=>'NO','EVIDENCE_DISTRIBUTION'=>'PRIVATE'
             ];
             $is=$pdo->prepare('INSERT INTO simulation_state(simulation_id,state_key,state_value,updated_at_second) VALUES(?,?,?,0)');foreach($initialState as$k=>$v)$is->execute([$sid,$k,$v]);
             $roles=$pdo->prepare('SELECT * FROM plot_roles WHERE plot_id=? ORDER BY CASE WHEN role_type="PLAYER" THEN 0 ELSE 1 END,slot_no');$roles->execute([$plot['plot_id']]);
@@ -33,10 +24,7 @@ final class SimulationService {
         }catch(Throwable$e){if($pdo->inTransaction())$pdo->rollBack();throw$e;}
     }
 
-    public static function start(int $sid): void {
-        db()->prepare('UPDATE simulations SET status="RUNNING",current_phase="EXPOSITION",started_at_utc=UTC_TIMESTAMP() WHERE simulation_id=? AND status="READY"')->execute([$sid]);
-        self::worldEvent($sid,0,'EXPOSITION','STORY_START','Story Begins','Bellweather Resort settles into a rain-heavy evening. The world is now active.');
-    }
+    public static function start(int $sid): void {db()->prepare('UPDATE simulations SET status="RUNNING",current_phase="EXPOSITION",started_at_utc=UTC_TIMESTAMP() WHERE simulation_id=? AND status="READY"')->execute([$sid]);self::worldEvent($sid,0,'EXPOSITION','STORY_START','Story Begins','Bellweather Resort settles into a rain-heavy evening. The world is now active.');}
 
     public static function advance(int $sid,int $seconds=30): void {
         $pdo=db();$sim=self::simulation($sid);if($sim['status']==='READY'){self::start($sid);$sim=self::simulation($sid);}if($sim['status']!=='RUNNING')return;
@@ -47,7 +35,6 @@ final class SimulationService {
     }
 
     public static function choose(int $sid,int $decisionId,string $optionCode): void {if(!class_exists('BehaviorService'))throw new RuntimeException('Behavior engine is unavailable.');BehaviorService::choose($sid,$decisionId,$optionCode);}
-
     private static function phaseFor(int $elapsed,int $duration): string {$p=$duration?($elapsed/$duration):1;return$p<.18?'EXPOSITION':($p<.42?'INCITING_INCIDENT':($p<.72?'RISING_ACTION':($p<.92?'CLIMAX':'RESOLUTION')));}
 
     private static function generateDueEvents(int $sid,int $elapsed,string $phase): void {
@@ -60,20 +47,11 @@ final class SimulationService {
     }
 
     private static function reportEvent(int $sid): void {
-        $pdo=db();
-        $s=$pdo->prepare('SELECT state_key,state_value FROM simulation_state WHERE simulation_id=? AND state_key IN ("REPORT_HOLDER","FAILED_REPORT_STATE")');$s->execute([$sid]);$state=[];foreach($s->fetchAll()as$r)$state[$r['state_key']]=$r['state_value'];
-        $holder=(string)($state['REPORT_HOLDER']??'NONE');
+        $pdo=db();$s=$pdo->prepare('SELECT state_key,state_value FROM simulation_state WHERE simulation_id=? AND state_key IN ("REPORT_HOLDER","FAILED_REPORT_STATE")');$s->execute([$sid]);$state=[];foreach($s->fetchAll()as$r)$state[$r['state_key']]=$r['state_value'];$holder=(string)($state['REPORT_HOLDER']??'NONE');
         $q=$pdo->prepare('SELECT c.current_location FROM characters c JOIN plot_roles pr ON pr.plot_role_id=c.plot_role_id WHERE c.simulation_id=? AND pr.role_code="ALDEN" LIMIT 1');$q->execute([$sid]);$aldenLocation=(string)($q->fetchColumn()?:'unknown location');
-
-        if($holder==='FARAH'){
-            if($aldenLocation==='Office')$text='Alden reaches the office, but the copied failed inspection report is already gone. Farah secured it first.';
-            else $text='While Alden remains at '.$aldenLocation.', the copied failed inspection report disappears from the office. Farah secured it during the confusion.';
-        }elseif($holder==='ALDEN'){
-            $text='Alden has secured the copied failed inspection report. Farah now has to challenge the evidence rather than simply remove it.';
-        }else{
-            if($aldenLocation==='Office')$text='Alden reaches the office and finds the copied failed inspection report still unsecured. Nobody has taken control of it yet.';
-            else $text='The copied failed inspection report remains unsecured in the office while Alden is still at '.$aldenLocation.'. Nobody has clearly taken control of it yet.';
-        }
+        if($holder==='FARAH'){$text=$aldenLocation==='Office'?'Alden reaches the office, but the copied failed inspection report is already gone. Farah secured it first.':'While Alden remains at '.$aldenLocation.', the copied failed inspection report disappears from the office. Farah secured it during the confusion.';}
+        elseif($holder==='ALDEN'){$text='Alden has secured the copied failed inspection report. Farah now has to challenge the evidence rather than simply remove it.';}
+        else{$text=$aldenLocation==='Office'?'Alden reaches the office and finds the copied failed inspection report still unsecured. Nobody has taken control of it yet.':'The copied failed inspection report remains unsecured in the office while Alden is still at '.$aldenLocation.'. Nobody has clearly taken control of it yet.';}
         self::worldEvent($sid,90,'INCITING_INCIDENT','REPORT_MISSING','The Report Becomes The Conflict',$text);
     }
 
@@ -81,23 +59,19 @@ final class SimulationService {
         $pdo=db();$q=$pdo->prepare('SELECT event_id FROM simulation_events WHERE simulation_id=? AND event_code=?');$q->execute([$sid,$code]);$id=(int)$q->fetchColumn();if($id)return$id;
         $pdo->prepare('INSERT INTO simulation_events(simulation_id,event_second,phase,event_type,event_code,headline,event_text,visibility) VALUES(?,?,?,?,?,?,?,"WORLD")')->execute([$sid,$second,$phase,'WORLD',$code,$headline,$text]);$id=(int)$pdo->lastInsertId();
         $sim=self::simulation($sid);$pq=$pdo->prepare('SELECT COUNT(*) FROM plot_event_perceptions WHERE plot_id=? AND event_code=?');$pq->execute([$sim['plot_id'],$code]);$hasSpecific=(int)$pq->fetchColumn()>0;
-        if($hasSpecific && class_exists('BehaviorService'))BehaviorService::onWorldEvent($sid,$id,$code,$second);
-        else{$chars=$pdo->prepare('SELECT character_id FROM characters WHERE simulation_id=?');$chars->execute([$sid]);foreach($chars->fetchAll()as$c)$pdo->prepare('INSERT INTO character_history(simulation_id,character_id,event_id,event_second,history_type,title,detail_text) VALUES(?,?,?,?,"EXPERIENCED",?,?)')->execute([$sid,$c['character_id'],$id,$second,$headline,$text]);}
+        if($hasSpecific && class_exists('BehaviorService'))BehaviorService::onWorldEvent($sid,$id,$code,$second);else{$chars=$pdo->prepare('SELECT character_id FROM characters WHERE simulation_id=?');$chars->execute([$sid]);foreach($chars->fetchAll()as$c)$pdo->prepare('INSERT INTO character_history(simulation_id,character_id,event_id,event_second,history_type,title,detail_text) VALUES(?,?,?,?,"EXPERIENCED",?,?)')->execute([$sid,$c['character_id'],$id,$second,$headline,$text]);}
         return$id;
     }
 
     public static function snapshot(int $sid): array {
         $pdo=db();$s=$pdo->prepare('SELECT s.*,p.title,p.archetype,p.genre,p.setting_name FROM simulations s JOIN plots p ON p.plot_id=s.plot_id WHERE s.simulation_id=?');$s->execute([$sid]);$sim=$s->fetch();if(!$sim)throw new RuntimeException('Simulation not found.');
         $f=$pdo->prepare('SELECT * FROM simulation_factors WHERE simulation_id=? ORDER BY simulation_factor_id');$f->execute([$sid]);
-        $c=$pdo->prepare('SELECT * FROM characters WHERE simulation_id=? ORDER BY CASE WHEN actor_type="PLAYER" THEN 0 ELSE 1 END,slot_no');$c->execute([$sid]);$chars=$c->fetchAll();
+        $c=$pdo->prepare('SELECT c.*,pr.starting_location AS initial_location,pr.goal_text AS initial_goal_text,pr.fear_text AS initial_fear_text FROM characters c JOIN plot_roles pr ON pr.plot_role_id=c.plot_role_id WHERE c.simulation_id=? ORDER BY CASE WHEN c.actor_type="PLAYER" THEN 0 ELSE 1 END,c.slot_no');$c->execute([$sid]);$chars=$c->fetchAll();
         foreach($chars as&$ch){
-            $st=$pdo->prepare('SELECT * FROM character_stats WHERE character_id=? ORDER BY character_stat_id');$st->execute([$ch['character_id']]);$ch['stats']=$st->fetchAll();
+            $st=$pdo->prepare('SELECT cs.*,prs.initial_value FROM character_stats cs LEFT JOIN plot_role_stats prs ON prs.plot_role_id=? AND prs.stat_code=cs.stat_code WHERE cs.character_id=? ORDER BY cs.character_stat_id');$st->execute([$ch['plot_role_id'],$ch['character_id']]);$ch['stats']=$st->fetchAll();
             $h=$pdo->prepare('SELECT * FROM character_history WHERE character_id=? ORDER BY event_second,history_id');$h->execute([$ch['character_id']]);$ch['history']=$h->fetchAll();
             $d=$pdo->prepare('SELECT d.* FROM decisions d WHERE d.character_id=? AND d.status="OPEN" ORDER BY d.opens_at_second,d.decision_id');$d->execute([$ch['character_id']]);$ch['open_decisions']=$d->fetchAll();
-            foreach($ch['open_decisions']as&$dec){
-                $o=$pdo->prepare('SELECT do.*,pdto.template_option_id FROM decision_options do JOIN decisions d ON d.decision_id=do.decision_id JOIN simulation_events se ON se.event_id=d.event_id JOIN characters c ON c.character_id=d.character_id JOIN plot_roles pr ON pr.plot_role_id=c.plot_role_id JOIN plot_decision_templates pdt ON pdt.plot_id=pr.plot_id AND pdt.role_code=pr.role_code AND pdt.event_code=se.event_code JOIN plot_decision_template_options pdto ON pdto.template_id=pdt.template_id AND pdto.option_code=do.option_code WHERE do.decision_id=? ORDER BY do.sort_order,do.decision_option_id');
-                $o->execute([$dec['decision_id']]);$options=[];foreach($o->fetchAll()as$opt){if(class_exists('CausalService')&&!CausalService::optionAllowed($sid,(int)$opt['template_option_id']))continue;$options[]=$opt;}$dec['options']=$options;
-            }unset($dec);
+            foreach($ch['open_decisions']as&$dec){$o=$pdo->prepare('SELECT do.*,pdto.template_option_id FROM decision_options do JOIN decisions d ON d.decision_id=do.decision_id JOIN simulation_events se ON se.event_id=d.event_id JOIN characters c ON c.character_id=d.character_id JOIN plot_roles pr ON pr.plot_role_id=c.plot_role_id JOIN plot_decision_templates pdt ON pdt.plot_id=pr.plot_id AND pdt.role_code=pr.role_code AND pdt.event_code=se.event_code JOIN plot_decision_template_options pdto ON pdto.template_id=pdt.template_id AND pdto.option_code=do.option_code WHERE do.decision_id=? ORDER BY do.sort_order,do.decision_option_id');$o->execute([$dec['decision_id']]);$options=[];foreach($o->fetchAll()as$opt){if(class_exists('CausalService')&&!CausalService::optionAllowed($sid,(int)$opt['template_option_id']))continue;$options[]=$opt;}$dec['options']=$options;}unset($dec);
             $ch['open_decisions']=array_values(array_filter($ch['open_decisions'],fn($d)=>!empty($d['options'])));
         }
         unset($ch);$e=$pdo->prepare('SELECT se.*,c.name actor_name FROM simulation_events se LEFT JOIN characters c ON c.character_id=se.actor_character_id WHERE se.simulation_id=? AND se.visibility="WORLD" ORDER BY se.event_second,se.event_id');$e->execute([$sid]);
