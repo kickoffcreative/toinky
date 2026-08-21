@@ -1,2 +1,7 @@
 <?php
-require __DIR__ . '/public/index.php';
+$root = __DIR__;
+if (!is_file($root . '/.installed') || !is_file($root . '/config/database.php')) {
+    header('Location: install.php');
+    exit;
+}
+require $root . '/public/index.php';
