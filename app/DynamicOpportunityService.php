@@ -8,6 +8,7 @@ final class DynamicOpportunityService
         $s=$pdo->prepare('SELECT plot_id,elapsed_seconds,duration_seconds,current_phase,status FROM simulations WHERE simulation_id=?');
         $s->execute([$sid]);$sim=$s->fetch();
         if(!$sim || $sim['status']!=='RUNNING')return;
+        GenericStateService::initializePlotState($sid);
         self::syncStatuses($sid);
 
         $q=$pdo->prepare('SELECT d.*,c.character_id,c.actor_type FROM plot_dynamic_opportunities d JOIN plot_roles pr ON pr.plot_id=d.plot_id AND pr.role_code=d.role_code JOIN characters c ON c.simulation_id=? AND c.plot_role_id=pr.plot_role_id WHERE d.plot_id=? AND d.active=1 ORDER BY d.priority,d.dynamic_opportunity_id');
@@ -52,7 +53,7 @@ final class DynamicOpportunityService
     private static function sourceValue(int $sid,int $cid,string $type,?string $key,string $phase): array
     {
         $pdo=db();
-        if($type==='WORLD_STATE'){$q=$pdo->prepare('SELECT state_value FROM simulation_state WHERE simulation_id=? AND state_key=?');$q->execute([$sid,$key]);$v=$q->fetchColumn();return[$v!==false,$v!==false?(string)$v:''];}
+        if($type==='WORLD_STATE'){$r=GenericStateService::getByKey($sid,(string)$key);return[$r['exists'],$r['exists']?(string)$r['value']:''];}
         if($type==='LOCATION'){$q=$pdo->prepare('SELECT current_location FROM characters WHERE character_id=?');$q->execute([$cid]);$v=$q->fetchColumn();return[$v!==false,(string)$v];}
         if($type==='GOAL'){$q=$pdo->prepare('SELECT goal_text FROM characters WHERE character_id=?');$q->execute([$cid]);$v=$q->fetchColumn();return[$v!==false,(string)$v];}
         if($type==='FEAR'){$q=$pdo->prepare('SELECT fear_text FROM characters WHERE character_id=?');$q->execute([$cid]);$v=$q->fetchColumn();return[$v!==false,(string)$v];}
