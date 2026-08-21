@@ -1,22 +1,73 @@
 # Game2 Reusable Story Engine Model
 
-Game2 separates **story content** from **causal mechanics**.
+Game2 separates **story content** from **causal mechanics**. Bellweather is a test story, not part of the engine.
+
+## Core Rule
+
+A new story must be installable through data/migrations without adding story-specific PHP.
+
+The engine understands only:
+
+- entities;
+- properties and values;
+- locations;
+- numeric factors;
+- character stats;
+- knowledge and relationships;
+- conditions;
+- effects;
+- goals/fears and their lifecycle;
+- decisions, triggered transitions, dynamic opportunities, and resolution fragments.
+
+It does not understand the narrative meaning of a report, crown, reactor, witness, injured guest, kingdom, resort, or spaceship.
 
 ## 1. World Factors
 
-Every numeric story factor should map to one of five reusable semantic types. A plot may use its own visible label.
+Numeric story factors map to five reusable semantic types. A plot may use any visible label.
 
-| Type | Meaning | Typical character effects | Typical world effects |
-|---|---|---|---|
-| SAFETY | Physical, operational, or environmental stability | urgency, fear pressure, risk-taking, protection priorities | hazards, access, injury, evacuation, failure |
-| INFORMATION | Reliable usable truth | beliefs, confidence, investigation, disclosure | proof, secrecy, discovery, evidence preservation |
-| CONTROL | Ability to influence or impose outcomes | confidence, resistance, self-preservation | authority, possession, access, movement, leverage |
-| TENSION | Conflict, suspicion, and dramatic pressure | caution, confrontation, fear | escalation, attention, accusations, conflict intensity |
-| COHESION | Ability to cooperate and rely on others | loyalty, disclosure, willingness to help | coordination, fragmentation, collective effectiveness |
+| Type | Meaning | Typical effects |
+|---|---|---|
+| SAFETY | Physical, operational, or environmental stability | hazards, urgency, injury, access, evacuation |
+| INFORMATION | Reliable usable truth | clues, evidence, certainty, disclosure, proof |
+| CONTROL | Ability to influence or impose outcomes | authority, leverage, possession, access |
+| TENSION | Conflict, suspicion, and dramatic pressure | escalation, scrutiny, confrontation |
+| COHESION | Ability to cooperate and rely on others | trust, loyalty, coordination, fragmentation |
 
-Examples: Evidence, Clues, Intelligence, and Certainty can all map to INFORMATION. Farah Control, Political Influence, Command Authority, or Family Power can all map to CONTROL.
+World factors are continuous measurements, normally 0–100. They describe the condition of the story but are not substitutes for concrete facts.
 
-## 2. Character State
+## 2. Entities And Properties
+
+Concrete story facts are represented as:
+
+`ENTITY.PROPERTY = VALUE`
+
+Entity types are intentionally broad:
+
+- PERSON
+- OBJECT
+- PLACE
+- INFORMATION
+- TASK
+- ABSTRACT
+
+Examples:
+
+- `GUEST.status = EVACUATED`
+- `FAILED_REPORT.holder = FARAH`
+- `WEST_ROUTE.status = USABLE`
+- `PRINCE.status = EXILED`
+- `CROWN.holder = PLAYER_2`
+- `REACTOR.status = CRITICAL`
+
+A story defines the allowed values and, when needed, legal transitions for each property. PHP contains no story-specific state lists.
+
+## 3. Locations
+
+Character location remains a first-class character state. Stories may define their own location hierarchy and labels.
+
+Location conditions may be used by actions, goals, fears, triggered transitions, and dynamic opportunities.
+
+## 4. Character State
 
 Every character has:
 
@@ -27,59 +78,90 @@ Every character has:
 - Knowledge
 - Relationships
 
-Location, Goal, Fear, Stats, Knowledge, and Relationships may change during play. Initial values remain preserved through plot-role data and history.
+Initial values remain preserved. Current values may change during play.
 
-## 3. Objective State
+Stats are numeric and should represent traits, capabilities, situational conditions, or relationships that meaningfully affect choices/outcomes.
 
-Concrete story facts are stored as finite states in `simulation_state`.
+## 5. Goals And Fears
 
-Examples:
+Goals and fears are evaluated from resulting state, not from the name of an action.
 
-- an injured person's condition
-- who possesses an object
-- whether a route is open
-- whether a door is locked
-- whether a witness has escaped
-- whether a machine is operational
+A goal may be satisfied by one or more state combinations. Design logic should remain intentionally limited to condition groups built from simple comparisons rather than arbitrary scripts.
 
-These keys are plot-specific. The engine does not need to know their narrative meaning.
+Example:
 
-## 4. Triggered Transitions
+`Goal: Remove the evidence`
 
-`plot_triggered_transitions` provides reusable causal rules:
+Satisfied by ANY:
 
-WHEN all conditions are true
-THEN apply one or more effects.
+1. `FAILED_REPORT.status = DESTROYED`
+2. `FAILED_REPORT.holder = SELF` AND `SELF.location_region = OUTSIDE`
 
-Effects can change:
+Goal lifecycle:
 
-- world factors
-- world/objective state
-- character location
-- character goal
-- character fear
-- character stats
-- character knowledge
-- relationships
+`ACTIVE → ACHIEVED / FAILED / ABANDONED → replacement ACTIVE`
 
-Triggered transitions are evaluated independently of a specific decision menu. This prevents a logically necessary consequence from disappearing merely because no prewritten option exists at the exact next story beat.
+Fear lifecycle:
 
-## 5. Decision Logic
+`ACTIVE → INTENSIFIED / REDUCED → RESOLVED / REALIZED → replacement ACTIVE`
 
-Story randomness chooses among **valid plausible behavior**. State rules decide what is possible.
+## 6. Conditions
 
-A decision option may only appear when its prerequisites are true. NPC weights determine preference among the remaining valid choices.
+Reusable condition operators are deliberately small:
 
-## 6. Design Rule For New Stories
+- EQ
+- NEQ
+- IN
+- NOT_IN
+- EXISTS
+- NOT_EXISTS
+- LT / LTE / GT / GTE where numeric comparison is supported
 
-A new story should define:
+Conditions may examine entity/property state, world factors, location, goal/fear, knowledge, phase, stats, relationships, or prior action counts when supported by the calling subsystem.
 
-1. characters and initial character state;
-2. plot-specific objective states;
-3. up to five meaningful world factors mapped to the reusable factor types;
-4. events/perceptions;
-5. choices and their effects;
-6. prerequisites for choices;
-7. triggered transitions for causal consequences that should occur whenever conditions become true.
+Avoid turning conditions into a general programming language.
 
-The PHP engine should not contain story names, locations, objects, or bespoke plot branches unless they are generic engine concepts.
+## 7. Effects
+
+Actions and transitions may change:
+
+- world factors;
+- entity/property state;
+- character location;
+- goal;
+- fear;
+- stats;
+- knowledge;
+- relationships.
+
+Actions do not directly declare goals achieved. They change the world; the goal lifecycle evaluates the resulting state.
+
+## 8. Triggered Transitions
+
+Triggered transitions implement:
+
+`WHEN conditions are true → THEN effects occur`
+
+They handle consequences that should happen regardless of whether a matching prewritten menu happens to appear at that moment.
+
+## 9. Dynamic Opportunities
+
+Fixed story beats provide pacing and shared orientation. Dynamic opportunities respond to unresolved state between beats.
+
+The opportunity layer decides **when** a character should receive another meaningful decision. Once created, the normal decision/effect engine handles it.
+
+## 10. Data-Driven Resolution
+
+Endings are assembled from plot-defined resolution fragments selected by current state conditions. The engine does not contain Bellweather-specific ending prose.
+
+A new story defines its own resolution sections and alternatives in data.
+
+## 11. Story Design Boundary
+
+The engine should remain boring and rigid. The story may be creative and complex.
+
+If a future story requires PHP such as `if ($princeIsDead)` or `if ($reactorIsCritical)`, the design is wrong. Those conditions belong in story data.
+
+The practical architecture is:
+
+`Story Definition → Entity/Character State → Valid Actions → Decisions → Effects → State Changes → Goal/Fear Evaluation → New Opportunities → Resolution`
