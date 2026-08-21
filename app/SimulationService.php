@@ -12,7 +12,13 @@ final class SimulationService {
                 'WEST_ROUTE'=>'UNKNOWN',
                 'FARAH_EXIT_STATUS'=>'INSIDE',
                 'REPORT_HOLDER'=>'NONE',
-                'FAILED_REPORT_STATE'=>'UNSECURED'
+                'FAILED_REPORT_STATE'=>'UNSECURED',
+                'ALDEN_EVIDENCE_KNOWLEDGE'=>'KNOWN',
+                'ALDEN_SHAREABLE_EVIDENCE'=>'NO',
+                'REPORT_COPY_STATE'=>'NONE',
+                'EVIDENCE_WITNESSES'=>'ALDEN_ONLY',
+                'EVIDENCE_EXTERNALIZED'=>'NO',
+                'EVIDENCE_DISTRIBUTION'=>'PRIVATE'
             ];
             $is=$pdo->prepare('INSERT INTO simulation_state(simulation_id,state_key,state_value,updated_at_second) VALUES(?,?,?,0)');foreach($initialState as$k=>$v)$is->execute([$sid,$k,$v]);
             $roles=$pdo->prepare('SELECT * FROM plot_roles WHERE plot_id=? ORDER BY CASE WHEN role_type="PLAYER" THEN 0 ELSE 1 END,slot_no');$roles->execute([$plot['plot_id']]);
