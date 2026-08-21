@@ -19,6 +19,12 @@ function e($value): string { return htmlspecialchars((string)$value, ENT_QUOTES,
 require_once __DIR__ . '/GenericStateService.php';
 require_once __DIR__ . '/ResolutionService.php';
 require_once __DIR__ . '/TriggeredTransitionService.php';
+require_once __DIR__ . '/StoryReasoner.php';
+require_once __DIR__ . '/AiInteractionLogger.php';
+require_once __DIR__ . '/DeterministicStoryReasoner.php';
+require_once __DIR__ . '/OllamaStoryReasoner.php';
+require_once __DIR__ . '/StoryReasonerFactory.php';
+require_once __DIR__ . '/AiReasoningContextService.php';
 
 register_shutdown_function(static function (): void {
     $sid=(int)($_POST['simulation_id']??$_GET['simulation']??0);
