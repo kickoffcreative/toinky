@@ -1,8 +1,7 @@
 <?php
 final class BehaviorService {
     public static function onWorldEvent(int $sid,int $eventId,string $eventCode,int $second): void {
-        $pdo=db();
-        $sim=self::simulation($sid);
+        $pdo=db();$sim=self::simulation($sid);
         $p=$pdo->prepare('SELECT pep.*,c.character_id,c.name,c.actor_type FROM plot_event_perceptions pep JOIN plot_roles pr ON pr.plot_id=pep.plot_id AND pr.role_code=pep.role_code JOIN characters c ON c.simulation_id=? AND c.plot_role_id=pr.plot_role_id WHERE pep.plot_id=? AND pep.event_code=?');
         $p->execute([$sid,$sim['plot_id'],$eventCode]);
         foreach($p->fetchAll() as $r){
@@ -13,9 +12,13 @@ final class BehaviorService {
         $t->execute([$sid,$sim['plot_id'],$eventCode]);
         foreach($t->fetchAll() as $row){
             $pdo->prepare('INSERT IGNORE INTO decisions(simulation_id,character_id,event_id,prompt_text,status,opens_at_second,closes_at_second) VALUES(?,?,?,? ,"OPEN",?,?)')->execute([$sid,$row['character_id'],$eventId,$row['prompt_text'],$second,$second+(int)$row['decision_window_seconds']]);
-            $q=$pdo->prepare('SELECT decision_id FROM decisions WHERE character_id=? AND event_id=?');$q->execute([$row['character_id'],$eventId]);$did=(int)$q->fetchColumn();
-            $opts=$pdo->prepare('SELECT * FROM plot_decision_template_options WHERE template_id=? ORDER BY sort_order,template_option_id');$opts->execute([$row['template_id']]);
-            foreach($opts->fetchAll() as $o) $pdo->prepare('INSERT IGNORE INTO decision_options(decision_id,option_code,label,sort_order) VALUES(?,?,?,?)')->execute([$did,$o['option_code'],$o['label'],$o['sort_order']]);
+            $q=$pdo->prepare('SELECT decision_id,status FROM decisions WHERE character_id=? AND event_id=?');$q->execute([$row['character_id'],$eventId]);$decision=$q->fetch();$did=(int)($decision['decision_id']??0);if(!$did)continue;
+            $opts=$pdo->prepare('SELECT * FROM plot_decision_template_options WHERE template_id=? ORDER BY sort_order,template_option_id');$opts->execute([$row['template_id']]);$valid=0;
+            foreach($opts->fetchAll() as $o){
+                if(class_exists('CausalService') && !CausalService::optionAllowed($sid,(int)$o['template_option_id']))continue;
+                $pdo->prepare('INSERT IGNORE INTO decision_options(decision_id,option_code,label,sort_order) VALUES(?,?,?,?)')->execute([$did,$o['option_code'],$o['label'],$o['sort_order']]);$valid++;
+            }
+            if($valid===0){$pdo->prepare('UPDATE decisions SET status="CLOSED",resolved_text="No valid action remained in the current world state." WHERE decision_id=? AND status="OPEN"')->execute([$did]);continue;}
             if($row['actor_type']==='NPC') self::resolveNpc($sid,$did,(int)$row['template_id'],$second);
         }
     }
@@ -28,21 +31,25 @@ final class BehaviorService {
         if((int)$sim['elapsed_seconds']>(int)$d['closes_at_second']) throw new RuntimeException('That opportunity has already passed.');
         $o=$pdo->prepare('SELECT pdto.* FROM decision_options do JOIN plot_decision_template_options pdto ON pdto.option_code=do.option_code JOIN plot_decision_templates pdt ON pdt.template_id=pdto.template_id JOIN characters c ON c.character_id=? JOIN plot_roles pr ON pr.plot_role_id=c.plot_role_id WHERE do.decision_id=? AND do.option_code=? AND pdt.plot_id=? AND pdt.role_code=pr.role_code AND pdt.event_code=(SELECT se.event_code FROM decisions dx JOIN simulation_events se ON se.event_id=dx.event_id WHERE dx.decision_id=?) LIMIT 1');
         $o->execute([$d['character_id'],$decisionId,$optionCode,$sim['plot_id'],$decisionId]);$opt=$o->fetch();if(!$opt) throw new RuntimeException('Decision option not found.');
+        if(class_exists('CausalService') && !CausalService::optionAllowed($sid,(int)$opt['template_option_id']))throw new RuntimeException('That action is no longer possible because the world has changed.');
         self::applyOption($sid,$d,$opt,(int)$sim['elapsed_seconds'],'PLAYER');
     }
 
     public static function expire(int $sid,int $second): void {
-        $pdo=db();$q=$pdo->prepare('SELECT d.*,c.name FROM decisions d JOIN characters c ON c.character_id=d.character_id WHERE d.simulation_id=? AND d.status="OPEN" AND d.closes_at_second<?');$q->execute([$sid,$second]);
+        $pdo=db();$q=$pdo->prepare('SELECT d.*,c.name FROM decisions d JOIN characters c ON c.character_id=d.character_id WHERE d.simulation_id=? AND d.status="OPEN" AND d.closes_at_second<? ORDER BY d.closes_at_second,d.decision_id');$q->execute([$sid,$second]);
         foreach($q->fetchAll() as $d){
             $pdo->prepare('UPDATE decisions SET status="NO_ACTION",resolved_text=? WHERE decision_id=?')->execute(['The opportunity passed before you acted.',$d['decision_id']]);
             $pdo->prepare('INSERT INTO character_history(simulation_id,character_id,event_id,event_second,history_type,title,detail_text) VALUES(?,?,?,?,"NO_ACTION",?,?)')->execute([$sid,$d['character_id'],$d['event_id'],$d['closes_at_second'],'Opportunity Passed','You did not act before the situation changed. Other characters continued without your intervention.']);
             self::worldLog($sid,(int)$d['closes_at_second'],'NO_ACTION',$d['character_id'],$d['name'].' does not act','A decision window closes without action. The world continues.',(int)$d['event_id']);
+            if(class_exists('CausalService'))CausalService::applyNoActionDecision($sid,(int)$d['decision_id']);
         }
     }
 
     private static function resolveNpc(int $sid,int $decisionId,int $templateId,int $second): void {
         $pdo=db();$q=$pdo->prepare('SELECT d.*,c.name,c.character_id FROM decisions d JOIN characters c ON c.character_id=d.character_id WHERE d.decision_id=?');$q->execute([$decisionId]);$d=$q->fetch();if(!$d||$d['status']!=='OPEN')return;
-        $o=$pdo->prepare('SELECT * FROM plot_decision_template_options WHERE template_id=? ORDER BY sort_order');$o->execute([$templateId]);$options=$o->fetchAll();if(!$options)return;
+        $o=$pdo->prepare('SELECT * FROM plot_decision_template_options WHERE template_id=? ORDER BY sort_order');$o->execute([$templateId]);$options=[];
+        foreach($o->fetchAll() as$r){if(class_exists('CausalService')&&!CausalService::optionAllowed($sid,(int)$r['template_option_id']))continue;$options[]=$r;}
+        if(!$options){$pdo->prepare('UPDATE decisions SET status="CLOSED",resolved_text="No valid NPC action remained in the current world state." WHERE decision_id=?')->execute([$decisionId]);return;}
         $total=max(1,array_sum(array_map(fn($r)=>max(0,(int)$r['npc_weight']),$options)));$roll=random_int(1,$total);$pick=$options[0];$cursor=0;
         foreach($options as $r){$cursor+=max(0,(int)$r['npc_weight']);if($roll<=$cursor){$pick=$r;break;}}
         $considered=[];foreach($options as $r)$considered[]=$r['label'].' ['.(int)$r['npc_weight'].'%]'.($r['rationale_text']?' — '.$r['rationale_text']:'');
@@ -51,12 +58,13 @@ final class BehaviorService {
     }
 
     private static function applyOption(int $sid,array $d,array $opt,int $second,string $actorType): void {
-        $pdo=db();$sim=self::simulation($sid);$pdo->beginTransaction();
+        $pdo=db();$pdo->beginTransaction();
         try{
+            if(class_exists('CausalService')&&!CausalService::optionAllowed($sid,(int)$opt['template_option_id']))throw new RuntimeException('Action invalidated by current world state.');
             $pdo->prepare('UPDATE decisions SET status="CHOSEN",chosen_option_code=?,resolved_text=? WHERE decision_id=?')->execute([$opt['option_code'],$opt['result_text'],$d['decision_id']]);
             $pdo->prepare('INSERT INTO character_history(simulation_id,character_id,event_id,event_second,history_type,title,detail_text) VALUES(?,?,?,?,"DECISION",?,?)')->execute([$sid,$d['character_id'],$d['event_id'],$second,'Decision: '.$opt['label'],$opt['result_text']]);
             $effects=$pdo->prepare('SELECT * FROM plot_option_effects WHERE template_option_id=? ORDER BY sort_order,effect_id');$effects->execute([$opt['template_option_id']]);
-            $changes=[];foreach($effects->fetchAll() as $e){$changes[]=self::applyEffect($sid,(int)$d['character_id'],$d['event_id'],$second,$e);}
+            $changes=[];foreach($effects->fetchAll() as $e){$changes[]=self::applyEffect($sid,(int)$d['character_id'],$d['event_id'],$second,$e,$actorType,(int)$d['decision_id']);}
             $cq=$pdo->prepare('SELECT name FROM characters WHERE character_id=?');$cq->execute([$d['character_id']]);$name=(string)$cq->fetchColumn();
             $worldText=$opt['result_text'];if(array_filter($changes))$worldText.=' '.implode(' ',array_filter($changes));
             self::worldLog($sid,$second,$actorType.'_ACTION',(int)$d['character_id'],$name.': '.$opt['label'],$worldText,(int)$d['event_id']);
@@ -64,19 +72,24 @@ final class BehaviorService {
         }catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw$e;}
     }
 
-    private static function applyEffect(int $sid,int $cid,int $eventId,int $second,array $e): string {
+    private static function applyEffect(int $sid,int $cid,int $eventId,int $second,array $e,string $sourceType,?int $sourceId): string {
         $pdo=db();$scope=$e['effect_scope'];$detail=$e['detail_text']?:'';
         if($scope==='FACTOR'){
-            $q=$pdo->prepare('SELECT current_value,min_value,max_value,label FROM simulation_factors WHERE simulation_id=? AND factor_code=?');$q->execute([$sid,$e['target_code']]);$r=$q->fetch();if(!$r)return'';$old=(int)$r['current_value'];$new=max((int)$r['min_value'],min((int)$r['max_value'],$old+(int)$e['delta_value']));$pdo->prepare('UPDATE simulation_factors SET current_value=? WHERE simulation_id=? AND factor_code=?')->execute([$new,$sid,$e['target_code']]);return $r['label'].' '.$old.'→'.$new.'.';
+            $q=$pdo->prepare('SELECT current_value,min_value,max_value,label FROM simulation_factors WHERE simulation_id=? AND factor_code=? FOR UPDATE');$q->execute([$sid,$e['target_code']]);$r=$q->fetch();if(!$r)return'';$old=(int)$r['current_value'];$new=max((int)$r['min_value'],min((int)$r['max_value'],$old+(int)$e['delta_value']));
+            if($new===$old)return trim($detail);
+            $pdo->prepare('UPDATE simulation_factors SET current_value=? WHERE simulation_id=? AND factor_code=?')->execute([$new,$sid,$e['target_code']]);
+            $pdo->prepare('INSERT INTO simulation_factor_history(simulation_id,factor_code,old_value,new_value,event_second,source_type,source_id,detail_text) VALUES(?,?,?,?,?,?,?,?)')->execute([$sid,$e['target_code'],$old,$new,$second,$sourceType,$sourceId,$detail?:null]);
+            return $r['label'].' '.$old.'→'.$new.'.';
         }
         if($scope==='STAT'){
-            $q=$pdo->prepare('SELECT current_value,label FROM character_stats WHERE character_id=? AND stat_code=?');$q->execute([$cid,$e['target_code']]);$r=$q->fetch();if(!$r)return'';$old=(int)$r['current_value'];$new=max(0,min(100,$old+(int)$e['delta_value']));$pdo->prepare('UPDATE character_stats SET current_value=? WHERE character_id=? AND stat_code=?')->execute([$new,$cid,$e['target_code']]);$pdo->prepare('INSERT INTO character_history(simulation_id,character_id,event_id,event_second,history_type,title,detail_text) VALUES(?,?,?,?,"STAT_CHANGE",?,?)')->execute([$sid,$cid,$eventId,$second,$r['label'].' changed',$old.' → '.$new.($detail?' · '.$detail:'')]);return $r['label'].' '.$old.'→'.$new.'.';
+            $q=$pdo->prepare('SELECT current_value,label FROM character_stats WHERE character_id=? AND stat_code=? FOR UPDATE');$q->execute([$cid,$e['target_code']]);$r=$q->fetch();if(!$r)return'';$old=(int)$r['current_value'];$new=max(0,min(100,$old+(int)$e['delta_value']));$pdo->prepare('UPDATE character_stats SET current_value=? WHERE character_id=? AND stat_code=?')->execute([$new,$cid,$e['target_code']]);$pdo->prepare('INSERT INTO character_history(simulation_id,character_id,event_id,event_second,history_type,title,detail_text) VALUES(?,?,?,?,"STAT_CHANGE",?,?)')->execute([$sid,$cid,$eventId,$second,$r['label'].' changed',$old.' → '.$new.($detail?' · '.$detail:'')]);return $r['label'].' '.$old.'→'.$new.'.';
         }
         if($scope==='LOCATION'){self::setLocation($sid,$cid,(string)$e['set_value'],$second,$eventId,$detail?:'Location changed');return 'Location → '.$e['set_value'].'.';}
         if($scope==='KNOWLEDGE'){
             $pdo->prepare('INSERT INTO character_knowledge(character_id,knowledge_key,knowledge_text,state,confidence,learned_at_second) VALUES(?,?,?,"KNOWN",100,?) ON DUPLICATE KEY UPDATE knowledge_text=VALUES(knowledge_text),state="KNOWN",confidence=100,learned_at_second=VALUES(learned_at_second)')->execute([$cid,$e['target_code'],$e['set_value']?:$detail,$second]);$pdo->prepare('INSERT INTO character_history(simulation_id,character_id,event_id,event_second,history_type,title,detail_text) VALUES(?,?,?,?,"KNOWLEDGE",?,?)')->execute([$sid,$cid,$eventId,$second,'Knowledge Gained',$detail?:($e['set_value']?:$e['target_code'])]);return'';
         }
         if($scope==='WORLD_STATE'){
+            if(class_exists('CausalService'))return CausalService::setWorldState($sid,(string)$e['target_code'],(string)($e['set_value']??''),$second,$detail);
             $pdo->prepare('INSERT INTO simulation_state(simulation_id,state_key,state_value,updated_at_second) VALUES(?,?,?,?) ON DUPLICATE KEY UPDATE state_value=VALUES(state_value),updated_at_second=VALUES(updated_at_second)')->execute([$sid,$e['target_code'],$e['set_value']??'', $second]);return $detail?:($e['target_code'].'='.$e['set_value'].'.');
         }
         return'';
