@@ -6,6 +6,8 @@ final class SimulationService {
         try{
             $pdo->prepare('INSERT INTO simulations(plot_id,duration_seconds,mode,status,current_phase) VALUES(?,?,"MANUAL","READY","SETUP")')->execute([$plot['plot_id'],$duration]);$sid=(int)$pdo->lastInsertId();
             $f=$pdo->prepare('SELECT * FROM plot_factors WHERE plot_id=?');$f->execute([$plot['plot_id']]);foreach($f->fetchAll()as$r)$pdo->prepare('INSERT INTO simulation_factors(simulation_id,factor_code,label,current_value,min_value,max_value) VALUES(?,?,?,?,?,?)')->execute([$sid,$r['factor_code'],$r['label'],$r['initial_value'],$r['min_value'],$r['max_value']]);
+            $initialState=['GUEST_STATUS'=>'INJURED','GUEST_HELPERS'=>'1','WEST_ROUTE'=>'UNKNOWN','FARAH_EXIT_STATUS'=>'INSIDE'];
+            $is=$pdo->prepare('INSERT INTO simulation_state(simulation_id,state_key,state_value,updated_at_second) VALUES(?,?,?,0)');foreach($initialState as$k=>$v)$is->execute([$sid,$k,$v]);
             $roles=$pdo->prepare('SELECT * FROM plot_roles WHERE plot_id=? ORDER BY CASE WHEN role_type="PLAYER" THEN 0 ELSE 1 END,slot_no');$roles->execute([$plot['plot_id']]);
             foreach($roles->fetchAll()as$r){
                 $pdo->prepare('INSERT INTO characters(simulation_id,plot_role_id,actor_type,slot_no,name,description,private_knowledge,current_location,goal_text,fear_text) VALUES(?,?,?,?,?,?,?,?,?,?)')->execute([$sid,$r['plot_role_id'],$r['role_type'],$r['slot_no'],$r['name'],$r['public_description'],$r['private_knowledge'],$r['starting_location'],$r['goal_text'],$r['fear_text']]);$cid=(int)$pdo->lastInsertId();
