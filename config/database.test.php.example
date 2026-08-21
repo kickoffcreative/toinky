@@ -1,0 +1,7 @@
+<?php
+
+return [
+    'dsn' => 'mysql:host='.(getenv('GAME2_TEST_DB_HOST') ?: '127.0.0.1').';port='.(getenv('GAME2_TEST_DB_PORT') ?: '3307').';dbname='.(getenv('GAME2_TEST_DB_NAME') ?: 'game2_test').';charset=utf8mb4',
+    'username' => getenv('GAME2_TEST_DB_USER') ?: 'game2',
+    'password' => getenv('GAME2_TEST_DB_PASSWORD') ?: 'game2',
+];
