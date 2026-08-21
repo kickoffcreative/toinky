@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__.'/DynamicOpportunityService.php';
+require_once __DIR__.'/TriggeredTransitionService.php';
 
 final class StateSyncService
 {
@@ -7,9 +8,22 @@ final class StateSyncService
     {
         if($sid<=0)return;
         GenericStateService::initializePlotState($sid);
+
+        // Settle the causal loop in several idempotent passes:
+        // motives -> state transitions -> character reactions/opportunities -> repeat.
+        // Individual services keep their own once-only/history guards, so a pass with no new
+        // eligible state simply becomes a no-op. This lets a reaction cause another reaction
+        // in the same request without story-specific orchestration code.
+        for($pass=0;$pass<6;$pass++){
+            self::syncCurrentMotives($sid);
+            self::evaluateMotiveLifecycle($sid);
+            if(class_exists('TriggeredTransitionService'))TriggeredTransitionService::evaluate($sid);
+            if(class_exists('DynamicOpportunityService'))DynamicOpportunityService::reconcile($sid);
+        }
+
         self::syncCurrentMotives($sid);
         self::evaluateMotiveLifecycle($sid);
-        if(class_exists('DynamicOpportunityService'))DynamicOpportunityService::reconcile($sid);
+        if(class_exists('ResolutionService'))ResolutionService::refresh($sid);
     }
 
     private static function syncCurrentMotives(int $sid): void
