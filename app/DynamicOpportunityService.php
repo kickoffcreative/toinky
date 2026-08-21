@@ -1,6 +1,8 @@
 <?php
 final class DynamicOpportunityService
 {
+    public static function evaluate(int $sid,?int $second=null): void { self::reconcile($sid); }
+
     public static function reconcile(int $sid): void
     {
         if($sid<=0)return;
@@ -11,15 +13,21 @@ final class DynamicOpportunityService
         GenericStateService::initializePlotState($sid);
         self::syncStatuses($sid);
 
-        $q=$pdo->prepare('SELECT d.*,c.character_id,c.actor_type FROM plot_dynamic_opportunities d JOIN plot_roles pr ON pr.plot_id=d.plot_id AND pr.role_code=d.role_code JOIN characters c ON c.simulation_id=? AND c.plot_role_id=pr.plot_role_id WHERE d.plot_id=? AND d.active=1 ORDER BY d.priority,d.dynamic_opportunity_id');
-        $q->execute([$sid,$sim['plot_id']]);
-        foreach($q->fetchAll() as $rule){
-            if($rule['actor_type']!=='PLAYER')continue;
-            if((int)$sim['elapsed_seconds']>=(int)$sim['duration_seconds']-5)continue;
-            if(self::alreadyOpened($sid,(int)$rule['dynamic_opportunity_id'],(int)$rule['character_id']))continue;
-            if(self::hasOpenDecision((int)$rule['character_id']))continue;
-            if(!self::conditionsPass($sid,(int)$rule['character_id'],(int)$rule['dynamic_opportunity_id'],(string)$sim['current_phase']))continue;
-            self::openOpportunity($sid,$rule,$sim);
+        // Multiple passes let one NPC reaction alter state and immediately make another reaction eligible.
+        // Plot data defines every rule; this service knows nothing about the story's meaning.
+        for($pass=0;$pass<12;$pass++){
+            $opened=false;
+            $q=$pdo->prepare('SELECT d.*,c.character_id,c.actor_type FROM plot_dynamic_opportunities d JOIN plot_roles pr ON pr.plot_id=d.plot_id AND pr.role_code=d.role_code JOIN characters c ON c.simulation_id=? AND c.plot_role_id=pr.plot_role_id WHERE d.plot_id=? AND d.active=1 ORDER BY d.priority,d.dynamic_opportunity_id');
+            $q->execute([$sid,$sim['plot_id']]);
+            foreach($q->fetchAll() as $rule){
+                if((int)$sim['elapsed_seconds']>=(int)$sim['duration_seconds']-5)continue;
+                if(self::alreadyOpened($sid,(int)$rule['dynamic_opportunity_id'],(int)$rule['character_id']))continue;
+                if(self::hasOpenDecision((int)$rule['character_id']))continue;
+                if(!self::conditionsPass($sid,(int)$rule['character_id'],(int)$rule['dynamic_opportunity_id'],(string)$sim['current_phase']))continue;
+                self::openOpportunity($sid,$rule,$sim);$opened=true;
+            }
+            if(!$opened)break;
+            self::syncStatuses($sid);
         }
     }
 
@@ -54,10 +62,18 @@ final class DynamicOpportunityService
     {
         $pdo=db();
         if($type==='WORLD_STATE'){$r=GenericStateService::getByKey($sid,(string)$key);return[$r['exists'],$r['exists']?(string)$r['value']:''];}
+        if($type==='FACTOR'){$q=$pdo->prepare('SELECT current_value FROM simulation_factors WHERE simulation_id=? AND factor_code=?');$q->execute([$sid,$key]);$v=$q->fetchColumn();return[$v!==false,$v!==false?(string)$v:''];}
         if($type==='LOCATION'){$q=$pdo->prepare('SELECT current_location FROM characters WHERE character_id=?');$q->execute([$cid]);$v=$q->fetchColumn();return[$v!==false,(string)$v];}
         if($type==='GOAL'){$q=$pdo->prepare('SELECT goal_text FROM characters WHERE character_id=?');$q->execute([$cid]);$v=$q->fetchColumn();return[$v!==false,(string)$v];}
         if($type==='FEAR'){$q=$pdo->prepare('SELECT fear_text FROM characters WHERE character_id=?');$q->execute([$cid]);$v=$q->fetchColumn();return[$v!==false,(string)$v];}
+        if($type==='STAT'){$q=$pdo->prepare('SELECT current_value FROM character_stats WHERE character_id=? AND stat_code=?');$q->execute([$cid,$key]);$v=$q->fetchColumn();return[$v!==false,$v!==false?(string)$v:''];}
         if($type==='KNOWLEDGE'){$q=$pdo->prepare('SELECT knowledge_text FROM character_knowledge WHERE character_id=? AND knowledge_key=? AND state="KNOWN" LIMIT 1');$q->execute([$cid,$key]);$v=$q->fetchColumn();return[$v!==false,$v!==false?(string)$v:''];}
+        if($type==='RELATIONSHIP'){
+            // source_key format: ROLE_CODE:trust|suspicion|loyalty
+            [$role,$metric]=array_pad(explode(':',(string)$key,2),2,'');
+            if(!in_array($metric,['trust','suspicion','loyalty'],true))return[false,''];
+            $q=$pdo->prepare('SELECT r.'.$metric.' FROM relationships r JOIN characters target ON target.character_id=r.to_character_id JOIN plot_roles pr ON pr.plot_role_id=target.plot_role_id WHERE r.simulation_id=? AND r.from_character_id=? AND pr.role_code=? LIMIT 1');$q->execute([$sid,$cid,$role]);$v=$q->fetchColumn();return[$v!==false,$v!==false?(string)$v:''];
+        }
         if($type==='PHASE')return[true,$phase];
         if($type==='ACTION_COUNT'){$q=$pdo->prepare('SELECT COUNT(*) FROM decisions WHERE character_id=? AND status="CHOSEN"');$q->execute([$cid]);return[true,(string)(int)$q->fetchColumn()];}
         return[false,''];
@@ -91,19 +107,22 @@ final class DynamicOpportunityService
             $eventId=(int)$pdo->lastInsertId();
             if(class_exists('BehaviorService'))BehaviorService::onWorldEvent($sid,$eventId,$code,$second);
         }
-        $d=$pdo->prepare('SELECT decision_id FROM decisions WHERE character_id=? AND event_id=? LIMIT 1');$d->execute([$rule['character_id'],$eventId]);$decisionId=(int)$d->fetchColumn();
+        $d=$pdo->prepare('SELECT decision_id,status FROM decisions WHERE character_id=? AND event_id=? LIMIT 1');$d->execute([$rule['character_id'],$eventId]);$decision=$d->fetch();$decisionId=(int)($decision['decision_id']??0);
         if(!$decisionId)return;
-        $pdo->prepare('INSERT IGNORE INTO simulation_dynamic_opportunities(simulation_id,dynamic_opportunity_id,character_id,decision_id,created_at_second,status) VALUES(?,?,?,?,?,"OPENED")')->execute([$sid,$rule['dynamic_opportunity_id'],$rule['character_id'],$decisionId,$second]);
+        $status=($decision['status']??'OPEN')==='CHOSEN'?'CHOSEN':'OPENED';
+        $pdo->prepare('INSERT IGNORE INTO simulation_dynamic_opportunities(simulation_id,dynamic_opportunity_id,character_id,decision_id,created_at_second,status) VALUES(?,?,?,?,?,?)')->execute([$sid,$rule['dynamic_opportunity_id'],$rule['character_id'],$decisionId,$second,$status]);
         $pdo->prepare('INSERT INTO character_history(simulation_id,character_id,event_id,event_second,history_type,title,detail_text) VALUES(?,?,?,?,"INTERACTION","Dynamic Opportunity",?)')->execute([$sid,$rule['character_id'],$eventId,$second,$rule['prompt_text']]);
     }
 
     private static function ensureBehaviorTemplate(array $rule): void
     {
         $pdo=db();$q=$pdo->prepare('SELECT template_id FROM plot_decision_templates WHERE plot_id=? AND event_code=? AND role_code=? LIMIT 1');$q->execute([$rule['plot_id'],$rule['opportunity_code'],$rule['role_code']]);$templateId=(int)$q->fetchColumn();if($templateId)return;
-        $pdo->prepare('INSERT INTO plot_decision_templates(plot_id,event_code,role_code,actor_type,prompt_text,decision_window_seconds) VALUES(?,?,?,"PLAYER",?,?)')->execute([$rule['plot_id'],$rule['opportunity_code'],$rule['role_code'],$rule['prompt_text'],$rule['window_seconds']]);$templateId=(int)$pdo->lastInsertId();
+        $actorType=(string)($rule['actor_type']??'PLAYER');
+        $pdo->prepare('INSERT INTO plot_decision_templates(plot_id,event_code,role_code,actor_type,prompt_text,decision_window_seconds) VALUES(?,?,?,?,?,?)')->execute([$rule['plot_id'],$rule['opportunity_code'],$rule['role_code'],$actorType,$rule['prompt_text'],$rule['window_seconds']]);$templateId=(int)$pdo->lastInsertId();
         $o=$pdo->prepare('SELECT * FROM plot_dynamic_opportunity_options WHERE dynamic_opportunity_id=? ORDER BY sort_order,dynamic_option_id');$o->execute([$rule['dynamic_opportunity_id']]);
         foreach($o->fetchAll() as $opt){
-            $pdo->prepare('INSERT INTO plot_decision_template_options(template_id,option_code,label,npc_weight,rationale_text,result_text,sort_order) VALUES(?,?,?,0,NULL,?,?)')->execute([$templateId,$opt['option_code'],$opt['label'],$opt['result_text'],$opt['sort_order']]);$templateOptionId=(int)$pdo->lastInsertId();
+            $weight=$actorType==='NPC'?(int)($opt['npc_weight']??1):0;$rationale=$opt['rationale_text']??null;
+            $pdo->prepare('INSERT INTO plot_decision_template_options(template_id,option_code,label,npc_weight,rationale_text,result_text,sort_order) VALUES(?,?,?,?,?,?,?)')->execute([$templateId,$opt['option_code'],$opt['label'],$weight,$rationale,$opt['result_text'],$opt['sort_order']]);$templateOptionId=(int)$pdo->lastInsertId();
             $e=$pdo->prepare('SELECT * FROM plot_dynamic_option_effects WHERE dynamic_option_id=? ORDER BY sort_order,dynamic_effect_id');$e->execute([$opt['dynamic_option_id']]);
             foreach($e->fetchAll() as $effect)$pdo->prepare('INSERT INTO plot_option_effects(template_option_id,effect_scope,target_code,delta_value,set_value,detail_text,sort_order) VALUES(?,?,?,?,?,?,?)')->execute([$templateOptionId,$effect['effect_scope'],$effect['target_code'],$effect['delta_value'],$effect['set_value'],$effect['detail_text'],$effect['sort_order']]);
         }
