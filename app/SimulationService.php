@@ -6,7 +6,6 @@ final class SimulationService {
         try{
             $pdo->prepare('INSERT INTO simulations(plot_id,duration_seconds,mode,status,current_phase) VALUES(?,?,"MANUAL","READY","SETUP")')->execute([$plot['plot_id'],$duration]);$sid=(int)$pdo->lastInsertId();
             $f=$pdo->prepare('SELECT * FROM plot_factors WHERE plot_id=?');$f->execute([$plot['plot_id']]);foreach($f->fetchAll()as$r)$pdo->prepare('INSERT INTO simulation_factors(simulation_id,factor_code,label,current_value,min_value,max_value) VALUES(?,?,?,?,?,?)')->execute([$sid,$r['factor_code'],$r['label'],$r['initial_value'],$r['min_value'],$r['max_value']]);
-            // Generic entity/property state is authoritative. Aliases are mirrored for legacy rules.
             if(class_exists('GenericStateService'))GenericStateService::initializePlotState($sid);
             $roles=$pdo->prepare('SELECT * FROM plot_roles WHERE plot_id=? ORDER BY CASE WHEN role_type="PLAYER" THEN 0 ELSE 1 END,slot_no');$roles->execute([$plot['plot_id']]);
             foreach($roles->fetchAll()as$r){
@@ -19,54 +18,20 @@ final class SimulationService {
             $pdo->commit();return$sid;
         }catch(Throwable$e){if($pdo->inTransaction())$pdo->rollBack();throw$e;}
     }
-
-    public static function start(int $sid): void {
-        db()->prepare('UPDATE simulations SET status="RUNNING",current_phase="EXPOSITION",started_at_utc=UTC_TIMESTAMP() WHERE simulation_id=? AND status="READY"')->execute([$sid]);
-        self::generateDueEvents($sid,0,'EXPOSITION');
-    }
-
+    public static function start(int $sid): void {db()->prepare('UPDATE simulations SET status="RUNNING",current_phase="EXPOSITION",started_at_utc=UTC_TIMESTAMP() WHERE simulation_id=? AND status="READY"')->execute([$sid]);self::generateDueEvents($sid,0,'EXPOSITION');}
     public static function advance(int $sid,int $seconds=30): void {
         $pdo=db();$sim=self::simulation($sid);if($sim['status']==='READY'){self::start($sid);$sim=self::simulation($sid);}if($sim['status']!=='RUNNING')return;
         $next=min((int)$sim['duration_seconds'],(int)$sim['elapsed_seconds']+$seconds);$phase=self::phaseFor($next,(int)$sim['duration_seconds']);
         if(class_exists('BehaviorService'))BehaviorService::expire($sid,$next);
         $pdo->prepare('UPDATE simulations SET elapsed_seconds=?,current_phase=? WHERE simulation_id=?')->execute([$next,$phase,$sid]);self::generateDueEvents($sid,$next,$phase);
         if(class_exists('TriggeredTransitionService'))TriggeredTransitionService::evaluate($sid,$next,null);
-        if(class_exists('DynamicOpportunityService'))DynamicOpportunityService::evaluate($sid,$next);
+        if(class_exists('DynamicOpportunityService'))DynamicOpportunityService::reconcile($sid);
         if($next>=(int)$sim['duration_seconds']){$pdo->prepare('UPDATE simulations SET status="COMPLETE",current_phase="COMPLETE",ended_at_utc=UTC_TIMESTAMP() WHERE simulation_id=?')->execute([$sid]);if(class_exists('BehaviorService'))BehaviorService::expire($sid,$next+1);}
     }
-
     public static function choose(int $sid,int $decisionId,string $optionCode): void {if(!class_exists('BehaviorService'))throw new RuntimeException('Behavior engine is unavailable.');BehaviorService::choose($sid,$decisionId,$optionCode);}
     private static function phaseFor(int $elapsed,int $duration): string {$p=$duration?($elapsed/$duration):1;return$p<.18?'EXPOSITION':($p<.42?'INCITING_INCIDENT':($p<.72?'RISING_ACTION':($p<.92?'CLIMAX':'RESOLUTION')));}
-
-    private static function generateDueEvents(int $sid,int $elapsed,string $phase): void {
-        $pdo=db();$sim=self::simulation($sid);
-        $q=$pdo->prepare('SELECT pwe.* FROM plot_world_events pwe LEFT JOIN simulation_events se ON se.simulation_id=? AND se.event_code=pwe.event_code WHERE pwe.plot_id=? AND pwe.active=1 AND pwe.event_second<=? AND se.event_id IS NULL ORDER BY pwe.event_second,pwe.sort_order,pwe.plot_world_event_id');
-        $q->execute([$sid,$sim['plot_id'],$elapsed]);
-        foreach($q->fetchAll() as $event)self::worldEvent($sid,(int)$event['event_second'],(string)$event['phase'],(string)$event['event_code'],(string)$event['headline'],(string)$event['event_text']);
-    }
-
-    private static function worldEvent(int $sid,int $second,string $phase,string $code,string $headline,string $text): int {
-        $pdo=db();$q=$pdo->prepare('SELECT event_id FROM simulation_events WHERE simulation_id=? AND event_code=?');$q->execute([$sid,$code]);$id=(int)$q->fetchColumn();if($id)return$id;
-        $pdo->prepare('INSERT INTO simulation_events(simulation_id,event_second,phase,event_type,event_code,headline,event_text,visibility) VALUES(?,?,?,?,?,?,?,"WORLD")')->execute([$sid,$second,$phase,'WORLD',$code,$headline,$text]);$id=(int)$pdo->lastInsertId();
-        $sim=self::simulation($sid);$pq=$pdo->prepare('SELECT COUNT(*) FROM plot_event_perceptions WHERE plot_id=? AND event_code=?');$pq->execute([$sim['plot_id'],$code]);$hasSpecific=(int)$pq->fetchColumn()>0;
-        if($hasSpecific && class_exists('BehaviorService'))BehaviorService::onWorldEvent($sid,$id,$code,$second);else{$chars=$pdo->prepare('SELECT character_id FROM characters WHERE simulation_id=?');$chars->execute([$sid]);foreach($chars->fetchAll()as$c)$pdo->prepare('INSERT INTO character_history(simulation_id,character_id,event_id,event_second,history_type,title,detail_text) VALUES(?,?,?,?,"EXPERIENCED",?,?)')->execute([$sid,$c['character_id'],$id,$second,$headline,$text]);}
-        return$id;
-    }
-
-    public static function snapshot(int $sid): array {
-        $pdo=db();$s=$pdo->prepare('SELECT s.*,p.title,p.archetype,p.genre,p.setting_name FROM simulations s JOIN plots p ON p.plot_id=s.plot_id WHERE s.simulation_id=?');$s->execute([$sid]);$sim=$s->fetch();if(!$sim)throw new RuntimeException('Simulation not found.');
-        $f=$pdo->prepare('SELECT * FROM simulation_factors WHERE simulation_id=? ORDER BY simulation_factor_id');$f->execute([$sid]);
-        $c=$pdo->prepare('SELECT c.*,pr.starting_location AS initial_location,pr.goal_text AS initial_goal_text,pr.fear_text AS initial_fear_text FROM characters c JOIN plot_roles pr ON pr.plot_role_id=c.plot_role_id WHERE c.simulation_id=? ORDER BY CASE WHEN c.actor_type="PLAYER" THEN 0 ELSE 1 END,c.slot_no');$c->execute([$sid]);$chars=$c->fetchAll();
-        foreach($chars as&$ch){
-            $st=$pdo->prepare('SELECT cs.*,prs.initial_value FROM character_stats cs LEFT JOIN plot_role_stats prs ON prs.plot_role_id=? AND prs.stat_code=cs.stat_code WHERE cs.character_id=? ORDER BY cs.character_stat_id');$st->execute([$ch['plot_role_id'],$ch['character_id']]);$ch['stats']=$st->fetchAll();
-            $h=$pdo->prepare('SELECT * FROM character_history WHERE character_id=? ORDER BY event_second,history_id');$h->execute([$ch['character_id']]);$ch['history']=$h->fetchAll();
-            $d=$pdo->prepare('SELECT d.* FROM decisions d WHERE d.character_id=? AND d.status="OPEN" ORDER BY d.opens_at_second,d.decision_id');$d->execute([$ch['character_id']]);$ch['open_decisions']=$d->fetchAll();
-            foreach($ch['open_decisions']as&$dec){$o=$pdo->prepare('SELECT do.*,pdto.template_option_id FROM decision_options do JOIN decisions d ON d.decision_id=do.decision_id JOIN simulation_events se ON se.event_id=d.event_id JOIN characters c ON c.character_id=d.character_id JOIN plot_roles pr ON pr.plot_role_id=c.plot_role_id JOIN plot_decision_templates pdt ON pdt.plot_id=pr.plot_id AND pdt.role_code=pr.role_code AND pdt.event_code=se.event_code JOIN plot_decision_template_options pdto ON pdto.template_id=pdt.template_id AND pdto.option_code=do.option_code WHERE do.decision_id=? ORDER BY do.sort_order,do.decision_option_id');$o->execute([$dec['decision_id']]);$options=[];foreach($o->fetchAll()as$opt){if(class_exists('CausalService')&&!CausalService::optionAllowed($sid,(int)$opt['template_option_id']))continue;$options[]=$opt;}$dec['options']=$options;}unset($dec);
-            $ch['open_decisions']=array_values(array_filter($ch['open_decisions'],fn($d)=>!empty($d['options'])));
-        }
-        unset($ch);$e=$pdo->prepare('SELECT se.*,c.name actor_name FROM simulation_events se LEFT JOIN characters c ON c.character_id=se.actor_character_id WHERE se.simulation_id=? AND se.visibility="WORLD" ORDER BY se.event_second,se.event_id');$e->execute([$sid]);
-        return['simulation'=>$sim,'factors'=>$f->fetchAll(),'characters'=>$chars,'world'=>$e->fetchAll()];
-    }
-
+    private static function generateDueEvents(int $sid,int $elapsed,string $phase): void {$pdo=db();$sim=self::simulation($sid);$q=$pdo->prepare('SELECT pwe.* FROM plot_world_events pwe LEFT JOIN simulation_events se ON se.simulation_id=? AND se.event_code=pwe.event_code WHERE pwe.plot_id=? AND pwe.active=1 AND pwe.event_second<=? AND se.event_id IS NULL ORDER BY pwe.event_second,pwe.sort_order,pwe.plot_world_event_id');$q->execute([$sid,$sim['plot_id'],$elapsed]);foreach($q->fetchAll() as $event)self::worldEvent($sid,(int)$event['event_second'],(string)$event['phase'],(string)$event['event_code'],(string)$event['headline'],(string)$event['event_text']);}
+    private static function worldEvent(int $sid,int $second,string $phase,string $code,string $headline,string $text): int {$pdo=db();$q=$pdo->prepare('SELECT event_id FROM simulation_events WHERE simulation_id=? AND event_code=?');$q->execute([$sid,$code]);$id=(int)$q->fetchColumn();if($id)return$id;$pdo->prepare('INSERT INTO simulation_events(simulation_id,event_second,phase,event_type,event_code,headline,event_text,visibility) VALUES(?,?,?,?,?,?,?,"WORLD")')->execute([$sid,$second,$phase,'WORLD',$code,$headline,$text]);$id=(int)$pdo->lastInsertId();$sim=self::simulation($sid);$pq=$pdo->prepare('SELECT COUNT(*) FROM plot_event_perceptions WHERE plot_id=? AND event_code=?');$pq->execute([$sim['plot_id'],$code]);$hasSpecific=(int)$pq->fetchColumn()>0;if($hasSpecific&&class_exists('BehaviorService'))BehaviorService::onWorldEvent($sid,$id,$code,$second);else{$chars=$pdo->prepare('SELECT character_id FROM characters WHERE simulation_id=?');$chars->execute([$sid]);foreach($chars->fetchAll()as$c)$pdo->prepare('INSERT INTO character_history(simulation_id,character_id,event_id,event_second,history_type,title,detail_text) VALUES(?,?,?,?,"EXPERIENCED",?,?)')->execute([$sid,$c['character_id'],$id,$second,$headline,$text]);}return$id;}
+    public static function snapshot(int $sid): array {$pdo=db();$s=$pdo->prepare('SELECT s.*,p.title,p.archetype,p.genre,p.setting_name FROM simulations s JOIN plots p ON p.plot_id=s.plot_id WHERE s.simulation_id=?');$s->execute([$sid]);$sim=$s->fetch();if(!$sim)throw new RuntimeException('Simulation not found.');$f=$pdo->prepare('SELECT * FROM simulation_factors WHERE simulation_id=? ORDER BY simulation_factor_id');$f->execute([$sid]);$c=$pdo->prepare('SELECT c.*,pr.starting_location AS initial_location,pr.goal_text AS initial_goal_text,pr.fear_text AS initial_fear_text FROM characters c JOIN plot_roles pr ON pr.plot_role_id=c.plot_role_id WHERE c.simulation_id=? ORDER BY CASE WHEN c.actor_type="PLAYER" THEN 0 ELSE 1 END,c.slot_no');$c->execute([$sid]);$chars=$c->fetchAll();foreach($chars as&$ch){$st=$pdo->prepare('SELECT cs.*,prs.initial_value FROM character_stats cs LEFT JOIN plot_role_stats prs ON prs.plot_role_id=? AND prs.stat_code=cs.stat_code WHERE cs.character_id=? ORDER BY cs.character_stat_id');$st->execute([$ch['plot_role_id'],$ch['character_id']]);$ch['stats']=$st->fetchAll();$h=$pdo->prepare('SELECT * FROM character_history WHERE character_id=? ORDER BY event_second,history_id');$h->execute([$ch['character_id']]);$ch['history']=$h->fetchAll();$d=$pdo->prepare('SELECT d.* FROM decisions d WHERE d.character_id=? AND d.status="OPEN" ORDER BY d.opens_at_second,d.decision_id');$d->execute([$ch['character_id']]);$ch['open_decisions']=$d->fetchAll();foreach($ch['open_decisions']as&$dec){$o=$pdo->prepare('SELECT do.*,pdto.template_option_id FROM decision_options do JOIN decisions d ON d.decision_id=do.decision_id JOIN simulation_events se ON se.event_id=d.event_id JOIN characters c ON c.character_id=d.character_id JOIN plot_roles pr ON pr.plot_role_id=c.plot_role_id JOIN plot_decision_templates pdt ON pdt.plot_id=pr.plot_id AND pdt.role_code=pr.role_code AND pdt.event_code=se.event_code JOIN plot_decision_template_options pdto ON pdto.template_id=pdt.template_id AND pdto.option_code=do.option_code WHERE do.decision_id=? ORDER BY do.sort_order,do.decision_option_id');$o->execute([$dec['decision_id']]);$options=[];foreach($o->fetchAll()as$opt){if(class_exists('CausalService')&&!CausalService::optionAllowed($sid,(int)$opt['template_option_id']))continue;$options[]=$opt;}$dec['options']=$options;}unset($dec);$ch['open_decisions']=array_values(array_filter($ch['open_decisions'],fn($d)=>!empty($d['options'])));}unset($ch);$e=$pdo->prepare('SELECT se.*,c.name actor_name FROM simulation_events se LEFT JOIN characters c ON c.character_id=se.actor_character_id WHERE se.simulation_id=? AND se.visibility="WORLD" ORDER BY se.event_second,se.event_id');$e->execute([$sid]);return['simulation'=>$sim,'factors'=>$f->fetchAll(),'characters'=>$chars,'world'=>$e->fetchAll()];}
     private static function simulation(int $sid): array {$q=db()->prepare('SELECT * FROM simulations WHERE simulation_id=?');$q->execute([$sid]);$r=$q->fetch();if(!$r)throw new RuntimeException('Simulation not found.');return$r;}
 }
