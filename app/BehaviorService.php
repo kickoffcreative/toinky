@@ -52,7 +52,14 @@ final class BehaviorService {
         if(!$options){$pdo->prepare('UPDATE decisions SET status="CLOSED",resolved_text="No valid NPC action remained in the current world state." WHERE decision_id=?')->execute([$decisionId]);return;}
         $total=max(1,array_sum(array_map(fn($r)=>max(0,(int)$r['npc_weight']),$options)));$roll=random_int(1,$total);$pick=$options[0];$cursor=0;
         foreach($options as $r){$cursor+=max(0,(int)$r['npc_weight']);if($roll<=$cursor){$pick=$r;break;}}
-        $considered=[];foreach($options as $r)$considered[]=$r['label'].' ['.(int)$r['npc_weight'].'%]'.($r['rationale_text']?' — '.$r['rationale_text']:'');
+        $considered=[];
+        $remaining=100;
+        $lastIndex=count($options)-1;
+        foreach($options as $i=>$r){
+            $chance=$i===$lastIndex?$remaining:(int)round((max(0,(int)$r['npc_weight'])/$total)*100);
+            $chance=max(0,min($remaining,$chance));$remaining-=$chance;
+            $considered[]=$r['label'].' ['.$chance.'%]'.($r['rationale_text']?' — '.$r['rationale_text']:'');
+        }
         $pdo->prepare('INSERT INTO character_history(simulation_id,character_id,event_id,event_second,history_type,title,detail_text) VALUES(?,?,?,?,"INTERACTION",?,?)')->execute([$sid,$d['character_id'],$d['event_id'],$second,'Options Considered',implode("\n",$considered)]);
         self::applyOption($sid,$d,$pick,$second,'NPC');
     }
