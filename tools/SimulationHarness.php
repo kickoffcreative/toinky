@@ -48,14 +48,29 @@ final class SimulationHarness
         $pdo=db();$snapshot=SimulationService::snapshot($sid);$sim=$snapshot['simulation'];
         $state=[];
         try{$q=$pdo->prepare('SELECT state_key,state_value FROM simulation_state WHERE simulation_id=? ORDER BY state_key');$q->execute([$sid]);foreach($q->fetchAll() as$r)$state[$r['state_key']]=$r['state_value'];}catch(Throwable $e){}
+        $meaningfulState=self::meaningfulState($state);
         $factors=[];foreach($snapshot['factors'] as$f)$factors[$f['factor_code']]=(int)$f['current_value'];
         $characters=[];foreach($snapshot['characters'] as$c){$characters[$c['name']]=['type'=>$c['actor_type'],'goal'=>$c['goal_text'],'fear'=>$c['fear_text'],'location'=>$c['current_location'],'stats'=>array_column($c['stats'],'current_value','stat_code')];}
         $counts=['player_actions'=>0,'npc_actions'=>0,'player_no_action'=>0];
         $q=$pdo->prepare('SELECT c.actor_type,d.status,COUNT(*) n FROM decisions d JOIN characters c ON c.character_id=d.character_id WHERE d.simulation_id=? GROUP BY c.actor_type,d.status');$q->execute([$sid]);foreach($q->fetchAll()as$r){if($r['actor_type']==='PLAYER'&&$r['status']==='CHOSEN')$counts['player_actions']+=(int)$r['n'];if($r['actor_type']==='NPC'&&$r['status']==='CHOSEN')$counts['npc_actions']+=(int)$r['n'];if($r['actor_type']==='PLAYER'&&$r['status']==='NO_ACTION')$counts['player_no_action']+=(int)$r['n'];}
         $resolution='';$q=$pdo->prepare('SELECT event_text FROM simulation_events WHERE simulation_id=? AND event_code="FINAL_STATE" ORDER BY event_id DESC LIMIT 1');$q->execute([$sid]);$resolution=(string)($q->fetchColumn()?:'');
         $warnings=self::integrityWarnings($sid,$snapshot,$state,$resolution);
-        $signature=hash('sha256',json_encode(['factors'=>$factors,'state'=>$state,'goals'=>array_map(fn($c)=>$c['goal'],$characters)],JSON_UNESCAPED_UNICODE));
-        return ['simulation_id'=>$sid,'plot'=>$sim['title'],'status'=>$sim['status'],'factors'=>$factors,'state'=>$state,'characters'=>$characters,'counts'=>$counts,'resolution'=>$resolution,'warnings'=>$warnings,'outcome_signature'=>substr($signature,0,12)];
+        $signaturePayload=['factors'=>$factors,'state'=>$meaningfulState,'goals'=>array_map(fn($c)=>$c['goal'],$characters)];
+        $signature=hash('sha256',json_encode($signaturePayload,JSON_UNESCAPED_UNICODE));
+        return ['simulation_id'=>$sid,'plot'=>$sim['title'],'status'=>$sim['status'],'factors'=>$factors,'state'=>$state,'meaningful_state'=>$meaningfulState,'characters'=>$characters,'counts'=>$counts,'resolution'=>$resolution,'warnings'=>$warnings,'outcome_signature'=>substr($signature,0,12)];
+    }
+
+    private static function meaningfulState(array $state): array
+    {
+        $ignorePrefixes=['NO_ACTION_EFFECT_','TRANSITION_FIRED_','CONSEQUENCE_FIRED_','DYNAMIC_OPPORTUNITY_','OPPORTUNITY_FIRED_','GOAL_RULE_FIRED_','FEAR_RULE_FIRED_'];
+        $out=[];
+        foreach($state as$key=>$value){
+            $internal=false;
+            foreach($ignorePrefixes as$prefix)if(str_starts_with((string)$key,$prefix)){$internal=true;break;}
+            if(!$internal)$out[$key]=$value;
+        }
+        ksort($out);
+        return$out;
     }
 
     private static function integrityWarnings(int $sid,array $snapshot,array $state,string $resolution): array
