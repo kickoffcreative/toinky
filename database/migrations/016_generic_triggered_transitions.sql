@@ -54,9 +54,7 @@ DELETE FROM plot_triggered_transition_effects WHERE transition_id=@tr;
 INSERT INTO plot_triggered_transition_effects(transition_id,effect_scope,target_role_code,target_code,set_value,detail_text,sort_order) VALUES
 (@tr,'WORLD_STATE',NULL,'GUEST_STATUS','EVACUATING','The rescue now has a stabilized guest, enough committed helpers and a usable route, so evacuation begins.',1),
 (@tr,'GOAL','LEILA','SELF','Get the injured guest to the west evacuation point.','The objective advances from treatment and preparation to completing the evacuation.',2),
-(@tr,'FEAR','LEILA','SELF','The evacuation failing before the guest reaches safety.','The immediate risk is now completing movement through the hazardous building.',3),
-(@tr,'GOAL','KELLAN','SELF','Get the injured guest to the west evacuation point.','Kellan’s earlier commitment as second helper now becomes active evacuation work.',4),
-(@tr,'FEAR','KELLAN','SELF','The evacuation failing before the guest reaches safety.','Kellan is now physically committed to the rescue route.',5);
+(@tr,'FEAR','LEILA','SELF','The evacuation failing before the guest reaches safety.','The immediate risk is now completing movement through the hazardous building.',3);
 
 -- If the evacuation has begun, the climax can complete it without reverting to shelter logic.
 INSERT INTO plot_triggered_transitions(plot_id,transition_code,label,once_only,priority,active)
