@@ -1,0 +1,88 @@
+name: Game2 Simulation Lab
+
+on:
+  workflow_dispatch:
+    inputs:
+      plot:
+        description: Plot code
+        required: true
+        default: EMPTY_THRONE
+      runs:
+        description: Number of simulations
+        required: true
+        default: '50'
+      strategy:
+        description: Player strategy
+        required: true
+        type: choice
+        options:
+          - no-action
+          - random
+          - first
+        default: no-action
+  push:
+    branches: [main]
+    paths:
+      - 'app/**'
+      - 'database/**'
+      - 'tools/**'
+      - 'config/database.test.php.example'
+      - '.github/workflows/simulation-lab.yml'
+
+jobs:
+  simulate:
+    runs-on: ubuntu-latest
+    services:
+      mariadb:
+        image: mariadb:11.4
+        env:
+          MARIADB_DATABASE: game2_test
+          MARIADB_USER: game2
+          MARIADB_PASSWORD: game2
+          MARIADB_ROOT_PASSWORD: game2root
+        ports:
+          - 3307:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=2s
+          --health-timeout=3s
+          --health-retries=30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: pdo_mysql
+          coverage: none
+      - name: Run simulation batch
+        id: batch
+        continue-on-error: true
+        env:
+          GAME2_DATABASE_CONFIG: ${{ github.workspace }}/config/database.test.php.example
+          GAME2_TEST_DB_HOST: 127.0.0.1
+          GAME2_TEST_DB_PORT: '3307'
+          GAME2_TEST_DB_NAME: game2_test
+          GAME2_TEST_DB_USER: game2
+          GAME2_TEST_DB_PASSWORD: game2
+        run: |
+          PLOT="${{ inputs.plot || 'EMPTY_THRONE' }}"
+          RUNS="${{ inputs.runs || '25' }}"
+          STRATEGY="${{ inputs.strategy || 'no-action' }}"
+          php tools/simulate.php --reset --plot="$PLOT" --runs="$RUNS" --strategy="$STRATEGY" --json > simulation-report.json
+      - name: Show report summary
+        if: always()
+        run: |
+          if [ -f simulation-report.json ]; then
+            php -r '$r=json_decode(file_get_contents("simulation-report.json"),true); echo "Runs: ".$r["runs"].PHP_EOL; echo "Strategy: ".$r["strategy"].PHP_EOL; echo "Unique outcomes: ".$r["unique_outcomes"].PHP_EOL; echo "Warnings: ".$r["warning_count"].PHP_EOL; print_r($r["factor_ranges"]);'
+          fi
+      - name: Upload simulation report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: game2-simulation-report
+          path: simulation-report.json
+          if-no-files-found: warn
+      - name: Fail on integrity warnings or harness errors
+        if: steps.batch.outcome == 'failure'
+        run: exit 1
