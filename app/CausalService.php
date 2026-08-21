@@ -117,7 +117,7 @@ final class CausalService
         if($key==='FARAH_EXIT_STATUS'){
             $allowed=[
                 null=>['INSIDE'],
-                'INSIDE'=>['POSITIONED','ATTEMPTING'],
+                'INSIDE'=>['POSITIONED'],
                 'POSITIONED'=>['INSIDE','ATTEMPTING'],
                 'ATTEMPTING'=>['LEFT','BLOCKED'],
                 'LEFT'=>[],
@@ -130,6 +130,13 @@ final class CausalService
             $n=(int)$value;if($n<0||$n>6)return '';$value=(string)$n;
         }
         if($key==='WEST_ROUTE' && !in_array($value,['UNKNOWN','USABLE','BLOCKED'],true))return '';
+        if($key==='REPORT_HOLDER' && !in_array($value,['NONE','ALDEN','FARAH'],true))return '';
+        if($key==='ALDEN_EVIDENCE_KNOWLEDGE' && !in_array($value,['UNKNOWN','KNOWN'],true))return '';
+        if($key==='ALDEN_SHAREABLE_EVIDENCE' && !in_array($value,['NO','YES'],true))return '';
+        if($key==='REPORT_COPY_STATE' && !in_array($value,['NONE','ALDEN_COPY_EXISTS'],true))return '';
+        if($key==='EVIDENCE_WITNESSES' && !in_array($value,['ALDEN_ONLY','NIKO_INFORMED','CORROBORATED'],true))return '';
+        if($key==='EVIDENCE_EXTERNALIZED' && !in_array($value,['NO','YES'],true))return '';
+        if($key==='EVIDENCE_DISTRIBUTION' && !in_array($value,['PRIVATE','SHARED'],true))return '';
 
         $pdo->prepare('INSERT INTO simulation_state(simulation_id,state_key,state_value,updated_at_second) VALUES(?,?,?,?) ON DUPLICATE KEY UPDATE state_value=VALUES(state_value),updated_at_second=VALUES(updated_at_second)')->execute([$sid,$key,$value,$second]);
         return $detail?:($key.'='.($value!==''?$value:'EMPTY').'.');
@@ -141,8 +148,16 @@ final class CausalService
         $f=$pdo->prepare('SELECT factor_code,current_value FROM simulation_factors WHERE simulation_id=?');$f->execute([$sid]);$factors=[];foreach($f->fetchAll() as$r)$factors[$r['factor_code']]=(int)$r['current_value'];
         $s=$pdo->prepare('SELECT state_key,state_value FROM simulation_state WHERE simulation_id=?');$s->execute([$sid]);$state=[];foreach($s->fetchAll()as$r)$state[$r['state_key']]=$r['state_value'];
         $guest=$state['GUEST_STATUS']??'UNRESOLVED';$exit=$state['FARAH_EXIT_STATUS']??'INSIDE';
+        $holder=$state['REPORT_HOLDER']??'NONE';$externalized=$state['EVIDENCE_EXTERNALIZED']??'NO';$distribution=$state['EVIDENCE_DISTRIBUTION']??'PRIVATE';$witnesses=$state['EVIDENCE_WITNESSES']??'ALDEN_ONLY';$copy=$state['REPORT_COPY_STATE']??'NONE';
         $evidence=(int)($factors['EVIDENCE']??50);$safety=(int)($factors['SAFETY']??50);$control=(int)($factors['CONTROL']??50);$suspicion=(int)($factors['SUSPICION']??0);$trust=(int)($factors['TRUST']??50);
-        $truth=$evidence>=70?'The evidence survives in a strong, difficult-to-dismiss form.':($evidence>=45?'Enough evidence survives to keep the concealment question alive.':'The evidence chain is badly weakened and the truth will be difficult to prove.');
+
+        if($externalized==='YES')$truth='An evidence summary now exists outside Bellweather, so local control of the original report can no longer erase the entire evidence trail.';
+        elseif($distribution==='SHARED' || $copy==='ALDEN_COPY_EXISTS')$truth='Evidence survives in more than one recoverable path, so no single character completely controls the proof.';
+        elseif($witnesses==='CORROBORATED' || $witnesses==='NIKO_INFORMED')$truth='The evidence is no longer only Alden’s private claim; another person can corroborate at least part of what he knows.';
+        elseif($holder==='ALDEN')$truth='Alden still physically controls the failed report, but the evidence has not yet been distributed beyond him.';
+        elseif($holder==='FARAH')$truth='Farah physically controls the failed report, leaving the documentary evidence vulnerable to her decisions.';
+        else $truth=$evidence>=70?'The evidence score is strong, but the physical report remains unsecured and the surviving proof depends on what characters know.':($evidence>=45?'Enough knowledge and circumstantial evidence survives to keep the concealment question alive, but the physical report is not securely distributed.':'The evidence chain is badly weakened and the truth will be difficult to prove.');
+
         $people=$guest==='EVACUATED'?'The injured guest reaches the west evacuation point.':($guest==='AT_RISK'?'The injured guest remains exposed as the east-side danger peaks.':($guest==='EVACUATING'?'The injured guest is still being moved when the immediate story closes.':($guest==='STABILIZED'?'The injured guest is stabilized but remains inside the danger zone.':'The injured guest’s evacuation remains unresolved.')));
         $farah=$exit==='BLOCKED'?'Farah is stopped at the rear exit and cannot simply carry the night’s unresolved questions away with her.':($exit==='LEFT'?'Farah leaves Bellweather before the group can fully resolve the confrontation.':($exit==='ATTEMPTING'?'Farah is still trying to leave as the final confrontation closes.':($exit==='POSITIONED'?'Farah remains near the rear exit but never completes an escape attempt.':'Farah remains inside Bellweather as the confrontation closes.')));
         $text=$people.' '.$truth.' '.$farah.' Final factors: Safety '.$safety.', Evidence '.$evidence.', Farah Control '.$control.', Public Suspicion '.$suspicion.', Group Trust '.$trust.'.';
