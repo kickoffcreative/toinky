@@ -1,0 +1,17 @@
+services:
+  game2-test-db:
+    image: mariadb:11.4
+    environment:
+      MARIADB_DATABASE: game2_test
+      MARIADB_USER: game2
+      MARIADB_PASSWORD: game2
+      MARIADB_ROOT_PASSWORD: game2root
+    ports:
+      - "3307:3306"
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    tmpfs:
+      - /var/lib/mysql
