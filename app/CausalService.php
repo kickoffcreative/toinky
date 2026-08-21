@@ -100,9 +100,37 @@ final class CausalService
     public static function setWorldState(int $sid,string $key,string $value,int $second,string $detail=''): string
     {
         $pdo=db();$q=$pdo->prepare('SELECT state_value FROM simulation_state WHERE simulation_id=? AND state_key=?');$q->execute([$sid,$key]);$old=$q->fetchColumn();$exists=$old!==false;$old=$exists?(string)$old:null;
-        if($key==='GUEST_STATUS' && $old==='EVACUATED' && $value!=='EVACUATED')return '';
-        if($key==='FARAH_EXIT_STATUS' && in_array($old,['LEFT','BLOCKED'],true) && $value!==$old)return '';
         if($exists && $old===$value)return '';
+
+        if($key==='GUEST_STATUS'){
+            $allowed=[
+                null=>['INJURED'],
+                'INJURED'=>['STABILIZED','AT_RISK'],
+                'STABILIZED'=>['EVACUATING','AT_RISK'],
+                'EVACUATING'=>['EVACUATED','AT_RISK'],
+                'AT_RISK'=>['STABILIZED','EVACUATING','EVACUATED'],
+                'EVACUATED'=>[],
+            ];
+            if(!in_array($value,$allowed[$old]??[],true))return '';
+        }
+
+        if($key==='FARAH_EXIT_STATUS'){
+            $allowed=[
+                null=>['INSIDE'],
+                'INSIDE'=>['POSITIONED','ATTEMPTING'],
+                'POSITIONED'=>['INSIDE','ATTEMPTING'],
+                'ATTEMPTING'=>['LEFT','BLOCKED'],
+                'LEFT'=>[],
+                'BLOCKED'=>[],
+            ];
+            if(!in_array($value,$allowed[$old]??[],true))return '';
+        }
+
+        if($key==='GUEST_HELPERS'){
+            $n=(int)$value;if($n<0||$n>6)return '';$value=(string)$n;
+        }
+        if($key==='WEST_ROUTE' && !in_array($value,['UNKNOWN','USABLE','BLOCKED'],true))return '';
+
         $pdo->prepare('INSERT INTO simulation_state(simulation_id,state_key,state_value,updated_at_second) VALUES(?,?,?,?) ON DUPLICATE KEY UPDATE state_value=VALUES(state_value),updated_at_second=VALUES(updated_at_second)')->execute([$sid,$key,$value,$second]);
         return $detail?:($key.'='.($value!==''?$value:'EMPTY').'.');
     }
@@ -112,11 +140,11 @@ final class CausalService
         $pdo=db();$q=$pdo->prepare('SELECT event_id FROM simulation_events WHERE simulation_id=? AND event_code="FINAL_STATE" LIMIT 1');$q->execute([$sid]);$eventId=(int)$q->fetchColumn();if(!$eventId)return;
         $f=$pdo->prepare('SELECT factor_code,current_value FROM simulation_factors WHERE simulation_id=?');$f->execute([$sid]);$factors=[];foreach($f->fetchAll() as$r)$factors[$r['factor_code']]=(int)$r['current_value'];
         $s=$pdo->prepare('SELECT state_key,state_value FROM simulation_state WHERE simulation_id=?');$s->execute([$sid]);$state=[];foreach($s->fetchAll()as$r)$state[$r['state_key']]=$r['state_value'];
-        $guest=$state['GUEST_STATUS']??'UNRESOLVED';$exit=$state['FARAH_EXIT_STATUS']??($state['FARAH_POSITIONED_TO_LEAVE']??null ? 'POSITIONED TO LEAVE':'UNRESOLVED');
+        $guest=$state['GUEST_STATUS']??'UNRESOLVED';$exit=$state['FARAH_EXIT_STATUS']??'INSIDE';
         $evidence=(int)($factors['EVIDENCE']??50);$safety=(int)($factors['SAFETY']??50);$control=(int)($factors['CONTROL']??50);$suspicion=(int)($factors['SUSPICION']??0);$trust=(int)($factors['TRUST']??50);
         $truth=$evidence>=70?'The evidence survives in a strong, difficult-to-dismiss form.':($evidence>=45?'Enough evidence survives to keep the concealment question alive.':'The evidence chain is badly weakened and the truth will be difficult to prove.');
         $people=$guest==='EVACUATED'?'The injured guest reaches the west evacuation point.':($guest==='AT_RISK'?'The injured guest remains exposed as the east-side danger peaks.':($guest==='EVACUATING'?'The injured guest is still being moved when the immediate story closes.':($guest==='STABILIZED'?'The injured guest is stabilized but remains inside the danger zone.':'The injured guest’s evacuation remains unresolved.')));
-        $farah=$exit==='BLOCKED'?'Farah is stopped at the rear exit and cannot simply carry the night’s unresolved questions away with her.':($exit==='LEFT'?'Farah leaves Bellweather before the group can fully resolve the confrontation.':($exit==='ATTEMPTING'?'Farah is still trying to leave as the final confrontation closes.':'Farah’s final position remains inside the unresolved crisis.'));
+        $farah=$exit==='BLOCKED'?'Farah is stopped at the rear exit and cannot simply carry the night’s unresolved questions away with her.':($exit==='LEFT'?'Farah leaves Bellweather before the group can fully resolve the confrontation.':($exit==='ATTEMPTING'?'Farah is still trying to leave as the final confrontation closes.':($exit==='POSITIONED'?'Farah remains near the rear exit but never completes an escape attempt.':'Farah remains inside Bellweather as the confrontation closes.')));
         $text=$people.' '.$truth.' '.$farah.' Final factors: Safety '.$safety.', Evidence '.$evidence.', Farah Control '.$control.', Public Suspicion '.$suspicion.', Group Trust '.$trust.'.';
         $pdo->prepare('UPDATE simulation_events SET headline="What Actually Remains",event_text=? WHERE event_id=?')->execute([$text,$eventId]);
     }
