@@ -2,8 +2,9 @@
 function db(): PDO {
     static $pdo = null;
     if ($pdo instanceof PDO) return $pdo;
-    $path = __DIR__ . '/../config/database.php';
-    if (!is_file($path)) throw new RuntimeException('Missing config/database.php');
+    $override = trim((string)getenv('GAME2_DATABASE_CONFIG'));
+    $path = $override !== '' ? $override : (__DIR__ . '/../config/database.php');
+    if (!is_file($path)) throw new RuntimeException('Missing database config: '.$path);
     $cfg = require $path;
     $pdo = new PDO($cfg['dsn'], $cfg['username'], $cfg['password'], [
         PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
