@@ -13,16 +13,18 @@ final class DynamicOpportunityService
         GenericStateService::initializePlotState($sid);
         self::syncStatuses($sid);
 
-        // Multiple passes let one NPC reaction alter state and immediately make another reaction eligible.
-        // Plot data defines every rule; this service knows nothing about the story's meaning.
+        // Multiple passes let one actor's decision alter state and immediately make OTHER actors eligible.
+        // The same NPC is subject to a short plot-configurable action cooldown so it cannot chain
+        // independent decisions at the exact same simulation instant.
         for($pass=0;$pass<12;$pass++){
             $opened=false;
-            $q=$pdo->prepare('SELECT d.*,c.character_id,c.actor_type FROM plot_dynamic_opportunities d JOIN plot_roles pr ON pr.plot_id=d.plot_id AND pr.role_code=d.role_code JOIN characters c ON c.simulation_id=? AND c.plot_role_id=pr.plot_role_id WHERE d.plot_id=? AND d.active=1 ORDER BY d.priority,d.dynamic_opportunity_id');
+            $q=$pdo->prepare('SELECT d.*,c.character_id,c.actor_type,p.npc_action_cooldown_seconds FROM plot_dynamic_opportunities d JOIN plot_roles pr ON pr.plot_id=d.plot_id AND pr.role_code=d.role_code JOIN characters c ON c.simulation_id=? AND c.plot_role_id=pr.plot_role_id JOIN plots p ON p.plot_id=d.plot_id WHERE d.plot_id=? AND d.active=1 ORDER BY d.priority,d.dynamic_opportunity_id');
             $q->execute([$sid,$sim['plot_id']]);
             foreach($q->fetchAll() as $rule){
                 if((int)$sim['elapsed_seconds']>=(int)$sim['duration_seconds']-5)continue;
                 if(self::alreadyOpened($sid,(int)$rule['dynamic_opportunity_id'],(int)$rule['character_id']))continue;
                 if(self::hasOpenDecision((int)$rule['character_id']))continue;
+                if((string)$rule['actor_type']==='NPC' && self::npcCooldownActive((int)$rule['character_id'],(int)$sim['elapsed_seconds'],(int)$rule['npc_action_cooldown_seconds']))continue;
                 if(!self::conditionsPass($sid,(int)$rule['character_id'],(int)$rule['dynamic_opportunity_id'],(string)$sim['current_phase']))continue;
                 self::openOpportunity($sid,$rule,$sim);$opened=true;
             }
@@ -48,6 +50,15 @@ final class DynamicOpportunityService
         $q=db()->prepare('SELECT 1 FROM decisions WHERE character_id=? AND status="OPEN" LIMIT 1');$q->execute([$cid]);return(bool)$q->fetchColumn();
     }
 
+    private static function npcCooldownActive(int $cid,int $second,int $cooldown): bool
+    {
+        if($cooldown<=0)return false;
+        $q=db()->prepare('SELECT MAX(opens_at_second) FROM decisions WHERE character_id=? AND status="CHOSEN"');
+        $q->execute([$cid]);$last=$q->fetchColumn();
+        if($last===false || $last===null)return false;
+        return ($second-(int)$last)<$cooldown;
+    }
+
     private static function conditionsPass(int $sid,int $cid,int $ruleId,string $phase): bool
     {
         $q=db()->prepare('SELECT * FROM plot_dynamic_opportunity_conditions WHERE dynamic_opportunity_id=? ORDER BY sort_order,dynamic_condition_id');$q->execute([$ruleId]);
@@ -69,7 +80,6 @@ final class DynamicOpportunityService
         if($type==='STAT'){$q=$pdo->prepare('SELECT current_value FROM character_stats WHERE character_id=? AND stat_code=?');$q->execute([$cid,$key]);$v=$q->fetchColumn();return[$v!==false,$v!==false?(string)$v:''];}
         if($type==='KNOWLEDGE'){$q=$pdo->prepare('SELECT knowledge_text FROM character_knowledge WHERE character_id=? AND knowledge_key=? AND state="KNOWN" LIMIT 1');$q->execute([$cid,$key]);$v=$q->fetchColumn();return[$v!==false,$v!==false?(string)$v:''];}
         if($type==='RELATIONSHIP'){
-            // source_key format: ROLE_CODE:trust|suspicion|loyalty
             [$role,$metric]=array_pad(explode(':',(string)$key,2),2,'');
             if(!in_array($metric,['trust','suspicion','loyalty'],true))return[false,''];
             $q=$pdo->prepare('SELECT r.'.$metric.' FROM relationships r JOIN characters target ON target.character_id=r.to_character_id JOIN plot_roles pr ON pr.plot_role_id=target.plot_role_id WHERE r.simulation_id=? AND r.from_character_id=? AND pr.role_code=? LIMIT 1');$q->execute([$sid,$cid,$role]);$v=$q->fetchColumn();return[$v!==false,$v!==false?(string)$v:''];
@@ -105,13 +115,15 @@ final class DynamicOpportunityService
         if(!$eventId){
             $pdo->prepare('INSERT INTO simulation_events(simulation_id,event_second,phase,event_type,actor_character_id,event_code,headline,event_text,visibility) VALUES(?,?,?,?,?,?,?,?,"PRIVATE")')->execute([$sid,$second,$sim['current_phase'],'SYSTEM',(int)$rule['character_id'],$code,'A New Opportunity Opens',(string)$rule['prompt_text']]);
             $eventId=(int)$pdo->lastInsertId();
+            // Log the opportunity BEFORE BehaviorService resolves an NPC decision, so history reads
+            // Opportunity -> Options Considered -> Decision -> Consequence.
+            $pdo->prepare('INSERT INTO character_history(simulation_id,character_id,event_id,event_second,history_type,title,detail_text) VALUES(?,?,?,?,"INTERACTION","Dynamic Opportunity",?)')->execute([$sid,$rule['character_id'],$eventId,$second,$rule['prompt_text']]);
             if(class_exists('BehaviorService'))BehaviorService::onWorldEvent($sid,$eventId,$code,$second);
         }
         $d=$pdo->prepare('SELECT decision_id,status FROM decisions WHERE character_id=? AND event_id=? LIMIT 1');$d->execute([$rule['character_id'],$eventId]);$decision=$d->fetch();$decisionId=(int)($decision['decision_id']??0);
         if(!$decisionId)return;
         $status=($decision['status']??'OPEN')==='CHOSEN'?'CHOSEN':'OPENED';
         $pdo->prepare('INSERT IGNORE INTO simulation_dynamic_opportunities(simulation_id,dynamic_opportunity_id,character_id,decision_id,created_at_second,status) VALUES(?,?,?,?,?,?)')->execute([$sid,$rule['dynamic_opportunity_id'],$rule['character_id'],$decisionId,$second,$status]);
-        $pdo->prepare('INSERT INTO character_history(simulation_id,character_id,event_id,event_second,history_type,title,detail_text) VALUES(?,?,?,?,"INTERACTION","Dynamic Opportunity",?)')->execute([$sid,$rule['character_id'],$eventId,$second,$rule['prompt_text']]);
     }
 
     private static function ensureBehaviorTemplate(array $rule): void
