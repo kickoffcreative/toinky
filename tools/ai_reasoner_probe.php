@@ -1,0 +1,9 @@
+<?php
+$root=dirname(__DIR__);require_once $root.'/app/bootstrap.php';
+$context=['purpose'=>'CONNECTIVITY_PROBE','name'=>'Prince Rowan Vale','goal'=>'Be crowned before the court can challenge his claim.','fear'=>'The abdication letter becoming authoritative.','location'=>'Council Chamber','stats'=>['AMBITION'=>94,'PRIDE'=>86],'knowledge'=>[['key'=>'ABDICATION','text'=>'You signed an abdication letter months ago and later tried to withdraw it.','confidence'=>100]],'world'=>['CROWN_HOLDER'=>'NONE','ROWAN_CLAIM'=>'DISPUTED','ELIAN_CLAIM'=>'ACTIVE','LETTER_STATUS'=>'VERIFIED','LETTER_HOLDER'=>'TOMAS'],'factors'=>['COURT_TRUST'=>52,'LEGITIMACY'=>48,'STABILITY'=>68,'UNREST'=>35]];
+$options=[
+ ['option_code'=>'CONTEST_LETTER','label'=>'Challenge the letter’s legal effect through the council.','result_text'=>'Rowan openly contests whether the verified abdication still controls the succession.','npc_weight'=>40,'rationale_text'=>'Preserves a path to the crown without inventing control over the document.'],
+ ['option_code'=>'SEEK_RECOGNITION','label'=>'Press the council for recognition despite the disputed claim.','result_text'=>'Rowan converts the dispute into an open political contest.','npc_weight'=>35,'rationale_text'=>'High ambition favors keeping political momentum.'],
+ ['option_code'=>'ACCEPT_DELAY','label'=>'Accept a temporary delay while preserving your claim.','result_text'=>'Rowan postpones coronation rather than forcing the issue immediately.','npc_weight'=>25,'rationale_text'=>'A delay can preserve position when evidence is dangerous.'],
+];
+try{$reasoner=StoryReasonerFactory::withFallback();$result=$reasoner->selectOption($context,$options);echo json_encode($result,JSON_PRETTY_PRINT|JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES).PHP_EOL;exit(0);}catch(Throwable$e){fwrite(STDERR,'AI reasoner probe failed: '.$e->getMessage().PHP_EOL);exit(1);}
