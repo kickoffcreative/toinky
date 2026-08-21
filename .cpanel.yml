@@ -2,8 +2,9 @@
 deployment:
   tasks:
     - export DEPLOYPATH=/home/sixpillarsadmin/game2.sixpillarsmodel.com/
-    - /bin/cp -f index.php $DEPLOYPATH
+    - /bin/cp -f index.php install.php $DEPLOYPATH
     - /bin/cp -Rf app $DEPLOYPATH
     - /bin/cp -Rf public $DEPLOYPATH
+    - /bin/cp -Rf database $DEPLOYPATH
     - /bin/mkdir -p $DEPLOYPATH/config
     - /bin/cp -f config/database.example.php $DEPLOYPATH/config/database.example.php
