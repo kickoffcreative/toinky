@@ -18,6 +18,8 @@ on:
         options:
           - no-action
           - random
+          - anti-rowan
+          - pro-rowan
           - first
         default: no-action
   push:
@@ -74,7 +76,7 @@ jobs:
         if: always()
         run: |
           if [ -f simulation-report.json ]; then
-            php -r '$r=json_decode(file_get_contents("simulation-report.json"),true); echo "Runs: ".$r["runs"].PHP_EOL; echo "Strategy: ".$r["strategy"].PHP_EOL; echo "Unique outcomes: ".$r["unique_outcomes"].PHP_EOL; echo "Warnings: ".$r["warning_count"].PHP_EOL; print_r($r["factor_ranges"]);'
+            php -r '$r=json_decode(file_get_contents("simulation-report.json"),true); echo "Runs: ".$r["runs"].PHP_EOL; echo "Strategy: ".$r["strategy"].PHP_EOL; echo "Semantic outcome families: ".$r["unique_outcome_families"].PHP_EOL; echo "Warnings: ".$r["warning_count"].PHP_EOL; foreach(array_slice($r["outcome_families"],0,10) as $f) echo $f["count"]." (".$f["percent"]."%) ".$f["label"].PHP_EOL; print_r($r["factor_ranges"]);'
           fi
       - name: Upload simulation report
         if: always()
