@@ -1,29 +1,18 @@
 <?php
 final class TriggeredTransitionService
 {
-    public static function evaluate(int $sid, ?int $second=null, ?int $eventId=null): void
+    public static function evaluate(int $sid,?int $second=null,?int $eventId=null): void
     {
-        if ($sid <= 0) return;
-        $pdo=db();
-        $simQ=$pdo->prepare('SELECT plot_id,elapsed_seconds,current_phase FROM simulations WHERE simulation_id=?');
-        $simQ->execute([$sid]);$sim=$simQ->fetch();if(!$sim)return;
-        $second=$second??(int)$sim['elapsed_seconds'];
-
-        // Allow cascades (A causes B causes C) while preventing runaway loops.
+        if($sid<=0)return;$pdo=db();GenericStateService::initializePlotState($sid);
+        $simQ=$pdo->prepare('SELECT plot_id,elapsed_seconds,current_phase FROM simulations WHERE simulation_id=?');$simQ->execute([$sid]);$sim=$simQ->fetch();if(!$sim)return;$second=$second??(int)$sim['elapsed_seconds'];
         for($pass=0;$pass<20;$pass++){
-            $firedAny=false;
-            $q=$pdo->prepare('SELECT * FROM plot_triggered_transitions WHERE plot_id=? AND active=1 ORDER BY priority,transition_id');
-            $q->execute([(int)$sim['plot_id']]);
+            $fired=false;$q=$pdo->prepare('SELECT * FROM plot_triggered_transitions WHERE plot_id=? AND active=1 ORDER BY priority,transition_id');$q->execute([(int)$sim['plot_id']]);
             foreach($q->fetchAll() as $tr){
-                $marker='TRANSITION_FIRED_'.$tr['transition_id'];
-                if((int)$tr['once_only']===1){$m=$pdo->prepare('SELECT 1 FROM simulation_state WHERE simulation_id=? AND state_key=?');$m->execute([$sid,$marker]);if($m->fetchColumn())continue;}
+                $marker='TRANSITION_FIRED_'.$tr['transition_id'];if((int)$tr['once_only']===1 && GenericStateService::getByKey($sid,$marker)['exists'])continue;
                 if(!self::conditionsPass($sid,(int)$tr['transition_id'],(string)$sim['current_phase']))continue;
-                self::applyTransition($sid,$tr,$second,$eventId);
-                $pdo->prepare('INSERT INTO simulation_state(simulation_id,state_key,state_value,updated_at_second) VALUES(?,?,"YES",?) ON DUPLICATE KEY UPDATE state_value="YES",updated_at_second=VALUES(updated_at_second)')->execute([$sid,$marker,$second]);
-                $firedAny=true;
+                self::applyTransition($sid,$tr,$second,$eventId);GenericStateService::setByKey($sid,$marker,'YES',$second);$fired=true;
             }
-            if(!$firedAny)break;
-            $simQ->execute([$sid]);$sim=$simQ->fetch();if(!$sim)break;
+            if(!$fired)break;$simQ->execute([$sid]);$sim=$simQ->fetch();if(!$sim)break;
         }
     }
 
@@ -31,27 +20,16 @@ final class TriggeredTransitionService
     {
         $q=db()->prepare('SELECT * FROM plot_triggered_transition_conditions WHERE transition_id=? ORDER BY sort_order,transition_condition_id');$q->execute([$transitionId]);
         foreach($q->fetchAll() as $c){
-            if($c['state_key']==='STORY_PHASE'){$exists=true;$value=$phase;}else{$s=db()->prepare('SELECT state_value FROM simulation_state WHERE simulation_id=? AND state_key=?');$s->execute([$sid,$c['state_key']]);$value=$s->fetchColumn();$exists=$value!==false;$value=$exists?(string)$value:null;}
-            $list=array_values(array_filter(array_map('trim',explode(',',(string)$c['compare_value'])),fn($v)=>$v!==''));
-            $ok=match($c['operator']){
-                'EQ'=>$exists && $value===(string)$c['compare_value'],
-                'NEQ'=>!$exists || $value!==(string)$c['compare_value'],
-                'IN'=>$exists && in_array($value,$list,true),
-                'NOT_IN'=>!$exists || !in_array($value,$list,true),
-                'EXISTS'=>$exists,
-                'NOT_EXISTS'=>!$exists,
-                default=>true,
-            };
+            if($c['state_key']==='STORY_PHASE'){$value=$phase;$compare=(string)$c['compare_value'];$list=array_values(array_filter(array_map('trim',explode(',',$compare)),fn($v)=>$v!==''));$ok=match($c['operator']){'EQ'=>$value===$compare,'NEQ'=>$value!==$compare,'IN'=>in_array($value,$list,true),'NOT_IN'=>!in_array($value,$list,true),default=>true,};}
+            else $ok=GenericStateService::conditionPasses($sid,$c['state_key'],$c['operator'],$c['compare_value']);
             if(!$ok)return false;
-        }
-        return true;
+        }return true;
     }
 
     private static function applyTransition(int $sid,array $tr,int $second,?int $eventId): void
     {
         $pdo=db();$effects=$pdo->prepare('SELECT * FROM plot_triggered_transition_effects WHERE transition_id=? ORDER BY sort_order,transition_effect_id');$effects->execute([$tr['transition_id']]);$changes=[];
-        foreach($effects->fetchAll() as $e){$c=self::applyEffect($sid,$e,$second,$eventId);if($c!=='')$changes[]=$c;}
-        if(!$changes)return;
+        foreach($effects->fetchAll() as $e){$c=self::applyEffect($sid,$e,$second,$eventId);if($c!=='')$changes[]=$c;}if(!$changes)return;
         $phaseQ=$pdo->prepare('SELECT current_phase FROM simulations WHERE simulation_id=?');$phaseQ->execute([$sid]);$phase=(string)$phaseQ->fetchColumn();
         $pdo->prepare('INSERT INTO simulation_events(simulation_id,event_second,phase,event_type,event_code,headline,event_text,visibility,caused_by_event_id) VALUES(?,?,?,?,?,?,?,"WORLD",?)')->execute([$sid,$second,$phase,'SYSTEM','TRANSITION_'.$tr['transition_code'].'_'.$second,$tr['label'],implode(' ',$changes),$eventId]);
     }
@@ -63,8 +41,8 @@ final class TriggeredTransitionService
 
     private static function applyEffect(int $sid,array $e,int $second,?int $eventId): string
     {
-        $pdo=db();$scope=$e['effect_scope'];$detail=(string)($e['detail_text']??'');$cid=self::characterIdForRole($sid,$e['target_role_code']??null);
-        if($scope==='WORLD_STATE')return class_exists('CausalService')?CausalService::setWorldState($sid,(string)$e['target_code'],(string)($e['set_value']??''),$second,$detail):'';
+        $pdo=db();$scope=(string)$e['effect_scope'];$detail=(string)($e['detail_text']??'');$cid=self::characterIdForRole($sid,$e['target_role_code']??null);
+        if($scope==='WORLD_STATE')return GenericStateService::setByKey($sid,(string)$e['target_code'],(string)($e['set_value']??''),$second,$detail);
         if($scope==='FACTOR'){$q=$pdo->prepare('SELECT current_value,min_value,max_value,label FROM simulation_factors WHERE simulation_id=? AND factor_code=? FOR UPDATE');$q->execute([$sid,$e['target_code']]);$r=$q->fetch();if(!$r)return'';$old=(int)$r['current_value'];$new=max((int)$r['min_value'],min((int)$r['max_value'],$old+(int)$e['delta_value']));if($old===$new)return'';$pdo->prepare('UPDATE simulation_factors SET current_value=? WHERE simulation_id=? AND factor_code=?')->execute([$new,$sid,$e['target_code']]);$pdo->prepare('INSERT INTO simulation_factor_history(simulation_id,factor_code,old_value,new_value,event_second,source_type,source_id,detail_text) VALUES(?,?,?,?,"TRANSITION",?,?,?)')->execute([$sid,$e['target_code'],$old,$new,$second,$e['transition_effect_id'],$detail?:null]);return$r['label'].' '.$old.'→'.$new.'.';}
         if(!$cid)return'';
         if($scope==='LOCATION'){$q=$pdo->prepare('SELECT current_location FROM characters WHERE character_id=?');$q->execute([$cid]);$old=(string)$q->fetchColumn();$new=(string)$e['set_value'];if($old===$new)return'';$pdo->prepare('UPDATE characters SET current_location=? WHERE character_id=?')->execute([$new,$cid]);$pdo->prepare('INSERT INTO character_history(simulation_id,character_id,event_id,event_second,history_type,title,detail_text) VALUES(?,?,?,?,"LOCATION","Location Changed",?)')->execute([$sid,$cid,$eventId,$second,$old.' → '.$new.($detail?' · '.$detail:'')]);return'Location '.$old.'→'.$new.'.';}
