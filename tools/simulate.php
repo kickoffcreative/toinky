@@ -7,7 +7,6 @@ require_once $root.'/app/BehaviorService.php';
 require_once $root.'/app/CausalService.php';
 require_once $root.'/app/ConsequencePropagationService.php';
 require_once $root.'/app/DynamicOpportunityService.php';
-require_once $root.'/app/MotiveLifecycleService.php';
 require_once $root.'/app/StateSyncService.php';
 require_once $root.'/app/SimulationService.php';
 require_once __DIR__.'/SimulationHarness.php';
