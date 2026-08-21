@@ -48,7 +48,7 @@ final class ConsequencePropagationService
                 $f=$pdo->prepare('SELECT current_value,min_value,max_value,label FROM simulation_factors WHERE simulation_id=? AND factor_code=? FOR UPDATE');$f->execute([$sid,$e['target_code']]);$row=$f->fetch();if(!$row)continue;
                 $old=(int)$row['current_value'];$new=max((int)$row['min_value'],min((int)$row['max_value'],$old+(int)$e['delta_value']));if($old===$new)continue;
                 $pdo->prepare('UPDATE simulation_factors SET current_value=? WHERE simulation_id=? AND factor_code=?')->execute([$new,$sid,$e['target_code']]);
-                $pdo->prepare('INSERT INTO simulation_factor_history(simulation_id,factor_code,old_value,new_value,event_second,source_type,source_id,detail_text) VALUES(?,?,?,?,"CONSEQUENCE",?,?,?)')->execute([$sid,$e['target_code'],$old,$new,$second,$e['consequence_effect_id'],$detail?:null]);
+                $pdo->prepare('INSERT INTO simulation_factor_history(simulation_id,factor_code,old_value,new_value,event_second,source_type,source_id,detail_text) VALUES(?,?,?,?,?,"CONSEQUENCE",?,?)')->execute([$sid,$e['target_code'],$old,$new,$second,$e['consequence_effect_id'],$detail?:null]);
                 $changes[]=$row['label'].' '.$old.'→'.$new.'.';continue;
             }
             $cid=self::characterForRole($sid,$e['target_role_code']??null);if(!$cid)continue;
