@@ -1,4 +1,6 @@
 <?php
+require_once __DIR__.'/DynamicOpportunityService.php';
+
 final class StateSyncService
 {
     public static function reconcile(int $sid): void
@@ -7,6 +9,7 @@ final class StateSyncService
         self::syncCurrentMotives($sid);
         self::evaluateMotiveLifecycle($sid);
         self::syncEvacuationLocations($sid);
+        if(class_exists('DynamicOpportunityService'))DynamicOpportunityService::reconcile($sid);
     }
 
     private static function syncCurrentMotives(int $sid): void
