@@ -1,6 +1,7 @@
 <?php
 $root=dirname(__DIR__);
 require_once $root.'/app/bootstrap.php';
+require_once $root.'/app/GenericStateService.php';
 
 $pdo=db();
 $sid=(int)($argv[1]??0);
@@ -49,12 +50,6 @@ foreach($codes as $code){
 
 echo "Relevant final world state:\n";
 foreach(['CROWN_HOLDER','ELIAN_CLAIM','ROWAN_CLAIM','LETTER_HOLDER','LETTER_STATUS'] as $key){
-    try{
-        $q=$pdo->prepare('SELECT state_value FROM simulation_world_state WHERE simulation_id=? AND state_key=? LIMIT 1');
-        $q->execute([$sid,$key]);$value=$q->fetchColumn();
-        echo '  '.$key.': '.($value===false?'(missing)':$value)."\n";
-    }catch(Throwable $e){
-        echo "  World-state table shape unavailable: ".$e->getMessage()."\n";
-        break;
-    }
+    $state=GenericStateService::getByKey($sid,$key);
+    echo '  '.$key.': '.($state['exists']?(string)$state['value']:'(missing)')."\n";
 }
