@@ -1,4 +1,5 @@
 config/database.php
 .installed
 *.log
+error_log
 .DS_Store
