@@ -56,8 +56,13 @@ foreach($rows as $i=>$r){
     if(!$r['success'])echo 'ERROR: '.($r['error_text']??'unknown')."\n";
 
     if(!empty($r['decision_id'])){
-        $fh=$pdo->prepare('SELECT factor_code,old_value,new_value,detail_text FROM simulation_factor_history WHERE simulation_id=? AND source_id=? ORDER BY simulation_factor_history_id');
-        try{$fh->execute([$sid,$r['decision_id']]);$effects=$fh->fetchAll();}catch(Throwable $e){$effects=[];}
+        try{
+            $fh=$pdo->prepare('SELECT factor_code,old_value,new_value,detail_text,event_second FROM simulation_factor_history WHERE simulation_id=? AND source_id=? ORDER BY event_second,factor_code');
+            $fh->execute([$sid,$r['decision_id']]);
+            $effects=$fh->fetchAll();
+        }catch(Throwable $e){
+            $effects=[];
+        }
         if($effects){echo "Factor effects:\n";foreach($effects as $e)echo '  - '.$e['factor_code'].': '.$e['old_value'].' -> '.$e['new_value'].($e['detail_text']?' | '.$e['detail_text']:'')."\n";}
     }
     echo str_repeat('-',72)."\n";
