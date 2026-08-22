@@ -19,7 +19,7 @@ final class BehaviorService {
                 $pdo->prepare('INSERT IGNORE INTO decision_options(decision_id,option_code,label,sort_order) VALUES(?,?,?,?)')->execute([$did,$o['option_code'],$o['label'],$o['sort_order']]);$valid++;
             }
             if($valid===0){$pdo->prepare('UPDATE decisions SET status="CLOSED",resolved_text="No valid action remained in the current world state." WHERE decision_id=? AND status="OPEN"')->execute([$did]);continue;}
-            if($row['actor_type']==='NPC'&&($row['controller_type']??'AI')!=='AI'&&!self::deferNpcToSimulationLab($sid,(int)$row['character_id'])) self::resolveNpc($sid,$did,(int)$row['template_id'],$second);
+            if(self::usesLegacyWeightedNpcController($row)&&!self::deferNpcToSimulationLab($sid,(int)$row['character_id']))self::resolveNpc($sid,$did,(int)$row['template_id'],$second);
         }
     }
 
@@ -78,6 +78,13 @@ final class BehaviorService {
         $o->execute([$d['character_id'],$decisionId,$optionCode,$sim['plot_id'],$decisionId]);$opt=$o->fetch();if(!$opt)throw new RuntimeException('Decision option not found.');
         if(class_exists('CausalService')&&!CausalService::optionAllowed($sid,(int)$opt['template_option_id']))throw new RuntimeException('That action is no longer possible because the world has changed.');
         return$opt;
+    }
+
+    private static function usesLegacyWeightedNpcController(array $row): bool
+    {
+        return ($row['actor_type']??'')==='NPC'
+            && ($row['controller_type']??'HUMAN')==='HUMAN'
+            && strtolower(trim((string)getenv('GAME2_SIM_NPC_REASONER')))==='weighted';
     }
 
     private static function deferNpcToSimulationLab(int $sid,int $characterId): bool {
