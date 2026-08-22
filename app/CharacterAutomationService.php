@@ -8,6 +8,7 @@ final class CharacterAutomationService
             $q=$pdo->prepare('SELECT d.decision_id,d.event_id,d.character_id FROM decisions d JOIN characters c ON c.character_id=d.character_id WHERE d.simulation_id=? AND d.status="OPEN" AND c.controller_type="AI" ORDER BY d.opens_at_second,d.decision_id');
             $q->execute([$sid]);$decisions=$q->fetchAll();if(!$decisions)break;$progress=false;
             foreach($decisions as$d){
+                $status=$pdo->prepare('SELECT status FROM decisions WHERE decision_id=? AND simulation_id=?');$status->execute([$d['decision_id'],$sid]);if($status->fetchColumn()!=='OPEN')continue;
                 $options=self::options($sid,(int)$d['decision_id'],(int)$d['character_id']);if(!$options)continue;
                 try{
                     $context=AiReasoningContextService::forDecision($sid,(int)$d['decision_id']);$context['purpose']='LIVE_CHARACTER_OPTION_SELECTION';
