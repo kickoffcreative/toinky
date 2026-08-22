@@ -37,7 +37,7 @@ SET o.label='Take the doorway and order Farah to surrender the records case.',
 WHERE t.plot_id=@plot
   AND t.event_code='REAR_EXIT'
   AND t.role_code='NIKO'
-  AND o.option_code='BLOCK_FARAH';
+  AND o.option_code='STOP_FARAH';
 
 -- Kellan's intervention likewise responds to the opening rather than asserting an unchosen escape attempt.
 UPDATE plot_decision_template_options o
