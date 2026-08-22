@@ -21,13 +21,13 @@ final class SimulationHarness
         $role=strtoupper(trim((string)getenv('GAME2_SIM_AI_NPC_ROLE')));$pdo=db();
         $sql='SELECT c.character_id,pr.role_code FROM characters c JOIN plot_roles pr ON pr.plot_role_id=c.plot_role_id WHERE c.simulation_id=? AND c.actor_type="NPC"';$args=[$sid];if($role!==''){$sql.=' AND pr.role_code=?';$args[]=$role;}$sql.=' ORDER BY c.slot_no,c.character_id LIMIT 1';
         $q=$pdo->prepare($sql);$q->execute($args);$row=$q->fetch();if(!$row)throw new RuntimeException($role!==''?'Requested AI NPC role '.$role.' is not active in this simulation.':'No active NPC is available for AI lab testing.');
-        $pdo->prepare('UPDATE characters SET actor_type="PLAYER" WHERE character_id=? AND simulation_id=?')->execute([(int)$row['character_id'],$sid]);
-        $pdo->prepare('INSERT INTO character_history(simulation_id,character_id,event_second,history_type,title,detail_text) VALUES(?,?,0,"INTERACTION","Simulation Lab AI Control",?)')->execute([$sid,(int)$row['character_id'],'This NPC is temporarily routed through the configured StoryReasoner for Simulation Lab testing.']);
-        return(int)$row['character_id'];
+        $characterId=(int)$row['character_id'];putenv('GAME2_SIM_AI_NPC_ID='.$characterId);
+        $pdo->prepare('INSERT INTO character_history(simulation_id,character_id,event_second,history_type,title,detail_text) VALUES(?,?,0,"INTERACTION","Simulation Lab AI Control",?)')->execute([$sid,$characterId,'This NPC remains an NPC and is routed through the configured StoryReasoner for Simulation Lab testing.']);
+        return$characterId;
     }
     private static function restoreAiNpc(int $sid,?int $characterId): void
     {
-        if(!$characterId)return;try{db()->prepare('UPDATE characters SET actor_type="NPC" WHERE character_id=? AND simulation_id=?')->execute([$characterId,$sid]);}catch(Throwable$e){}
+        if(!$characterId)return;putenv('GAME2_SIM_AI_NPC_ID');
     }
     private static function playAiNpcDecisions(int $sid,?int $characterId): void
     {
@@ -36,8 +36,8 @@ final class SimulationHarness
             try{$context=AiReasoningContextService::forDecision($sid,$decisionId);$context['purpose']='SIMULATION_LAB_NPC_OPTION_SELECTION';$result=StoryReasonerFactory::withFallback()->selectOption($context,$options);$selected=(string)($result['selected_action']??'');$pick=null;foreach($options as$o)if((string)$o['option_code']===$selected){$pick=$o;break;}if(!$pick)throw new RuntimeException('Reasoner returned no currently valid option.');
                 $detail='Provider: '.($result['provider']??'unknown').' | Selected: '.$selected.' | Confidence: '.($result['confidence']??'n/a').' | Reason: '.($result['reason']??'');if(!empty($result['fallback_used']))$detail.=' | Fallback: '.($result['fallback_error']??'yes');
                 $pdo->prepare('INSERT INTO character_history(simulation_id,character_id,event_id,event_second,history_type,title,detail_text) SELECT ?,?,?,elapsed_seconds,"INTERACTION","AI Options Considered",? FROM simulations WHERE simulation_id=?')->execute([$sid,$characterId,$d['event_id'],$detail,$sid]);
-                SimulationService::choose($sid,$decisionId,$selected);
-            }catch(Throwable$e){$fallback=self::weightedPick($options);$pdo->prepare('INSERT INTO character_history(simulation_id,character_id,event_id,event_second,history_type,title,detail_text) SELECT ?,?,?,elapsed_seconds,"INTERACTION","AI Reasoner Fallback",? FROM simulations WHERE simulation_id=?')->execute([$sid,$characterId,$d['event_id'],$e->getMessage(),$sid]);try{SimulationService::choose($sid,$decisionId,(string)$fallback['option_code']);}catch(Throwable$ignored){}}
+                BehaviorService::chooseNpcForSimulationLab($sid,$decisionId,$selected);
+            }catch(Throwable$e){$fallback=self::weightedPick($options);$pdo->prepare('INSERT INTO character_history(simulation_id,character_id,event_id,event_second,history_type,title,detail_text) SELECT ?,?,?,elapsed_seconds,"INTERACTION","AI Reasoner Fallback",? FROM simulations WHERE simulation_id=?')->execute([$sid,$characterId,$d['event_id'],$e->getMessage(),$sid]);try{BehaviorService::chooseNpcForSimulationLab($sid,$decisionId,(string)$fallback['option_code']);}catch(Throwable$ignored){}}
         }
     }
     private static function aiDecisionOptions(int $sid,int $decisionId,int $characterId): array
