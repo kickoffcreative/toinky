@@ -3,7 +3,8 @@ final class StoryReasonerFactory
 {
     public static function make(): StoryReasoner
     {
-        $provider=strtolower((string)AiInteractionLogger::setting('provider','deterministic'));
+        $override=trim((string)getenv('GAME2_AI_PROVIDER'));
+        $provider=strtolower($override!==''?$override:(string)AiInteractionLogger::setting('provider','deterministic'));
         return match($provider){'ollama'=>new OllamaStoryReasoner(),default=>new DeterministicStoryReasoner()};
     }
 
