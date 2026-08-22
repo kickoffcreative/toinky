@@ -3,6 +3,13 @@ $root=dirname(__DIR__);
 require_once $root.'/app/bootstrap.php';
 
 $pdo=db();
+function auditLine(string $label,string $value,int $width=96): void
+{
+    $value=trim(preg_replace('/\\s+/u',' ',$value)??$value);
+    $available=max(24,$width-strlen($label));
+    $continuation="\n".str_repeat(' ',strlen($label));
+    echo $label.wordwrap($value,$available,$continuation,false)."\n";
+}
 $sid=(int)($argv[1]??0);
 if($sid<=0)$sid=(int)$pdo->query('SELECT COALESCE(MAX(simulation_id),0) FROM simulations')->fetchColumn();
 if($sid<=0){fwrite(STDERR,"No simulations found.\n");exit(1);}
@@ -35,22 +42,22 @@ foreach($rows as $i=>$r){
 
     echo 'Decision '.($i+1).' | interaction '.(int)$r['ai_interaction_id'].' | t='.(int)($r['opens_at_second']??0)."s\n";
     echo 'Character: '.($r['character_name']??'unknown')."\n";
-    echo 'Prompt: '.trim((string)($r['prompt_text']??''))."\n";
+    auditLine('Prompt: ',(string)($r['prompt_text']??''));
     if(!empty($story['character'])){
         $ch=$story['character'];
-        echo 'Goal: '.trim((string)($ch['goal']??''))."\n";
-        echo 'Fear: '.trim((string)($ch['fear']??''))."\n";
-        echo 'Location: '.trim((string)($ch['location']??''))."\n";
+        auditLine('Goal: ',(string)($ch['goal']??''));
+        auditLine('Fear: ',(string)($ch['fear']??''));
+        auditLine('Location: ',(string)($ch['location']??''));
         if(!empty($ch['stats']))echo 'Stats: '.json_encode($ch['stats'],JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES)."\n";
     }
     echo "Legal options:\n";
     foreach(($story['available_actions']??[]) as $o){
-        echo '  - '.($o['code']??'?').': '.($o['label']??'')."\n";
+        auditLine('  - '.($o['code']??'?').': ',(string)($o['label']??''));
     }
     echo 'Qwen choice: '.($r['selected_action_code']??'null').' | confidence='.($r['confidence']===null?'null':$r['confidence'])."\n";
-    echo 'Reason: '.trim((string)($r['reason_text']??''))."\n";
+    auditLine('Reason: ',(string)($r['reason_text']??''));
     echo 'Engine chosen: '.($r['chosen_option_code']??'null')."\n";
-    echo 'Result: '.trim((string)($r['resolved_text']??''))."\n";
+    auditLine('Result: ',(string)($r['resolved_text']??''));
     echo 'Tokens: '.(int)($r['total_token_count']??0).' (prompt '.(int)($r['prompt_eval_count']??0).' + generated '.(int)($r['eval_count']??0).')'."\n";
     echo 'Latency: '.round((float)($r['latency_ms']??0),2).' ms | Ollama: '.round(((float)($r['total_duration_ns']??0))/1e6,2)." ms\n";
     if(!$r['success'])echo 'ERROR: '.($r['error_text']??'unknown')."\n";
