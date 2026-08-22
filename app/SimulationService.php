@@ -1,7 +1,7 @@
 <?php
 require_once __DIR__.'/GenericStateService.php';
 final class SimulationService {
-    public static function create(string $plotCode='CONCEALED_FAILURE', int $duration=300): int {
+    public static function create(string $plotCode='CONCEALED_FAILURE', int $duration=300,array $controllers=[]): int {
         $pdo=db();$q=$pdo->prepare('SELECT * FROM plots WHERE code=? AND status="active"');$q->execute([$plotCode]);$plot=$q->fetch();if(!$plot)throw new RuntimeException('Plot not found.');
         $pdo->beginTransaction();
         try{
@@ -12,7 +12,8 @@ final class SimulationService {
             $playerCount=count(array_filter($activeRoles,fn($r)=>$r['role_type']==='PLAYER'));$npcCount=count(array_filter($activeRoles,fn($r)=>$r['role_type']==='NPC'));$allowedNpcs=$playerCount===1?2:1;
             if($npcCount>$allowedNpcs)throw new RuntimeException('Story cast exceeds the active NPC budget: solo allows 2 NPCs; multiplayer allows 1 NPC.');
             foreach($activeRoles as$r){
-                $pdo->prepare('INSERT INTO characters(simulation_id,plot_role_id,actor_type,slot_no,name,description,private_knowledge,current_location,goal_text,fear_text) VALUES(?,?,?,?,?,?,?,?,?,?)')->execute([$sid,$r['plot_role_id'],$r['role_type'],$r['slot_no'],$r['name'],$r['public_description'],$r['private_knowledge'],$r['starting_location'],$r['goal_text'],$r['fear_text']]);$cid=(int)$pdo->lastInsertId();
+                $controller=strtoupper((string)($controllers[$r['role_code']]??($r['role_type']==='NPC'?'AI':'HUMAN')));if(!in_array($controller,['HUMAN','AI'],true))$controller=$r['role_type']==='NPC'?'AI':'HUMAN';
+                $pdo->prepare('INSERT INTO characters(simulation_id,plot_role_id,actor_type,controller_type,slot_no,name,description,private_knowledge,current_location,goal_text,fear_text) VALUES(?,?,?,?,?,?,?,?,?,?,?)')->execute([$sid,$r['plot_role_id'],$r['role_type'],$controller,$r['slot_no'],$r['name'],$r['public_description'],$r['private_knowledge'],$r['starting_location'],$r['goal_text'],$r['fear_text']]);$cid=(int)$pdo->lastInsertId();
                 $s=$pdo->prepare('SELECT * FROM plot_role_stats WHERE plot_role_id=? ORDER BY plot_role_stat_id LIMIT 2');$s->execute([$r['plot_role_id']]);foreach($s->fetchAll()as$st)$pdo->prepare('INSERT INTO character_stats(character_id,stat_code,label,current_value) VALUES(?,?,?,?)')->execute([$cid,$st['stat_code'],$st['label'],$st['initial_value']]);
                 if($r['private_knowledge'])$pdo->prepare('INSERT INTO character_knowledge(character_id,knowledge_key,knowledge_text,state,confidence,learned_at_second) VALUES(?,?,?,?,100,0)')->execute([$cid,'START_'.$r['role_code'],$r['private_knowledge'],'KNOWN']);
                 $pdo->prepare('INSERT INTO character_history(simulation_id,character_id,event_second,history_type,title,detail_text) VALUES(?,?,0,"EXPERIENCED","Initial State",?)')->execute([$sid,$cid,'Location: '.$r['starting_location'].' | Goal: '.$r['goal_text'].' | Fear: '.($r['fear_text']?:'None specified')]);
