@@ -1,19 +1,35 @@
 <?php
-$root=dirname(__DIR__);require_once $root.'/app/bootstrap.php';require_once $root.'/app/MigrationService.php';require_once $root.'/app/BehaviorService.php';require_once $root.'/app/CausalService.php';require_once $root.'/app/ConsequencePropagationService.php';require_once $root.'/app/DynamicOpportunityService.php';require_once $root.'/app/StateSyncService.php';require_once $root.'/app/SimulationService.php';require_once __DIR__.'/SimulationHarness.php';
+$root=dirname(__DIR__);
+require_once $root.'/app/bootstrap.php';
+require_once $root.'/app/MigrationService.php';
+require_once $root.'/app/BehaviorService.php';
+require_once $root.'/app/CausalService.php';
+require_once $root.'/app/ConsequencePropagationService.php';
+require_once $root.'/app/DynamicOpportunityService.php';
+require_once $root.'/app/StateSyncService.php';
+require_once $root.'/app/SimulationService.php';
+require_once __DIR__.'/SimulationHarness.php';
+
 $args=$argv;array_shift($args);
-$opt=['plot'=>'EMPTY_THRONE','runs'=>10,'strategy'=>'no-action','duration'=>300,'step'=>30,'reset'=>false,'json'=>false,'npc-reasoner'=>'weighted','player-reasoner'=>'manual','ai-npc-role'=>''];
+$opt=[
+    'plot'=>'EMPTY_THRONE','runs'=>10,'strategy'=>'no-action','duration'=>300,'step'=>30,
+    'reset'=>false,'json'=>false,'npc-reasoner'=>'weighted','player-reasoner'=>'manual',
+    'ai-npc-role'=>'','controller-mode'=>'legacy','focus'=>''
+];
 $usage="Usage: php tools/simulate.php [options]\n"
     ."  --plot=CODE             Active plot code\n"
-    ."  --runs=N               Number of simulations (default 10)\n"
-    ."  --strategy=NAME        no-action, random, first, anti-rowan, pro-rowan\n"
-    ."  --duration=SECONDS     Simulation duration (default 300)\n"
-    ."  --step=SECONDS         Clock step (default 30)\n"
-    ."  --npc-reasoner=NAME    weighted or ollama\n"
-    ."  --player-reasoner=NAME manual or ollama (all active player roles)\n"
-    ."  --ai-npc-role=CODE     Optional NPC role routed to the AI reasoner\n"
-    ."  --json                 Print JSON output\n"
-    ."  --reset                Test-database reset only\n"
-    ."  --help, -h             Show this help without running simulations\n";
+    ."  --runs=N                Number of simulations (default 10)\n"
+    ."  --strategy=NAME         no-action, random, first, anti-rowan, pro-rowan\n"
+    ."  --duration=SECONDS      Simulation duration (default 300)\n"
+    ."  --step=SECONDS          Clock step (default 30)\n"
+    ."  --npc-reasoner=NAME     weighted, manual, or ollama\n"
+    ."  --player-reasoner=NAME  manual or ollama\n"
+    ."  --ai-npc-role=CODE      Optional NPC role routed to the AI reasoner\n"
+    ."  --controller-mode=MODE  legacy, all-ai, or human-random\n"
+    ."  --focus=CODE            Database focus profile, such as DOCUMENTS or RESCUE\n"
+    ."  --json                  Print JSON output\n"
+    ."  --reset                 Test-database reset only\n"
+    ."  --help, -h              Show this help without running simulations\n";
 foreach($args as $a){
     if($a==='--help'||$a==='-h'){echo $usage;exit(0);}
     if($a==='--reset'){$opt['reset']=true;continue;}
@@ -23,7 +39,85 @@ foreach($args as $a){
     if(!array_key_exists($k,$opt)){fwrite(STDERR,"Unknown option: --{$k}\n\n".$usage);exit(2);}
     $opt[$k]=in_array($k,['runs','duration','step'],true)?(int)$v:$v;
 }
-$strategies=['no-action','random','first','anti-rowan','pro-rowan'];if(!in_array($opt['strategy'],$strategies,true)){fwrite(STDERR,'Strategy must be '.implode(', ',$strategies).".\n");exit(2);}if((int)$opt['runs']<1){fwrite(STDERR,"--runs must be at least 1.\n");exit(2);}if(!in_array(strtolower((string)$opt['npc-reasoner']),['weighted','ollama'],true)){fwrite(STDERR,"--npc-reasoner must be weighted or ollama.\n");exit(2);}if(!in_array(strtolower((string)$opt['player-reasoner']),['manual','ollama'],true)){fwrite(STDERR,"--player-reasoner must be manual or ollama.\n");exit(2);}
-$dbOverride=trim((string)getenv('GAME2_DATABASE_CONFIG'));if($opt['reset']&&($dbOverride===''||!str_contains(basename($dbOverride),'test'))){fwrite(STDERR,"Refusing --reset unless GAME2_DATABASE_CONFIG explicitly points to a test database config.\n");exit(2);}
-if(strtolower((string)$opt['npc-reasoner'])==='ollama'){putenv('GAME2_SIM_NPC_REASONER=ollama');putenv('GAME2_AI_PROVIDER=ollama');if(trim((string)$opt['ai-npc-role'])!=='')putenv('GAME2_SIM_AI_NPC_ROLE='.strtoupper(trim((string)$opt['ai-npc-role'])));}else{putenv('GAME2_SIM_NPC_REASONER=weighted');}if(strtolower((string)$opt['player-reasoner'])==='ollama'){putenv('GAME2_SIM_PLAYER_REASONER=ollama');putenv('GAME2_AI_PROVIDER=ollama');}else{putenv('GAME2_SIM_PLAYER_REASONER=manual');}
-try{if($opt['reset'])SimulationHarness::resetDatabase();else MigrationService::run();$results=[];$outcomes=[];$familyLabels=[];$warningCount=0;$factorRanges=[];$totals=['player_actions'=>0,'npc_actions'=>0,'player_no_action'=>0];$aiTotals=['calls'=>0,'successes'=>0,'failures'=>0,'prompt_tokens'=>0,'generated_tokens'=>0,'total_tokens'=>0,'latency_ms'=>0.0,'ollama_total_ms'=>0.0];for($i=1;$i<=(int)$opt['runs'];$i++){$r=SimulationHarness::run((string)$opt['plot'],(string)$opt['strategy'],(int)$opt['duration'],(int)$opt['step']);$results[]=$r;$label=(string)$r['outcome_family_label'];$sig=substr(hash('sha256',$label),0,12);$outcomes[$sig]=($outcomes[$sig]??0)+1;$familyLabels[$sig]=$label;$warningCount+=count($r['warnings']);foreach($r['counts']as$k=>$v)$totals[$k]+=$v;foreach($r['ai_usage']as$k=>$v)$aiTotals[$k]+=$v;foreach($r['factors']as$k=>$v){if(!isset($factorRanges[$k]))$factorRanges[$k]=['min'=>$v,'max'=>$v];else{$factorRanges[$k]['min']=min($factorRanges[$k]['min'],$v);$factorRanges[$k]['max']=max($factorRanges[$k]['max'],$v);}}}arsort($outcomes);$families=[];foreach($outcomes as$sig=>$n)$families[]=['signature'=>$sig,'count'=>$n,'percent'=>round($n*100/(int)$opt['runs'],1),'label'=>$familyLabels[$sig]];$summary=['plot'=>$opt['plot'],'runs'=>(int)$opt['runs'],'strategy'=>$opt['strategy'],'npc_reasoner'=>$opt['npc-reasoner'],'player_reasoner'=>$opt['player-reasoner'],'ai_npc_role'=>$opt['ai-npc-role']?:null,'unique_outcome_families'=>count($outcomes),'outcome_families'=>$families,'average_counts'=>array_map(fn($v)=>round($v/(int)$opt['runs'],2),$totals),'ai_usage_total'=>['calls'=>(int)$aiTotals['calls'],'successes'=>(int)$aiTotals['successes'],'failures'=>(int)$aiTotals['failures'],'prompt_tokens'=>(int)$aiTotals['prompt_tokens'],'generated_tokens'=>(int)$aiTotals['generated_tokens'],'total_tokens'=>(int)$aiTotals['total_tokens'],'latency_ms'=>round((float)$aiTotals['latency_ms'],2),'ollama_total_ms'=>round((float)$aiTotals['ollama_total_ms'],2)],'ai_usage_average_per_run'=>['calls'=>round($aiTotals['calls']/(int)$opt['runs'],2),'tokens'=>round($aiTotals['total_tokens']/(int)$opt['runs'],2),'latency_ms'=>round($aiTotals['latency_ms']/(int)$opt['runs'],2)],'factor_ranges'=>$factorRanges,'warning_count'=>$warningCount,'runs_detail'=>$results];if($opt['json']){echo json_encode($summary,JSON_PRETTY_PRINT|JSON_UNESCAPED_UNICODE).PHP_EOL;exit($warningCount?1:0);}echo "Game2 simulation batch\nPlot: {$opt['plot']} | Runs: {$opt['runs']} | Strategy: {$opt['strategy']} | NPC reasoner: {$opt['npc-reasoner']} | Player reasoner: {$opt['player-reasoner']}".($opt['ai-npc-role']?' | AI NPC: '.$opt['ai-npc-role']:'')."\nSemantic outcome families: ".count($outcomes)."\n";foreach(array_slice($families,0,15)as$f)echo '  '.$f['count'].' ('.$f['percent'].'%) '.$f['label'].PHP_EOL;echo "Average player actions: {$summary['average_counts']['player_actions']}\nAverage NPC actions: {$summary['average_counts']['npc_actions']}\nAverage player no-actions: {$summary['average_counts']['player_no_action']}\n";if($aiTotals['calls']>0)echo "AI calls: {$aiTotals['calls']} | Successes: {$aiTotals['successes']} | Failures: {$aiTotals['failures']} | Tokens: {$aiTotals['total_tokens']} | AI latency: ".round($aiTotals['latency_ms']/1000,2)."s\n";echo "Factor ranges:\n";foreach($factorRanges as$k=>$range)echo "  {$k}: {$range['min']}..{$range['max']}\n";echo "Integrity warnings: {$warningCount}\n";if($warningCount)foreach($results as$r)foreach($r['warnings']as$w)echo "  Simulation {$r['simulation_id']}: {$w}\n";exit($warningCount?1:0);}catch(Throwable$e){fwrite(STDERR,'Simulation harness failed: '.$e->getMessage().PHP_EOL);exit(1);}
+
+$strategies=['no-action','random','first','anti-rowan','pro-rowan'];
+if(!in_array($opt['strategy'],$strategies,true)){fwrite(STDERR,'Strategy must be '.implode(', ',$strategies).".\n");exit(2);}
+if((int)$opt['runs']<1){fwrite(STDERR,"--runs must be at least 1.\n");exit(2);}
+$controllerMode=strtolower(trim((string)$opt['controller-mode']));
+if(!in_array($controllerMode,['legacy','all-ai','human-random'],true)){fwrite(STDERR,"--controller-mode must be legacy, all-ai, or human-random.\n");exit(2);}
+if($controllerMode==='all-ai'){$opt['npc-reasoner']='ollama';$opt['player-reasoner']='ollama';}
+if($controllerMode==='human-random'){$opt['npc-reasoner']='manual';$opt['player-reasoner']='manual';$opt['strategy']='random';}
+if(!in_array(strtolower((string)$opt['npc-reasoner']),['weighted','manual','ollama'],true)){fwrite(STDERR,"--npc-reasoner must be weighted, manual, or ollama.\n");exit(2);}
+if(!in_array(strtolower((string)$opt['player-reasoner']),['manual','ollama'],true)){fwrite(STDERR,"--player-reasoner must be manual or ollama.\n");exit(2);}
+$focus=strtoupper(trim((string)$opt['focus']));
+
+$dbOverride=trim((string)getenv('GAME2_DATABASE_CONFIG'));
+if($opt['reset']&&($dbOverride===''||!str_contains(basename($dbOverride),'test'))){fwrite(STDERR,"Refusing --reset unless GAME2_DATABASE_CONFIG explicitly points to a test database config.\n");exit(2);}
+
+$npcReasoner=strtolower((string)$opt['npc-reasoner']);
+if($npcReasoner==='ollama'){
+    putenv('GAME2_SIM_NPC_REASONER=ollama');putenv('GAME2_AI_PROVIDER=ollama');
+    if(trim((string)$opt['ai-npc-role'])!=='')putenv('GAME2_SIM_AI_NPC_ROLE='.strtoupper(trim((string)$opt['ai-npc-role'])));
+}elseif($npcReasoner==='weighted')putenv('GAME2_SIM_NPC_REASONER=weighted');
+else putenv('GAME2_SIM_NPC_REASONER=manual');
+if(strtolower((string)$opt['player-reasoner'])==='ollama'){putenv('GAME2_SIM_PLAYER_REASONER=ollama');putenv('GAME2_AI_PROVIDER=ollama');}
+else putenv('GAME2_SIM_PLAYER_REASONER=manual');
+
+try{
+    if($opt['reset'])SimulationHarness::resetDatabase();else MigrationService::run();
+    if($focus!==''){
+        $q=db()->prepare('SELECT COUNT(*) FROM plot_focus_profiles pfp JOIN plots p ON p.plot_id=pfp.plot_id WHERE p.code=? AND pfp.focus_code=? AND pfp.active=1');
+        $q->execute([(string)$opt['plot'],$focus]);
+        if((int)$q->fetchColumn()===0)throw new RuntimeException('Focus profile '.$focus.' is not configured for plot '.$opt['plot'].'.');
+    }
+    $results=[];$outcomes=[];$familyLabels=[];$warningCount=0;$factorRanges=[];$alignment=[];
+    $totals=['player_actions'=>0,'npc_actions'=>0,'player_no_action'=>0];
+    $aiTotals=['calls'=>0,'successes'=>0,'failures'=>0,'prompt_tokens'=>0,'generated_tokens'=>0,'total_tokens'=>0,'latency_ms'=>0.0,'ollama_total_ms'=>0.0];
+    for($i=1;$i<=(int)$opt['runs'];$i++){
+        $r=SimulationHarness::run((string)$opt['plot'],(string)$opt['strategy'],(int)$opt['duration'],(int)$opt['step'],$controllerMode,$focus);
+        $results[]=$r;$label=(string)$r['outcome_family_label'];$sig=substr(hash('sha256',$label),0,12);
+        $outcomes[$sig]=($outcomes[$sig]??0)+1;$familyLabels[$sig]=$label;$warningCount+=count($r['warnings']);
+        if($r['focus_alignment_percent']!==null)$alignment[]=(float)$r['focus_alignment_percent'];
+        foreach($r['counts']as$k=>$v)$totals[$k]+=$v;
+        foreach($r['ai_usage']as$k=>$v)$aiTotals[$k]+=$v;
+        foreach($r['factors']as$k=>$v){
+            if(!isset($factorRanges[$k]))$factorRanges[$k]=['min'=>$v,'max'=>$v];
+            else{$factorRanges[$k]['min']=min($factorRanges[$k]['min'],$v);$factorRanges[$k]['max']=max($factorRanges[$k]['max'],$v);}
+        }
+    }
+    arsort($outcomes);$families=[];
+    foreach($outcomes as$sig=>$n)$families[]=['signature'=>$sig,'count'=>$n,'percent'=>round($n*100/(int)$opt['runs'],1),'label'=>$familyLabels[$sig]];
+    $summary=[
+        'plot'=>$opt['plot'],'runs'=>(int)$opt['runs'],'strategy'=>$opt['strategy'],
+        'npc_reasoner'=>$opt['npc-reasoner'],'player_reasoner'=>$opt['player-reasoner'],
+        'ai_npc_role'=>$opt['ai-npc-role']?:null,'controller_mode'=>$controllerMode,'focus'=>$focus?:null,
+        'average_focus_alignment_percent'=>$alignment?round(array_sum($alignment)/count($alignment),1):null,
+        'unique_outcome_families'=>count($outcomes),'outcome_families'=>$families,
+        'average_counts'=>array_map(fn($v)=>round($v/(int)$opt['runs'],2),$totals),
+        'ai_usage_total'=>[
+            'calls'=>(int)$aiTotals['calls'],'successes'=>(int)$aiTotals['successes'],'failures'=>(int)$aiTotals['failures'],
+            'prompt_tokens'=>(int)$aiTotals['prompt_tokens'],'generated_tokens'=>(int)$aiTotals['generated_tokens'],
+            'total_tokens'=>(int)$aiTotals['total_tokens'],'latency_ms'=>round((float)$aiTotals['latency_ms'],2),
+            'ollama_total_ms'=>round((float)$aiTotals['ollama_total_ms'],2)
+        ],
+        'ai_usage_average_per_run'=>[
+            'calls'=>round($aiTotals['calls']/(int)$opt['runs'],2),
+            'tokens'=>round($aiTotals['total_tokens']/(int)$opt['runs'],2),
+            'latency_ms'=>round($aiTotals['latency_ms']/(int)$opt['runs'],2)
+        ],
+        'factor_ranges'=>$factorRanges,'warning_count'=>$warningCount,'runs_detail'=>$results
+    ];
+    if($opt['json']){echo json_encode($summary,JSON_PRETTY_PRINT|JSON_UNESCAPED_UNICODE).PHP_EOL;exit($warningCount?1:0);}
+    echo "Game2 simulation batch\nPlot: {$opt['plot']} | Runs: {$opt['runs']} | Strategy: {$opt['strategy']} | NPC reasoner: {$opt['npc-reasoner']} | Player reasoner: {$opt['player-reasoner']} | Controller mode: {$controllerMode}".($focus!==''?' | Focus: '.$focus:'').($opt['ai-npc-role']?' | AI NPC: '.$opt['ai-npc-role']:'')."\n";
+    echo "Semantic outcome families: ".count($outcomes)."\n";
+    foreach(array_slice($families,0,15)as$f)echo '  '.$f['count'].' ('.$f['percent'].'%) '.$f['label'].PHP_EOL;
+    echo "Average player actions: {$summary['average_counts']['player_actions']}\nAverage NPC actions: {$summary['average_counts']['npc_actions']}\nAverage player no-actions: {$summary['average_counts']['player_no_action']}\n";
+    if($alignment)echo "Average focus alignment: {$summary['average_focus_alignment_percent']}%\n";
+    if($aiTotals['calls']>0)echo "AI calls: {$aiTotals['calls']} | Successes: {$aiTotals['successes']} | Failures: {$aiTotals['failures']} | Tokens: {$aiTotals['total_tokens']} | AI latency: ".round($aiTotals['latency_ms']/1000,2)."s\n";
+    echo "Factor ranges:\n";foreach($factorRanges as$k=>$range)echo "  {$k}: {$range['min']}..{$range['max']}\n";
+    echo "Integrity warnings: {$warningCount}\n";
+    if($warningCount)foreach($results as$r)foreach($r['warnings']as$w)echo "  Simulation {$r['simulation_id']}: {$w}\n";
+    exit($warningCount?1:0);
+}catch(Throwable$e){
+    fwrite(STDERR,'Simulation harness failed: '.$e->getMessage().PHP_EOL);exit(1);
+}
