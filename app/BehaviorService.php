@@ -141,7 +141,7 @@ final class BehaviorService {
         $pdo->prepare('UPDATE characters SET '.$column.'=? WHERE character_id=? AND simulation_id=?')->execute([$value,$cid,$sid]);
         $pdo->prepare('INSERT INTO character_state_history(simulation_id,character_id,event_id,event_second,state_type,old_value,new_value,reason_text) VALUES(?,?,?,?,?,?,?,?)')->execute([$sid,$cid,$eventId,$second,$type,$old,$value,$reason?:null]);
         $pdo->prepare('INSERT INTO character_history(simulation_id,character_id,event_id,event_second,history_type,title,detail_text) VALUES(?,?,?,?,"CONSEQUENCE",?,?)')->execute([$sid,$cid,$eventId,$second,ucfirst(strtolower($type)).' Changed',$old.' → '.$value.($reason?' · '.$reason:'')]);
-        return ucfirst(strtolower($type)).' → '.$value.'.';
+        return ucfirst(strtolower($type)).' → '.rtrim($value).(preg_match('/[.!?]$/u',rtrim($value))?'':'.');
     }
 
     private static function setLocation(int $sid,int $cid,string $location,int $second,?int $eventId,string $reason): void {$pdo=db();$q=$pdo->prepare('SELECT current_location FROM characters WHERE character_id=? AND simulation_id=?');$q->execute([$cid,$sid]);$old=(string)$q->fetchColumn();if($old===$location)return;$pdo->prepare('UPDATE characters SET current_location=? WHERE character_id=?')->execute([$location,$cid]);$pdo->prepare('INSERT INTO character_history(simulation_id,character_id,event_id,event_second,history_type,title,detail_text) VALUES(?,?,?,?,"LOCATION",?,?)')->execute([$sid,$cid,$eventId,$second,'Location Changed',$old.' → '.$location.' · '.$reason]);}
