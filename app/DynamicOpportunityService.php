@@ -87,6 +87,13 @@ final class DynamicOpportunityService
         if($type==='PHASE')return[true,$phase];
         if($type==='ACTION_COUNT'){$q=$pdo->prepare('SELECT COUNT(*) FROM decisions WHERE character_id=? AND status="CHOSEN"');$q->execute([$cid]);return[true,(string)(int)$q->fetchColumn()];}
         if($type==='PLAYER_ACTION_COUNT'){$q=$pdo->prepare('SELECT COUNT(*) FROM decisions d JOIN characters c ON c.character_id=d.character_id WHERE d.simulation_id=? AND c.actor_type="PLAYER" AND d.status="CHOSEN"');$q->execute([$sid]);return[true,(string)(int)$q->fetchColumn()];}
+        if($type==='OPTION_CHOICE_COUNT'){
+            $codes=array_values(array_filter(array_map('trim',explode(',',(string)$key)),fn($v)=>$v!==''));
+            if(!$codes)return[false,''];
+            $marks=implode(',',array_fill(0,count($codes),'?'));
+            $q=$pdo->prepare('SELECT COUNT(*) FROM decisions WHERE simulation_id=? AND status="CHOSEN" AND chosen_option_code IN ('.$marks.')');
+            $q->execute(array_merge([$sid],$codes));return[true,(string)(int)$q->fetchColumn()];
+        }
         return[false,''];
     }
 
