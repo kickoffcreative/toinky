@@ -18,11 +18,19 @@ echo "Simulation: {$sid} | Plot: {$sim['plot_code']} | Status: {$sim['status']} 
 if($role!=='')echo " | Role: {$role}";
 echo "\n\n";
 
-echo "Chosen decisions by time:\n";
-$q=$pdo->prepare('SELECT d.opens_at_second,c.actor_type,pr.role_code,d.chosen_option_code FROM decisions d JOIN characters c ON c.character_id=d.character_id JOIN plot_roles pr ON pr.plot_role_id=c.plot_role_id WHERE d.simulation_id=? AND d.status="CHOSEN" ORDER BY d.opens_at_second,d.decision_id');
-$q->execute([$sid]);$chosen=$q->fetchAll();
-if(!$chosen)echo "  (none)\n";
-foreach($chosen as $r)echo '  t='.(int)$r['opens_at_second'].'s | '.$r['actor_type'].' '.$r['role_code'].' | '.($r['chosen_option_code']??'null')."\n";
+echo "All decisions by time:\n";
+$sql='SELECT d.opens_at_second,d.closes_at_second,d.status,c.actor_type,pr.role_code,se.event_code,d.chosen_option_code
+      FROM decisions d
+      JOIN characters c ON c.character_id=d.character_id
+      JOIN plot_roles pr ON pr.plot_role_id=c.plot_role_id
+      JOIN simulation_events se ON se.event_id=d.event_id
+      WHERE d.simulation_id=?';
+$params=[$sid];
+if($role!==''){$sql.=' AND pr.role_code=?';$params[]=$role;}
+$sql.=' ORDER BY d.opens_at_second,d.decision_id';
+$q=$pdo->prepare($sql);$q->execute($params);$decisions=$q->fetchAll();
+if(!$decisions)echo "  (none)\n";
+foreach($decisions as $r)echo '  t='.(int)$r['opens_at_second'].'-'.(int)$r['closes_at_second'].'s | '.$r['actor_type'].' '.$r['role_code'].' | '.$r['event_code'].' | '.$r['status'].' | '.($r['chosen_option_code']??'null')."\n";
 
 $q=$pdo->prepare('SELECT COUNT(*) FROM decisions d JOIN characters c ON c.character_id=d.character_id WHERE d.simulation_id=? AND c.actor_type="PLAYER" AND d.status="CHOSEN"');
 $q->execute([$sid]);echo 'Player chosen-action count: '.(int)$q->fetchColumn()."\n\n";
