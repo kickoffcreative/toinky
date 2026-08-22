@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__.'/../app/GenericStateService.php';
 final class SimulationHarness
 {
     public static function resetDatabase(): void
@@ -97,7 +98,7 @@ final class SimulationHarness
     private static function outcomeFamily(int $sid,array $state,array $factors,array $characters): array
     {
         $band=fn(int$v)=>$v<35?'LOW':($v<65?'MID':'HIGH');$dimensions=[];
-        try{$q=db()->prepare('SELECT dimension_code,label_text,source_type,source_key FROM plot_outcome_dimensions pod JOIN simulations s ON s.plot_id=pod.plot_id WHERE s.simulation_id=? AND pod.active=1 ORDER BY pod.sort_order,pod.outcome_dimension_id');$q->execute([$sid]);foreach($q->fetchAll()as$d){$type=strtoupper((string)$d['source_type']);$key=(string)$d['source_key'];$value=$type==='FACTOR'?$band((int)($factors[$key]??50)):strtoupper((string)($state[$key]??'UNKNOWN'));$dimensions[(string)$d['dimension_code']]=['label'=>(string)$d['label_text'],'value'=>$value];}}catch(Throwable$e){}
+        try{$q=db()->prepare('SELECT dimension_code,label_text,source_type,source_key FROM plot_outcome_dimensions pod JOIN simulations s ON s.plot_id=pod.plot_id WHERE s.simulation_id=? AND pod.active=1 ORDER BY pod.sort_order,pod.outcome_dimension_id');$q->execute([$sid]);foreach($q->fetchAll()as$d){$type=strtoupper((string)$d['source_type']);$key=(string)$d['source_key'];$resolved=$type==='WORLD_STATE'?GenericStateService::getByKey($sid,$key):null;$value=$type==='FACTOR'?$band((int)($factors[$key]??50)):strtoupper((string)(($resolved&&$resolved['exists'])?$resolved['value']:'UNKNOWN'));$dimensions[(string)$d['dimension_code']]=['label'=>(string)$d['label_text'],'value'=>$value];}}catch(Throwable$e){}
         if(!$dimensions){foreach($state as$key=>$value)$dimensions['STATE_'.$key]=['label'=>str_replace('_',' ',(string)$key),'value'=>strtoupper((string)$value)];foreach($factors as$key=>$value)$dimensions['FACTOR_'.$key]=['label'=>str_replace('_',' ',(string)$key),'value'=>$band((int)$value)];}
         $goals=[];foreach($characters as$name=>$c)$goals[$name]=self::goalClass((string)$c['goal']);ksort($goals);return['dimensions'=>$dimensions,'goals'=>$goals];
     }
