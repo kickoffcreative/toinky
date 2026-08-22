@@ -19,7 +19,7 @@ final class BehaviorService {
                 $pdo->prepare('INSERT IGNORE INTO decision_options(decision_id,option_code,label,sort_order) VALUES(?,?,?,?)')->execute([$did,$o['option_code'],$o['label'],$o['sort_order']]);$valid++;
             }
             if($valid===0){$pdo->prepare('UPDATE decisions SET status="CLOSED",resolved_text="No valid action remained in the current world state." WHERE decision_id=? AND status="OPEN"')->execute([$did]);continue;}
-            if($row['actor_type']==='NPC') self::resolveNpc($sid,$did,(int)$row['template_id'],$second);
+            if($row['actor_type']==='NPC'&&!self::deferNpcToSimulationLab($sid,(int)$row['character_id'])) self::resolveNpc($sid,$did,(int)$row['template_id'],$second);
         }
     }
 
@@ -29,10 +29,20 @@ final class BehaviorService {
         if(!$d || $d['actor_type']!=='PLAYER') throw new RuntimeException('Player decision not found.');
         if($d['status']!=='OPEN') throw new RuntimeException('That decision is already closed.');
         if((int)$sim['elapsed_seconds']>(int)$d['closes_at_second']) throw new RuntimeException('That opportunity has already passed.');
-        $o=$pdo->prepare('SELECT pdto.* FROM decision_options do JOIN plot_decision_template_options pdto ON pdto.option_code=do.option_code JOIN plot_decision_templates pdt ON pdt.template_id=pdto.template_id JOIN characters c ON c.character_id=? JOIN plot_roles pr ON pr.plot_role_id=c.plot_role_id WHERE do.decision_id=? AND do.option_code=? AND pdt.plot_id=? AND pdt.role_code=pr.role_code AND pdt.event_code=(SELECT se.event_code FROM decisions dx JOIN simulation_events se ON se.event_id=dx.event_id WHERE dx.decision_id=?) LIMIT 1');
-        $o->execute([$d['character_id'],$decisionId,$optionCode,$sim['plot_id'],$decisionId]);$opt=$o->fetch();if(!$opt) throw new RuntimeException('Decision option not found.');
-        if(class_exists('CausalService') && !CausalService::optionAllowed($sid,(int)$opt['template_option_id']))throw new RuntimeException('That action is no longer possible because the world has changed.');
-        self::applyOption($sid,$d,$opt,(int)$sim['elapsed_seconds'],'PLAYER');
+        $o=self::decisionOption($sid,$d,$decisionId,$optionCode,$sim);
+        self::applyOption($sid,$d,$o,(int)$sim['elapsed_seconds'],'PLAYER');
+    }
+
+    public static function chooseNpcForSimulationLab(int $sid,int $decisionId,string $optionCode): void {
+        if(strtolower(trim((string)getenv('GAME2_SIM_NPC_REASONER')))!=='ollama')throw new RuntimeException('Simulation Lab NPC AI control is not enabled.');
+        $pdo=db();$sim=self::simulation($sid);
+        $q=$pdo->prepare('SELECT d.*,c.actor_type,c.character_id FROM decisions d JOIN characters c ON c.character_id=d.character_id WHERE d.decision_id=? AND d.simulation_id=?');$q->execute([$decisionId,$sid]);$d=$q->fetch();
+        if(!$d || $d['actor_type']!=='NPC')throw new RuntimeException('Simulation Lab NPC decision not found.');
+        if(!self::deferNpcToSimulationLab($sid,(int)$d['character_id']))throw new RuntimeException('This NPC is not assigned to Simulation Lab AI control.');
+        if($d['status']!=='OPEN')throw new RuntimeException('That NPC decision is already closed.');
+        if((int)$sim['elapsed_seconds']>(int)$d['closes_at_second'])throw new RuntimeException('That NPC opportunity has already passed.');
+        $o=self::decisionOption($sid,$d,$decisionId,$optionCode,$sim);
+        self::applyOption($sid,$d,$o,(int)$sim['elapsed_seconds'],'NPC');
     }
 
     public static function expire(int $sid,int $second): void {
@@ -43,6 +53,18 @@ final class BehaviorService {
             self::worldLog($sid,(int)$d['closes_at_second'],'NO_ACTION',$d['character_id'],$d['name'].' does not act','A decision window closes without action. The world continues.',(int)$d['event_id']);
             if(class_exists('CausalService'))CausalService::applyNoActionDecision($sid,(int)$d['decision_id']);
         }
+    }
+
+    private static function decisionOption(int $sid,array $d,int $decisionId,string $optionCode,array $sim): array {
+        $o=db()->prepare('SELECT pdto.* FROM decision_options do JOIN plot_decision_template_options pdto ON pdto.option_code=do.option_code JOIN plot_decision_templates pdt ON pdt.template_id=pdto.template_id JOIN characters c ON c.character_id=? JOIN plot_roles pr ON pr.plot_role_id=c.plot_role_id WHERE do.decision_id=? AND do.option_code=? AND pdt.plot_id=? AND pdt.role_code=pr.role_code AND pdt.event_code=(SELECT se.event_code FROM decisions dx JOIN simulation_events se ON se.event_id=dx.event_id WHERE dx.decision_id=?) LIMIT 1');
+        $o->execute([$d['character_id'],$decisionId,$optionCode,$sim['plot_id'],$decisionId]);$opt=$o->fetch();if(!$opt)throw new RuntimeException('Decision option not found.');
+        if(class_exists('CausalService')&&!CausalService::optionAllowed($sid,(int)$opt['template_option_id']))throw new RuntimeException('That action is no longer possible because the world has changed.');
+        return$opt;
+    }
+
+    private static function deferNpcToSimulationLab(int $sid,int $characterId): bool {
+        if(strtolower(trim((string)getenv('GAME2_SIM_NPC_REASONER')))!=='ollama')return false;
+        $assigned=(int)getenv('GAME2_SIM_AI_NPC_ID');return$assigned>0&&$assigned===$characterId;
     }
 
     private static function resolveNpc(int $sid,int $decisionId,int $templateId,int $second): void {
