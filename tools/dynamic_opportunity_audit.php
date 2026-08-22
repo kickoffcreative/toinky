@@ -8,10 +8,7 @@ $sid=(int)($argv[1]??0);
 if($sid<=0)$sid=(int)$pdo->query('SELECT COALESCE(MAX(simulation_id),0) FROM simulations')->fetchColumn();
 if($sid<=0){fwrite(STDERR,"No simulations found.\n");exit(1);}
 
-$migration='029_distinguish_player_silence_and_activity.sql';
-$q=$pdo->prepare('SELECT COUNT(*) FROM schema_migrations WHERE migration=?');
-$q->execute([$migration]);
-$applied=(int)$q->fetchColumn()===1;
+$migrations=['029_distinguish_player_silence_and_activity.sql','030_allow_player_action_count_conditions.sql','031_distinguish_support_and_opposition.sql'];
 
 $q=$pdo->prepare('SELECT s.*,p.code AS plot_code FROM simulations s JOIN plots p ON p.plot_id=s.plot_id WHERE s.simulation_id=?');
 $q->execute([$sid]);$sim=$q->fetch();
@@ -19,7 +16,7 @@ if(!$sim){fwrite(STDERR,"Simulation {$sid} not found.\n");exit(1);}
 
 echo "Game2 dynamic opportunity audit\n";
 echo "Simulation: {$sid} | Plot: {$sim['plot_code']} | Status: {$sim['status']} | Phase: {$sim['current_phase']} | t={$sim['elapsed_seconds']}s\n";
-echo "Migration 029: ".($applied?'applied':'NOT APPLIED')."\n\n";
+foreach($migrations as $migration){$q=$pdo->prepare('SELECT COUNT(*) FROM schema_migrations WHERE migration=?');$q->execute([$migration]);echo $migration.': '.((int)$q->fetchColumn()===1?'applied':'NOT APPLIED')."\n";}echo "\n";
 
 echo "Chosen decisions by time:\n";
 $q=$pdo->prepare('SELECT d.opens_at_second,c.actor_type,pr.role_code,d.chosen_option_code,d.prompt_text FROM decisions d JOIN characters c ON c.character_id=d.character_id JOIN plot_roles pr ON pr.plot_role_id=c.plot_role_id WHERE d.simulation_id=? AND d.status="CHOSEN" ORDER BY d.opens_at_second,d.decision_id');
@@ -31,7 +28,7 @@ $q=$pdo->prepare('SELECT COUNT(*) FROM decisions d JOIN characters c ON c.charac
 $q->execute([$sid]);$playerCount=(int)$q->fetchColumn();
 echo "Player chosen-action count: {$playerCount}\n\n";
 
-$codes=['ROWAN_EXPLOIT_SILENCE','ROWAN_RESPOND_TO_ACTIVITY'];
+$codes=['ROWAN_EXPLOIT_SILENCE','ROWAN_RESPOND_TO_SUPPORT','ROWAN_RESPOND_TO_OPPOSITION','ROWAN_RESPOND_TO_ACTIVITY'];
 foreach($codes as $code){
     $q=$pdo->prepare('SELECT d.dynamic_opportunity_id,d.prompt_text,d.active,d.priority FROM plot_dynamic_opportunities d WHERE d.plot_id=? AND d.opportunity_code=? LIMIT 1');
     $q->execute([$sim['plot_id'],$code]);$opp=$q->fetch();
