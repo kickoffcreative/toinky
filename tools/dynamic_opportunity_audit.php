@@ -28,7 +28,7 @@ $q=$pdo->prepare('SELECT COUNT(*) FROM decisions d JOIN characters c ON c.charac
 $q->execute([$sid]);$playerCount=(int)$q->fetchColumn();
 echo "Player chosen-action count: {$playerCount}\n\n";
 
-$codes=['ROWAN_EXPLOIT_SILENCE','ROWAN_RESPOND_TO_SUPPORT','ROWAN_RESPOND_TO_OPPOSITION','ROWAN_RESPOND_TO_ACTIVITY'];
+$codes=['ROWAN_EXPLOIT_SILENCE','ROWAN_RESPOND_TO_SUPPORT','ROWAN_RESPOND_TO_OPPOSITION','ROWAN_RESPOND_TO_ACTIVITY','ROWAN_CLIMAX_MOVE'];
 foreach($codes as $code){
     $q=$pdo->prepare('SELECT d.dynamic_opportunity_id,d.prompt_text,d.active,d.priority FROM plot_dynamic_opportunities d WHERE d.plot_id=? AND d.opportunity_code=? LIMIT 1');
     $q->execute([$sim['plot_id'],$code]);$opp=$q->fetch();
