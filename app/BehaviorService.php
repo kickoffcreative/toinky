@@ -8,7 +8,7 @@ final class BehaviorService {
             $pdo->prepare('INSERT INTO character_history(simulation_id,character_id,event_id,event_second,history_type,title,detail_text) VALUES(?,?,?,?,?,?,?)')->execute([$sid,$r['character_id'],$eventId,$second,$r['history_type'],$r['title'],$r['perception_text']]);
             if(!empty($r['location_after'])) self::setLocation($sid,(int)$r['character_id'],$r['location_after'],$second,$eventId,'Event movement');
         }
-        $t=$pdo->prepare('SELECT pdt.*,pr.plot_role_id,c.character_id,c.name,c.actor_type FROM plot_decision_templates pdt JOIN plot_roles pr ON pr.plot_id=pdt.plot_id AND pr.role_code=pdt.role_code JOIN characters c ON c.simulation_id=? AND c.plot_role_id=pr.plot_role_id WHERE pdt.plot_id=? AND pdt.event_code=?');
+        $t=$pdo->prepare('SELECT pdt.*,pr.plot_role_id,c.character_id,c.name,c.actor_type,c.controller_type FROM plot_decision_templates pdt JOIN plot_roles pr ON pr.plot_id=pdt.plot_id AND pr.role_code=pdt.role_code JOIN characters c ON c.simulation_id=? AND c.plot_role_id=pr.plot_role_id WHERE pdt.plot_id=? AND pdt.event_code=?');
         $t->execute([$sid,$sim['plot_id'],$eventCode]);
         foreach($t->fetchAll() as $row){
             $pdo->prepare('INSERT IGNORE INTO decisions(simulation_id,character_id,event_id,prompt_text,status,opens_at_second,closes_at_second) VALUES(?,?,?,? ,"OPEN",?,?)')->execute([$sid,$row['character_id'],$eventId,$row['prompt_text'],$second,$second+(int)$row['decision_window_seconds']]);
@@ -19,7 +19,7 @@ final class BehaviorService {
                 $pdo->prepare('INSERT IGNORE INTO decision_options(decision_id,option_code,label,sort_order) VALUES(?,?,?,?)')->execute([$did,$o['option_code'],$o['label'],$o['sort_order']]);$valid++;
             }
             if($valid===0){$pdo->prepare('UPDATE decisions SET status="CLOSED",resolved_text="No valid action remained in the current world state." WHERE decision_id=? AND status="OPEN"')->execute([$did]);continue;}
-            if($row['actor_type']==='NPC'&&!self::deferNpcToSimulationLab($sid,(int)$row['character_id'])) self::resolveNpc($sid,$did,(int)$row['template_id'],$second);
+            if($row['actor_type']==='NPC'&&($row['controller_type']??'AI')!=='AI'&&!self::deferNpcToSimulationLab($sid,(int)$row['character_id'])) self::resolveNpc($sid,$did,(int)$row['template_id'],$second);
         }
     }
 
@@ -43,6 +43,24 @@ final class BehaviorService {
         if((int)$sim['elapsed_seconds']>(int)$d['closes_at_second'])throw new RuntimeException('That NPC opportunity has already passed.');
         $o=self::decisionOption($sid,$d,$decisionId,$optionCode,$sim);
         self::applyOption($sid,$d,$o,(int)$sim['elapsed_seconds'],'NPC');
+    }
+
+    public static function chooseControlled(int $sid,int $decisionId,string $optionCode): void
+    {
+        $pdo=db();$sim=self::simulation($sid);$q=$pdo->prepare('SELECT d.*,c.actor_type,c.controller_type FROM decisions d JOIN characters c ON c.character_id=d.character_id WHERE d.decision_id=? AND d.simulation_id=?');$q->execute([$decisionId,$sid]);$d=$q->fetch();
+        if(!$d||$d['controller_type']!=='HUMAN')throw new RuntimeException('This decision is not assigned to a human controller.');
+        if($d['status']!=='OPEN')throw new RuntimeException('That decision is already closed.');
+        if((int)$sim['elapsed_seconds']>(int)$d['closes_at_second'])throw new RuntimeException('That opportunity has already passed.');
+        $o=self::decisionOption($sid,$d,$decisionId,$optionCode,$sim);self::applyOption($sid,$d,$o,(int)$sim['elapsed_seconds'],(string)$d['actor_type']);
+    }
+
+    public static function chooseAutomated(int $sid,int $decisionId,string $optionCode): void
+    {
+        $pdo=db();$sim=self::simulation($sid);$q=$pdo->prepare('SELECT d.*,c.actor_type,c.controller_type FROM decisions d JOIN characters c ON c.character_id=d.character_id WHERE d.decision_id=? AND d.simulation_id=?');$q->execute([$decisionId,$sid]);$d=$q->fetch();
+        if(!$d||$d['controller_type']!=='AI')throw new RuntimeException('This decision is not assigned to AI.');
+        if($d['status']!=='OPEN')throw new RuntimeException('That decision is already closed.');
+        if((int)$sim['elapsed_seconds']>(int)$d['closes_at_second'])throw new RuntimeException('That opportunity has already passed.');
+        $o=self::decisionOption($sid,$d,$decisionId,$optionCode,$sim);self::applyOption($sid,$d,$o,(int)$sim['elapsed_seconds'],(string)$d['actor_type']);
     }
 
     public static function expire(int $sid,int $second): void {
