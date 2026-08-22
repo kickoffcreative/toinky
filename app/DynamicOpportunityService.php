@@ -61,10 +61,23 @@ final class DynamicOpportunityService
 
     private static function conditionsPass(int $sid,int $cid,int $ruleId,string $phase): bool
     {
-        $q=db()->prepare('SELECT * FROM plot_dynamic_opportunity_conditions WHERE dynamic_opportunity_id=? ORDER BY sort_order,dynamic_condition_id');$q->execute([$ruleId]);
-        foreach($q->fetchAll() as $c){
-            [$exists,$value]=self::sourceValue($sid,$cid,(string)$c['source_type'],$c['source_key'],$phase);
-            if(!self::compare($exists,$value,(string)$c['operator'],$c['compare_value']))return false;
+        $pdo=db();$trace=getenv('GAME2_TRACE_OPPORTUNITIES')==='1';$traceLabel='';
+        if($trace){
+            $q=$pdo->prepare('SELECT d.opportunity_code,d.role_code,s.elapsed_seconds FROM plot_dynamic_opportunities d JOIN simulations s ON s.simulation_id=? WHERE d.dynamic_opportunity_id=?');
+            $q->execute([$sid,$ruleId]);$meta=$q->fetch();
+            $filter=strtoupper(trim((string)getenv('GAME2_TRACE_ROLE')));
+            if(!$meta || ($filter!=='' && strtoupper((string)$meta['role_code'])!==$filter))$trace=false;
+            else $traceLabel='t='.(int)$meta['elapsed_seconds'].' '.$meta['role_code'].'/'.$meta['opportunity_code'];
+        }
+        $q=$pdo->prepare('SELECT * FROM plot_dynamic_opportunity_conditions WHERE dynamic_opportunity_id=? ORDER BY sort_order,dynamic_condition_id');$q->execute([$ruleId]);
+        foreach($q->fetchAll() as $condition){
+            [$exists,$value]=self::sourceValue($sid,$cid,(string)$condition['source_type'],$condition['source_key'],$phase);
+            $pass=self::compare($exists,$value,(string)$condition['operator'],$condition['compare_value']);
+            if($trace){
+                $source=(string)$condition['source_type'].($condition['source_key']!==null?':'.$condition['source_key']:'');
+                fwrite(STDERR,'[opportunity] '.$traceLabel.' | '.$source.' actual='.($exists?$value:'<missing>').' '.$condition['operator'].' '.$condition['compare_value'].' => '.($pass?'PASS':'FAIL').PHP_EOL);
+            }
+            if(!$pass)return false;
         }
         return true;
     }
