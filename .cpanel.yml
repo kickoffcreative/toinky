@@ -6,5 +6,6 @@ deployment:
     - /bin/cp -Rf app $DEPLOYPATH
     - /bin/cp -Rf public $DEPLOYPATH
     - /bin/cp -Rf database $DEPLOYPATH
+    - /bin/cp -Rf tools $DEPLOYPATH
     - /bin/mkdir -p $DEPLOYPATH/config
     - /bin/cp -f config/database.example.php $DEPLOYPATH/config/database.example.php
