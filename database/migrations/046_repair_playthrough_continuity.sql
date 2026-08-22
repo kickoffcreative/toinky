@@ -97,6 +97,23 @@ INSERT INTO plot_resolution_conditions
 (resolution_fragment_id,state_key,operator,compare_value,sort_order)
 VALUES(@fragment,'REPORT_HOLDER','EQ','NIKO',1);
 
+-- Keep the legacy combined guest lifecycle synchronized for older resolution data and audits.
+INSERT INTO plot_option_effects
+(template_option_id,effect_scope,target_code,delta_value,set_value,detail_text,sort_order)
+SELECT o.template_option_id,'WORLD_STATE','GUEST_STATUS',NULL,'EVACUATED',
+       'The injured guest reaches the west evacuation point.',13
+FROM plot_decision_templates t
+JOIN plot_decision_template_options o ON o.template_id=t.template_id
+WHERE t.plot_id=@bell
+  AND ((t.event_code='REAR_EXIT' AND t.role_code='KELLAN' AND o.option_code='FINAL_RESCUE_K')
+    OR (t.event_code='REAR_EXIT' AND t.role_code='WREN' AND o.option_code='FINISH_GUEST_EVAC')
+    OR (t.event_code='REAR_EXIT' AND t.role_code='LEILA' AND o.option_code='COMPLETE_EVAC_NPC'))
+  AND NOT EXISTS(
+    SELECT 1 FROM plot_option_effects e
+    WHERE e.template_option_id=o.template_option_id
+      AND e.effect_scope='WORLD_STATE' AND e.target_code='GUEST_STATUS'
+  );
+
 -- Make the key contradictions visible to every generic integrity audit.
 INSERT INTO plot_integrity_rules(plot_id,rule_code,message_text,priority,active)
 SELECT @bell,'EVACUATED_GUEST_STILL_DESCRIBED_BY_LEGACY_STATE',
