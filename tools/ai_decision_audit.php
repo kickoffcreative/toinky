@@ -6,9 +6,18 @@ $pdo=db();
 function auditLine(string $label,string $value,int $width=96): void
 {
     $value=trim(preg_replace('/\\s+/u',' ',$value)??$value);
+    $indent=str_repeat(' ',strlen($label));
     $available=max(24,$width-strlen($label));
-    $continuation="\n".str_repeat(' ',strlen($label));
-    echo $label.wordwrap($value,$available,$continuation,false)."\n";
+    $words=preg_split('/\\s+/u',$value,-1,PREG_SPLIT_NO_EMPTY)?:[];
+    $lines=[];$line='';
+    foreach($words as $word){
+        $candidate=$line===''?$word:$line.' '.$word;
+        if($line!==''&&strlen($candidate)>$available){$lines[]=$line;$line=$word;continue;}
+        $line=$candidate;
+    }
+    if($line!==''||!$lines)$lines[]=$line;
+    echo $label.array_shift($lines)."\n";
+    foreach($lines as $continuation)echo $indent.$continuation."\n";
 }
 $sid=(int)($argv[1]??0);
 if($sid<=0)$sid=(int)$pdo->query('SELECT COALESCE(MAX(simulation_id),0) FROM simulations')->fetchColumn();
