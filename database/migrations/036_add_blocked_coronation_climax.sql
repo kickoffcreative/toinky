@@ -12,12 +12,20 @@ SET @crown_property=(SELECT p.property_id
   WHERE a.plot_id=@plot AND a.state_key='CROWN_HOLDER' LIMIT 1);
 INSERT IGNORE INTO plot_property_transitions(property_id,from_value,to_value,active)
 SELECT @crown_property,'NONE','ELIAN',1 WHERE @crown_property IS NOT NULL;
+INSERT IGNORE INTO plot_property_transitions(property_id,from_value,to_value,active)
+SELECT @crown_property,'NONE','ROWAN',1 WHERE @crown_property IS NOT NULL;
 
 SET @elian_property=(SELECT p.property_id
   FROM plot_state_aliases a
   JOIN plot_entities e ON e.plot_id=a.plot_id AND e.entity_code=a.entity_code
   JOIN plot_entity_properties p ON p.plot_entity_id=e.plot_entity_id AND p.property_code=a.property_code
   WHERE a.plot_id=@plot AND a.state_key='ELIAN_CLAIM' LIMIT 1);
+INSERT IGNORE INTO plot_property_transitions(property_id,from_value,to_value,active)
+SELECT @elian_property,'SECONDARY','ACTIVE',1 WHERE @elian_property IS NOT NULL;
+INSERT IGNORE INTO plot_property_transitions(property_id,from_value,to_value,active)
+SELECT @elian_property,'SECONDARY','SUPPORTED',1 WHERE @elian_property IS NOT NULL;
+INSERT IGNORE INTO plot_property_transitions(property_id,from_value,to_value,active)
+SELECT @elian_property,'ACTIVE','SUPPORTED',1 WHERE @elian_property IS NOT NULL;
 INSERT IGNORE INTO plot_property_transitions(property_id,from_value,to_value,active)
 SELECT @elian_property,'ACTIVE','CROWNED',1 WHERE @elian_property IS NOT NULL;
 INSERT IGNORE INTO plot_property_transitions(property_id,from_value,to_value,active)
