@@ -10,6 +10,16 @@ SET @rowan_property=(SELECT p.property_id
   WHERE a.plot_id=@plot AND a.state_key='ROWAN_CLAIM' LIMIT 1);
 
 INSERT IGNORE INTO plot_property_transitions(property_id,from_value,to_value,active)
+SELECT @rowan_property,'PRESUMED_HEIR','DISPUTED',1 WHERE @rowan_property IS NOT NULL;
+INSERT IGNORE INTO plot_property_transitions(property_id,from_value,to_value,active)
+SELECT @rowan_property,'PRESUMED_HEIR','CROWNED',1 WHERE @rowan_property IS NOT NULL;
+INSERT IGNORE INTO plot_property_transitions(property_id,from_value,to_value,active)
+SELECT @rowan_property,'DISPUTED','CROWNED',1 WHERE @rowan_property IS NOT NULL;
+INSERT IGNORE INTO plot_property_transitions(property_id,from_value,to_value,active)
+SELECT @rowan_property,'PRESUMED_HEIR','RENOUNCED',1 WHERE @rowan_property IS NOT NULL;
+INSERT IGNORE INTO plot_property_transitions(property_id,from_value,to_value,active)
+SELECT @rowan_property,'DISPUTED','RENOUNCED',1 WHERE @rowan_property IS NOT NULL;
+INSERT IGNORE INTO plot_property_transitions(property_id,from_value,to_value,active)
 SELECT @rowan_property,'PRESUMED_HEIR','DISQUALIFIED',1 WHERE @rowan_property IS NOT NULL;
 INSERT IGNORE INTO plot_property_transitions(property_id,from_value,to_value,active)
 SELECT @rowan_property,'DISPUTED','DISQUALIFIED',1 WHERE @rowan_property IS NOT NULL;
