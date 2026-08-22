@@ -7,37 +7,47 @@ final class SimulationHarness
     }
     public static function run(string $plotCode,string $strategy='no-action',int $duration=300,int $step=30): array
     {
-        $sid=SimulationService::create($plotCode,$duration);$aiNpcId=self::prepareAiNpc($sid);
+        $aiCharacterIds=self::prepareAiCharacters($sid=SimulationService::create($plotCode,$duration));
         try{
-            SimulationService::start($sid);self::playAiNpcDecisions($sid,$aiNpcId);
-            while(true){$sim=self::simulationRow($sid);if($sim['status']==='COMPLETE')break;if($strategy!=='no-action')self::playOpenPlayerDecisions($sid,$strategy,$aiNpcId);self::playAiNpcDecisions($sid,$aiNpcId);SimulationService::advance($sid,$step);self::playAiNpcDecisions($sid,$aiNpcId);}
-            if($strategy!=='no-action')self::playOpenPlayerDecisions($sid,$strategy,$aiNpcId);self::playAiNpcDecisions($sid,$aiNpcId);
-        }finally{self::restoreAiNpc($sid,$aiNpcId);}
+            SimulationService::start($sid);self::playAiDecisions($sid,$aiCharacterIds);
+            while(true){$sim=self::simulationRow($sid);if($sim['status']==='COMPLETE')break;if($strategy!=='no-action')self::playOpenPlayerDecisions($sid,$strategy,$aiCharacterIds);self::playAiDecisions($sid,$aiCharacterIds);SimulationService::advance($sid,$step);self::playAiDecisions($sid,$aiCharacterIds);}
+            if($strategy!=='no-action')self::playOpenPlayerDecisions($sid,$strategy,$aiCharacterIds);self::playAiDecisions($sid,$aiCharacterIds);
+        }finally{self::restoreAiCharacters($aiCharacterIds);}
         StateSyncService::reconcile($sid);ResolutionService::refresh($sid);return self::result($sid);
     }
-    private static function prepareAiNpc(int $sid): ?int
+    private static function prepareAiCharacters(int $sid): array
     {
-        if(strtolower(trim((string)getenv('GAME2_SIM_NPC_REASONER')))!=='ollama')return null;
-        $role=strtoupper(trim((string)getenv('GAME2_SIM_AI_NPC_ROLE')));$pdo=db();
-        $sql='SELECT c.character_id,pr.role_code FROM characters c JOIN plot_roles pr ON pr.plot_role_id=c.plot_role_id WHERE c.simulation_id=? AND c.actor_type="NPC"';$args=[$sid];if($role!==''){$sql.=' AND pr.role_code=?';$args[]=$role;}$sql.=' ORDER BY c.slot_no,c.character_id LIMIT 1';
-        $q=$pdo->prepare($sql);$q->execute($args);$row=$q->fetch();if(!$row)throw new RuntimeException($role!==''?'Requested AI NPC role '.$role.' is not active in this simulation.':'No active NPC is available for AI lab testing.');
-        $characterId=(int)$row['character_id'];putenv('GAME2_SIM_AI_NPC_ID='.$characterId);
-        $pdo->prepare('INSERT INTO character_history(simulation_id,character_id,event_second,history_type,title,detail_text) VALUES(?,?,0,"INTERACTION","Simulation Lab AI Control",?)')->execute([$sid,$characterId,'This NPC remains an NPC and is routed through the configured StoryReasoner for Simulation Lab testing.']);
-        return$characterId;
+        $pdo=db();$ids=[];$npcId=null;
+        if(strtolower(trim((string)getenv('GAME2_SIM_NPC_REASONER')))==='ollama'){
+            $role=strtoupper(trim((string)getenv('GAME2_SIM_AI_NPC_ROLE')));
+            $sql='SELECT c.character_id,pr.role_code FROM characters c JOIN plot_roles pr ON pr.plot_role_id=c.plot_role_id WHERE c.simulation_id=? AND c.actor_type="NPC"';$args=[$sid];if($role!==''){$sql.=' AND pr.role_code=?';$args[]=$role;}$sql.=' ORDER BY c.slot_no,c.character_id LIMIT 1';
+            $q=$pdo->prepare($sql);$q->execute($args);$row=$q->fetch();if(!$row)throw new RuntimeException($role!==''?'Requested AI NPC role '.$role.' is not active in this simulation.':'No active NPC is available for AI lab testing.');
+            $npcId=(int)$row['character_id'];$ids[]=$npcId;putenv('GAME2_SIM_AI_NPC_ID='.$npcId);
+        }
+        if(strtolower(trim((string)getenv('GAME2_SIM_PLAYER_REASONER')))==='ollama'){
+            $q=$pdo->prepare('SELECT character_id FROM characters WHERE simulation_id=? AND actor_type="PLAYER" ORDER BY slot_no,character_id');$q->execute([$sid]);foreach($q->fetchAll()as$row)$ids[]=(int)$row['character_id'];
+        }
+        $ids=array_values(array_unique($ids));
+        foreach($ids as$characterId)$pdo->prepare('INSERT INTO character_history(simulation_id,character_id,event_second,history_type,title,detail_text) VALUES(?,?,0,"INTERACTION","Simulation Lab AI Control",?)')->execute([$sid,$characterId,'This character keeps its database-defined actor type and is routed through the configured StoryReasoner for Simulation Lab testing.']);
+        return$ids;
     }
-    private static function restoreAiNpc(int $sid,?int $characterId): void
+    private static function restoreAiCharacters(array $characterIds): void
     {
-        if(!$characterId)return;putenv('GAME2_SIM_AI_NPC_ID');
+        putenv('GAME2_SIM_AI_NPC_ID');
     }
-    private static function playAiNpcDecisions(int $sid,?int $characterId): void
+    private static function playAiDecisions(int $sid,array $characterIds): void
     {
-        if(!$characterId)return;$pdo=db();$q=$pdo->prepare('SELECT decision_id,event_id FROM decisions WHERE simulation_id=? AND character_id=? AND status="OPEN" ORDER BY opens_at_second,decision_id');$q->execute([$sid,$characterId]);
-        foreach($q->fetchAll()as$d){$decisionId=(int)$d['decision_id'];$options=self::aiDecisionOptions($sid,$decisionId,$characterId);if(!$options)continue;
-            try{$context=AiReasoningContextService::forDecision($sid,$decisionId);$context['purpose']='SIMULATION_LAB_NPC_OPTION_SELECTION';$result=StoryReasonerFactory::withFallback()->selectOption($context,$options);$selected=(string)($result['selected_action']??'');$pick=null;foreach($options as$o)if((string)$o['option_code']===$selected){$pick=$o;break;}if(!$pick)throw new RuntimeException('Reasoner returned no currently valid option.');
-                $detail='Provider: '.($result['provider']??'unknown').' | Selected: '.$selected.' | Confidence: '.($result['confidence']??'n/a').' | Reason: '.($result['reason']??'');if(!empty($result['fallback_used']))$detail.=' | Fallback: '.($result['fallback_error']??'yes');
-                $pdo->prepare('INSERT INTO character_history(simulation_id,character_id,event_id,event_second,history_type,title,detail_text) SELECT ?,?,?,elapsed_seconds,"INTERACTION","AI Options Considered",? FROM simulations WHERE simulation_id=?')->execute([$sid,$characterId,$d['event_id'],$detail,$sid]);
-                BehaviorService::chooseNpcForSimulationLab($sid,$decisionId,$selected);
-            }catch(Throwable$e){$fallback=self::weightedPick($options);$pdo->prepare('INSERT INTO character_history(simulation_id,character_id,event_id,event_second,history_type,title,detail_text) SELECT ?,?,?,elapsed_seconds,"INTERACTION","AI Reasoner Fallback",? FROM simulations WHERE simulation_id=?')->execute([$sid,$characterId,$d['event_id'],$e->getMessage(),$sid]);try{BehaviorService::chooseNpcForSimulationLab($sid,$decisionId,(string)$fallback['option_code']);}catch(Throwable$ignored){}}
+        if(!$characterIds)return;$pdo=db();
+        foreach($characterIds as$characterId){
+            $cq=$pdo->prepare('SELECT actor_type FROM characters WHERE simulation_id=? AND character_id=?');$cq->execute([$sid,$characterId]);$actorType=(string)$cq->fetchColumn();if($actorType==='')continue;
+            $q=$pdo->prepare('SELECT decision_id,event_id FROM decisions WHERE simulation_id=? AND character_id=? AND status="OPEN" ORDER BY opens_at_second,decision_id');$q->execute([$sid,$characterId]);
+            foreach($q->fetchAll()as$d){$decisionId=(int)$d['decision_id'];$options=self::aiDecisionOptions($sid,$decisionId,$characterId);if(!$options)continue;
+                try{$context=AiReasoningContextService::forDecision($sid,$decisionId);$context['purpose']='SIMULATION_LAB_'.strtoupper($actorType).'_OPTION_SELECTION';$result=StoryReasonerFactory::withFallback()->selectOption($context,$options);$selected=(string)($result['selected_action']??'');$pick=null;foreach($options as$o)if((string)$o['option_code']===$selected){$pick=$o;break;}if(!$pick)throw new RuntimeException('Reasoner returned no currently valid option.');
+                    $detail='Provider: '.($result['provider']??'unknown').' | Selected: '.$selected.' | Confidence: '.($result['confidence']??'n/a').' | Reason: '.($result['reason']??'');if(!empty($result['fallback_used']))$detail.=' | Fallback: '.($result['fallback_error']??'yes');
+                    $pdo->prepare('INSERT INTO character_history(simulation_id,character_id,event_id,event_second,history_type,title,detail_text) SELECT ?,?,?,elapsed_seconds,"INTERACTION","AI Options Considered",? FROM simulations WHERE simulation_id=?')->execute([$sid,$characterId,$d['event_id'],$detail,$sid]);
+                    if($actorType==='NPC')BehaviorService::chooseNpcForSimulationLab($sid,$decisionId,$selected);else SimulationService::choose($sid,$decisionId,$selected);
+                }catch(Throwable$e){$fallback=self::weightedPick($options);$pdo->prepare('INSERT INTO character_history(simulation_id,character_id,event_id,event_second,history_type,title,detail_text) SELECT ?,?,?,elapsed_seconds,"INTERACTION","AI Reasoner Fallback",? FROM simulations WHERE simulation_id=?')->execute([$sid,$characterId,$d['event_id'],$e->getMessage(),$sid]);try{if($actorType==='NPC')BehaviorService::chooseNpcForSimulationLab($sid,$decisionId,(string)$fallback['option_code']);else SimulationService::choose($sid,$decisionId,(string)$fallback['option_code']);}catch(Throwable$ignored){}}
+            }
         }
     }
     private static function aiDecisionOptions(int $sid,int $decisionId,int $characterId): array
@@ -48,10 +58,10 @@ final class SimulationHarness
     {
         $total=max(1,array_sum(array_map(fn($r)=>max(0,(int)($r['npc_weight']??0)),$options)));$roll=random_int(1,$total);$cursor=0;foreach($options as$r){$cursor+=max(0,(int)($r['npc_weight']??0));if($roll<=$cursor)return$r;}return$options[0];
     }
-    private static function playOpenPlayerDecisions(int $sid,string $strategy,?int $excludeCharacterId=null): void
+    private static function playOpenPlayerDecisions(int $sid,string $strategy,array $excludeCharacterIds=[]): void
     {
         $snapshot=SimulationService::snapshot($sid);
-        foreach($snapshot['characters']as$character){if($character['actor_type']!=='PLAYER'||($excludeCharacterId&&((int)$character['character_id']===$excludeCharacterId)))continue;foreach($character['open_decisions']as$decision){$options=$decision['options']??[];if(!$options)continue;$pick=self::pickOption($character,$decision,$options,$strategy);try{SimulationService::choose($sid,(int)$decision['decision_id'],(string)$pick['option_code']);}catch(Throwable$e){}}}
+        foreach($snapshot['characters']as$character){if($character['actor_type']!=='PLAYER'||in_array((int)$character['character_id'],$excludeCharacterIds,true))continue;foreach($character['open_decisions']as$decision){$options=$decision['options']??[];if(!$options)continue;$pick=self::pickOption($character,$decision,$options,$strategy);try{SimulationService::choose($sid,(int)$decision['decision_id'],(string)$pick['option_code']);}catch(Throwable$e){}}}
     }
     private static function pickOption(array $character,array $decision,array $options,string $strategy): array
     {
