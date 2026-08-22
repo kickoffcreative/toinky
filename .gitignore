@@ -1,4 +1,5 @@
 config/database.php
+config/ai.php
 .installed
 *.log
 error_log
