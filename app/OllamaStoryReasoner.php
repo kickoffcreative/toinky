@@ -4,11 +4,12 @@ final class OllamaStoryReasoner implements StoryReasoner
     public function selectOption(array $context,array $options): array
     {
         if(!$options)throw new RuntimeException('No valid options supplied to reasoner.');
+        $cfg=$this->connectionConfig();
         $endpointOverride=trim((string)getenv('GAME2_AI_ENDPOINT'));
-        $base=$endpointOverride!==''?$endpointOverride:(string)AiInteractionLogger::setting('ollama_endpoint','http://127.0.0.1:11434');
+        $base=$endpointOverride!==''?$endpointOverride:(string)($cfg['endpoint']??AiInteractionLogger::setting('ollama_endpoint','http://127.0.0.1:11434'));
         $endpoint=rtrim($base,'/').'/api/chat';
-        $model=(string)AiInteractionLogger::setting('ollama_model','qwen3:8b');
-        $timeout=max(3,(int)AiInteractionLogger::setting('timeout_seconds','20'));
+        $model=(string)($cfg['model']??AiInteractionLogger::setting('ollama_model','qwen3:8b'));
+        $timeout=max(3,(int)($cfg['timeout_seconds']??AiInteractionLogger::setting('timeout_seconds','20')));
         $payload=$this->payload($model,$context,$options);
         $promptChars=0;foreach($payload['messages']as$m)$promptChars+=mb_strlen((string)$m['content']);
         $meta=['simulation_id'=>$context['simulation_id']??null,'character_id'=>$context['character_id']??null,'decision_id'=>$context['decision_id']??null,'purpose'=>$context['purpose']??'NPC_OPTION_SELECTION','prompt_chars'=>$promptChars];
@@ -18,10 +19,10 @@ final class OllamaStoryReasoner implements StoryReasoner
             if(!function_exists('curl_init'))throw new RuntimeException('PHP cURL extension is unavailable.');
             $json=json_encode($payload,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);if($json===false)throw new RuntimeException('Unable to encode Ollama request.');
             $headers=['Content-Type: application/json'];
-            $clientId=trim((string)getenv('GAME2_AI_ACCESS_CLIENT_ID'));$clientSecret=trim((string)getenv('GAME2_AI_ACCESS_CLIENT_SECRET'));
+            $clientId=$this->value('GAME2_AI_ACCESS_CLIENT_ID',$cfg,'access_client_id');$clientSecret=$this->value('GAME2_AI_ACCESS_CLIENT_SECRET',$cfg,'access_client_secret');
             if($clientId!==''&&$clientSecret!==''){$headers[]='CF-Access-Client-Id: '.$clientId;$headers[]='CF-Access-Client-Secret: '.$clientSecret;}
-            $ngrokToken=trim((string)getenv('GAME2_AI_NGROK_TOKEN'));if($ngrokToken!=='')$headers[]='Authorization: Bearer '.$ngrokToken;
-            $basicUser=(string)getenv('GAME2_AI_BASIC_USER');$basicPassword=(string)getenv('GAME2_AI_BASIC_PASSWORD');
+            $ngrokToken=$this->value('GAME2_AI_NGROK_TOKEN',$cfg,'ngrok_token');if($ngrokToken!=='')$headers[]='Authorization: Bearer '.$ngrokToken;
+            $basicUser=$this->value('GAME2_AI_BASIC_USER',$cfg,'basic_user');$basicPassword=$this->value('GAME2_AI_BASIC_PASSWORD',$cfg,'basic_password');
             $ch=curl_init($endpoint);$curlOptions=[CURLOPT_POST=>true,CURLOPT_RETURNTRANSFER=>true,CURLOPT_HTTPHEADER=>$headers,CURLOPT_POSTFIELDS=>$json,CURLOPT_CONNECTTIMEOUT=>min(5,$timeout),CURLOPT_TIMEOUT=>$timeout];
             if($basicUser!==''&&$basicPassword!==''){$curlOptions[CURLOPT_HTTPAUTH]=CURLAUTH_BASIC;$curlOptions[CURLOPT_USERPWD]=$basicUser.':'.$basicPassword;}
             curl_setopt_array($ch,$curlOptions);
@@ -34,6 +35,14 @@ final class OllamaStoryReasoner implements StoryReasoner
             AiInteractionLogger::complete($interactionId,['success'=>true,'http_status'=>$status,'latency_ms'=>(hrtime(true)-$started)/1e6,'response_raw'=>$raw,'parsed'=>$parsed,'prompt_eval_count'=>$outer['prompt_eval_count']??null,'eval_count'=>$outer['eval_count']??null,'total_duration_ns'=>$outer['total_duration']??null,'load_duration_ns'=>$outer['load_duration']??null,'prompt_eval_duration_ns'=>$outer['prompt_eval_duration']??null,'eval_duration_ns'=>$outer['eval_duration']??null,'selected_action'=>$selected,'confidence'=>$confidence,'reason'=>$reason]);
             return['selected_action'=>$selected,'confidence'=>$confidence,'reason'=>$reason,'provider'=>'ollama','model'=>$model,'interaction_id'=>$interactionId];
         }catch(Throwable$e){AiInteractionLogger::complete($interactionId,['success'=>false,'http_status'=>$status,'latency_ms'=>(hrtime(true)-$started)/1e6,'response_raw'=>$raw,'error'=>$e->getMessage()]);throw$e;}
+    }
+    private function connectionConfig(): array
+    {
+        $path=dirname(__DIR__).'/config/ai.php';if(!is_file($path))return[];$cfg=require$path;return is_array($cfg)?$cfg:[];
+    }
+    private function value(string$env,array$cfg,string$key): string
+    {
+        $v=trim((string)getenv($env));return$v!==''?$v:trim((string)($cfg[$key]??''));
     }
     private function payload(string$model,array$context,array$options): array
     {
