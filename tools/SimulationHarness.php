@@ -64,7 +64,7 @@ final class SimulationHarness
     }
     private static function weightedPick(array$options): array
     {
-        $focusActive=array_key_exists('focus_score',$options[0]??[]);$total=max(1,array_sum(array_map(fn($r)=>max(0,(int)($focusActive?($r['focus_score']??0):($r['npc_weight']??0))),$options)));$roll=random_int(1,$total);$cursor=0;foreach($options as$r){$cursor+=max(0,(int)($focusActive?($r['focus_score']??0):($r['npc_weight']??0));if($roll<=$cursor)return$r;}return$options[0];
+        $focusActive=array_key_exists('focus_score',$options[0]??[]);$total=max(1,array_sum(array_map(fn($r)=>max(0,(int)($focusActive?($r['focus_score']??0):($r['npc_weight']??0))),$options)));$roll=random_int(1,$total);$cursor=0;foreach($options as$r){$cursor+=max(0,(int)($focusActive?($r['focus_score']??0):($r['npc_weight']??0)));if($roll<=$cursor)return$r;}return$options[0];
     }
     private static function playOpenControlledDecisions(int $sid,string $strategy,array $excludeCharacterIds=[]): void
     {
