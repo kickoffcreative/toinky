@@ -57,7 +57,8 @@ final class GenericStateService
             'LTE'=>$exists && $num && (float)$value<=(float)$compare,
             'GT'=>$exists && $num && (float)$value>(float)$compare,
             'GTE'=>$exists && $num && (float)$value>=(float)$compare,
-            default=>true,
+            // Unknown or malformed operators must never make a restricted action legal.
+            default=>false,
         };
     }
 
