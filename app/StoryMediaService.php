@@ -29,7 +29,7 @@ final class StoryMediaService
         $root=dirname(__DIR__).'/public/uploads/story-media';if(!is_dir($root)&&!mkdir($root,0775,true)&&!is_dir($root))throw new RuntimeException('The story-media directory could not be created.');
         $name=strtolower($code).'-'.bin2hex(random_bytes(8)).'.'.$extensions[$mime];$target=$root.'/'.$name;
         if(!move_uploaded_file($tmp,$target))throw new RuntimeException('The image could not be saved.');
-        $path='uploads/story-media/'.$name;
+        $path='public/uploads/story-media/'.$name;
         try{
             $q=db()->prepare('INSERT INTO plot_media_assets(plot_id,uploaded_by_user_id,asset_code,placement,role_code,event_code,scene_second,condition_state_key,condition_operator,condition_value,title_text,alt_text,caption_text,file_path,mime_type,file_size_bytes,sort_order) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
             $q->execute([$plotId,$user['user_id'],$code,$placement,self::nullable($fields['role_code']??null),self::nullable($fields['event_code']??null),self::nullableInt($fields['scene_second']??null),self::nullable($fields['condition_state_key']??null),self::nullable($fields['condition_operator']??null),self::nullable($fields['condition_value']??null),self::nullable($fields['title_text']??null),$alt,self::nullable($fields['caption_text']??null),$path,$mime,$size,(int)($fields['sort_order']??100)]);
