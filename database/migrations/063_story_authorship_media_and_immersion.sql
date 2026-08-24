@@ -125,4 +125,29 @@ SELECT @bell,'AFTERMATH',80,100,'Morning reaches Bellweather House reluctantly. 
 INSERT INTO plot_resolution_fragments(plot_id,section_code,section_order,priority,fragment_text)
 SELECT @bell,'INVITATION',90,100,'Somewhere beneath the wet plaster, another sound answers the settling house—a slow metallic knock from a service passage no one inspected. It may be nothing. Bellweather has survived for years by teaching people to call dangerous things ordinary. Yet every person who stood in that lobby now knows how quickly a private compromise can become a public disaster, and how differently the night might have ended if one of them had chosen another door, another ally, or another truth. The mountain keeps the rest of its secrets for the next storm.' WHERE @bell IS NOT NULL AND NOT EXISTS(SELECT 1 FROM plot_resolution_fragments WHERE plot_id=@bell AND section_code='INVITATION');
 
+-- Name the second rescuer in endings instead of reducing participation to a count.
+INSERT INTO plot_resolution_fragments(plot_id,section_code,section_order,priority,fragment_text)
+SELECT @bell,'PEOPLE',10,1,'Kellan West becomes the second pair of hands at the stretcher. With Kellan and the first rescuer carrying the weight together, the injured guest reaches the west evacuation point before the corridor fails behind them.' WHERE @bell IS NOT NULL AND NOT EXISTS(SELECT 1 FROM plot_resolution_fragments WHERE plot_id=@bell AND section_code='PEOPLE' AND priority=1);
+SET @f=(SELECT resolution_fragment_id FROM plot_resolution_fragments WHERE plot_id=@bell AND section_code='PEOPLE' AND priority=1 LIMIT 1);
+INSERT INTO plot_resolution_conditions(resolution_fragment_id,state_key,operator,compare_value,sort_order)
+SELECT @f,'GUEST_STATUS','EQ','EVACUATED',1 WHERE @f IS NOT NULL AND NOT EXISTS(SELECT 1 FROM plot_resolution_conditions WHERE resolution_fragment_id=@f);
+INSERT INTO plot_resolution_conditions(resolution_fragment_id,state_key,operator,compare_value,sort_order)
+SELECT @f,'GUEST_SECOND_HELPER','EQ','KELLAN',2 WHERE @f IS NOT NULL AND NOT EXISTS(SELECT 1 FROM plot_resolution_conditions WHERE resolution_fragment_id=@f AND state_key='GUEST_SECOND_HELPER');
+
+INSERT INTO plot_resolution_fragments(plot_id,section_code,section_order,priority,fragment_text)
+SELECT @bell,'PEOPLE',10,2,'Wren Harker answers the call for another pair of hands. Wren and the first rescuer keep the stretcher level through the flooded passage, and the injured guest reaches the west evacuation point before the house can close the route.' WHERE @bell IS NOT NULL AND NOT EXISTS(SELECT 1 FROM plot_resolution_fragments WHERE plot_id=@bell AND section_code='PEOPLE' AND priority=2);
+SET @f=(SELECT resolution_fragment_id FROM plot_resolution_fragments WHERE plot_id=@bell AND section_code='PEOPLE' AND priority=2 LIMIT 1);
+INSERT INTO plot_resolution_conditions(resolution_fragment_id,state_key,operator,compare_value,sort_order)
+SELECT @f,'GUEST_STATUS','EQ','EVACUATED',1 WHERE @f IS NOT NULL AND NOT EXISTS(SELECT 1 FROM plot_resolution_conditions WHERE resolution_fragment_id=@f);
+INSERT INTO plot_resolution_conditions(resolution_fragment_id,state_key,operator,compare_value,sort_order)
+SELECT @f,'GUEST_SECOND_HELPER','EQ','WREN',2 WHERE @f IS NOT NULL AND NOT EXISTS(SELECT 1 FROM plot_resolution_conditions WHERE resolution_fragment_id=@f AND state_key='GUEST_SECOND_HELPER');
+
+INSERT INTO plot_resolution_fragments(plot_id,section_code,section_order,priority,fragment_text)
+SELECT @bell,'PEOPLE',10,3,'Niko Lang leaves the argument and takes the open side of the stretcher. Niko and the first rescuer move the injured guest through the west route together, turning a shouted plan into an evacuation that the room can no longer ignore.' WHERE @bell IS NOT NULL AND NOT EXISTS(SELECT 1 FROM plot_resolution_fragments WHERE plot_id=@bell AND section_code='PEOPLE' AND priority=3);
+SET @f=(SELECT resolution_fragment_id FROM plot_resolution_fragments WHERE plot_id=@bell AND section_code='PEOPLE' AND priority=3 LIMIT 1);
+INSERT INTO plot_resolution_conditions(resolution_fragment_id,state_key,operator,compare_value,sort_order)
+SELECT @f,'GUEST_STATUS','EQ','EVACUATED',1 WHERE @f IS NOT NULL AND NOT EXISTS(SELECT 1 FROM plot_resolution_conditions WHERE resolution_fragment_id=@f);
+INSERT INTO plot_resolution_conditions(resolution_fragment_id,state_key,operator,compare_value,sort_order)
+SELECT @f,'GUEST_SECOND_HELPER','EQ','NIKO',2 WHERE @f IS NOT NULL AND NOT EXISTS(SELECT 1 FROM plot_resolution_conditions WHERE resolution_fragment_id=@f AND state_key='GUEST_SECOND_HELPER');
+
 INSERT IGNORE INTO schema_migrations(migration) VALUES('063_story_authorship_media_and_immersion.sql');
