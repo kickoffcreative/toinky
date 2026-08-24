@@ -64,6 +64,7 @@ final class BehaviorService {
         $pdo=db();$sim=self::simulation($sid);$q=$pdo->prepare('SELECT d.*,c.actor_type,c.controller_type FROM decisions d JOIN characters c ON c.character_id=d.character_id WHERE d.decision_id=? AND d.simulation_id=?');$q->execute([$decisionId,$sid]);$d=$q->fetch();
         if(!$d||$d['controller_type']!=='AI')throw new RuntimeException('This decision is not assigned to AI.');
         if($d['status']!=='OPEN')throw new RuntimeException('That decision is already closed.');
+        if((int)$sim['elapsed_seconds']<(int)$d['opens_at_second'])throw new RuntimeException('That opportunity has not reached you yet.');
         if((int)$sim['elapsed_seconds']>(int)$d['closes_at_second'])throw new RuntimeException('That opportunity has already passed.');
         $o=self::decisionOption($sid,$d,$decisionId,$optionCode,$sim);self::applyOption($sid,$d,$o,(int)$sim['elapsed_seconds'],(string)$d['actor_type']);
     }
