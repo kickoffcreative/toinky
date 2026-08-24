@@ -10,8 +10,11 @@ final class LobbyService
     }
     public static function joinByCode(int $userId,string $code): array
     {
-        $code=strtoupper(preg_replace('/[^A-Z0-9]/','',trim($code)));$q=db()->prepare('SELECT game_id FROM games WHERE join_code=? AND status="LOBBY"');$q->execute([$code]);$gid=(int)$q->fetchColumn();if(!$gid)throw new RuntimeException('That game code is invalid or the game has already started.');
-        db()->prepare('INSERT IGNORE INTO game_players(game_id,user_id) VALUES(?,?)')->execute([$gid,$userId]);return self::lobbyState($gid,$userId);
+        $code=strtoupper(preg_replace('/[^A-Z0-9]/','',trim($code)));$pdo=db();$pdo->beginTransaction();try{
+            $q=$pdo->prepare('SELECT g.game_id,p.max_players FROM games g JOIN simulations s ON s.simulation_id=g.simulation_id JOIN plots p ON p.plot_id=s.plot_id WHERE g.join_code=? AND g.status="LOBBY" FOR UPDATE');$q->execute([$code]);$game=$q->fetch();if(!$game)throw new RuntimeException('That game code is invalid or the game has already started.');$gid=(int)$game['game_id'];
+            $q=$pdo->prepare('SELECT 1 FROM game_players WHERE game_id=? AND user_id=?');$q->execute([$gid,$userId]);if(!$q->fetchColumn()){$q=$pdo->prepare('SELECT COUNT(*) FROM game_players WHERE game_id=?');$q->execute([$gid]);if((int)$q->fetchColumn()>=(int)$game['max_players'])throw new RuntimeException('That game lobby is full.');$pdo->prepare('INSERT INTO game_players(game_id,user_id) VALUES(?,?)')->execute([$gid,$userId]);}
+            $pdo->commit();
+        }catch(Throwable$e){if($pdo->inTransaction())$pdo->rollBack();throw$e;}return self::lobbyState($gid,$userId);
     }
     public static function lobbyState(int $gameId,int $userId): array
     {
