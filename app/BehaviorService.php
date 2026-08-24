@@ -2,16 +2,18 @@
 final class BehaviorService {
     public static function onWorldEvent(int $sid,int $eventId,string $eventCode,int $second): void {
         $pdo=db();$sim=self::simulation($sid);
-        $p=$pdo->prepare('SELECT pep.*,c.character_id,c.name,c.actor_type FROM plot_event_perceptions pep JOIN plot_roles pr ON pr.plot_id=pep.plot_id AND pr.role_code=pep.role_code JOIN characters c ON c.simulation_id=? AND c.plot_role_id=pr.plot_role_id WHERE pep.plot_id=? AND pep.event_code=?');
+        $p=$pdo->prepare('SELECT pep.*,c.character_id,c.name,c.actor_type,c.slot_no FROM plot_event_perceptions pep JOIN plot_roles pr ON pr.plot_id=pep.plot_id AND pr.role_code=pep.role_code JOIN characters c ON c.simulation_id=? AND c.plot_role_id=pr.plot_role_id WHERE pep.plot_id=? AND pep.event_code=?');
         $p->execute([$sid,$sim['plot_id'],$eventCode]);
         foreach($p->fetchAll() as $r){
-            $pdo->prepare('INSERT INTO character_history(simulation_id,character_id,event_id,event_second,history_type,title,detail_text) VALUES(?,?,?,?,?,?,?)')->execute([$sid,$r['character_id'],$eventId,$second,$r['history_type'],$r['title'],$r['perception_text']]);
+            $deliverySecond=$second+self::deliveryOffset($sid,$r,'perception');
+            $pdo->prepare('INSERT INTO character_history(simulation_id,character_id,event_id,event_second,history_type,title,detail_text) VALUES(?,?,?,?,?,?,?)')->execute([$sid,$r['character_id'],$eventId,$deliverySecond,$r['history_type'],$r['title'],$r['perception_text']]);
             if(!empty($r['location_after'])) self::setLocation($sid,(int)$r['character_id'],$r['location_after'],$second,$eventId,'Event movement');
         }
-        $t=$pdo->prepare('SELECT pdt.*,pr.plot_role_id,c.character_id,c.name,c.actor_type,c.controller_type FROM plot_decision_templates pdt JOIN plot_roles pr ON pr.plot_id=pdt.plot_id AND pr.role_code=pdt.role_code JOIN characters c ON c.simulation_id=? AND c.plot_role_id=pr.plot_role_id WHERE pdt.plot_id=? AND pdt.event_code=?');
+        $t=$pdo->prepare('SELECT pdt.*,pr.plot_role_id,c.character_id,c.name,c.actor_type,c.controller_type,c.slot_no FROM plot_decision_templates pdt JOIN plot_roles pr ON pr.plot_id=pdt.plot_id AND pr.role_code=pdt.role_code JOIN characters c ON c.simulation_id=? AND c.plot_role_id=pr.plot_role_id WHERE pdt.plot_id=? AND pdt.event_code=?');
         $t->execute([$sid,$sim['plot_id'],$eventCode]);
         foreach($t->fetchAll() as $row){
-            $pdo->prepare('INSERT IGNORE INTO decisions(simulation_id,character_id,event_id,prompt_text,status,opens_at_second,closes_at_second) VALUES(?,?,?,? ,"OPEN",?,?)')->execute([$sid,$row['character_id'],$eventId,$row['prompt_text'],$second,$second+(int)$row['decision_window_seconds']]);
+            $opens=$second+self::deliveryOffset($sid,$row,'decision');$closes=$opens+(int)$row['decision_window_seconds'];
+            $pdo->prepare('INSERT IGNORE INTO decisions(simulation_id,character_id,event_id,prompt_text,status,opens_at_second,closes_at_second) VALUES(?,?,?,? ,"OPEN",?,?)')->execute([$sid,$row['character_id'],$eventId,$row['prompt_text'],$opens,$closes]);
             $q=$pdo->prepare('SELECT decision_id,status FROM decisions WHERE character_id=? AND event_id=?');$q->execute([$row['character_id'],$eventId]);$decision=$q->fetch();$did=(int)($decision['decision_id']??0);if(!$did)continue;
             $opts=$pdo->prepare('SELECT * FROM plot_decision_template_options WHERE template_id=? ORDER BY sort_order,template_option_id');$opts->execute([$row['template_id']]);$valid=0;
             foreach($opts->fetchAll() as $o){
@@ -28,6 +30,7 @@ final class BehaviorService {
         $q=$pdo->prepare('SELECT d.*,c.actor_type FROM decisions d JOIN characters c ON c.character_id=d.character_id WHERE d.decision_id=? AND d.simulation_id=?');$q->execute([$decisionId,$sid]);$d=$q->fetch();
         if(!$d || $d['actor_type']!=='PLAYER') throw new RuntimeException('Player decision not found.');
         if($d['status']!=='OPEN') throw new RuntimeException('That decision is already closed.');
+        if((int)$sim['elapsed_seconds']<(int)$d['opens_at_second']) throw new RuntimeException('That opportunity has not reached you yet.');
         if((int)$sim['elapsed_seconds']>(int)$d['closes_at_second']) throw new RuntimeException('That opportunity has already passed.');
         $o=self::decisionOption($sid,$d,$decisionId,$optionCode,$sim);
         self::applyOption($sid,$d,$o,(int)$sim['elapsed_seconds'],'PLAYER');
@@ -40,6 +43,7 @@ final class BehaviorService {
         if(!$d || $d['actor_type']!=='NPC')throw new RuntimeException('Simulation Lab NPC decision not found.');
         if(!self::deferNpcToSimulationLab($sid,(int)$d['character_id']))throw new RuntimeException('This NPC is not assigned to Simulation Lab AI control.');
         if($d['status']!=='OPEN')throw new RuntimeException('That NPC decision is already closed.');
+        if((int)$sim['elapsed_seconds']<(int)$d['opens_at_second'])throw new RuntimeException('That NPC opportunity has not opened yet.');
         if((int)$sim['elapsed_seconds']>(int)$d['closes_at_second'])throw new RuntimeException('That NPC opportunity has already passed.');
         $o=self::decisionOption($sid,$d,$decisionId,$optionCode,$sim);
         self::applyOption($sid,$d,$o,(int)$sim['elapsed_seconds'],'NPC');
@@ -50,6 +54,7 @@ final class BehaviorService {
         $pdo=db();$sim=self::simulation($sid);$q=$pdo->prepare('SELECT d.*,c.actor_type,c.controller_type FROM decisions d JOIN characters c ON c.character_id=d.character_id WHERE d.decision_id=? AND d.simulation_id=?');$q->execute([$decisionId,$sid]);$d=$q->fetch();
         if(!$d||$d['controller_type']!=='HUMAN')throw new RuntimeException('This decision is not assigned to a human controller.');
         if($d['status']!=='OPEN')throw new RuntimeException('That decision is already closed.');
+        if((int)$sim['elapsed_seconds']<(int)$d['opens_at_second'])throw new RuntimeException('That opportunity has not reached you yet.');
         if((int)$sim['elapsed_seconds']>(int)$d['closes_at_second'])throw new RuntimeException('That opportunity has already passed.');
         $o=self::decisionOption($sid,$d,$decisionId,$optionCode,$sim);self::applyOption($sid,$d,$o,(int)$sim['elapsed_seconds'],(string)$d['actor_type']);
     }
@@ -59,6 +64,7 @@ final class BehaviorService {
         $pdo=db();$sim=self::simulation($sid);$q=$pdo->prepare('SELECT d.*,c.actor_type,c.controller_type FROM decisions d JOIN characters c ON c.character_id=d.character_id WHERE d.decision_id=? AND d.simulation_id=?');$q->execute([$decisionId,$sid]);$d=$q->fetch();
         if(!$d||$d['controller_type']!=='AI')throw new RuntimeException('This decision is not assigned to AI.');
         if($d['status']!=='OPEN')throw new RuntimeException('That decision is already closed.');
+        if((int)$sim['elapsed_seconds']<(int)$d['opens_at_second'])throw new RuntimeException('That opportunity has not reached you yet.');
         if((int)$sim['elapsed_seconds']>(int)$d['closes_at_second'])throw new RuntimeException('That opportunity has already passed.');
         $o=self::decisionOption($sid,$d,$decisionId,$optionCode,$sim);self::applyOption($sid,$d,$o,(int)$sim['elapsed_seconds'],(string)$d['actor_type']);
     }
@@ -66,9 +72,11 @@ final class BehaviorService {
     public static function expire(int $sid,int $second): void {
         $pdo=db();$q=$pdo->prepare('SELECT d.*,c.name FROM decisions d JOIN characters c ON c.character_id=d.character_id WHERE d.simulation_id=? AND d.status="OPEN" AND d.closes_at_second<? ORDER BY d.closes_at_second,d.decision_id');$q->execute([$sid,$second]);
         foreach($q->fetchAll() as $d){
-            $pdo->prepare('UPDATE decisions SET status="NO_ACTION",resolved_text=? WHERE decision_id=?')->execute(['The opportunity passed before you acted.',$d['decision_id']]);
-            $pdo->prepare('INSERT INTO character_history(simulation_id,character_id,event_id,event_second,history_type,title,detail_text) VALUES(?,?,?,?,"NO_ACTION",?,?)')->execute([$sid,$d['character_id'],$d['event_id'],$d['closes_at_second'],'Opportunity Passed','You did not act before the situation changed. Other characters continued without your intervention.']);
-            self::worldLog($sid,(int)$d['closes_at_second'],'NO_ACTION',$d['character_id'],$d['name'].' does not act','A decision window closes without action. The world continues.',(int)$d['event_id']);
+            $oq=$pdo->prepare('SELECT label FROM decision_options WHERE decision_id=? ORDER BY sort_order,decision_option_id');$oq->execute([$d['decision_id']]);$labels=array_map(static fn($label)=>lcfirst(trim((string)$label)),array_column($oq->fetchAll(),'label'));$last=array_pop($labels);$choiceText=$last??'act';if($labels)$choiceText=implode(', ',$labels).', or '.$choiceText;
+            $personalText='You were given the chance to '.$choiceText.', but you decided not to act before the situation changed.';
+            $pdo->prepare('UPDATE decisions SET status="NO_ACTION",resolved_text=? WHERE decision_id=?')->execute([$personalText,$d['decision_id']]);
+            $pdo->prepare('INSERT INTO character_history(simulation_id,character_id,event_id,event_second,history_type,title,detail_text) VALUES(?,?,?,?,"NO_ACTION",?,?)')->execute([$sid,$d['character_id'],$d['event_id'],$d['closes_at_second'],'You Let the Opportunity Pass',$personalText]);
+            self::worldLog($sid,(int)$d['closes_at_second'],'NO_ACTION',$d['character_id'],$d['name'].' let an opportunity pass','The situation changed without their intervention.',(int)$d['event_id']);
             if(class_exists('CausalService'))CausalService::applyNoActionDecision($sid,(int)$d['decision_id']);
         }
     }
@@ -78,6 +86,21 @@ final class BehaviorService {
         $o->execute([$d['character_id'],$decisionId,$optionCode,$sim['plot_id'],$decisionId]);$opt=$o->fetch();if(!$opt)throw new RuntimeException('Decision option not found.');
         if(class_exists('CausalService')&&!CausalService::optionAllowed($sid,(int)$opt['template_option_id']))throw new RuntimeException('That action is no longer possible because the world has changed.');
         return$opt;
+    }
+
+    private static function deliveryOffset(int $sid,array $row,string $kind): int
+    {
+        if(array_key_exists('delivery_offset_seconds',$row)&&$row['delivery_offset_seconds']!==null)return max(0,(int)$row['delivery_offset_seconds']);
+        try{
+            $q=db()->prepare('SELECT g.play_duration_seconds,p.timeline_duration_seconds,pds.minimum_game_duration_seconds,pds.perception_step_seconds,pds.decision_step_seconds,pds.npc_additional_seconds FROM games g JOIN simulations s ON s.simulation_id=g.simulation_id JOIN plots p ON p.plot_id=s.plot_id JOIN platform_story_delivery_settings pds ON pds.setting_code="LONG_GAME_STAGGER" AND pds.active=1 WHERE g.simulation_id=? LIMIT 1');
+            $q->execute([$sid]);$settings=$q->fetch();if(!$settings)return 0;
+            $duration=(int)($settings['play_duration_seconds']??$settings['timeline_duration_seconds']??0);
+            if($duration<(int)$settings['minimum_game_duration_seconds'])return 0;
+            $step=$kind==='decision'?(int)$settings['decision_step_seconds']:(int)$settings['perception_step_seconds'];
+            $offset=max(0,((int)($row['slot_no']??1)-1)*$step);
+            if(($row['actor_type']??'')==='NPC')$offset+=(int)$settings['npc_additional_seconds'];
+            return $offset;
+        }catch(Throwable $e){return 0;}
     }
 
     private static function usesLegacyWeightedNpcController(array $row): bool

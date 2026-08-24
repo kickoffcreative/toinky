@@ -5,7 +5,7 @@ final class CharacterAutomationService
     {
         $pdo=db();$summary=['chosen'=>0,'failed'=>0];
         for($pass=0;$pass<12;$pass++){
-            $q=$pdo->prepare('SELECT d.decision_id,d.event_id,d.character_id FROM decisions d JOIN characters c ON c.character_id=d.character_id WHERE d.simulation_id=? AND d.status="OPEN" AND c.controller_type="AI" ORDER BY d.opens_at_second,d.decision_id');
+            $q=$pdo->prepare('SELECT d.decision_id,d.event_id,d.character_id FROM decisions d JOIN characters c ON c.character_id=d.character_id JOIN simulations s ON s.simulation_id=d.simulation_id WHERE d.simulation_id=? AND d.status="OPEN" AND d.opens_at_second<=s.elapsed_seconds AND c.controller_type="AI" ORDER BY d.opens_at_second,d.decision_id');
             $q->execute([$sid]);$decisions=$q->fetchAll();if(!$decisions)break;$progress=false;
             foreach($decisions as$d){
                 $status=$pdo->prepare('SELECT status FROM decisions WHERE decision_id=? AND simulation_id=?');$status->execute([$d['decision_id'],$sid]);if($status->fetchColumn()!=='OPEN')continue;
