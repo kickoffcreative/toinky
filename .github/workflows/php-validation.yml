@@ -19,10 +19,10 @@ jobs:
     runs-on: ubuntu-latest
     services:
       mysql:
-        image: mysql:8.4
+        image: mariadb:11.4
         env:
-          MYSQL_ROOT_PASSWORD: root
-          MYSQL_DATABASE: game2
+          MARIADB_ROOT_PASSWORD: root
+          MARIADB_DATABASE: game2
         ports:
           - 3306:3306
         options: >-
