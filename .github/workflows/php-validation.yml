@@ -1,0 +1,16 @@
+name: PHP validation
+on:
+  push:
+    branches: [main, feature/multiplayer-lobby]
+  pull_request:
+    branches: [main]
+jobs:
+  php-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+      - name: Lint PHP
+        run: find app public tools -type f -name '*.php' -print0 | xargs -0 -n1 php -l
