@@ -16,6 +16,7 @@ require_once $root.'/app/SimulationService.php';
 $action=$_POST['action']??null;$sid=(int)($_GET['simulation']??($_POST['simulation_id']??0));
 if($_SERVER['REQUEST_METHOD']==='POST'){
     try{
+        AuthService::requireCsrf();
         if($action==='create'){
             $plotCode=trim((string)($_POST['plot_code']??'CONCEALED_FAILURE'));
             $controllers=is_array($_POST['controllers']??null)?$_POST['controllers']:[];$sid=SimulationService::create($plotCode,(int)($_POST['duration_seconds']??300),$controllers);
@@ -64,4 +65,6 @@ $irq=db()->prepare('SELECT r.integrity_rule_id,r.message_text FROM plot_integrit
 <?php foreach($factorAudit as$a): ?><div class="audit-row"><b><?=gmdate('i:s',(int)$a['event_second'])?> · <?=e($a['label']??$a['factor_code'])?> <?=e($a['old_value'])?> → <?=e($a['new_value'])?></b><div><?=e($a['detail_text']??'')?></div></div><?php endforeach; ?>
 <?php if(!$aiAudit): ?><div class="audit-row">No AI reasoning interactions were recorded.</div><?php endif; ?><?php foreach($aiAudit as$a): ?><div class="audit-row"><b><?=e($a['name']??'Unknown character')?> · <?=e($a['selected_action_code']??'No selection')?></b><div>Provider: <?=e($a['provider'])?> · Confidence: <?=e($a['confidence']??'n/a')?> · Latency: <?=e($a['latency_ms']??'n/a')?> ms · <?=((int)$a['success']===1)?'Success':'Failure'?></div><div><?=e($a['reason_text']??$a['error_text']??'')?></div></div><?php endforeach; ?></details>
 </div>
-<?php endif; ?></body></html>
+<?php endif; ?><script>
+document.querySelectorAll('form[method="post"]').forEach(form=>{if(form.querySelector('input[name="csrf_token"]'))return;const input=document.createElement('input');input.type='hidden';input.name='csrf_token';input.value=<?=json_encode(AuthService::csrfToken())?>;form.appendChild(input);});
+</script></body></html>
