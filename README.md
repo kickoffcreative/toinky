@@ -19,7 +19,7 @@ Story content, conditions, consequences, integrity rules, focus profiles, and ou
 - Configurable outcome dimensions
 - Empty Throne and Concealed Failure validation stories
 
-## Milestone 2 — Multiplayer Platform (feature branch)
+## Milestone 2 — Multiplayer Platform
 
 - Public registration, sign-in, password reset, and invitations
 - Hosted games with shareable six-character codes
