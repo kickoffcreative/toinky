@@ -41,7 +41,7 @@ final class MediaLibraryService
     private static function storeResized(string $source,string $target,string $mime,int $width,int $height): array
     {
         $scale=min(1,1080/max($width,$height));$newWidth=max(1,(int)round($width*$scale));$newHeight=max(1,(int)round($height*$scale));
-        if($scale===1.0){if(!move_uploaded_file($source,$target)&&!rename($source,$target))throw new RuntimeException('The image could not be saved.');return[$width,$height];}
+        if($scale>=1){if(!move_uploaded_file($source,$target)&&!rename($source,$target))throw new RuntimeException('The image could not be saved.');return[$width,$height];}
         if(!function_exists('imagecreatetruecolor'))throw new RuntimeException('This server needs the PHP GD extension to resize images larger than 1080 pixels.');
         $load=['image/jpeg'=>'imagecreatefromjpeg','image/png'=>'imagecreatefrompng','image/webp'=>'imagecreatefromwebp'][$mime];$save=['image/jpeg'=>'imagejpeg','image/png'=>'imagepng','image/webp'=>'imagewebp'][$mime];$src=@$load($source);if(!$src)throw new RuntimeException('The image could not be decoded.');$dst=imagecreatetruecolor($newWidth,$newHeight);
         if($mime!=='image/jpeg'){imagealphablending($dst,false);imagesavealpha($dst,true);$transparent=imagecolorallocatealpha($dst,0,0,0,127);imagefilledrectangle($dst,0,0,$newWidth,$newHeight,$transparent);}
