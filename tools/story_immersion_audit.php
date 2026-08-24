@@ -1,4 +1,6 @@
 <?php
+ini_set('display_errors','1');error_reporting(E_ALL);
+try{
 require_once __DIR__.'/../app/bootstrap.php';require_once __DIR__.'/../app/MigrationService.php';MigrationService::run();
 $plotCode=strtoupper(trim((string)($argv[1]??'')));if($plotCode===''){fwrite(STDERR,"Usage: php tools/story_immersion_audit.php PLOT_CODE\n");exit(2);}
 $q=db()->prepare('SELECT * FROM plots WHERE code=?');$q->execute([$plotCode]);$plot=$q->fetch();if(!$plot){fwrite(STDERR,"Story not found.\n");exit(2);}
@@ -18,3 +20,4 @@ $errors=0;echo"Toinky story immersion audit\nStory: {$plot['title']} ({$plot['co
 echo"\nRequired manual validation, in priority order:\n";
 $q=db()->query('SELECT priority_no,severity,guidance_text FROM platform_story_audit_rules WHERE active=1 ORDER BY priority_no,audit_rule_id');foreach($q->fetchAll()as$r)echo"  {$r['priority_no']}. {$r['severity']}: {$r['guidance_text']}\n";
 exit($errors?1:0);
+}catch(Throwable $e){fwrite(STDERR,'Story immersion audit failed: '.$e->getMessage().PHP_EOL);exit(1);}
