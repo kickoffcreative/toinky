@@ -38,11 +38,11 @@ jobs:
           extensions: pdo_mysql
       - name: Build database and run engine baseline
         env:
-          GAME2_DATABASE_CONFIG: ${{ github.workspace }}/config/database.ci.php
+          GAME2_DATABASE_CONFIG: ${{ github.workspace }}/config/database.test.php
           GAME2_SIM_NPC_REASONER: weighted
         run: php tools/simulate.php --reset --runs=1 --plot=EMPTY_THRONE --strategy=no-action --npc-reasoner=weighted
       - name: Test multiplayer lifecycle
         env:
-          GAME2_DATABASE_CONFIG: ${{ github.workspace }}/config/database.ci.php
+          GAME2_DATABASE_CONFIG: ${{ github.workspace }}/config/database.test.php
           GAME2_SIM_NPC_REASONER: weighted
         run: php tools/multiplayer_smoke.php
