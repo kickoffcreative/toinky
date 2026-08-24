@@ -12,5 +12,37 @@ jobs:
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.4'
+          extensions: pdo_mysql
       - name: Lint PHP
         run: find app public tools -type f -name '*.php' -print0 | xargs -0 -n1 php -l
+  multiplayer-smoke:
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: game2
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost -proot"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: pdo_mysql
+      - name: Build database and run engine baseline
+        env:
+          GAME2_DATABASE_CONFIG: ${{ github.workspace }}/config/database.ci.php
+          GAME2_SIM_NPC_REASONER: weighted
+        run: php tools/simulate.php --reset --runs=1 --plot=EMPTY_THRONE --strategy=no-action --npc-reasoner=weighted
+      - name: Test multiplayer lifecycle
+        env:
+          GAME2_DATABASE_CONFIG: ${{ github.workspace }}/config/database.ci.php
+          GAME2_SIM_NPC_REASONER: weighted
+        run: php tools/multiplayer_smoke.php
