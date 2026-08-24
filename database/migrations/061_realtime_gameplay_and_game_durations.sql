@@ -17,15 +17,10 @@ SET @has_play_duration=(
   WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='games' AND COLUMN_NAME='play_duration_seconds'
 );
 SET @sql=IF(@has_play_duration=0,
-  'ALTER TABLE games ADD COLUMN play_duration_seconds INT UNSIGNED NOT NULL DEFAULT 300 AFTER status',
+  'ALTER TABLE games ADD COLUMN play_duration_seconds INT UNSIGNED NULL DEFAULT NULL AFTER status',
   'SELECT 1'
 );
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
-UPDATE games g
-JOIN simulations s ON s.simulation_id=g.simulation_id
-SET g.play_duration_seconds=s.duration_seconds
-WHERE g.play_duration_seconds IS NULL OR g.play_duration_seconds<1;
 
 CREATE TABLE IF NOT EXISTS platform_game_durations (
   duration_seconds INT UNSIGNED PRIMARY KEY,
