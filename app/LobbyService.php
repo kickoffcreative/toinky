@@ -55,8 +55,8 @@ final class LobbyService
     }
     public static function choose(int $gameId,int $userId,int $decisionId,string $optionCode): void
     {
-        $q=db()->prepare('SELECT g.simulation_id,g.status,gp.character_id,d.character_id FROM games g JOIN game_players gp ON gp.game_id=g.game_id AND gp.user_id=? JOIN decisions d ON d.decision_id=? AND d.simulation_id=g.simulation_id WHERE g.game_id=?');$q->execute([$userId,$decisionId,$gameId]);$r=$q->fetch();
-        if(!$r||$r['status']!=='RUNNING'||(int)$r['character_id']!==(int)$r['character_id'])throw new RuntimeException('This decision does not belong to your selected character.');
+        $q=db()->prepare('SELECT g.simulation_id,g.status,gp.character_id AS player_character_id,d.character_id AS decision_character_id FROM games g JOIN game_players gp ON gp.game_id=g.game_id AND gp.user_id=? JOIN decisions d ON d.decision_id=? AND d.simulation_id=g.simulation_id WHERE g.game_id=?');$q->execute([$userId,$decisionId,$gameId]);$r=$q->fetch();
+        if(!$r||$r['status']!=='RUNNING'||(int)$r['player_character_id']!==(int)$r['decision_character_id'])throw new RuntimeException('This decision does not belong to your selected character.');
         BehaviorService::chooseControlled((int)$r['simulation_id'],$decisionId,$optionCode);CharacterAutomationService::process((int)$r['simulation_id']);
     }
     public static function playerCharacter(int $gameId,int $userId): ?array
