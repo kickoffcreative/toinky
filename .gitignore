@@ -4,3 +4,6 @@ config/ai.php
 *.log
 error_log
 .DS_Store
+
+public/uploads/story-media/*
+!public/uploads/story-media/.gitkeep

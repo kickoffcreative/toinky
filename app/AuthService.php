@@ -79,6 +79,21 @@ final class AuthService
         $pdo=db();$q=$pdo->prepare('SELECT * FROM password_reset_tokens WHERE token_hash=? AND used_at_utc IS NULL AND expires_at_utc>UTC_TIMESTAMP()');$q->execute([hash('sha256',$token)]);$r=$q->fetch();if(!$r)throw new RuntimeException('This reset link is invalid or expired.');
         $pdo->beginTransaction();try{$pdo->prepare('UPDATE users SET password_hash=? WHERE user_id=?')->execute([password_hash($password,PASSWORD_DEFAULT),$r['user_id']]);$pdo->prepare('UPDATE password_reset_tokens SET used_at_utc=UTC_TIMESTAMP() WHERE password_reset_id=?')->execute([$r['password_reset_id']]);$pdo->commit();}catch(Throwable$e){if($pdo->inTransaction())$pdo->rollBack();throw$e;}
     }
+    public static function hasRole(int $userId,string $roleCode): bool
+    {
+        $q=db()->prepare('SELECT 1 FROM user_platform_roles ur JOIN platform_roles r ON r.platform_role_id=ur.platform_role_id WHERE ur.user_id=? AND r.role_code=? AND r.scope_type="PLATFORM"');
+        $q->execute([$userId,strtoupper(trim($roleCode))]);return(bool)$q->fetchColumn();
+    }
+    public static function requireWriter(): array
+    {
+        $u=self::requireLogin();if((int)$u['is_admin']!==1&&!self::hasRole((int)$u['user_id'],'WRITER')){http_response_code(403);exit('Story Writer access is required.');}return$u;
+    }
+    public static function setRole(int $userId,string $roleCode,bool $enabled,int $assignedBy): void
+    {
+        $q=db()->prepare('SELECT platform_role_id FROM platform_roles WHERE role_code=? AND scope_type="PLATFORM"');$q->execute([strtoupper(trim($roleCode))]);$roleId=(int)$q->fetchColumn();if($roleId<1)throw new RuntimeException('Unknown platform role.');
+        if($enabled)db()->prepare('INSERT IGNORE INTO user_platform_roles(user_id,platform_role_id,assigned_by_user_id) VALUES(?,?,?)')->execute([$userId,$roleId,$assignedBy]);
+        else db()->prepare('DELETE FROM user_platform_roles WHERE user_id=? AND platform_role_id=?')->execute([$userId,$roleId]);
+    }
     public static function baseUrl(): string
     {
         $env=rtrim(trim((string)getenv('GAME2_BASE_URL')),'/');if($env!=='')return$env;

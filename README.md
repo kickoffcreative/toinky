@@ -58,3 +58,7 @@ GAME2_DATABASE_CONFIG=/absolute/path/to/database.test.php \
 ```
 
 The smoke test creates temporary users and a temporary simulation, verifies lobby and ownership behavior, then removes its test records.
+
+## Story writing
+
+Story ownership, optional writer-uploaded artwork, player-immersion rules, and the required validation order are documented in [docs/STORY_AUTHORING.md](docs/STORY_AUTHORING.md).

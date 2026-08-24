@@ -1,0 +1,20 @@
+<?php
+require_once __DIR__.'/../app/bootstrap.php';require_once __DIR__.'/../app/MigrationService.php';MigrationService::run();
+$plotCode=strtoupper(trim((string)($argv[1]??'')));if($plotCode===''){fwrite(STDERR,"Usage: php tools/story_immersion_audit.php PLOT_CODE\n");exit(2);}
+$q=db()->prepare('SELECT * FROM plots WHERE code=?');$q->execute([$plotCode]);$plot=$q->fetch();if(!$plot){fwrite(STDERR,"Story not found.\n");exit(2);}
+$checks=[];$add=static function(string $priority,string $label,bool $pass,string $detail)use(&$checks):void{$checks[]=['priority'=>$priority,'label'=>$label,'pass'=>$pass,'detail'=>$detail];};
+$add('P0','Story ownership',!empty($plot['author_user_id']),!empty($plot['author_user_id'])?'An author owns this story.':'Assign a Story Writer before release.');
+$add('P0','Scenario briefing',mb_strlen(trim((string)($plot['scenario_text']??'')))>=80,'Players need a clear scenario reminder of at least 80 characters.');
+$q=db()->prepare('SELECT role_code,name,pronoun_set,public_description,starting_location,goal_text,fear_text FROM plot_roles WHERE plot_id=? AND simulation_active=1 ORDER BY slot_no');$q->execute([$plot['plot_id']]);$roles=$q->fetchAll();
+$pronouns=array_filter($roles,static fn($r)=>!in_array((string)($r['pronoun_set']??''),['HE','SHE','IT'],true));$add('P1','Pronoun coverage',!$pronouns,!$pronouns?'Every active character uses he, she, or it.':'Missing or invalid pronouns: '.implode(', ',array_column($pronouns,'role_code')));
+$briefingMissing=array_filter($roles,static fn($r)=>trim((string)$r['public_description'])===''||trim((string)$r['starting_location'])===''||trim((string)$r['goal_text'])==='');$add('P1','Character briefing',!$briefingMissing,!$briefingMissing?'Every active character has a description, location, and goal.':'Incomplete roles: '.implode(', ',array_column($briefingMissing,'role_code')));
+$q=db()->prepare('SELECT section_code,fragment_text FROM plot_resolution_fragments WHERE plot_id=? AND active=1');$q->execute([$plot['plot_id']]);$fragments=$q->fetchAll();$words=0;$sections=[];foreach($fragments as$f){$words+=str_word_count(strip_tags((string)$f['fragment_text']));$sections[$f['section_code']]=true;}
+$add('P1','Creative epilogue',$words>=300&&isset($sections['AFTERMATH'])&&isset($sections['INVITATION']),$words.' authored resolution words; requires at least 300 plus AFTERMATH and INVITATION sections.');
+$q=db()->prepare('SELECT COUNT(*) FROM plot_media_assets WHERE plot_id=? AND active=1');$q->execute([$plot['plot_id']]);$mediaCount=(int)$q->fetchColumn();$add('P2','Optional artwork',true,$mediaCount.' active image(s). Missing images do not block the story.');
+$q=db()->prepare('SELECT COUNT(*) FROM plot_media_assets WHERE plot_id=? AND active=1 AND TRIM(alt_text)=""');$q->execute([$plot['plot_id']]);$badAlt=(int)$q->fetchColumn();$add('P1','Image accessibility',$badAlt===0,$badAlt===0?'Every active image has alternative text.':$badAlt.' active image(s) need alternative text.');
+$q=db()->prepare('SELECT COUNT(*) FROM plot_decision_templates WHERE plot_id=? AND active=1');$q->execute([$plot['plot_id']]);$decisionCount=(int)$q->fetchColumn();$add('P0','Decision opportunities',$decisionCount>0,$decisionCount.' active decision template(s).');
+$q=db()->prepare('SELECT COUNT(*) FROM plot_integrity_rules WHERE plot_id=? AND active=1');$q->execute([$plot['plot_id']]);$integrityCount=(int)$q->fetchColumn();$add('P0','Integrity rules',$integrityCount>0,$integrityCount.' active story integrity rule(s).');
+$errors=0;echo"Toinky story immersion audit\nStory: {$plot['title']} ({$plot['code']})\n\n";foreach($checks as$c){echo($c['pass']?'PASS':'FAIL')." | {$c['priority']} | {$c['label']}\n  {$c['detail']}\n";if(!$c['pass']&&$c['priority']==='P0')$errors++;}
+echo"\nRequired manual validation, in priority order:\n";
+$q=db()->query('SELECT priority_no,severity,guidance_text FROM platform_story_audit_rules WHERE active=1 ORDER BY priority_no,audit_rule_id');foreach($q->fetchAll()as$r)echo"  {$r['priority_no']}. {$r['severity']}: {$r['guidance_text']}\n";
+exit($errors?1:0);
