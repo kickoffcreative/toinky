@@ -26,9 +26,9 @@ The Story Writer workspace is intentionally ordered by dependency:
 5. **Story Map** — a readable event → decision → option → effect graph, plus state-driven opportunities, their AND conditions, choices, and effects.
 6. **Endings** — ordered resolution fragments and the state conditions that select them.
 7. **Artwork** — optional writer-uploaded images aligned to characters, openings, scenes, turning points, outcomes, and endings.
-8. **Validate & Submit** — blocking structural checks, warnings, and a complete AI-ready critique package.
+8. **Administrator validation** — only administrators can open **Validate & Submit**, run blocking structural checks, generate the AI-ready critique package, and freeze a numbered revision for review.
 
-Submitting creates an immutable numbered revision. An administrator audits and reviews that exact snapshot, then requests changes, approves, publishes, or archives it. Later edits do not silently alter the submitted revision.
+When the draft is ready, the writer asks an administrator to validate it. The administrator runs **Validate & Submit**, resolves any blocking findings with the writer, and creates an immutable numbered revision. An administrator reviews that exact snapshot, then requests changes, approves, publishes, or archives it. Later edits do not silently alter the submitted revision.
 
 ## Genre themes
 
@@ -111,7 +111,7 @@ Run checks in this order. Do not use polished prose to hide a broken state model
 11. **Regression** — rerun the validation suite for existing stories to prove no engine change became plot-specific.
 12. **Release evidence** — preserve audit output, migration status, commit/PR, deployment result, and a final live smoke test.
 
-Start the automated authoring audit with:
+Administrators can run the same automated authoring audit from the server with:
 
 ```bash
 /opt/cpanel/ea-php84/root/usr/bin/php tools/story_immersion_audit.php STORY_CODE

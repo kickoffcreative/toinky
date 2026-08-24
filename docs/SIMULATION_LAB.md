@@ -2,6 +2,12 @@
 
 The Simulation Lab runs the real Game2 PHP engine against a disposable MariaDB database. It never needs the production Game2 database.
 
+## Web interface
+
+The live **Story Engine Lab** is an administrator-only tool. Its header links back to the Admin dashboard, Simulation View, Story Reviews, Theme Manager, Security, Story Writer, and the public portal so administrators can move between operational areas without losing context.
+
+Opening `lab.php` directly requires an authenticated administrator. The interface may create simulations, choose human or AI control per character, advance the story clock, make human-controlled decisions, and inspect the complete world and character audit trail.
+
 ## GitHub Actions
 
 Open **Actions → Game2 Simulation Lab → Run workflow**.
@@ -65,6 +71,6 @@ The harness automatically flags:
 - active NPC counts above the Game2 cast budget
 - an NPC producing more than one world action at the same simulation second
 - missing final resolution text
-- Empty Throne resolution claiming the abdication letter survives when authoritative state says it was destroyed
+- database-configured story contradictions and engine invariants
 
-Add future integrity rules only for actual contradictions or engine invariants. Story preferences should not be encoded as engine failures.
+Add future integrity rules only for actual contradictions or engine invariants. Story preferences should not be encoded as engine failures, and no PHP rule may be specific to a single story.
