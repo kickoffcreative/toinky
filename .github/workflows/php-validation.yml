@@ -1,0 +1,52 @@
+name: PHP validation
+on:
+  push:
+    branches: [main, feature/multiplayer-lobby]
+  pull_request:
+    branches: [main]
+jobs:
+  php-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: pdo_mysql
+      - name: Lint PHP
+        run: find app public tools -type f -name '*.php' -print0 | xargs -0 -n1 php -l
+  multiplayer-smoke:
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mariadb:11.4
+        env:
+          MARIADB_ROOT_PASSWORD: root
+          MARIADB_DATABASE: game2
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: pdo_mysql
+      - name: Normalize test database collation
+        env:
+          GAME2_DATABASE_CONFIG: ${{ github.workspace }}/config/database.test.php
+        run: php -r '$c=require getenv("GAME2_DATABASE_CONFIG");$p=new PDO($c["dsn"],$c["username"],$c["password"]);$p->exec("ALTER DATABASE game2 CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");'
+      - name: Build database and run engine baseline
+        env:
+          GAME2_DATABASE_CONFIG: ${{ github.workspace }}/config/database.test.php
+          GAME2_SIM_NPC_REASONER: weighted
+        run: php tools/simulate.php --reset --runs=1 --plot=EMPTY_THRONE --strategy=no-action --npc-reasoner=weighted
+      - name: Test multiplayer lifecycle
+        env:
+          GAME2_DATABASE_CONFIG: ${{ github.workspace }}/config/database.test.php
+          GAME2_SIM_NPC_REASONER: weighted
+        run: php tools/multiplayer_smoke.php

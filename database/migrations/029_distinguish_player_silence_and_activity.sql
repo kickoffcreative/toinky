@@ -1,6 +1,12 @@
 -- Correct Rowan's silence opportunity and add a distinct response to player activity.
 -- PLAYER_ACTION_COUNT is a reusable engine condition; no story-specific PHP is added.
 
+ALTER TABLE plot_dynamic_opportunity_conditions
+  MODIFY source_type ENUM(
+    'WORLD_STATE','FACTOR','LOCATION','GOAL','FEAR','STAT',
+    'KNOWLEDGE','RELATIONSHIP','PHASE','ACTION_COUNT','PLAYER_ACTION_COUNT'
+  ) NOT NULL DEFAULT 'WORLD_STATE';
+
 SET @plot=(SELECT plot_id FROM plots WHERE code='EMPTY_THRONE' LIMIT 1);
 
 -- The original rule used ACTION_COUNT, which counts Rowan's own chosen decisions.

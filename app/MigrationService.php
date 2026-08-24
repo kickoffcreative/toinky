@@ -12,8 +12,8 @@ final class MigrationService {
             $q=$pdo->prepare('SELECT 1 FROM schema_migrations WHERE migration=?');$q->execute([$name]);
             if($q->fetchColumn()) continue;
             $sql=file_get_contents($file);if($sql===false) throw new RuntimeException('Unable to read migration '.$name);
-            $pdo->exec($sql);
-            $pdo->prepare('INSERT IGNORE INTO schema_migrations(migration) VALUES(?)')->execute([$name]);
+            try{$pdo->exec($sql);$pdo->prepare('INSERT IGNORE INTO schema_migrations(migration) VALUES(?)')->execute([$name]);}
+            catch(Throwable $e){throw new RuntimeException('Migration '.$name.' failed: '.$e->getMessage(),0,$e);}
         }
     }
 }

@@ -142,7 +142,7 @@ body{font-family:Inter,system-ui,sans-serif;background:#f3f4f6;color:#111827;mar
 <?php if ($success): ?><div class="notice success"><?=h($success)?></div><?php endif; ?>
 <?php if ($alreadyInstalled): ?>
 <div class="notice success"><strong>Game2 is installed.</strong><br>The installer is locked by <code>.installed</code>.</div>
-<a class="button" href="./">Open Story Engine Lab</a>
+<a class="button" href="./">Open Toinky</a>
 <p class="muted">To intentionally reinstall later, first remove the production <code>.installed</code> file manually. Do not remove it during normal updates.</p>
 <?php else: ?>
 <form method="post" autocomplete="off">

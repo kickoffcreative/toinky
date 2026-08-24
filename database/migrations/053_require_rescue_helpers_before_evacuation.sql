@@ -2,6 +2,10 @@
 -- The engine remains story-neutral: CausalService already evaluates plot_option_conditions
 -- when options are shown and immediately before their effects are applied.
 
+ALTER TABLE plot_option_conditions
+  MODIFY operator ENUM('EQ','NEQ','IN','NOT_IN','EXISTS','NOT_EXISTS','LT','LTE','GT','GTE')
+  NOT NULL DEFAULT 'EQ';
+
 SET @plot=(SELECT plot_id FROM plots WHERE code='CONCEALED_FAILURE' LIMIT 1);
 
 INSERT INTO plot_option_conditions
