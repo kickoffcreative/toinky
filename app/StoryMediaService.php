@@ -54,7 +54,7 @@ final class StoryMediaService
     {
         $q=db()->prepare('SELECT s.plot_id,pr.role_code FROM simulations s LEFT JOIN characters c ON c.simulation_id=s.simulation_id AND c.character_id=? LEFT JOIN plot_roles pr ON pr.plot_role_id=c.plot_role_id WHERE s.simulation_id=?');
         $q->execute([$characterId,$simulationId]);$context=$q->fetch();if(!$context)return[];
-        $q=db()->prepare('SELECT * FROM plot_media_assets WHERE plot_id=? AND active=1 AND (role_code IS NULL OR role_code="" OR role_code=?) ORDER BY sort_order,media_asset_id');
+        $q=db()->prepare('SELECT m.*,COALESCE(m.scene_second,pe.trigger_second) resolved_scene_second FROM plot_media_assets m LEFT JOIN plot_events pe ON pe.plot_id=m.plot_id AND pe.event_code=m.event_code WHERE m.plot_id=? AND m.active=1 AND (m.role_code IS NULL OR m.role_code="" OR m.role_code=?) ORDER BY m.sort_order,m.media_asset_id');
         $q->execute([$context['plot_id'],$context['role_code']??'']);$out=[];
         foreach($q->fetchAll()as$asset)if(self::conditionMatches($simulationId,$asset))$out[]=$asset;
         return$out;
