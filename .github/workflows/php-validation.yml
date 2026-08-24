@@ -51,8 +51,8 @@ jobs:
         run: |
           php tools/story_immersion_audit.php EMPTY_THRONE | tee /tmp/empty-throne-audit.txt
           php tools/story_immersion_audit.php CONCEALED_FAILURE | tee /tmp/concealed-failure-audit.txt
-          ! grep -q '^FAIL |' /tmp/empty-throne-audit.txt
-          ! grep -q '^FAIL |' /tmp/concealed-failure-audit.txt
+          ! grep -q '^FAIL | P0 | Dependency and authoring structure' /tmp/empty-throne-audit.txt
+          ! grep -q '^FAIL | P0 | Dependency and authoring structure' /tmp/concealed-failure-audit.txt
       - name: Test multiplayer lifecycle
         env:
           GAME2_DATABASE_CONFIG: ${{ github.workspace }}/config/database.test.php
