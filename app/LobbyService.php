@@ -53,7 +53,7 @@ final class LobbyService
     {
         $pdo=db();$lock='toinky_game_'.$gameId;$q=$pdo->prepare('SELECT GET_LOCK(?,0)');$q->execute([$lock]);if((int)$q->fetchColumn()!==1)return;
         try{$q=$pdo->prepare('SELECT g.status,g.started_at_utc,g.play_duration_seconds,g.simulation_id,s.elapsed_seconds,s.duration_seconds FROM games g JOIN simulations s ON s.simulation_id=g.simulation_id WHERE g.game_id=?');$q->execute([$gameId]);$g=$q->fetch();if(!$g||$g['status']!=='RUNNING')return;
-            $playDuration=max(1,(int)$g['play_duration_seconds']);$storyDuration=max(1,(int)$g['duration_seconds']);$wallElapsed=min($playDuration,max(0,time()-strtotime((string)$g['started_at_utc'].' UTC')));$target=min($storyDuration,(int)floor($wallElapsed*$storyDuration/$playDuration));$elapsed=(int)$g['elapsed_seconds'];
+            $playDuration=max(1,(int)($g['play_duration_seconds']??$g['duration_seconds']));$storyDuration=max(1,(int)$g['duration_seconds']);$wallElapsed=min($playDuration,max(0,time()-strtotime((string)$g['started_at_utc'].' UTC')));$target=min($storyDuration,(int)floor($wallElapsed*$storyDuration/$playDuration));$elapsed=(int)$g['elapsed_seconds'];
             while($elapsed<$target){$step=min(30,$target-$elapsed);SimulationService::advance((int)$g['simulation_id'],$step);CharacterAutomationService::process((int)$g['simulation_id']);$elapsed+=$step;}
             if($wallElapsed>=$playDuration||$elapsed>=$storyDuration)$pdo->prepare('UPDATE games SET status="COMPLETE",completed_at_utc=UTC_TIMESTAMP() WHERE game_id=?')->execute([$gameId]);
         }finally{$pdo->prepare('SELECT RELEASE_LOCK(?)')->execute([$lock]);}
