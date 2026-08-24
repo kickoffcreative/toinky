@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__.'/GenericStateService.php';
+require_once __DIR__.'/MediaLibraryService.php';
 
 final class StoryMediaService
 {
@@ -35,6 +36,16 @@ final class StoryMediaService
             $q->execute([$plotId,$user['user_id'],$code,$placement,self::nullable($fields['role_code']??null),self::nullable($fields['event_code']??null),self::nullableInt($fields['scene_second']??null),self::nullable($fields['condition_state_key']??null),self::nullable($fields['condition_operator']??null),self::nullable($fields['condition_value']??null),self::nullable($fields['title_text']??null),$alt,self::nullable($fields['caption_text']??null),$path,$mime,$size,(int)($fields['sort_order']??100)]);
             return(int)db()->lastInsertId();
         }catch(Throwable $e){@unlink($target);throw$e;}
+    }
+
+    public static function attachFromLibrary(array $user,int $plotId,array $fields): int
+    {
+        if(!self::canEdit($user,$plotId))throw new RuntimeException('You may only add artwork to stories you own.');
+        $placement=strtoupper(trim((string)($fields['placement']??'')));$placements=['CHARACTER','OPENING','SCENE','TURNING_POINT','OUTCOME','ENDING','OTHER'];if(!in_array($placement,$placements,true))throw new RuntimeException('Choose a valid image placement.');
+        $media=MediaLibraryService::requireVisible($user,(int)($fields['library_media_id']??0),$placement==='OTHER'?null:$placement);
+        $code=strtoupper(preg_replace('/[^A-Z0-9]+/','_',trim((string)($fields['asset_code']??''))));$code=trim($code,'_');if($code==='')$code=$placement.'_'.strtoupper(bin2hex(random_bytes(4)));
+        $q=db()->prepare('INSERT INTO plot_media_assets(plot_id,uploaded_by_user_id,library_media_id,asset_code,placement,role_code,event_code,scene_second,condition_state_key,condition_operator,condition_value,title_text,alt_text,caption_text,file_path,mime_type,file_size_bytes,sort_order) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
+        $q->execute([$plotId,$user['user_id'],$media['media_id'],$code,$placement,self::nullable($fields['role_code']??null),self::nullable($fields['event_code']??null),self::nullableInt($fields['scene_second']??null),self::nullable($fields['condition_state_key']??null),self::nullable($fields['condition_operator']??null),self::nullable($fields['condition_value']??null),self::nullable($fields['title_text']??null)?:$media['title_text'],$media['alt_text'],self::nullable($fields['caption_text']??null),$media['file_path'],$media['mime_type'],$media['file_size_bytes'],(int)($fields['sort_order']??100)]);return(int)db()->lastInsertId();
     }
 
     public static function deactivate(array $user,int $assetId): void
