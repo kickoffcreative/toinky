@@ -3,9 +3,11 @@ final class LobbyService
 {
     public static function createGame(int $hostUserId,string $plotCode,int $duration=300): array
     {
-        $roles=db()->prepare('SELECT pr.role_code FROM plot_roles pr JOIN plots p ON p.plot_id=pr.plot_id WHERE p.code=? AND p.status="active" AND pr.simulation_active=1');$roles->execute([$plotCode]);$controllers=[];foreach($roles->fetchAll()as$r)$controllers[$r['role_code']]='AI';
-        $sid=SimulationService::create($plotCode,$duration,$controllers);$pdo=db();$code=self::newCode();
-        $pdo->beginTransaction();try{$pdo->prepare('INSERT INTO games(simulation_id,host_user_id,join_code) VALUES(?,?,?)')->execute([$sid,$hostUserId,$code]);$gid=(int)$pdo->lastInsertId();$pdo->prepare('INSERT INTO game_players(game_id,user_id) VALUES(?,?)')->execute([$gid,$hostUserId]);$pdo->commit();}catch(Throwable$e){if($pdo->inTransaction())$pdo->rollBack();throw$e;}
+        $pdo=db();$q=$pdo->prepare('SELECT duration_seconds FROM platform_game_durations WHERE duration_seconds=? AND active=1');$q->execute([$duration]);if(!(int)$q->fetchColumn())throw new RuntimeException('That story duration is not available.');
+        $q=$pdo->prepare('SELECT timeline_duration_seconds FROM plots WHERE code=? AND status="active"');$q->execute([$plotCode]);$timelineDuration=(int)$q->fetchColumn();if($timelineDuration<1)throw new RuntimeException('The story timeline duration is not configured.');
+        $roles=$pdo->prepare('SELECT pr.role_code FROM plot_roles pr JOIN plots p ON p.plot_id=pr.plot_id WHERE p.code=? AND p.status="active" AND pr.simulation_active=1');$roles->execute([$plotCode]);$controllers=[];foreach($roles->fetchAll()as$r)$controllers[$r['role_code']]='AI';
+        $sid=SimulationService::create($plotCode,$timelineDuration,$controllers);$code=self::newCode();
+        $pdo->beginTransaction();try{$pdo->prepare('INSERT INTO games(simulation_id,host_user_id,join_code,play_duration_seconds) VALUES(?,?,?,?)')->execute([$sid,$hostUserId,$code,$duration]);$gid=(int)$pdo->lastInsertId();$pdo->prepare('INSERT INTO game_players(game_id,user_id) VALUES(?,?)')->execute([$gid,$hostUserId]);$pdo->commit();}catch(Throwable$e){if($pdo->inTransaction())$pdo->rollBack();throw$e;}
         return self::lobbyState($gid,$hostUserId);
     }
     public static function joinByCode(int $userId,string $code): array
@@ -45,15 +47,15 @@ final class LobbyService
     {
         $pdo=db();$q=$pdo->prepare('SELECT * FROM games WHERE game_id=?');$q->execute([$gameId]);$g=$q->fetch();if(!$g||(int)$g['host_user_id']!==$userId)throw new RuntimeException('Only the host can start this game.');if($g['status']!=='LOBBY')throw new RuntimeException('This game has already started.');
         $q=$pdo->prepare('SELECT COUNT(*) total_players,SUM(character_id IS NOT NULL) ready_players FROM game_players WHERE game_id=?');$q->execute([$gameId]);$ready=$q->fetch();if((int)$ready['total_players']<1||(int)$ready['ready_players']!==(int)$ready['total_players'])throw new RuntimeException('Every player in the lobby must choose a character before the game starts.');
-        $pdo->beginTransaction();try{$pdo->prepare('UPDATE games SET status="RUNNING",started_at_utc=UTC_TIMESTAMP() WHERE game_id=? AND status="LOBBY"')->execute([$gameId]);SimulationService::start((int)$g['simulation_id']);CharacterAutomationService::process((int)$g['simulation_id']);$pdo->commit();}catch(Throwable$e){if($pdo->inTransaction())$pdo->rollBack();throw$e;}
+        $pdo->beginTransaction();try{$pdo->prepare('UPDATE games SET status="RUNNING" WHERE game_id=? AND status="LOBBY"')->execute([$gameId]);SimulationService::start((int)$g['simulation_id']);CharacterAutomationService::process((int)$g['simulation_id']);$pdo->prepare('UPDATE games SET started_at_utc=UTC_TIMESTAMP() WHERE game_id=?')->execute([$gameId]);$pdo->commit();}catch(Throwable$e){if($pdo->inTransaction())$pdo->rollBack();throw$e;}
     }
     public static function tick(int $gameId): void
     {
         $pdo=db();$lock='toinky_game_'.$gameId;$q=$pdo->prepare('SELECT GET_LOCK(?,0)');$q->execute([$lock]);if((int)$q->fetchColumn()!==1)return;
-        try{$q=$pdo->prepare('SELECT g.status,g.started_at_utc,g.simulation_id,s.elapsed_seconds,s.duration_seconds FROM games g JOIN simulations s ON s.simulation_id=g.simulation_id WHERE g.game_id=?');$q->execute([$gameId]);$g=$q->fetch();if(!$g||$g['status']!=='RUNNING')return;
-            $target=min((int)$g['duration_seconds'],max(0,time()-strtotime((string)$g['started_at_utc'].' UTC')));$elapsed=(int)$g['elapsed_seconds'];
+        try{$q=$pdo->prepare('SELECT g.status,g.started_at_utc,g.play_duration_seconds,g.simulation_id,s.elapsed_seconds,s.duration_seconds FROM games g JOIN simulations s ON s.simulation_id=g.simulation_id WHERE g.game_id=?');$q->execute([$gameId]);$g=$q->fetch();if(!$g||$g['status']!=='RUNNING')return;
+            $playDuration=max(1,(int)($g['play_duration_seconds']??$g['duration_seconds']));$storyDuration=max(1,(int)$g['duration_seconds']);$wallElapsed=min($playDuration,max(0,time()-strtotime((string)$g['started_at_utc'].' UTC')));$target=min($storyDuration,(int)floor($wallElapsed*$storyDuration/$playDuration));$elapsed=(int)$g['elapsed_seconds'];
             while($elapsed<$target){$step=min(30,$target-$elapsed);SimulationService::advance((int)$g['simulation_id'],$step);CharacterAutomationService::process((int)$g['simulation_id']);$elapsed+=$step;}
-            if($elapsed>=(int)$g['duration_seconds'])$pdo->prepare('UPDATE games SET status="COMPLETE",completed_at_utc=UTC_TIMESTAMP() WHERE game_id=?')->execute([$gameId]);
+            if($wallElapsed>=$playDuration||$elapsed>=$storyDuration)$pdo->prepare('UPDATE games SET status="COMPLETE",completed_at_utc=UTC_TIMESTAMP() WHERE game_id=?')->execute([$gameId]);
         }finally{$pdo->prepare('SELECT RELEASE_LOCK(?)')->execute([$lock]);}
     }
     public static function choose(int $gameId,int $userId,int $decisionId,string $optionCode): void
