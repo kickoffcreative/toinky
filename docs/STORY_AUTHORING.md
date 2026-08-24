@@ -13,6 +13,31 @@ Every story has one `author_user_id`.
 
 A person can therefore be an Administrator and Story Writer while also hosting and playing games. Game Host and Player are relationships to a particular game, not permanent permissions.
 
+Every new account begins with the ability to host a game and participate in one. A user who wants to author stories requests **Story Writer** access from the player portal. An administrator reviews that request in **Admin → Writer Requests**.
+
+## Guided Story Writer workflow
+
+The Story Writer workspace is intentionally ordered by dependency:
+
+1. **Overview** — premise, setting, genre, player capacity, and shared scenario.
+2. **Characters** — public identity, private stakes, pronouns, starting location, and initial goal.
+3. **Timeline** — fixed world events in chronological order.
+4. **Decisions** — the character prompted by each event, legal options, narrative results, and ordered state/factor/location/knowledge effects.
+5. **Story Map** — a readable event → decision → option → effect graph, plus state-driven opportunities, their AND conditions, choices, and effects.
+6. **Endings** — ordered resolution fragments and the state conditions that select them.
+7. **Artwork** — optional writer-uploaded images aligned to characters, openings, scenes, turning points, outcomes, and endings.
+8. **Validate & Submit** — blocking structural checks, warnings, and a complete AI-ready critique package.
+
+Submitting creates an immutable numbered revision. An administrator audits and reviews that exact snapshot, then requests changes, approves, publishes, or archives it. Later edits do not silently alter the submitted revision.
+
+## Genre themes
+
+The story genre selects a reusable database theme. Administrators configure its colors, heading and body font stacks, and optional background, story-divider, and card-texture images in **Admin → Theme Manager**. Gameplay reads this configuration generically; a new story gains the same presentation simply by choosing that genre. Empty image fields use the clean default interface.
+
+## Invitations
+
+Hosts can invite players by email from an open lobby. The message is sent as `newsletter@sixpillarsmodel.com` by default and includes both a registration link and the game code. Lobby capacity and invitation validity are rechecked when a new user accepts. The live lobby continues to reserve selected characters in real time, and any unclaimed character is assigned to AI when the host starts.
+
 ## Decisions a writer must make
 
 Before entering data, decide:

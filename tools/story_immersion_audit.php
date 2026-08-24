@@ -1,7 +1,7 @@
 <?php
 ini_set('display_errors','1');error_reporting(E_ALL);
 try{
-require_once __DIR__.'/../app/bootstrap.php';require_once __DIR__.'/../app/MigrationService.php';MigrationService::run();
+require_once __DIR__.'/../app/bootstrap.php';require_once __DIR__.'/../app/MigrationService.php';MigrationService::run();require_once __DIR__.'/../app/StoryAuthoringService.php';
 $plotCode=strtoupper(trim((string)($argv[1]??'')));if($plotCode===''){fwrite(STDERR,"Usage: php tools/story_immersion_audit.php PLOT_CODE\n");exit(2);}
 $q=db()->prepare('SELECT * FROM plots WHERE code=?');$q->execute([$plotCode]);$plot=$q->fetch();if(!$plot){fwrite(STDERR,"Story not found.\n");exit(2);}
 $checks=[];$add=static function(string $priority,string $label,bool $pass,string $detail)use(&$checks):void{$checks[]=['priority'=>$priority,'label'=>$label,'pass'=>$pass,'detail'=>$detail];};
@@ -16,6 +16,8 @@ $q=db()->prepare('SELECT COUNT(*) FROM plot_media_assets WHERE plot_id=? AND act
 $q=db()->prepare('SELECT COUNT(*) FROM plot_media_assets WHERE plot_id=? AND active=1 AND TRIM(alt_text)=""');$q->execute([$plot['plot_id']]);$badAlt=(int)$q->fetchColumn();$add('P1','Image accessibility',$badAlt===0,$badAlt===0?'Every active image has alternative text.':$badAlt.' active image(s) need alternative text.');
 $q=db()->prepare('SELECT COUNT(*) FROM plot_decision_templates WHERE plot_id=?');$q->execute([$plot['plot_id']]);$decisionCount=(int)$q->fetchColumn();$add('P0','Decision opportunities',$decisionCount>0,$decisionCount.' active decision template(s).');
 $q=db()->prepare('SELECT COUNT(*) FROM plot_integrity_rules WHERE plot_id=? AND active=1');$q->execute([$plot['plot_id']]);$integrityCount=(int)$q->fetchColumn();$add('P0','Integrity rules',$integrityCount>0,$integrityCount.' active story integrity rule(s).');
+$authoring=StoryAuthoringService::audit((int)$plot['plot_id']);$add('P0','Dependency and authoring structure',!$authoring['errors'],$authoring['errors']?implode(' ',array_slice($authoring['errors'],0,6)):'All authored references and required dependencies passed structural validation.');
+$add('P1','Writer workflow',!empty($plot['workflow_status']),'Current workflow status: '.($plot['workflow_status']??'not assigned').'. Submissions are stored as fixed revisions for review.');
 $errors=0;echo"Toinky story immersion audit\nStory: {$plot['title']} ({$plot['code']})\n\n";foreach($checks as$c){echo($c['pass']?'PASS':'FAIL')." | {$c['priority']} | {$c['label']}\n  {$c['detail']}\n";if(!$c['pass']&&$c['priority']==='P0')$errors++;}
 echo"\nRequired manual validation, in priority order:\n";
 $q=db()->query('SELECT priority_no,severity,guidance_text FROM platform_story_audit_rules WHERE active=1 ORDER BY priority_no,audit_rule_id');foreach($q->fetchAll()as$r)echo"  {$r['priority_no']}. {$r['severity']}: {$r['guidance_text']}\n";

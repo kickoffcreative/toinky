@@ -23,20 +23,20 @@ final class AuthService
         $q=db()->prepare('SELECT user_id,email,display_name,is_admin,status,created_at_utc,last_login_at_utc FROM users WHERE user_id=?');$q->execute([$id]);$u=$q->fetch();
         if(!$u||$u['status']!=='ACTIVE'){self::logout();return null;}return$u;
     }
-    public static function register(string $email,string $name,string $password,?string $inviteToken=null): array
+    public static function register(string $email,string $name,string $password,?string $inviteToken=null,?string $gameInviteToken=null): array
     {
         $email=strtolower(trim($email));$name=trim($name);
         if(!filter_var($email,FILTER_VALIDATE_EMAIL))throw new RuntimeException('Enter a valid email address.');
         if(mb_strlen($name)<2||mb_strlen($name)>120)throw new RuntimeException('Display name must be between 2 and 120 characters.');
         if(strlen($password)<10)throw new RuntimeException('Password must contain at least 10 characters.');
-        $pdo=db();$invite=null;
+        $pdo=db();$invite=null;$gameInvite=null;
         if($inviteToken){
             $q=$pdo->prepare('SELECT * FROM user_invitations WHERE token_hash=? AND accepted_at_utc IS NULL AND expires_at_utc>UTC_TIMESTAMP()');$q->execute([hash('sha256',$inviteToken)]);$invite=$q->fetch();
             if(!$invite||strtolower((string)$invite['email'])!==$email)throw new RuntimeException('The invitation is invalid, expired, or belongs to another email.');
         }
-        $pdo->prepare('INSERT INTO users(email,password_hash,display_name,email_verified_at_utc) VALUES(?,?,?,?)')->execute([$email,password_hash($password,PASSWORD_DEFAULT),$name,$invite?gmdate('Y-m-d H:i:s'):null]);
-        $id=(int)$pdo->lastInsertId();if($invite)$pdo->prepare('UPDATE user_invitations SET accepted_at_utc=UTC_TIMESTAMP() WHERE invitation_id=?')->execute([$invite['invitation_id']]);
-        self::loginUserId($id);return self::currentUser()??[];
+        if($gameInviteToken){$q=$pdo->prepare('SELECT gi.game_invitation_id,gi.game_id,gi.email,g.status,p.max_players,(SELECT COUNT(*) FROM game_players gp WHERE gp.game_id=g.game_id) player_count FROM game_invitations gi JOIN games g ON g.game_id=gi.game_id JOIN simulations s ON s.simulation_id=g.simulation_id JOIN plots p ON p.plot_id=s.plot_id WHERE gi.token_hash=? AND gi.accepted_at_utc IS NULL AND gi.expires_at_utc>UTC_TIMESTAMP()');$q->execute([hash('sha256',$gameInviteToken)]);$gameInvite=$q->fetch();if(!$gameInvite||strtolower((string)$gameInvite['email'])!==$email||$gameInvite['status']!=='LOBBY')throw new RuntimeException('The game invitation is invalid, expired, or belongs to another email.');if((int)$gameInvite['player_count']>=(int)$gameInvite['max_players'])throw new RuntimeException('That game lobby is already full.');}
+        $pdo->beginTransaction();try{$pdo->prepare('INSERT INTO users(email,password_hash,display_name,email_verified_at_utc) VALUES(?,?,?,?)')->execute([$email,password_hash($password,PASSWORD_DEFAULT),$name,($invite||$gameInvite)?gmdate('Y-m-d H:i:s'):null]);$id=(int)$pdo->lastInsertId();if($invite)$pdo->prepare('UPDATE user_invitations SET accepted_at_utc=UTC_TIMESTAMP() WHERE invitation_id=?')->execute([$invite['invitation_id']]);$gameId=0;if($gameInvite){$gameId=(int)$gameInvite['game_id'];$pdo->prepare('INSERT INTO game_players(game_id,user_id) VALUES(?,?)')->execute([$gameId,$id]);$pdo->prepare('UPDATE game_invitations SET accepted_by_user_id=?,accepted_at_utc=UTC_TIMESTAMP() WHERE game_invitation_id=?')->execute([$id,$gameInvite['game_invitation_id']]);}$pdo->commit();}catch(Throwable$e){if($pdo->inTransaction())$pdo->rollBack();throw$e;}
+        self::loginUserId($id);$u=self::currentUser()??[];$u['_game_id']=$gameId;return$u;
     }
     public static function login(string $email,string $password): array
     {
@@ -94,15 +94,26 @@ final class AuthService
         if($enabled)db()->prepare('INSERT IGNORE INTO user_platform_roles(user_id,platform_role_id,assigned_by_user_id) VALUES(?,?,?)')->execute([$userId,$roleId,$assignedBy]);
         else db()->prepare('DELETE FROM user_platform_roles WHERE user_id=? AND platform_role_id=?')->execute([$userId,$roleId]);
     }
+    public static function requestWriterAccess(int $userId,string $reason=''): void
+    {
+        if(self::hasRole($userId,'WRITER'))throw new RuntimeException('You already have Story Writer access.');$q=db()->prepare('SELECT 1 FROM writer_access_requests WHERE user_id=? AND status="PENDING"');$q->execute([$userId]);if($q->fetchColumn())throw new RuntimeException('Your Story Writer request is already awaiting review.');db()->prepare('INSERT INTO writer_access_requests(user_id,request_text) VALUES(?,?)')->execute([$userId,trim($reason)?:null]);
+    }
+    public static function reviewWriterRequest(int $requestId,bool $approve,int $adminId,string $notes=''): void
+    {
+        $pdo=db();$q=$pdo->prepare('SELECT user_id,status FROM writer_access_requests WHERE writer_request_id=?');$q->execute([$requestId]);$r=$q->fetch();if(!$r||$r['status']!=='PENDING')throw new RuntimeException('That Story Writer request is no longer pending.');$pdo->beginTransaction();try{$pdo->prepare('UPDATE writer_access_requests SET status=?,reviewed_by_user_id=?,reviewer_notes=?,reviewed_at_utc=UTC_TIMESTAMP() WHERE writer_request_id=?')->execute([$approve?'APPROVED':'DECLINED',$adminId,trim($notes)?:null,$requestId]);if($approve)self::setRole((int)$r['user_id'],'WRITER',true,$adminId);$pdo->commit();}catch(Throwable$e){if($pdo->inTransaction())$pdo->rollBack();throw$e;}
+    }
+    public static function createGameInvitation(string $email,int $gameId,int $senderUserId): array
+    {
+        $email=strtolower(trim($email));if(!filter_var($email,FILTER_VALIDATE_EMAIL))throw new RuntimeException('Enter a valid email address.');$q=db()->prepare('SELECT g.join_code,g.status,p.title,p.max_players,u.display_name host_name,(SELECT COUNT(*) FROM game_players gp WHERE gp.game_id=g.game_id) player_count FROM games g JOIN simulations s ON s.simulation_id=g.simulation_id JOIN plots p ON p.plot_id=s.plot_id JOIN users u ON u.user_id=g.host_user_id WHERE g.game_id=? AND g.host_user_id=?');$q->execute([$gameId,$senderUserId]);$game=$q->fetch();if(!$game||$game['status']!=='LOBBY')throw new RuntimeException('Only the host can invite players while the lobby is open.');if((int)$game['player_count']>=(int)$game['max_players'])throw new RuntimeException('The lobby is already full.');$token=bin2hex(random_bytes(24));db()->prepare('INSERT INTO game_invitations(game_id,email,token_hash,invited_by_user_id,expires_at_utc) VALUES(?,?,?,?,DATE_ADD(UTC_TIMESTAMP(),INTERVAL 7 DAY))')->execute([$gameId,$email,hash('sha256',$token),$senderUserId]);$url=self::baseUrl().'/?view=register&game_invite='.rawurlencode($token);$body=$game['host_name'].' invited you to play “'.$game['title'].'” on Toinky.'."\n\nJoin the lobby: ".$url."\nGame code: ".$game['join_code']."\n\nThis link expires in 7 days.";$sent=self::send($email,'You are invited to a Toinky story',$body,'GAME_INVITATION',$gameId,$senderUserId);return['url'=>$url,'sent'=>$sent];
+    }
     public static function baseUrl(): string
     {
         $env=rtrim(trim((string)getenv('GAME2_BASE_URL')),'/');if($env!=='')return$env;
         $secure=!empty($_SERVER['HTTPS'])&&$_SERVER['HTTPS']!=='off';$host=(string)($_SERVER['HTTP_HOST']??'localhost');$path=rtrim(str_replace('\\','/',dirname((string)($_SERVER['SCRIPT_NAME']??'/'))),'/');
         return($secure?'https':'http').'://'.$host.($path==='/'?'':$path);
     }
-    private static function send(string $to,string $subject,string $body): bool
+    private static function send(string $to,string $subject,string $body,string $type='ACCOUNT',?int $gameId=null,?int $senderId=null): bool
     {
-        $from=trim((string)getenv('GAME2_MAIL_FROM'));if($from==='')$from='no-reply@'.preg_replace('/:\\d+$/','',(string)($_SERVER['HTTP_HOST']??'localhost'));
-        return @mail($to,$subject,$body,"From: Toinky <".$from.">\r\nContent-Type: text/plain; charset=UTF-8");
+        $from=trim((string)getenv('GAME2_MAIL_FROM'));$fromName='Toinky';if($from===''){try{$q=db()->query('SELECT setting_key,setting_value FROM platform_settings WHERE setting_key IN("MAIL_FROM_ADDRESS","MAIL_FROM_NAME")');foreach($q->fetchAll()as$r){if($r['setting_key']==='MAIL_FROM_ADDRESS')$from=trim((string)$r['setting_value']);if($r['setting_key']==='MAIL_FROM_NAME')$fromName=trim((string)$r['setting_value']);}}catch(Throwable$ignored){}}if($from==='')$from='newsletter@sixpillarsmodel.com';$sent=@mail($to,$subject,$body,"From: ".$fromName." <".$from.">\r\nReply-To: ".$from."\r\nContent-Type: text/plain; charset=UTF-8");try{db()->prepare('INSERT INTO email_delivery_log(recipient_email,message_type,related_game_id,sent_by_user_id,delivery_status,error_text) VALUES(?,?,?,?,?,?)')->execute([$to,$type,$gameId,$senderId,$sent?'SENT':'FAILED',$sent?null:'PHP mail() returned false']);}catch(Throwable$ignored){}return$sent;
     }
 }
