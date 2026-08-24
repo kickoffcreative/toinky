@@ -36,6 +36,10 @@ jobs:
         with:
           php-version: '8.4'
           extensions: pdo_mysql
+      - name: Normalize test database collation
+        env:
+          GAME2_DATABASE_CONFIG: ${{ github.workspace }}/config/database.test.php
+        run: php -r '$c=require getenv("GAME2_DATABASE_CONFIG");$p=new PDO($c["dsn"],$c["username"],$c["password"]);$p->exec("ALTER DATABASE game2 CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");'
       - name: Build database and run engine baseline
         env:
           GAME2_DATABASE_CONFIG: ${{ github.workspace }}/config/database.test.php
