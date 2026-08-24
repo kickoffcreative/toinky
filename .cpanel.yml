@@ -2,7 +2,7 @@
 deployment:
   tasks:
     - export DEPLOYPATH=/home/sixpillarsadmin/game2.sixpillarsmodel.com/
-    - /bin/cp -f index.php install.php $DEPLOYPATH
+    - /bin/cp -f index.php install.php admin.php lab.php lobby.php lobby-state.php play.php $DEPLOYPATH
     - /bin/cp -Rf app $DEPLOYPATH
     - /bin/cp -Rf public $DEPLOYPATH
     - /bin/cp -Rf database $DEPLOYPATH
