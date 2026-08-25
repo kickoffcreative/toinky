@@ -55,6 +55,16 @@ final class StoryMediaService
         db()->prepare('UPDATE plot_media_assets SET active=0 WHERE media_asset_id=?')->execute([$assetId]);
     }
 
+    public static function setCharacterImage(array $user,int $plotId,string $roleCode,$mediaChoice): void
+    {
+        if(!self::canEdit($user,$plotId))throw new RuntimeException('You may only change character images in stories you own.');
+        $roleCode=strtoupper(trim($roleCode));$q=db()->prepare('SELECT 1 FROM plot_roles WHERE plot_id=? AND role_code=?');$q->execute([$plotId,$roleCode]);if(!$q->fetchColumn())throw new RuntimeException('Save the character before assigning an image.');
+        if($mediaChoice==='__KEEP__')return;
+        db()->prepare('UPDATE plot_media_assets SET active=0 WHERE plot_id=? AND placement="CHARACTER" AND role_code=?')->execute([$plotId,$roleCode]);
+        if($mediaChoice==='__REMOVE__'||$mediaChoice===''||$mediaChoice===null)return;
+        self::attachFromLibrary($user,$plotId,['placement'=>'CHARACTER','role_code'=>$roleCode,'library_media_id'=>(int)$mediaChoice,'asset_code'=>'CHARACTER_'.$roleCode,'sort_order'=>10]);
+    }
+
     public static function forPlot(int $plotId): array
     {
         $q=db()->prepare('SELECT m.*,u.display_name uploader_name FROM plot_media_assets m JOIN users u ON u.user_id=m.uploaded_by_user_id WHERE m.plot_id=? ORDER BY m.placement,m.sort_order,m.media_asset_id');
