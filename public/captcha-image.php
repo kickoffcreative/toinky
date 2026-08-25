@@ -1,0 +1,6 @@
+<?php
+$root=dirname(__DIR__);require_once $root.'/app/bootstrap.php';require_once $root.'/app/AuthService.php';AuthService::boot();
+$code=AuthService::visualCaptchaCode();$seed=hexdec(substr(hash('sha256',$code.session_id()),0,8));
+header('Content-Type: image/svg+xml; charset=UTF-8');header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');header('X-Content-Type-Options: nosniff');
+$chars=preg_split('//u',$code,-1,PREG_SPLIT_NO_EMPTY);$lines='';for($i=0;$i<7;$i++){$y=12+(($seed>>($i*3))%48);$lines.='<path d="M0 '.$y.' Q 60 '.(70-$y).' 160 '.$y.'" fill="none" stroke="'.($i%2?'#668091':'#B58E46').'" stroke-width="'.(1+$i%2).'" opacity=".45"/>';}
+?><svg xmlns="http://www.w3.org/2000/svg" width="220" height="72" viewBox="0 0 220 72" role="img" aria-label="Security code"><rect width="220" height="72" rx="8" fill="#F4EEE2"/><?=$lines?><?php foreach($chars as$i=>$char):$x=22+$i*31;$y=46+(($seed>>($i*2))%9)-4;$rotate=(($seed>>($i*3))%19)-9;?><text x="<?=$x?>" y="<?=$y?>" transform="rotate(<?=$rotate?> <?=$x?> <?=$y?>)" fill="#1C242B" font-family="Georgia,serif" font-size="30" font-weight="700"><?=htmlspecialchars($char,ENT_QUOTES|ENT_XML1,'UTF-8')?></text><?php endforeach;?><circle cx="<?=$seed%210+5?>" cy="<?=$seed%62+5?>" r="3" fill="#6B2938" opacity=".6"/></svg>
