@@ -199,6 +199,8 @@ body:has(#game-live) {
   background-color: var(--background) !important;
   background-image: var(--background-image) !important;
   background-size: cover !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
   background-attachment: fixed !important;
   font-family: var(--body-font) !important;
 }
@@ -208,8 +210,12 @@ body:has(#game-live) {
 #game-live .cast-person h3,
 #game-live .timeline-entry h3,
 #game-live .timeline-entry p {
-  color: var(--ink);
   font-family: var(--heading-font) !important;
+}
+#game-live h1,
+#game-live h2,
+#game-live .cast-person h3 {
+  color: var(--heading-color) !important;
 }
 #game-live .bar {
   background: var(--secondary) !important;
