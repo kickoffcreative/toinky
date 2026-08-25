@@ -111,7 +111,8 @@ a:hover { color: var(--choice); }
   font-family: "IBM Plex Mono", monospace;
   font-size: .78rem;
   font-weight: 600;
-  letter-spacing: .025em;
+  letter-spacing: .06em;
+  text-transform: uppercase;
   box-shadow: none !important;
   transition: transform .15s ease, background .15s ease, border-color .15s ease;
 }
@@ -208,9 +209,12 @@ body:has(#game-live) {
 #game-live h2,
 #game-live .phase-divider,
 #game-live .cast-person h3,
-#game-live .timeline-entry h3,
-#game-live .timeline-entry p {
+#game-live .timeline-entry h3 {
   font-family: var(--heading-font) !important;
+}
+#game-live .timeline-entry p {
+  color: var(--ink) !important;
+  font-family: var(--body-font) !important;
 }
 #game-live h1,
 #game-live h2,
@@ -256,17 +260,12 @@ body:has(#game-live) {
 #game-live .progress span {
   background: var(--accent) !important;
 }
-#game-live .phase-divider {
-  background-image: var(--divider-image) !important;
-  background-position: right center !important;
-  background-repeat: no-repeat !important;
-  background-size: auto 100% !important;
-}
 #game-live .timeline-entry.personal {
   border-color: var(--accent) !important;
   background: color-mix(in srgb, var(--accent) 8%, var(--surface)) !important;
 }
 #game-live .muted,
+#game-live .timeline-time,
 #game-live small {
   color: color-mix(in srgb, var(--ink) 72%, transparent) !important;
 }
