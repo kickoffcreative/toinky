@@ -6,6 +6,8 @@ deployment:
     - /bin/chmod 0644 $DEPLOYPATH/index.php $DEPLOYPATH/install.php $DEPLOYPATH/admin.php $DEPLOYPATH/lab.php $DEPLOYPATH/lobby.php $DEPLOYPATH/lobby-state.php $DEPLOYPATH/play.php $DEPLOYPATH/writer.php $DEPLOYPATH/theme-media.php
     - /bin/cp -Rf app $DEPLOYPATH
     - /bin/cp -Rf public $DEPLOYPATH
+    - /bin/mkdir -p $DEPLOYPATH/assets
+    - /bin/cp -Rf public/assets/. $DEPLOYPATH/assets/
     - /bin/cp -Rf database $DEPLOYPATH
     - /bin/cp -Rf tools $DEPLOYPATH
     - /bin/mkdir -p $DEPLOYPATH/config
