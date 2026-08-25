@@ -1,17 +1,43 @@
 <?php
 $root=dirname(__DIR__);require_once $root.'/app/bootstrap.php';require_once $root.'/app/MigrationService.php';MigrationService::run();require_once $root.'/app/AuthService.php';require_once $root.'/app/MediaLibraryService.php';require_once $root.'/app/StoryAuthoringService.php';AuthService::boot();$admin=AuthService::requireAdmin();$themeFonts=[
-'Cormorant Garamond'=>'Cormorant Garamond, Georgia, serif',
-'Instrument Sans'=>'Instrument Sans, Arial, sans-serif',
-'IBM Plex Mono'=>'IBM Plex Mono, monospace',
-'Playfair Display'=>'Playfair Display, Georgia, serif',
-'Libre Baskerville'=>'Libre Baskerville, Georgia, serif',
-'Crimson Pro'=>'Crimson Pro, Georgia, serif',
-'Cinzel'=>'Cinzel, Georgia, serif',
-'Spectral'=>'Spectral, Georgia, serif',
-'Lora'=>'Lora, Georgia, serif',
-'Merriweather'=>'Merriweather, Georgia, serif',
-'Inter'=>'Inter, Arial, sans-serif',
-'Georgia'=>'Georgia, Times New Roman, serif',
+'Brand — Cormorant Garamond'=>'Cormorant Garamond, Georgia, serif',
+'Brand — Instrument Sans'=>'Instrument Sans, Arial, sans-serif',
+'Brand — IBM Plex Mono'=>'IBM Plex Mono, monospace',
+'Adventure — Cinzel'=>'Cinzel, Georgia, serif',
+'Adventure — Alegreya Sans SC'=>'Alegreya Sans SC, Arial, sans-serif',
+'Comedy — Fredoka'=>'Fredoka, Arial, sans-serif',
+'Comedy — Baloo 2'=>'Baloo 2, Arial, sans-serif',
+'Contemporary — DM Sans'=>'DM Sans, Arial, sans-serif',
+'Contemporary — Manrope'=>'Manrope, Arial, sans-serif',
+'Crime — Oswald'=>'Oswald, Arial, sans-serif',
+'Crime — Roboto Slab'=>'Roboto Slab, Georgia, serif',
+'Drama — Playfair Display'=>'Playfair Display, Georgia, serif',
+'Drama — Cormorant Garamond'=>'Cormorant Garamond, Georgia, serif',
+'Fantasy — Uncial Antiqua'=>'Uncial Antiqua, Georgia, serif',
+'Fantasy — MedievalSharp'=>'MedievalSharp, Georgia, serif',
+'Historical — Libre Baskerville'=>'Libre Baskerville, Georgia, serif',
+'Historical — EB Garamond'=>'EB Garamond, Georgia, serif',
+'Horror — Creepster'=>'Creepster, Georgia, serif',
+'Horror — Nosifer'=>'Nosifer, Georgia, serif',
+'Mystery — Special Elite'=>'Special Elite, Georgia, serif',
+'Mystery — IM Fell English'=>'IM Fell English, Georgia, serif',
+'Political Intrigue — Spectral'=>'Spectral, Georgia, serif',
+'Political Intrigue — Crimson Pro'=>'Crimson Pro, Georgia, serif',
+'Romance — Lora'=>'Lora, Georgia, serif',
+'Romance — Parisienne'=>'Parisienne, cursive',
+'Science Fiction — Orbitron'=>'Orbitron, Arial, sans-serif',
+'Science Fiction — Space Grotesk'=>'Space Grotesk, Arial, sans-serif',
+'Steampunk — Rye'=>'Rye, Georgia, serif',
+'Steampunk — Grenze Gotisch'=>'Grenze Gotisch, Georgia, serif',
+'Survival — Barlow Condensed'=>'Barlow Condensed, Arial, sans-serif',
+'Survival — Archivo Narrow'=>'Archivo Narrow, Arial, sans-serif',
+'Thriller — Bebas Neue'=>'Bebas Neue, Arial, sans-serif',
+'Thriller — Saira Condensed'=>'Saira Condensed, Arial, sans-serif',
+'Body — Inter'=>'Inter, Arial, sans-serif',
+'Body — Merriweather'=>'Merriweather, Georgia, serif',
+'Legacy — Inter System'=>'Inter, system-ui, sans-serif',
+'Legacy — Trebuchet System'=>'Trebuchet MS, system-ui, sans-serif',
+'System — Georgia'=>'Georgia, Times New Roman, serif'
 ];$view=(string)($_GET['view']??'overview');$error=null;$notice=null;$generatedUrl=null;$auditText=null;
 if($_SERVER['REQUEST_METHOD']==='POST'){try{AuthService::requireCsrf();$action=(string)($_POST['action']??'');$target=(int)($_POST['user_id']??0);
  if($action==='invite'){$r=AuthService::createInvitation((string)$_POST['email'],(int)$admin['user_id']);$notice=$r['sent']?'Invitation email sent.':'Mail was unavailable; copy the invitation link below.';$generatedUrl=$r['url'];$view='invitations';}
@@ -33,7 +59,7 @@ if($view==='user'){$uid=(int)($_GET['user']??0);$q=db()->prepare('SELECT user_id
 if($view==='invitations'){$q=db()->query('SELECT i.*,u.display_name invited_by FROM user_invitations i JOIN users u ON u.user_id=i.invited_by_user_id ORDER BY i.created_at_utc DESC LIMIT 200');$invites=$q->fetchAll();}
 $writerRequests=$storyReviews=$themes=[];$themeMedia=[];$security=['SECURITY_CAPTCHA_MODE'=>'BUILTIN','GOOGLE_RECAPTCHA_SITE_KEY'=>'','GOOGLE_RECAPTCHA_SECRET_KEY'=>''];if($view==='writer_requests')$writerRequests=db()->query('SELECT r.*,u.display_name,u.email,reviewer.display_name reviewer_name FROM writer_access_requests r JOIN users u ON u.user_id=r.user_id LEFT JOIN users reviewer ON reviewer.user_id=r.reviewed_by_user_id ORDER BY FIELD(r.status,"PENDING","APPROVED","DECLINED","WITHDRAWN"),r.created_at_utc DESC')->fetchAll();if($view==='story_reviews')$storyReviews=db()->query('SELECT v.*,p.title,p.code,p.workflow_status plot_workflow,u.display_name submitted_by,reviewer.display_name reviewed_by FROM plot_versions v JOIN plots p ON p.plot_id=v.plot_id JOIN users u ON u.user_id=v.submitted_by_user_id LEFT JOIN users reviewer ON reviewer.user_id=v.reviewed_by_user_id ORDER BY FIELD(v.workflow_status,"SUBMITTED","CHANGES_REQUESTED","APPROVED","PUBLISHED","ARCHIVED"),v.created_at_utc DESC')->fetchAll();if($view==='themes'){$themes=db()->query('SELECT g.*,t.* FROM story_genres g JOIN genre_themes t ON t.genre_id=g.genre_id ORDER BY g.sort_order,g.label_text')->fetchAll();$themeMedia=MediaLibraryService::visibleTo($admin);}if($view==='security'){$q=db()->query('SELECT setting_key,setting_value FROM platform_settings WHERE setting_key IN("SECURITY_CAPTCHA_MODE","GOOGLE_RECAPTCHA_SITE_KEY","GOOGLE_RECAPTCHA_SECRET_KEY")');foreach($q->fetchAll()as$row)$security[$row['setting_key']]=$row['setting_value'];}
 function csrf_field():string{return'<input type="hidden" name="csrf_token" value="'.e(AuthService::csrfToken()).'">';}
-?><!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Toinky Admin</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Cormorant+Garamond:wght@500;600;700&family=Crimson+Pro:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Instrument+Sans:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=Libre+Baskerville:wght@400;700&family=Lora:wght@400;500;600;700&family=Merriweather:wght@400;700&family=Playfair+Display:wght@500;600;700&family=Spectral:wght@400;500;600;700&display=swap" rel="stylesheet"><style>
+?><!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Toinky Admin</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond&family=Instrument+Sans&family=IBM+Plex+Mono&family=Cinzel&family=Alegreya+Sans+SC&family=Fredoka&family=Baloo+2&family=DM+Sans&family=Manrope&family=Oswald&family=Roboto+Slab&family=Playfair+Display&family=Uncial+Antiqua&family=MedievalSharp&family=Libre+Baskerville&family=EB+Garamond&family=Creepster&family=Nosifer&family=Special+Elite&family=IM+Fell+English&family=Spectral&family=Crimson+Pro&family=Lora&family=Parisienne&family=Orbitron&family=Space+Grotesk&family=Rye&family=Grenze+Gotisch&family=Barlow+Condensed&family=Archivo+Narrow&family=Bebas+Neue&family=Saira+Condensed&family=Inter&family=Merriweather&display=swap" rel="stylesheet"><style>
 :root{font-family:Inter,system-ui,sans-serif;color:#172033;background:#eef2f7}*{box-sizing:border-box}body{margin:0}.layout{display:grid;grid-template-columns:250px 1fr;min-height:100vh}.side{background:#111827;color:#fff;padding:24px 16px}.brand{font-size:22px;font-weight:900;margin-bottom:28px}.group{font-size:11px;text-transform:uppercase;color:#94a3b8;font-weight:800;letter-spacing:.08em;margin:22px 10px 7px}.side a{display:block;color:#e5e7eb;text-decoration:none;padding:9px 10px;border-radius:8px}.side a.active,.side a:hover{background:#374151;color:#fff}.main{padding:28px;min-width:0}.top{display:flex;justify-content:space-between;align-items:center}.top a{color:#4338ca}.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:14px}.metric,.panel{background:#fff;border:1px solid #dbe3ec;border-radius:14px;padding:18px}.metric b{font-size:32px;display:block}.panel{margin-top:18px;overflow:auto}.table{width:100%;border-collapse:collapse;font-size:13px}.table th,.table td{text-align:left;border-bottom:1px solid #e5e7eb;padding:10px 7px;vertical-align:top}.btn{border:0;border-radius:8px;background:#4f46e5;color:#fff;padding:8px 11px;font:inherit;font-weight:750;cursor:pointer;text-decoration:none;display:inline-block}.btn.alt{background:#fff;color:#273043;border:1px solid #cbd5e1}.field{display:block;margin:10px 0}.field input,.field textarea,.field select{width:min(480px,100%);display:block;padding:10px;border:1px solid #cbd5e1;border-radius:8px;margin-top:5px}.notice,.error{padding:12px;border-radius:9px;margin:12px 0}.notice{background:#dcfce7;color:#166534}.error{background:#fee2e2;color:#991b1b}.audit{white-space:pre-wrap;background:#111827;color:#f8fafc;padding:16px;border-radius:8px;max-height:560px;overflow:auto;font:12px/1.5 ui-monospace,monospace}.theme-preview{padding:18px;border-radius:10px;margin:10px 0}.url{word-break:break-all;background:#f8fafc;padding:10px;border-radius:8px}.actions form{display:inline}.muted{color:#64748b}@media(max-width:760px){.layout{grid-template-columns:1fr}.side{position:static}.main{padding:18px}}
 </style><link rel="stylesheet" href="assets/toinky-theme.css"></head><body><div class="layout"><aside class="side"><div class="toinky-brand-group"><a class="toinky-brand" href="./" aria-label="Toinky home"><span class="toinky-logo-mark" role="img" aria-label="Toinky"></span></a><span class="brand-context">Admin</span></div><div class="group">Accounts</div><a class="<?=$view==='overview'?'active':''?>" href="?view=overview">Overview</a><a class="<?=$view==='accounts'?'active':''?>" href="?view=accounts">Manage Users</a><a class="<?=$view==='invitations'?'active':''?>" href="?view=invitations">Invitations</a><a class="<?=$view==='writer_requests'?'active':''?>" href="?view=writer_requests">Writer Requests</a><div class="group">Gameplay</div><a class="<?=$view==='simulation'?'active':''?>" href="?view=simulation">Simulation View</a><a href="lab.php">Story Engine Lab</a><a href="writer.php">Story Writer</a><div class="group">Story Publishing</div><a class="<?=$view==='story_reviews'?'active':''?>" href="?view=story_reviews">Story Reviews</a><a class="<?=$view==='themes'?'active':''?>" href="?view=themes">Theme Manager</a><div class="group">Stories Played</div><a class="<?=$view==='human'?'active':''?>" href="?view=human">Human Games</a><a class="<?=$view==='simulations'?'active':''?>" href="?view=simulations">Simulation Games</a><div class="group">Site Settings</div><a class="<?=$view==='security'?'active':''?>" href="?view=security">Security</a><div class="group">Account</div><a href="./">Public Portal</a></aside><main class="main"><div class="top"><div><h1><?=e(ucwords(str_replace('_',' ',$view)))?></h1><span class="muted">Signed in as <?=e($admin['display_name'])?></span></div></div><?php if($error):?><div class="error"><?=e($error)?></div><?php endif;?><?php if($notice):?><div class="notice"><?=e($notice)?></div><?php endif;?><?php if($generatedUrl):?><div class="url"><b>Fallback link:</b> <?=e($generatedUrl)?></div><?php endif;?>
 <?php if($view==='overview'):?><div class="cards"><div class="metric"><b><?=$counts['users']?></b>Users</div><div class="metric"><b><?=$counts['human']?></b>Hosted games</div><div class="metric"><b><?=$counts['simulations']?></b>Simulations</div><div class="metric"><b><?=$counts['ratings']?></b>Ratings</div></div><section class="panel"><h2>Recent users</h2><?php $users=array_slice($users,0,10);require __DIR__.'/_admin_users_table.php';?></section>
