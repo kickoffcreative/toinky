@@ -190,3 +190,86 @@ hr { border: 0; border-top: 1px solid var(--line); }
   .barin, header .top { min-height: 64px; }
   h1 { font-size: 2.35rem; }
 }
+
+/* Genre Theme Manager compatibility
+   The gameplay view defines these variables from admin.php?view=themes.
+   Keep the Toinky system as the shell while allowing each story to own its mood. */
+body:has(#game-live) {
+  color: var(--ink) !important;
+  background-color: var(--background) !important;
+  background-image: var(--background-image) !important;
+  background-size: cover !important;
+  background-attachment: fixed !important;
+  font-family: var(--body-font) !important;
+}
+#game-live h1,
+#game-live h2,
+#game-live .phase-divider,
+#game-live .cast-person h3,
+#game-live .timeline-entry h3,
+#game-live .timeline-entry p {
+  color: var(--ink);
+  font-family: var(--heading-font) !important;
+}
+#game-live .bar {
+  background: var(--secondary) !important;
+}
+#game-live .card {
+  color: var(--ink) !important;
+  background-color: color-mix(in srgb, var(--surface) 94%, transparent) !important;
+  background-image: var(--card-image) !important;
+  border-color: color-mix(in srgb, var(--primary) 22%, #ddd) !important;
+}
+#game-live .current-item {
+  border-color: var(--accent) !important;
+}
+#game-live .current-item b,
+#game-live .phase-divider,
+#game-live .entry-label,
+#game-live .timeline-entry p strong {
+  color: var(--primary) !important;
+}
+#game-live .decision {
+  border-color: var(--primary) !important;
+  background: color-mix(in srgb, var(--primary) 8%, var(--surface)) !important;
+}
+#game-live .option {
+  color: var(--ink) !important;
+  background: var(--surface) !important;
+  border-color: color-mix(in srgb, var(--primary) 45%, #ddd) !important;
+}
+#game-live .option:hover,
+#game-live .option:focus-visible {
+  border-color: var(--primary) !important;
+}
+#game-live .btn,
+#game-live .decision-alert {
+  background: var(--primary) !important;
+  border-color: var(--primary) !important;
+}
+#game-live .progress span {
+  background: var(--accent) !important;
+}
+#game-live .phase-divider {
+  background-image: var(--divider-image) !important;
+  background-position: right center !important;
+  background-repeat: no-repeat !important;
+  background-size: auto 100% !important;
+}
+#game-live .timeline-entry.personal {
+  border-color: var(--accent) !important;
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface)) !important;
+}
+#game-live .muted,
+#game-live small {
+  color: color-mix(in srgb, var(--ink) 72%, transparent) !important;
+}
+@media (max-width: 800px) {
+  #game-live .mobile-context details {
+    background: var(--surface) !important;
+  }
+  #game-live .mobile-decisions details {
+    background: color-mix(in srgb, var(--primary) 8%, var(--surface)) !important;
+    border-color: var(--primary) !important;
+  }
+}
