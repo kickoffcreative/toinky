@@ -382,10 +382,10 @@ s · <?=e($ev['headline'])?>
 
 
 <?php elseif($tab==='artwork'):?>
-<section class="card"><h2>Optional Story Artwork</h2><p class="help">Connect an image from your Media library to a character, opening, event, turning point, outcome, or ending. Missing images never block submission.</p><form method="post" class="grid"><?=writer_form_context($plotId,$tab,'attach_media')?>
+<section class="card"><h2>Story Artwork</h2><p class="help">Choose one Primary image as the story's visual identifier in public story cards and listings. You may also connect images to characters, openings, events, turning points, outcomes, and endings. Older stories without a Primary image continue to use their first available scene image.</p><form method="post" class="grid"><?=writer_form_context($plotId,$tab,'attach_media')?>
 <label class="field">Placement<select name="placement" id="story-placement">
-<?php foreach(['CHARACTER','OPENING','SCENE','TURNING_POINT','OUTCOME','ENDING','OTHER']as$p):?>
-<option><?=$p?>
+<?php foreach(['PRIMARY'=>'Primary Story Image','CHARACTER'=>'Character','OPENING'=>'Opening','SCENE'=>'Scene','TURNING_POINT'=>'Turning Point','OUTCOME'=>'Outcome','ENDING'=>'Ending','OTHER'=>'Other']as$p=>$placementLabel):?>
+<option value="<?=e($p)?>"><?=e($placementLabel)?>
 </option>
 <?php endforeach;?>
 </select></label><label class="field">Library Image<select name="library_media_id" id="story-library-media" required><option value="">Choose an image</option><?php foreach($libraryMedia as$m):?><option value="<?=(int)$m['media_id']?>" data-media-type="<?=e($m['media_type'])?>"><?=e($m['title_text'].' · '.$m['media_type'])?></option><?php endforeach;?></select><span class="help">Only media matching the placement is suggested. The list is restricted to images you uploaded; administrators can use any active image.</span></label><label class="field">Asset Code<input name="asset_code"></label><label class="field">Character<select name="role_code"><option value="">Any</option>
