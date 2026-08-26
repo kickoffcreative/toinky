@@ -1,7 +1,7 @@
 <?php
 final class MediaLibraryService
 {
-    public const TYPES=['BACKGROUND','DIVIDER','CARD','CHARACTER','OPENING','SCENE','TURNING_POINT','OUTCOME','ENDING','OTHER'];
+    public const TYPES=['BACKGROUND','DIVIDER','CARD','PRIMARY','CHARACTER','OPENING','SCENE','TURNING_POINT','OUTCOME','ENDING','OTHER'];
 
     public static function visibleTo(array $user,?string $type=null): array
     {

@@ -22,7 +22,7 @@ final class StoryMediaService
         $extensions=['image/jpeg'=>'jpg','image/png'=>'png','image/webp'=>'webp'];
         if(!isset($extensions[$mime]))throw new RuntimeException('Upload a JPEG, PNG, or WebP image.');
         $placement=strtoupper(trim((string)($fields['placement']??'')));
-        $placements=['CHARACTER','OPENING','SCENE','TURNING_POINT','OUTCOME','ENDING','OTHER'];
+        $placements=['PRIMARY','CHARACTER','OPENING','SCENE','TURNING_POINT','OUTCOME','ENDING','OTHER'];
         if(!in_array($placement,$placements,true))throw new RuntimeException('Choose a valid image placement.');
         $alt=trim((string)($fields['alt_text']??''));if($alt==='')throw new RuntimeException('Alternative text is required.');
         $code=strtoupper(preg_replace('/[^A-Z0-9]+/','_',trim((string)($fields['asset_code']??''))));$code=trim($code,'_');
@@ -31,21 +31,23 @@ final class StoryMediaService
         $name=strtolower($code).'-'.bin2hex(random_bytes(8)).'.'.$extensions[$mime];$target=$root.'/'.$name;
         if(!move_uploaded_file($tmp,$target))throw new RuntimeException('The image could not be saved.');
         $path='public/uploads/story-media/'.$name;
+        db()->beginTransaction();
         try{
+            if($placement==='PRIMARY')db()->prepare('UPDATE plot_media_assets SET active=0 WHERE plot_id=? AND placement="PRIMARY"')->execute([$plotId]);
             $q=db()->prepare('INSERT INTO plot_media_assets(plot_id,uploaded_by_user_id,asset_code,placement,role_code,event_code,scene_second,condition_state_key,condition_operator,condition_value,title_text,alt_text,caption_text,file_path,mime_type,file_size_bytes,sort_order) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
             $q->execute([$plotId,$user['user_id'],$code,$placement,self::nullable($fields['role_code']??null),self::nullable($fields['event_code']??null),self::nullableInt($fields['scene_second']??null),self::nullable($fields['condition_state_key']??null),self::nullable($fields['condition_operator']??null),self::nullable($fields['condition_value']??null),self::nullable($fields['title_text']??null),$alt,self::nullable($fields['caption_text']??null),$path,$mime,$size,(int)($fields['sort_order']??100)]);
-            return(int)db()->lastInsertId();
-        }catch(Throwable $e){@unlink($target);throw$e;}
+            $id=(int)db()->lastInsertId();db()->commit();return$id;
+        }catch(Throwable $e){if(db()->inTransaction())db()->rollBack();@unlink($target);throw$e;}
     }
 
     public static function attachFromLibrary(array $user,int $plotId,array $fields): int
     {
         if(!self::canEdit($user,$plotId))throw new RuntimeException('You may only add artwork to stories you own.');
-        $placement=strtoupper(trim((string)($fields['placement']??'')));$placements=['CHARACTER','OPENING','SCENE','TURNING_POINT','OUTCOME','ENDING','OTHER'];if(!in_array($placement,$placements,true))throw new RuntimeException('Choose a valid image placement.');
+        $placement=strtoupper(trim((string)($fields['placement']??'')));$placements=['PRIMARY','CHARACTER','OPENING','SCENE','TURNING_POINT','OUTCOME','ENDING','OTHER'];if(!in_array($placement,$placements,true))throw new RuntimeException('Choose a valid image placement.');
         $media=MediaLibraryService::requireVisible($user,(int)($fields['library_media_id']??0),$placement==='OTHER'?null:$placement);
         $code=strtoupper(preg_replace('/[^A-Z0-9]+/','_',trim((string)($fields['asset_code']??''))));$code=trim($code,'_');if($code==='')$code=$placement.'_'.strtoupper(bin2hex(random_bytes(4)));
         $values=[$plotId,$user['user_id'],$media['media_id'],$code,$placement,self::nullable($fields['role_code']??null),self::nullable($fields['event_code']??null),self::nullableInt($fields['scene_second']??null),self::nullable($fields['condition_state_key']??null),self::nullable($fields['condition_operator']??null),self::nullable($fields['condition_value']??null),self::nullable($fields['title_text']??null)?:$media['title_text'],$media['alt_text'],self::nullable($fields['caption_text']??null),$media['file_path'],$media['mime_type'],$media['file_size_bytes'],(int)($fields['sort_order']??100)];
-        $q=db()->prepare('INSERT INTO plot_media_assets(plot_id,uploaded_by_user_id,library_media_id,asset_code,placement,role_code,event_code,scene_second,condition_state_key,condition_operator,condition_value,title_text,alt_text,caption_text,file_path,mime_type,file_size_bytes,sort_order) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE uploaded_by_user_id=VALUES(uploaded_by_user_id),library_media_id=VALUES(library_media_id),placement=VALUES(placement),role_code=VALUES(role_code),event_code=VALUES(event_code),scene_second=VALUES(scene_second),condition_state_key=VALUES(condition_state_key),condition_operator=VALUES(condition_operator),condition_value=VALUES(condition_value),title_text=VALUES(title_text),alt_text=VALUES(alt_text),caption_text=VALUES(caption_text),file_path=VALUES(file_path),mime_type=VALUES(mime_type),file_size_bytes=VALUES(file_size_bytes),sort_order=VALUES(sort_order),active=1');$q->execute($values);$id=(int)db()->lastInsertId();if($id>0)return$id;$q=db()->prepare('SELECT media_asset_id FROM plot_media_assets WHERE plot_id=? AND asset_code=?');$q->execute([$plotId,$code]);return(int)$q->fetchColumn();
+        db()->beginTransaction();try{if($placement==='PRIMARY')db()->prepare('UPDATE plot_media_assets SET active=0 WHERE plot_id=? AND placement="PRIMARY"')->execute([$plotId]);$q=db()->prepare('INSERT INTO plot_media_assets(plot_id,uploaded_by_user_id,library_media_id,asset_code,placement,role_code,event_code,scene_second,condition_state_key,condition_operator,condition_value,title_text,alt_text,caption_text,file_path,mime_type,file_size_bytes,sort_order) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE uploaded_by_user_id=VALUES(uploaded_by_user_id),library_media_id=VALUES(library_media_id),placement=VALUES(placement),role_code=VALUES(role_code),event_code=VALUES(event_code),scene_second=VALUES(scene_second),condition_state_key=VALUES(condition_state_key),condition_operator=VALUES(condition_operator),condition_value=VALUES(condition_value),title_text=VALUES(title_text),alt_text=VALUES(alt_text),caption_text=VALUES(caption_text),file_path=VALUES(file_path),mime_type=VALUES(mime_type),file_size_bytes=VALUES(file_size_bytes),sort_order=VALUES(sort_order),active=1');$q->execute($values);$id=(int)db()->lastInsertId();if($id<1){$q=db()->prepare('SELECT media_asset_id FROM plot_media_assets WHERE plot_id=? AND asset_code=?');$q->execute([$plotId,$code]);$id=(int)$q->fetchColumn();}db()->commit();return$id;}catch(Throwable$e){if(db()->inTransaction())db()->rollBack();throw$e;}
     }
 
     public static function deactivate(array $user,int $assetId): void
