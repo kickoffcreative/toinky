@@ -1,5 +1,5 @@
 <?php
-$root=dirname(__DIR__);require_once $root.'/app/bootstrap.php';require_once $root.'/app/MigrationService.php';MigrationService::run();require_once $root.'/app/AuthService.php';require_once $root.'/app/MediaLibraryService.php';require_once $root.'/app/StoryAuthoringService.php';require_once $root.'/app/StoryCorrectionService.php';AuthService::boot();$admin=AuthService::requireAdmin();$themeFonts=[
+$root=dirname(__DIR__);require_once $root.'/app/bootstrap.php';require_once $root.'/app/MigrationService.php';MigrationService::run();require_once $root.'/app/AuthService.php';require_once $root.'/app/MediaLibraryService.php';require_once $root.'/app/StoryAuthoringService.php';require_once $root.'/app/StoryCorrectionService.php';require_once $root.'/app/ParallaxService.php';AuthService::boot();$admin=AuthService::requireAdmin();$themeFonts=[
 'Brand — Cormorant Garamond'=>'Cormorant Garamond, Georgia, serif',
 'Brand — Instrument Sans'=>'Instrument Sans, Arial, sans-serif',
 'Brand — IBM Plex Mono'=>'IBM Plex Mono, monospace',
@@ -57,7 +57,7 @@ $brandFontRoles=[
  'brand_context'=>['label'=>'Brand Context','selector'=>'.brand-context','family'=>'IBM Plex Mono, monospace','color'=>'#F4EEE2','size'=>'12px','weight'=>'600','decoration'=>'none'],
  'table_headings'=>['label'=>'Table Headings','selector'=>'th','family'=>'IBM Plex Mono, monospace','color'=>'#F4EEE2','size'=>'12px','weight'=>'700','decoration'=>'none']
 ];
-$view=(string)($_GET['view']??'overview');$activeTheme=(int)($_GET['theme']??$_POST['genre_id']??0);$error=null;$notice=null;$generatedUrl=null;$auditText=null;$auditContext=null;
+$view=(string)($_GET['view']??'overview');$brandTab=in_array((string)($_GET['brand_tab']??$_POST['brand_tab']??'fonts'),['fonts','parallax'],true)?(string)($_GET['brand_tab']??$_POST['brand_tab']??'fonts'):'fonts';$activeTheme=(int)($_GET['theme']??$_POST['genre_id']??0);$error=null;$notice=null;$generatedUrl=null;$auditText=null;$auditContext=null;
 if($_SERVER['REQUEST_METHOD']==='POST'){try{AuthService::requireCsrf();$action=(string)($_POST['action']??'');if($action==='logout'){AuthService::logout();header('Location: ./?view=login');exit;}$target=(int)($_POST['user_id']??0);
  if($action==='invite'){$r=AuthService::createInvitation((string)$_POST['email'],(int)$admin['user_id']);$notice=$r['sent']?'Invitation email sent.':'Mail was unavailable; copy the invitation link below.';$generatedUrl=$r['url'];$view='invitations';}
  if($action==='reset_user'){$q=db()->prepare('SELECT email FROM users WHERE user_id=?');$q->execute([$target]);$email=$q->fetchColumn();if(!$email)throw new RuntimeException('User not found.');$r=AuthService::createPasswordResetForEmail((string)$email);$notice=$r&&$r['sent']?'Password-reset email sent.':'Mail was unavailable; copy the reset link below.';$generatedUrl=$r['url']??null;$view='accounts';}
@@ -78,6 +78,10 @@ if($_SERVER['REQUEST_METHOD']==='POST'){try{AuthService::requireCsrf();$action=(
  }
  if($action==='create_theme'){$label=trim((string)($_POST['label_text']??''));$code=strtoupper(preg_replace('/[^A-Za-z0-9]+/','_',$label));$code=trim($code,'_');$description=trim((string)($_POST['description_text']??''));if($label===''||$code==='')throw new RuntimeException('Enter a theme name.');if(mb_strlen($label)>120)throw new RuntimeException('Theme names may not exceed 120 characters.');db()->beginTransaction();try{$sort=(int)db()->query('SELECT COALESCE(MAX(sort_order),0)+10 FROM story_genres')->fetchColumn();$q=db()->prepare('INSERT INTO story_genres(genre_code,label_text,description_text,sort_order,active) VALUES(?,?,?,?,1)');$q->execute([$code,$label,$description,$sort]);$genreId=(int)db()->lastInsertId();db()->prepare('INSERT INTO genre_themes(genre_id,updated_by_user_id) VALUES(?,?)')->execute([$genreId,$admin['user_id']]);db()->commit();}catch(Throwable$e){if(db()->inTransaction())db()->rollBack();throw $e;}$activeTheme=$genreId;$notice='New theme created.';$view='themes';}
  if($action==='save_brand_fonts'){$styles=[];foreach($brandFontRoles as$key=>$defaults){$family=trim((string)($_POST['brand_'.$key.'_family']??''));$color=strtoupper(trim((string)($_POST['brand_'.$key.'_color']??'')));$size=trim((string)($_POST['brand_'.$key.'_size']??''));$weight=(string)($_POST['brand_'.$key.'_weight']??'400');$decoration=(string)($_POST['brand_'.$key.'_decoration']??'none');if(!in_array($family,$themeFonts,true))throw new RuntimeException('Choose fonts from the supported font list.');if(!preg_match('/^#[0-9A-F]{6}([0-9A-F]{2})?$/',$color))throw new RuntimeException('Brand font colors must use #RRGGBB or #RRGGBBAA.');if(!preg_match('/^(?:0\.[1-9][0-9]?|[1-9][0-9]{0,2})(?:px|rem|em|%)$/',$size))throw new RuntimeException('Font sizes must use px, rem, em, or %.');if(!isset($fontWeights[$weight])||!isset($fontDecorations[$decoration]))throw new RuntimeException('Choose a supported font weight and decoration.');$styles[$key]=['family'=>$family,'color'=>$color,'size'=>$size,'weight'=>$weight,'decoration'=>$decoration];}$q=db()->prepare('INSERT INTO platform_settings(setting_key,setting_value,updated_by_user_id) VALUES("BRAND_FONT_STYLES",?,?) ON DUPLICATE KEY UPDATE setting_value=VALUES(setting_value),updated_by_user_id=VALUES(updated_by_user_id)');$q->execute([json_encode($styles,JSON_UNESCAPED_SLASHES),$admin['user_id']]);$notice='Brand fonts saved.';$view='brand_fonts';}
+ if($action==='add_parallax_layer'){ParallaxService::add($admin,$_POST,$_FILES['layer_image']??[]);$notice='Parallax layer added.';$view='brand_fonts';$brandTab='parallax';}
+ if($action==='save_parallax_layer'){ParallaxService::update($admin,(int)($_POST['parallax_layer_id']??0),$_POST,$_FILES['layer_image']??null);$notice='Parallax layer updated.';$view='brand_fonts';$brandTab='parallax';}
+ if($action==='remove_parallax_layer'){ParallaxService::remove((int)($_POST['parallax_layer_id']??0));$notice='Parallax layer removed.';$view='brand_fonts';$brandTab='parallax';}
+ if($action==='reorder_parallax_layers'){ParallaxService::reorder((string)($_POST['layer_order']??''));$notice='Parallax layer order saved.';$view='brand_fonts';$brandTab='parallax';}
  if($action==='save_security'){$mode=in_array((string)($_POST['captcha_mode']??''),['BUILTIN','VISUAL','GOOGLE','OFF'],true)?(string)$_POST['captcha_mode']:'BUILTIN';$settings=['SECURITY_CAPTCHA_MODE'=>$mode,'GOOGLE_RECAPTCHA_SITE_KEY'=>trim((string)($_POST['recaptcha_site_key']??''))];if(trim((string)($_POST['recaptcha_secret_key']??''))!=='')$settings['GOOGLE_RECAPTCHA_SECRET_KEY']=trim((string)$_POST['recaptcha_secret_key']);$q=db()->prepare('INSERT INTO platform_settings(setting_key,setting_value,updated_by_user_id) VALUES(?,?,?) ON DUPLICATE KEY UPDATE setting_value=VALUES(setting_value),updated_by_user_id=VALUES(updated_by_user_id)');foreach($settings as$key=>$value)$q->execute([$key,$value,$admin['user_id']]);$notice='Login security settings saved.';$view='security';}
 }catch(Throwable$e){$error=$e->getMessage();}}
 $counts=['users'=>(int)db()->query('SELECT COUNT(*) FROM users')->fetchColumn(),'human'=>(int)db()->query('SELECT COUNT(*) FROM games')->fetchColumn(),'simulations'=>(int)db()->query('SELECT COUNT(*) FROM simulations')->fetchColumn(),'ratings'=>(int)db()->query('SELECT COUNT(*) FROM story_ratings')->fetchColumn()];
@@ -86,7 +90,7 @@ if($view==='human'){$q=db()->query('SELECT g.*,s.status simulation_status,p.titl
 if($view==='simulations'||$view==='simulation'){$where=$view==='simulations'?'WHERE g.game_id IS NULL':'';$q=db()->query('SELECT s.simulation_id,s.status,s.current_phase,s.elapsed_seconds,s.created_at_utc,p.title,p.genre,g.game_id,COALESCE(hu.display_name,"System") host_name,COALESCE(cc.human_count,0) human_count,COALESCE(cc.ai_count,0) ai_count,rr.average_rating,COALESCE(rr.rating_count,0) rating_count FROM simulations s JOIN plots p ON p.plot_id=s.plot_id LEFT JOIN games g ON g.simulation_id=s.simulation_id LEFT JOIN users hu ON hu.user_id=g.host_user_id LEFT JOIN (SELECT simulation_id,SUM(controller_type="HUMAN") human_count,SUM(controller_type="AI") ai_count FROM characters GROUP BY simulation_id) cc ON cc.simulation_id=s.simulation_id LEFT JOIN (SELECT game_id,ROUND(AVG(rating),1) average_rating,COUNT(*) rating_count FROM story_ratings GROUP BY game_id) rr ON rr.game_id=g.game_id '.$where.' ORDER BY s.simulation_id DESC LIMIT 250');$sims=$q->fetchAll();}
 if($view==='user'){$uid=(int)($_GET['user']??0);$q=db()->prepare('SELECT user_id,email,display_name,is_admin,status,created_at_utc,last_login_at_utc FROM users WHERE user_id=?');$q->execute([$uid]);$detailUser=$q->fetch();if(!$detailUser)throw new RuntimeException('User not found.');$q=db()->prepare('SELECT g.game_id,g.simulation_id,g.status,g.created_at_utc,p.title,p.genre FROM games g JOIN simulations s ON s.simulation_id=g.simulation_id JOIN plots p ON p.plot_id=s.plot_id WHERE g.host_user_id=? ORDER BY g.created_at_utc DESC');$q->execute([$uid]);$hosted=$q->fetchAll();$q=db()->prepare('SELECT g.game_id,g.simulation_id,g.status,g.created_at_utc,p.title,p.genre,u.display_name host_name,c.name character_name FROM game_players gp JOIN games g ON g.game_id=gp.game_id JOIN simulations s ON s.simulation_id=g.simulation_id JOIN plots p ON p.plot_id=s.plot_id JOIN users u ON u.user_id=g.host_user_id LEFT JOIN characters c ON c.character_id=gp.character_id WHERE gp.user_id=? ORDER BY g.created_at_utc DESC');$q->execute([$uid]);$joined=$q->fetchAll();$q=db()->prepare('SELECT sr.rating,sr.review_text,sr.created_at_utc,p.title,p.genre,g.simulation_id FROM story_ratings sr JOIN games g ON g.game_id=sr.game_id JOIN simulations s ON s.simulation_id=g.simulation_id JOIN plots p ON p.plot_id=s.plot_id WHERE sr.user_id=? ORDER BY sr.created_at_utc DESC');$q->execute([$uid]);$ratings=$q->fetchAll();}
 if($view==='invitations'){$q=db()->query('SELECT i.*,u.display_name invited_by FROM user_invitations i JOIN users u ON u.user_id=i.invited_by_user_id ORDER BY i.created_at_utc DESC LIMIT 200');$invites=$q->fetchAll();}
-$writerRequests=$storyReviews=$themes=[];$themeMedia=[];$security=['SECURITY_CAPTCHA_MODE'=>'BUILTIN','GOOGLE_RECAPTCHA_SITE_KEY'=>'','GOOGLE_RECAPTCHA_SECRET_KEY'=>''];$brandFonts=$brandFontRoles;if($view==='writer_requests')$writerRequests=db()->query('SELECT r.*,u.display_name,u.email,reviewer.display_name reviewer_name FROM writer_access_requests r JOIN users u ON u.user_id=r.user_id LEFT JOIN users reviewer ON reviewer.user_id=r.reviewed_by_user_id ORDER BY FIELD(r.status,"PENDING","APPROVED","DECLINED","WITHDRAWN"),r.created_at_utc DESC')->fetchAll();if($view==='story_reviews')$storyReviews=db()->query('SELECT v.*,p.title,p.code,p.workflow_status plot_workflow,u.display_name submitted_by,reviewer.display_name reviewed_by FROM plot_versions v JOIN plots p ON p.plot_id=v.plot_id JOIN users u ON u.user_id=v.submitted_by_user_id LEFT JOIN users reviewer ON reviewer.user_id=v.reviewed_by_user_id ORDER BY FIELD(v.workflow_status,"SUBMITTED","CHANGES_REQUESTED","APPROVED","PUBLISHED","ARCHIVED"),v.created_at_utc DESC')->fetchAll();if($view==='themes'){$themes=db()->query('SELECT g.*,t.* FROM story_genres g JOIN genre_themes t ON t.genre_id=g.genre_id ORDER BY g.sort_order,g.label_text')->fetchAll();$themeMedia=MediaLibraryService::visibleTo($admin);}if($view==='brand_fonts'){$q=db()->prepare('SELECT setting_value FROM platform_settings WHERE setting_key="BRAND_FONT_STYLES"');$q->execute();$saved=json_decode((string)$q->fetchColumn(),true);if(is_array($saved))foreach($brandFonts as$key=>&$role)if(isset($saved[$key])&&is_array($saved[$key]))$role=array_merge($role,$saved[$key]);unset($role);}if($view==='security'){$q=db()->query('SELECT setting_key,setting_value FROM platform_settings WHERE setting_key IN("SECURITY_CAPTCHA_MODE","GOOGLE_RECAPTCHA_SITE_KEY","GOOGLE_RECAPTCHA_SECRET_KEY")');foreach($q->fetchAll()as$row)$security[$row['setting_key']]=$row['setting_value'];}
+$writerRequests=$storyReviews=$themes=[];$themeMedia=[];$parallaxLayers=[];$security=['SECURITY_CAPTCHA_MODE'=>'BUILTIN','GOOGLE_RECAPTCHA_SITE_KEY'=>'','GOOGLE_RECAPTCHA_SECRET_KEY'=>''];$brandFonts=$brandFontRoles;if($view==='writer_requests')$writerRequests=db()->query('SELECT r.*,u.display_name,u.email,reviewer.display_name reviewer_name FROM writer_access_requests r JOIN users u ON u.user_id=r.user_id LEFT JOIN users reviewer ON reviewer.user_id=r.reviewed_by_user_id ORDER BY FIELD(r.status,"PENDING","APPROVED","DECLINED","WITHDRAWN"),r.created_at_utc DESC')->fetchAll();if($view==='story_reviews')$storyReviews=db()->query('SELECT v.*,p.title,p.code,p.workflow_status plot_workflow,u.display_name submitted_by,reviewer.display_name reviewed_by FROM plot_versions v JOIN plots p ON p.plot_id=v.plot_id JOIN users u ON u.user_id=v.submitted_by_user_id LEFT JOIN users reviewer ON reviewer.user_id=v.reviewed_by_user_id ORDER BY FIELD(v.workflow_status,"SUBMITTED","CHANGES_REQUESTED","APPROVED","PUBLISHED","ARCHIVED"),v.created_at_utc DESC')->fetchAll();if($view==='themes'){$themes=db()->query('SELECT g.*,t.* FROM story_genres g JOIN genre_themes t ON t.genre_id=g.genre_id ORDER BY g.sort_order,g.label_text')->fetchAll();$themeMedia=MediaLibraryService::visibleTo($admin);}if($view==='brand_fonts'){$q=db()->prepare('SELECT setting_value FROM platform_settings WHERE setting_key="BRAND_FONT_STYLES"');$q->execute();$saved=json_decode((string)$q->fetchColumn(),true);if(is_array($saved))foreach($brandFonts as$key=>&$role)if(isset($saved[$key])&&is_array($saved[$key]))$role=array_merge($role,$saved[$key]);unset($role);$parallaxLayers=ParallaxService::all();}if($view==='security'){$q=db()->query('SELECT setting_key,setting_value FROM platform_settings WHERE setting_key IN("SECURITY_CAPTCHA_MODE","GOOGLE_RECAPTCHA_SITE_KEY","GOOGLE_RECAPTCHA_SECRET_KEY")');foreach($q->fetchAll()as$row)$security[$row['setting_key']]=$row['setting_value'];}
 function csrf_field():string{return'<input type="hidden" name="csrf_token" value="'.e(AuthService::csrfToken()).'">';}
 function theme_rgb(string $color):string{return preg_match('/^#[0-9A-Fa-f]{6}/',$color)?strtoupper(substr($color,0,7)):'#000000';}
 function theme_opacity(string $color):int{return preg_match('/^#[0-9A-Fa-f]{8}$/',$color)?(int)round(hexdec(substr($color,7,2))*100/255):100;}
@@ -101,7 +105,7 @@ function theme_opacity(string $color):int{return preg_match('/^#[0-9A-Fa-f]{8}$/
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond&family=Instrument+Sans&family=IBM+Plex+Mono&family=Cinzel&family=Alegreya+Sans+SC&family=Fredoka&family=Baloo+2&family=DM+Sans&family=Manrope&family=Oswald&family=Roboto+Slab&family=Playfair+Display&family=Uncial+Antiqua&family=MedievalSharp&family=Libre+Baskerville&family=EB+Garamond&family=Creepster&family=Nosifer&family=Special+Elite&family=IM+Fell+English&family=Spectral&family=Crimson+Pro&family=Lora&family=Parisienne&family=Orbitron&family=Space+Grotesk&family=Rye&family=Grenze+Gotisch&family=Barlow+Condensed&family=Archivo+Narrow&family=Bebas+Neue&family=Saira+Condensed&family=Inter&family=Merriweather&display=swap" rel="stylesheet">
 <style>
-:root{font-family:Inter,system-ui,sans-serif;color:#172033;background:#eef2f7}*{box-sizing:border-box}body{margin:0}.layout{display:grid;grid-template-columns:250px 1fr;min-height:100vh}.side{background:#1C242B;color:#fff;padding:24px 16px}.brand{font-size:22px;font-weight:900;margin-bottom:28px}.group{font-size:11px;text-transform:uppercase;color:#F4EEE2;font-weight:800;letter-spacing:.08em;margin:22px 10px 7px}.side a{display:block;color:#F4EEE2;text-decoration:none;padding:9px 10px;border-radius:8px}.side a.active,.side a:hover{background:#66715C;color:#fff}.main{padding:28px;min-width:0}.top{display:flex;justify-content:space-between;align-items:center}.top a{color:#6B2938}.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:14px}.metric,.panel{background:#fff;border:1px solid #dbe3ec;border-radius:14px;padding:18px}.metric b{font-size:32px;display:block}.panel{margin-top:18px;overflow:auto}.table{width:100%;border-collapse:collapse;font-size:13px}.table th,.table td{text-align:left;border-bottom:1px solid #e5e7eb;padding:10px 7px;vertical-align:top}.btn{border:0;border-radius:8px;background:#B58E46;color:#1C242B;padding:8px 11px;font:inherit;font-weight:750;cursor:pointer;text-decoration:none;display:inline-block}.btn.alt{background:#fff;color:#273043;border:1px solid #cbd5e1}.field{display:block;margin:10px 0}.field input,.field textarea,.field select{width:min(480px,100%);display:block;padding:10px;border:1px solid #cbd5e1;border-radius:8px;margin-top:5px}.notice,.error{padding:12px;border-radius:9px;margin:12px 0}.notice{background:#dcfce7;color:#166534}.error{background:#fee2e2;color:#991b1b}.audit{white-space:pre-wrap;background:#111827;color:#f8fafc;padding:16px;border-radius:8px;max-height:560px;overflow:auto;font:12px/1.5 ui-monospace,monospace}.theme-preview{padding:18px;border-radius:10px;margin:10px 0}.theme-colors,.font-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px}.color-control{display:grid;grid-template-columns:46px minmax(105px,1fr);gap:7px 10px;align-items:center;padding:11px;border:1px solid #d5cec1;border-radius:6px;background:#fbf8f1}.color-control>span{grid-column:1/-1;font-weight:700}.color-control input[type=color]{width:46px;height:38px;padding:2px}.color-control input[type=text]{width:100%;font-family:"IBM Plex Mono",monospace;text-transform:uppercase}.color-alpha{grid-column:1/-1;display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center}.color-alpha input{width:100%}.color-alpha output{min-width:42px;font:600 12px "IBM Plex Mono",monospace}.theme-tabs,.folder-tabs{display:flex;gap:8px;overflow-x:auto;padding:4px 2px 10px;position:sticky;top:0;background:#fff;z-index:3}.theme-tab,.folder-tab{white-space:nowrap;border:1px solid #cbd5e1;background:#fff;color:#273043;border-radius:8px 8px 0 0;padding:9px 12px;cursor:pointer}.theme-tab.active,.folder-tab.active{background:#B58E46;color:#1C242B;border-color:#B58E46}.theme-form[hidden]{display:none}.font-card{border:1px solid #d5cec1;border-radius:8px;padding:14px;background:#fbf8f1}.font-card h3{margin-top:0}.font-card .field input,.font-card .field select{width:100%}.font-color{display:grid;grid-template-columns:46px 1fr;gap:8px}.font-color input[type=color]{width:46px;height:40px;padding:2px}.brand-save{margin-top:22px}.url{word-break:break-all;background:#f8fafc;padding:10px;border-radius:8px}.actions form{display:inline}.top-actions form,.logout-form{margin:0}.correction-help{background:#F4EEE2;border-left:4px solid #B58E46;padding:14px;margin:14px 0}.correction-help code{font-family:"IBM Plex Mono",monospace}.correction-upload{margin-top:14px;padding-top:14px;border-top:1px solid #dbe3ec}.muted{color:#64748b}@media(max-width:760px){.layout{grid-template-columns:1fr}.side{position:static}.main{padding:18px}.theme-tabs{position:static}}
+:root{font-family:Inter,system-ui,sans-serif;color:#172033;background:#eef2f7}*{box-sizing:border-box}body{margin:0}.layout{display:grid;grid-template-columns:250px 1fr;min-height:100vh}.side{background:#1C242B;color:#fff;padding:24px 16px}.brand{font-size:22px;font-weight:900;margin-bottom:28px}.group{font-size:11px;text-transform:uppercase;color:#F4EEE2;font-weight:800;letter-spacing:.08em;margin:22px 10px 7px}.side a{display:block;color:#F4EEE2;text-decoration:none;padding:9px 10px;border-radius:8px}.side a.active,.side a:hover{background:#66715C;color:#fff}.main{padding:28px;min-width:0}.top{display:flex;justify-content:space-between;align-items:center}.top a{color:#6B2938}.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:14px}.metric,.panel{background:#fff;border:1px solid #dbe3ec;border-radius:14px;padding:18px}.metric b{font-size:32px;display:block}.panel{margin-top:18px;overflow:auto}.table{width:100%;border-collapse:collapse;font-size:13px}.table th,.table td{text-align:left;border-bottom:1px solid #e5e7eb;padding:10px 7px;vertical-align:top}.btn{border:0;border-radius:8px;background:#B58E46;color:#1C242B;padding:8px 11px;font:inherit;font-weight:750;cursor:pointer;text-decoration:none;display:inline-block}.btn.alt{background:#fff;color:#273043;border:1px solid #cbd5e1}.btn.danger{background:#fff1f2;color:#9f1239;border:1px solid #fecdd3}.field{display:block;margin:10px 0}.field input,.field textarea,.field select{width:min(480px,100%);display:block;padding:10px;border:1px solid #cbd5e1;border-radius:8px;margin-top:5px}.notice,.error{padding:12px;border-radius:9px;margin:12px 0}.notice{background:#dcfce7;color:#166534}.error{background:#fee2e2;color:#991b1b}.audit{white-space:pre-wrap;background:#111827;color:#f8fafc;padding:16px;border-radius:8px;max-height:560px;overflow:auto;font:12px/1.5 ui-monospace,monospace}.theme-preview{padding:18px;border-radius:10px;margin:10px 0}.theme-colors,.font-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px}.color-control{display:grid;grid-template-columns:46px minmax(105px,1fr);gap:7px 10px;align-items:center;padding:11px;border:1px solid #d5cec1;border-radius:6px;background:#fbf8f1}.color-control>span{grid-column:1/-1;font-weight:700}.color-control input[type=color]{width:46px;height:38px;padding:2px}.color-control input[type=text]{width:100%;font-family:"IBM Plex Mono",monospace;text-transform:uppercase}.color-alpha{grid-column:1/-1;display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center}.color-alpha input{width:100%}.color-alpha output{min-width:42px;font:600 12px "IBM Plex Mono",monospace}.theme-tabs,.folder-tabs{display:flex;gap:8px;overflow-x:auto;padding:4px 2px 10px;position:sticky;top:0;background:#fff;z-index:3}.theme-tab,.folder-tab{white-space:nowrap;border:1px solid #cbd5e1;background:#fff;color:#273043;border-radius:8px 8px 0 0;padding:9px 12px;cursor:pointer;text-decoration:none}.theme-tab.active,.folder-tab.active{background:#B58E46;color:#1C242B;border-color:#B58E46}.theme-form[hidden]{display:none}.font-card{border:1px solid #d5cec1;border-radius:8px;padding:14px;background:#fbf8f1}.font-card h3{margin-top:0}.font-card .field input,.font-card .field select{width:100%}.font-color{display:grid;grid-template-columns:46px 1fr;gap:8px}.font-color input[type=color]{width:46px;height:40px;padding:2px}.brand-save{margin-top:22px}.parallax-list{display:grid;gap:14px;margin:16px 0}.parallax-card{display:grid;grid-template-columns:30px 180px minmax(320px,1fr);gap:16px;align-items:start;padding:14px;border:1px solid #d5cec1;border-radius:10px;background:#fbf8f1}.parallax-card.dragging{opacity:.45}.drag-handle{padding-top:52px;color:#66715C;font-size:22px;cursor:grab;text-align:center}.parallax-thumb{width:180px;aspect-ratio:16/9;object-fit:cover;border-radius:8px;border:1px solid #d5cec1;background:#e5e7eb}.parallax-fields{display:grid;grid-template-columns:repeat(5,minmax(105px,1fr));gap:8px}.parallax-fields .layer-name{grid-column:1/-1}.parallax-fields .field input{width:100%}.parallax-meta{margin:6px 0 0;font-size:12px;color:#64748b}.parallax-actions{display:flex;gap:8px;align-items:center;margin-top:10px}.parallax-add{margin-top:22px;padding:18px;border:1px dashed #B58E46;border-radius:10px;background:#fffaf0}.parallax-add-grid{display:grid;grid-template-columns:repeat(3,minmax(180px,1fr));gap:10px}.parallax-add-grid .wide{grid-column:1/-1}.url{word-break:break-all;background:#f8fafc;padding:10px;border-radius:8px}.actions form{display:inline}.top-actions form,.logout-form{margin:0}.correction-help{background:#F4EEE2;border-left:4px solid #B58E46;padding:14px;margin:14px 0}.correction-help code{font-family:"IBM Plex Mono",monospace}.correction-upload{margin-top:14px;padding-top:14px;border-top:1px solid #dbe3ec}.muted{color:#64748b}@media(max-width:900px){.parallax-card{grid-template-columns:28px 130px 1fr}.parallax-thumb{width:130px}.parallax-fields{grid-template-columns:repeat(2,minmax(110px,1fr))}.parallax-add-grid{grid-template-columns:1fr 1fr}}@media(max-width:760px){.layout{grid-template-columns:1fr}.side{position:static}.main{padding:18px}.theme-tabs{position:static}.parallax-card{grid-template-columns:24px 1fr}.parallax-thumb{grid-column:2;width:100%}.parallax-fields{grid-column:2}.parallax-add-grid{grid-template-columns:1fr}}
 </style>
 <link rel="stylesheet" href="assets/toinky-theme.css">
 <link rel="stylesheet" href="assets/toinky-admin-shell.css">
@@ -605,11 +609,14 @@ function theme_opacity(string $color):int{return preg_match('/^#[0-9A-Fa-f]{8}$/
 <h2>Brand</h2>
 <p class="muted">Site-wide brand controls are organized into folders so additional brand settings can be added later.</p>
 <div class="folder-tabs">
-<button type="button" class="folder-tab active">Fonts</button>
+<a class="folder-tab <?=$brandTab==='fonts'?'active':''?>" href="?view=brand_fonts&amp;brand_tab=fonts">Fonts</a>
+<a class="folder-tab <?=$brandTab==='parallax'?'active':''?>" href="?view=brand_fonts&amp;brand_tab=parallax">Parallax</a>
 </div>
+<?php if($brandTab==='fonts'):?>
 <form method="post">
 <?=csrf_field()?>
 <input type="hidden" name="action" value="save_brand_fonts">
+<input type="hidden" name="brand_tab" value="fonts">
 <div class="font-grid">
 <?php foreach($brandFonts as$key=>$role):?>
 <div class="font-card">
@@ -662,6 +669,72 @@ function theme_opacity(string $color):int{return preg_match('/^#[0-9A-Fa-f]{8}$/
 </div>
 <button class="btn brand-save">Save Brand Fonts</button>
 </form>
+<?php else:?>
+<h3>Homepage Parallax Layers</h3>
+<p class="muted">Drag layers into back-to-front order, then save the order. Offsets are pixels; negative values extend an image beyond an edge. Movement controls scroll speed from -100% to 100%, with negative values moving in reverse. The homepage clips all movement inside the hero row.</p>
+<div class="parallax-list" data-parallax-list>
+<?php foreach($parallaxLayers as$layer):?>
+<article class="parallax-card" draggable="true" data-layer-id="<?=(int)$layer['parallax_layer_id']?>">
+<div class="drag-handle" title="Drag to reorder" aria-label="Drag to reorder">⋮⋮</div>
+<div>
+<img class="parallax-thumb" src="<?=e($layer['image_path'])?>" alt="Preview of <?=e($layer['label_text'])?>">
+<p class="parallax-meta"><?=(int)$layer['width_px']?> × <?=(int)$layer['height_px']?> · <?=e(strtoupper(pathinfo($layer['image_path'],PATHINFO_EXTENSION)))?></p>
+</div>
+<div>
+<form method="post" enctype="multipart/form-data">
+<?=csrf_field()?>
+<input type="hidden" name="action" value="save_parallax_layer">
+<input type="hidden" name="brand_tab" value="parallax">
+<input type="hidden" name="parallax_layer_id" value="<?=(int)$layer['parallax_layer_id']?>">
+<div class="parallax-fields">
+<label class="field layer-name">Layer Name<input name="label_text" maxlength="120" value="<?=e($layer['label_text'])?>" required></label>
+<label class="field">Left Offset<input type="number" name="offset_left_px" min="-1920" max="1920" step="1" value="<?=(int)$layer['offset_left_px']?>" required></label>
+<label class="field">Right Offset<input type="number" name="offset_right_px" min="-1920" max="1920" step="1" value="<?=(int)$layer['offset_right_px']?>" required></label>
+<label class="field">Top Offset<input type="number" name="offset_top_px" min="-1920" max="1920" step="1" value="<?=(int)$layer['offset_top_px']?>" required></label>
+<label class="field">Bottom Offset<input type="number" name="offset_bottom_px" min="-1920" max="1920" step="1" value="<?=(int)$layer['offset_bottom_px']?>" required></label>
+<label class="field">Movement %<input type="number" name="movement_percent" min="-100" max="100" step="0.1" value="<?=e((string)$layer['movement_percent'])?>" required></label>
+</div>
+<label class="field">Replace Image <span class="muted">(optional)</span><input type="file" name="layer_image" accept="image/png,image/jpeg,.png,.jpg,.jpeg"></label>
+<button class="btn">Save Layer</button>
+</form>
+<form method="post" class="parallax-actions" onsubmit="return confirm('Remove this parallax layer?')">
+<?=csrf_field()?>
+<input type="hidden" name="action" value="remove_parallax_layer">
+<input type="hidden" name="brand_tab" value="parallax">
+<input type="hidden" name="parallax_layer_id" value="<?=(int)$layer['parallax_layer_id']?>">
+<button class="btn danger">Remove Layer</button>
+</form>
+</div>
+</article>
+<?php endforeach;?>
+</div>
+<?php if($parallaxLayers):?>
+<form method="post" data-parallax-order-form>
+<?=csrf_field()?>
+<input type="hidden" name="action" value="reorder_parallax_layers">
+<input type="hidden" name="brand_tab" value="parallax">
+<input type="hidden" name="layer_order" data-layer-order value="<?=e(implode(',',array_column($parallaxLayers,'parallax_layer_id')))?>">
+<button class="btn">Save Layer Order</button>
+</form>
+<?php endif;?>
+<form method="post" enctype="multipart/form-data" class="parallax-add">
+<?=csrf_field()?>
+<input type="hidden" name="action" value="add_parallax_layer">
+<input type="hidden" name="brand_tab" value="parallax">
+<h3>Add Parallax Layer</h3>
+<p class="muted">PNG and JPG only. Images are optimized and resized proportionally to a maximum of 1920 × 1080 pixels.</p>
+<div class="parallax-add-grid">
+<label class="field wide">Layer Name<input name="label_text" maxlength="120" required></label>
+<label class="field wide">Image<input type="file" name="layer_image" accept="image/png,image/jpeg,.png,.jpg,.jpeg" required></label>
+<label class="field">Left Offset<input type="number" name="offset_left_px" min="-1920" max="1920" step="1" value="0" required></label>
+<label class="field">Right Offset<input type="number" name="offset_right_px" min="-1920" max="1920" step="1" value="0" required></label>
+<label class="field">Top Offset<input type="number" name="offset_top_px" min="-1920" max="1920" step="1" value="0" required></label>
+<label class="field">Bottom Offset<input type="number" name="offset_bottom_px" min="-1920" max="1920" step="1" value="0" required></label>
+<label class="field">Movement %<input type="number" name="movement_percent" min="-100" max="100" step="0.1" value="0" required></label>
+</div>
+<button class="btn">Add Layer</button>
+</form>
+<?php endif;?>
 </section>
 <?php elseif($view==='security'):?>
 <section class="panel">
@@ -824,6 +897,25 @@ if(copyReviewButton)copyReviewButton.addEventListener('click',async()=>{
  const original=copyReviewButton.textContent;copyReviewButton.textContent='Copied';
  setTimeout(()=>copyReviewButton.textContent=original,1800);
 });
+const parallaxList=document.querySelector('[data-parallax-list]');
+if(parallaxList){
+ let dragged=null;
+ const syncOrder=()=>{
+  const input=document.querySelector('[data-layer-order]');
+  if(input)input.value=[...parallaxList.querySelectorAll('[data-layer-id]')].map(item=>item.dataset.layerId).join(',');
+ };
+ parallaxList.querySelectorAll('[data-layer-id]').forEach(item=>{
+  item.addEventListener('dragstart',event=>{dragged=item;item.classList.add('dragging');event.dataTransfer.effectAllowed='move';});
+  item.addEventListener('dragend',()=>{item.classList.remove('dragging');dragged=null;syncOrder();});
+ });
+ parallaxList.addEventListener('dragover',event=>{
+  event.preventDefault();if(!dragged)return;
+  const candidates=[...parallaxList.querySelectorAll('[data-layer-id]:not(.dragging)')];
+  const next=candidates.find(item=>event.clientY<=item.getBoundingClientRect().top+item.offsetHeight/2);
+  parallaxList.insertBefore(dragged,next||null);
+ });
+ syncOrder();
+}
 </script>
 </body>
 </html>
