@@ -11,7 +11,7 @@ function writer_csrf_field():string{return'<input type="hidden" name="csrf_token
 <link rel="stylesheet" href="assets/toinky-theme.css">
 <link rel="stylesheet" href="assets/toinky-admin-shell.css">
 </head>
-<body><div class="workspace-layout"><?php require __DIR__.'/_workspace_sidebar.php';render_workspace_sidebar($writer,'writer');?><main class="workspace-main"><div class="workspace-top-actions"><span>Hello, <?=e($writer['display_name'])?></span><form method="post" action="./"><?=writer_csrf_field()?><input type="hidden" name="action" value="logout"><button class="btn alt">Log Out</button></form></div>
+<body><div class="workspace-layout"><?php require __DIR__.'/_workspace_sidebar.php';render_workspace_sidebar($writer,'writer');?><main class="workspace-main"><header class="workspace-page-header"><div><h1>Story Writer</h1><p>Signed in as <?=e($writer['display_name'])?></p></div><form method="post" action="./"><?=writer_csrf_field()?><input type="hidden" name="action" value="logout"><button class="btn alt">Log Out</button></form></header>
 <main class="shell">
 <?php if($error):?>
 <p class="error"><?=e($error)?>

@@ -120,38 +120,7 @@ function theme_opacity(string $color):int{return preg_match('/^#[0-9A-Fa-f]{8}$/
 </head>
 <body>
 <div class="layout">
-<aside class="side admin-shell-side">
-<div class="toinky-brand-group">
-<a class="toinky-brand" href="./?view=public" aria-label="Open Toinky homepage">
-<span class="toinky-logo-mark" role="img" aria-label="Toinky">
-</span>
-</a>
-<span class="brand-context">Admin</span>
-</div>
-<div class="group">Accounts</div>
-<a class="<?=$view==='overview'?'active':''?>" href="?view=overview">Overview</a>
-<a class="<?=$view==='accounts'?'active':''?>" href="?view=accounts">Manage Users</a>
-<a class="<?=$view==='invitations'?'active':''?>" href="?view=invitations">Invitations</a>
-<a class="<?=$view==='writer_requests'?'active':''?>" href="?view=writer_requests">Writer Requests</a>
-<div class="group">Gameplay</div>
-<a class="<?=$view==='simulation'?'active':''?>" href="?view=simulation">Simulation View</a>
-<a href="lab.php">Story Engine Lab</a>
-<a href="writer.php">Story Writer</a>
-<div class="group">Story Publishing</div>
-<a class="<?=in_array($view,['story_reviews','story_review'],true)?'active':''?>" href="?view=story_reviews">Story Reviews</a>
-<a class="<?=$view==='themes'?'active':''?>" href="?view=themes">Theme Manager</a>
-<div class="group">Stories Played</div>
-<a class="<?=$view==='human'?'active':''?>" href="?view=human">Human Games</a>
-<a class="<?=$view==='simulations'?'active':''?>" href="?view=simulations">Simulation Games</a>
-<div class="group">Site Settings</div>
-<a class="<?=$view==='brand_fonts'?'active':''?>" href="?view=brand_fonts">Brand</a>
-<a class="<?=$view==='pages'?'active':''?>" href="?view=pages">Pages</a>
-<a class="<?=$view==='security'?'active':''?>" href="?view=security">Security</a>
-<div class="group">Account</div>
-<a href="./">My Games</a>
-<a href="profile.php">My Profile</a>
-<a href="./?view=public">Public Portal</a>
-</aside>
+<?php require_once __DIR__.'/_workspace_sidebar.php';render_workspace_sidebar($admin,$view);?>
 <main class="main">
 <div class="top">
 <div>
