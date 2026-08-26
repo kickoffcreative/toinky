@@ -81,6 +81,21 @@ final class StoryMediaService
         return$out;
     }
 
+    public static function characterImagesForPlot(int $plotId): array
+    {
+        $q=db()->prepare('SELECT role_code,file_path,alt_text,title_text FROM plot_media_assets WHERE plot_id=? AND placement="CHARACTER" AND active=1 ORDER BY sort_order,media_asset_id');$q->execute([$plotId]);$images=[];foreach($q->fetchAll()as$image)if(!isset($images[$image['role_code']]))$images[$image['role_code']]=$image;return$images;
+    }
+
+    public static function characterImagesForSimulation(int $simulationId): array
+    {
+        $q=db()->prepare('SELECT plot_id FROM simulations WHERE simulation_id=?');$q->execute([$simulationId]);$plotId=(int)$q->fetchColumn();return$plotId?self::characterImagesForPlot($plotId):[];
+    }
+
+    public static function characterImagesByCharacterForSimulation(int $simulationId): array
+    {
+        $q=db()->prepare('SELECT c.character_id,m.file_path,m.alt_text,m.title_text FROM characters c JOIN plot_roles pr ON pr.plot_role_id=c.plot_role_id JOIN plot_media_assets m ON m.plot_id=pr.plot_id AND m.role_code=pr.role_code AND m.placement="CHARACTER" AND m.active=1 WHERE c.simulation_id=? ORDER BY m.sort_order,m.media_asset_id');$q->execute([$simulationId]);$images=[];foreach($q->fetchAll()as$image)if(!isset($images[(int)$image['character_id']]))$images[(int)$image['character_id']]=$image;return$images;
+    }
+
     private static function conditionMatches(int $simulationId,array $asset): bool
     {
         $key=trim((string)($asset['condition_state_key']??''));if($key==='')return true;
