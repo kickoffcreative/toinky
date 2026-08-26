@@ -9,7 +9,7 @@ header('Cache-Control: public, max-age=60, must-revalidate');
 $roles=[
  'body'=>'body,input,select,textarea',
  'headings'=>'h1,h2,h3,.brand,.title',
- 'navigation'=>'.side a,.nav,.bar',
+ 'navigation'=>'.side a,.nav a,.signed-nav a,.sidebar-section a',
  'labels'=>'label,.eyebrow,.group,.badge,.pill,.code,.slot,.deadline,.muted,small',
  'buttons'=>'.btn,button,input[type="submit"]',
  'brand_context'=>'.brand-context',
@@ -28,5 +28,5 @@ foreach($roles as$key=>$selector){
  $size=css_value((string)($style['size']??''),'/^(?:0\.[1-9][0-9]?|[1-9][0-9]{0,2})(?:px|rem|em|%)$/','16px');
  $weight=css_value((string)($style['weight']??''),'/^(300|400|500|600|700|800|900)$/','400');
  $decoration=css_value((string)($style['decoration']??''),'/^(none|underline|overline|line-through)$/','none');
- echo $selector,'{font-family:',$family,' !important;color:',$color,' !important;font-size:',$size,' !important;font-weight:',$weight,' !important;text-decoration:',$decoration,' !important}',"\n";
+ echo $selector,'{font-family:',$family,';color:',$color,';font-size:',$size,';font-weight:',$weight,';text-decoration:',$decoration,'}',"\n";
 }
