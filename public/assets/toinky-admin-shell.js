@@ -4,7 +4,7 @@ document.querySelectorAll('[data-sidebar-section]').forEach(section=>{
  if(!button)return;
  const key='toinky-sidebar-'+section.dataset.sidebarSection;
  const apply=collapsed=>{section.classList.toggle('collapsed',collapsed);button.setAttribute('aria-expanded',collapsed?'false':'true');const marker=button.querySelector('span');if(marker)marker.textContent=collapsed?'+':'−';};
- if(workspaceMobile.matches)apply(true);else try{apply(localStorage.getItem(key)==='collapsed');}catch(error){apply(false);}
+ if(workspaceMobile.matches||document.body.classList.contains('workspace-floating'))apply(true);else try{apply(localStorage.getItem(key)==='collapsed');}catch(error){apply(false);}
  button.addEventListener('click',()=>{const collapsed=!section.classList.contains('collapsed');apply(collapsed);try{localStorage.setItem(key,collapsed?'collapsed':'open');}catch(error){}});
 });
 const workspaceSidebar=document.getElementById('workspace-sidebar'),workspaceToggle=document.querySelector('.workspace-menu-toggle'),workspaceClose=document.querySelector('.workspace-menu-close'),workspaceBackdrop=document.querySelector('.workspace-sidebar-backdrop');
