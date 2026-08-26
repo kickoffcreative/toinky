@@ -56,7 +56,7 @@ $brandFontRoles=[
  'brand_context'=>['label'=>'Brand Context','selector'=>'.brand-context','family'=>'Instrument Sans, Arial, sans-serif','color'=>'#F4EEE2','size'=>'12px','weight'=>'600','decoration'=>'none'],
  'table_headings'=>['label'=>'Table Headings','selector'=>'th','family'=>'Instrument Sans, Arial, sans-serif','color'=>'#F4EEE2','size'=>'12px','weight'=>'700','decoration'=>'none']
 ];
-$view=(string)($_GET['view']??'overview');$brandTab=in_array((string)($_GET['brand_tab']??$_POST['brand_tab']??'fonts'),['fonts','parallax'],true)?(string)($_GET['brand_tab']??$_POST['brand_tab']??'fonts'):'fonts';$pageCode=strtoupper((string)($_GET['page']??$_POST['page_code']??'HOME'));$activeTheme=(int)($_GET['theme']??$_POST['genre_id']??0);$error=null;$notice=null;$generatedUrl=null;$auditText=null;$auditContext=null;
+$view=(string)($_GET['view']??'overview');$viewTitles=['overview'=>'Dashboard','accounts'=>'Users','user'=>'User Details','invitations'=>'Invitations','writer_requests'=>'Writer Requests','pages'=>'Pages','brand_fonts'=>'Brand','security'=>'Security','story_reviews'=>'Story Reviews','story_review'=>'Story Review','themes'=>'Theme Manager','human'=>'Live Games','simulations'=>'Simulation Games','simulation'=>'Simulation Inspector'];$brandTab=in_array((string)($_GET['brand_tab']??$_POST['brand_tab']??'fonts'),['fonts','parallax'],true)?(string)($_GET['brand_tab']??$_POST['brand_tab']??'fonts'):'fonts';$pageCode=strtoupper((string)($_GET['page']??$_POST['page_code']??'HOME'));$activeTheme=(int)($_GET['theme']??$_POST['genre_id']??0);$error=null;$notice=null;$generatedUrl=null;$auditText=null;$auditContext=null;
 if($_SERVER['REQUEST_METHOD']==='POST'){try{AuthService::requireCsrf();$action=(string)($_POST['action']??'');if($action==='logout'){AuthService::logout();header('Location: ./?view=login');exit;}$target=(int)($_POST['user_id']??0);
  if($action==='invite'){$r=AuthService::createInvitation((string)$_POST['email'],(int)$admin['user_id']);$notice=$r['sent']?'Invitation email sent.':'Mail was unavailable; copy the invitation link below.';$generatedUrl=$r['url'];$view='invitations';}
  if($action==='reset_user'){$q=db()->prepare('SELECT email FROM users WHERE user_id=?');$q->execute([$target]);$email=$q->fetchColumn();if(!$email)throw new RuntimeException('User not found.');$r=AuthService::createPasswordResetForEmail((string)$email);$notice=$r&&$r['sent']?'Password-reset email sent.':'Mail was unavailable; copy the reset link below.';$generatedUrl=$r['url']??null;$view='accounts';}
@@ -125,7 +125,7 @@ function theme_opacity(string $color):int{return preg_match('/^#[0-9A-Fa-f]{8}$/
 <div class="top">
 <div>
 <h1>
-<?=e(ucwords(str_replace('_',' ',$view)))?>
+<?=e($viewTitles[$view]??ucwords(str_replace('_',' ',$view)))?>
 </h1>
 <span class="muted">Signed in as <?=e($admin['display_name'])?>
 </span>
