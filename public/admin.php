@@ -114,7 +114,7 @@ function theme_opacity(string $color):int{return preg_match('/^#[0-9A-Fa-f]{8}$/
 <div class="layout">
 <aside class="side admin-shell-side">
 <div class="toinky-brand-group">
-<a class="toinky-brand" href="./" aria-label="Toinky home">
+<a class="toinky-brand" href="./?view=public" aria-label="Open Toinky homepage">
 <span class="toinky-logo-mark" role="img" aria-label="Toinky">
 </span>
 </a>
@@ -139,7 +139,8 @@ function theme_opacity(string $color):int{return preg_match('/^#[0-9A-Fa-f]{8}$/
 <a class="<?=$view==='brand_fonts'?'active':''?>" href="?view=brand_fonts">Brand</a>
 <a class="<?=$view==='security'?'active':''?>" href="?view=security">Security</a>
 <div class="group">Account</div>
-<a href="./">Public Portal</a>
+<a href="profile.php">My Profile</a>
+<a href="./?view=public">Public Portal</a>
 </aside>
 <main class="main">
 <div class="top">

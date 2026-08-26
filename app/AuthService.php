@@ -134,6 +134,10 @@ final class AuthService
         $secure=!empty($_SERVER['HTTPS'])&&$_SERVER['HTTPS']!=='off';$host=(string)($_SERVER['HTTP_HOST']??'localhost');$path=rtrim(str_replace('\\','/',dirname((string)($_SERVER['SCRIPT_NAME']??'/'))),'/');
         return($secure?'https':'http').'://'.$host.($path==='/'?'':$path);
     }
+    public static function sendAccountMessage(string $to,string $subject,string $body,string $type='ACCOUNT',?int $senderId=null): bool
+    {
+        return self::send($to,$subject,$body,$type,null,$senderId);
+    }
     private static function send(string $to,string $subject,string $body,string $type='ACCOUNT',?int $gameId=null,?int $senderId=null): bool
     {
         $from=trim((string)getenv('GAME2_MAIL_FROM'));$fromName='Toinky';if($from===''){try{$q=db()->query('SELECT setting_key,setting_value FROM platform_settings WHERE setting_key IN("MAIL_FROM_ADDRESS","MAIL_FROM_NAME")');foreach($q->fetchAll()as$r){if($r['setting_key']==='MAIL_FROM_ADDRESS')$from=trim((string)$r['setting_value']);if($r['setting_key']==='MAIL_FROM_NAME')$fromName=trim((string)$r['setting_value']);}}catch(Throwable$ignored){}}if($from==='')$from='newsletter@sixpillarsmodel.com';$sent=@mail($to,$subject,$body,"From: ".$fromName." <".$from.">\r\nReply-To: ".$from."\r\nContent-Type: text/plain; charset=UTF-8");try{db()->prepare('INSERT INTO email_delivery_log(recipient_email,message_type,related_game_id,sent_by_user_id,delivery_status,error_text) VALUES(?,?,?,?,?,?)')->execute([$to,$type,$gameId,$senderId,$sent?'SENT':'FAILED',$sent?null:'PHP mail() returned false']);}catch(Throwable$ignored){}return$sent;
