@@ -63,7 +63,13 @@ final class PageContentService
 
     private static function color($value,string $label): string{$color=strtoupper(trim((string)$value));if(!preg_match('/^#[0-9A-F]{6}([0-9A-F]{2})?$/',$color))throw new RuntimeException('Choose a valid '.$label.'.');return$color;}
     private static function percent($value): int{return max(0,min(100,(int)$value));}
-    private static function rgba(string $hex,float $opacity): string{$hex=ltrim(substr($hex,0,7),'#');return'rgba('.hexdec(substr($hex,0,2)).','.hexdec(substr($hex,2,2)).','.hexdec(substr($hex,4,2)).','.$opacity.')';}
+    private static function rgba(string $hex,float $opacity): string
+    {
+        $hex=ltrim(strtoupper($hex),'#');
+        $colorOpacity=strlen($hex)===8?hexdec(substr($hex,6,2))/255:1;
+        $opacity=max(0,min(1,$opacity*$colorOpacity));
+        return'rgba('.hexdec(substr($hex,0,2)).','.hexdec(substr($hex,2,2)).','.hexdec(substr($hex,4,2)).','.$opacity.')';
+    }
 
     private static function sanitizeHtml(string $html): string
     {
