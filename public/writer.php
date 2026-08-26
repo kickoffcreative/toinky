@@ -22,7 +22,7 @@ function writer_csrf_field():string{return'<input type="hidden" name="csrf_token
 <p class="notice"><?=e($notice)?>
 </p>
 <?php endif;?>
-<div class="layout"><aside class="card side story-list"><h2>Your Stories</h2>
+<div class="layout"><aside class="card side story-list"><h2>Your Stories</h2><div class="story-list-links">
 <?php foreach($plots as$p):?>
 <a class="link <?=((int)$p['plot_id']===$plotId)?'active':''?>
 " href="?plot=<?=(int)$p['plot_id']?>
@@ -30,7 +30,7 @@ function writer_csrf_field():string{return'<input type="hidden" name="csrf_token
 <br><small><?=e($p['workflow_status']??'DRAFT')?>
  · <?=e($p['genre_label']??$p['genre'])?>
 </small></a>
-<?php endforeach;?>
+<?php endforeach;?></div>
 <details><summary><b>New Story</b></summary><form method="post"><?=writer_form_context(0,'overview','create')?>
 <label class="field">Title<input name="title" required></label><label class="field">Code<input name="code"></label><label class="field">Genre<select name="genre_id">
 <?php foreach($genres as$g):?>
