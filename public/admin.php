@@ -120,7 +120,7 @@ function theme_opacity(string $color):int{return preg_match('/^#[0-9A-Fa-f]{8}$/
 </head>
 <body>
 <div class="layout">
-<?php require_once __DIR__.'/_workspace_sidebar.php';render_workspace_sidebar($admin,$view);?>
+<?php require_once __DIR__.'/_workspace_sidebar.php';render_workspace_sidebar($admin,$view,true);?>
 <main class="main">
 <div class="top">
 <div>
@@ -129,13 +129,6 @@ function theme_opacity(string $color):int{return preg_match('/^#[0-9A-Fa-f]{8}$/
 </h1>
 <span class="muted">Signed in as <?=e($admin['display_name'])?>
 </span>
-</div>
-<div class="top-actions">
-<form method="post">
-<?=csrf_field()?>
-<input type="hidden" name="action" value="logout">
-<button class="btn alt">Log Out</button>
-</form>
 </div>
 </div>
 <?php if($error):?>
