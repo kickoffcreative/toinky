@@ -18,20 +18,20 @@ html { scroll-behavior: smooth; }
   min-height: max(760px, 100svh);
   display: grid;
   place-items: center;
-  overflow: clip;
+  overflow: hidden;
+  contain: paint;
+  clip-path: inset(0);
   isolation: isolate;
   border: 0 !important;
   background: #d8c49e;
 }
-.parallax-stage, .parallax-layer, .parallax-layer img, .hero-vignette { position: absolute; inset: 0; width: 100%; height: 100%; }
-.parallax-stage { inset: -5%; width: 110%; height: 110%; z-index: -3; }
+.parallax-stage, .hero-vignette { position: absolute; inset: 0; width: 100%; height: 100%; }
+.parallax-stage { z-index: -3; overflow: hidden; contain: paint; }
+.parallax-layer { position: absolute; inset: 0; width: 100%; height: 100%; }
 .parallax-layer { will-change: transform; transform: translate3d(var(--px, 0), var(--py, 0), 0) scale(1.08); }
-.parallax-layer img { object-fit: cover; object-position: center; user-select: none; pointer-events: none; }
-.layer-sky { z-index: 1; }
-.layer-atmosphere { z-index: 2; }
-.layer-far { z-index: 2; }
-.layer-middle { z-index: 3; }
-.layer-valley { z-index: 4; }
+.parallax-layer img { position: absolute; left: var(--offset-left, 0); right: var(--offset-right, 0); top: var(--offset-top, 0); bottom: var(--offset-bottom, 0); width: calc(100% - var(--offset-left, 0px) - var(--offset-right, 0px)); height: calc(100% - var(--offset-top, 0px) - var(--offset-bottom, 0px)); min-width: 1px; min-height: 1px; object-fit: cover; object-position: center; user-select: none; pointer-events: none; }
+.layer-managed { z-index: var(--layer-order, 1); }
+.layer-atmosphere { z-index: 20; pointer-events: none; }
 .layer-atmosphere span {
   position: absolute;
   left: 50%; top: 57%; width: 31vw; height: 31vw;
@@ -40,12 +40,8 @@ html { scroll-behavior: smooth; }
   background: radial-gradient(circle, rgba(255,232,169,.30), rgba(181,142,70,.08) 42%, transparent 70%);
   filter: blur(10px);
 }
-.layer-left-pair { z-index: 5; }
-.layer-right-upper { z-index: 6; }
-.layer-left-robot { z-index: 8; }
-.layer-right-foreground { z-index: 9; }
 .layer-gold {
-  z-index: 12;
+  z-index: 40;
   opacity: .38;
   background:
     radial-gradient(circle at 14% 24%, transparent 0 44px, rgba(181,142,70,.44) 45px 46px, transparent 47px),
@@ -143,7 +139,6 @@ html { scroll-behavior: smooth; }
 @media (max-width: 980px) {
   .public-home .site-header .barin { min-height: 78px; }
   .public-home .nav > a[href^="#"] { display: none; }
-  .parallax-stage { inset: -3%; width: 106%; height: 106%; }
   .story-steps { grid-template-columns: repeat(2,1fr); }
   .world-grid { grid-template-columns: 1fr; }
   .world-grid article { min-height: 310px; border: 0; border-bottom: 1px solid rgba(244,238,226,.2); }
@@ -151,9 +146,6 @@ html { scroll-behavior: smooth; }
 }
 @media (max-width: 720px) {
   .toinky-cinematic { min-height: 760px; }
-  .parallax-stage { inset: -6% -34%; width: 168%; height: 112%; }
-  .layer-left-pair, .layer-right-upper { opacity: .78; }
-  .layer-right-foreground { opacity: .9; }
   .hero-copy { margin-top: 22vh; padding-inline: 18px; }
   .hero-copy p { max-width: 430px; }
   .hero-actions { flex-direction: column; align-items: center; }
