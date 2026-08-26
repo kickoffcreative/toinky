@@ -25,3 +25,4 @@ body>.layout{grid-template-columns:250px minmax(0,1fr)!important}
 .how-it-works dd{margin:3px 0 0;line-height:1.55}
 .how-it-works li{margin-bottom:7px;line-height:1.5}
 @media(max-width:800px){.admin-shell-side{min-height:auto;border-right:0;border-bottom:2px solid #B58E46}}
+.workspace-top-actions{display:flex;align-items:center;justify-content:flex-end;gap:12px;padding:16px 22px 0;color:#6B2938;font-weight:800}.workspace-top-actions form{margin:0}.workspace-top-actions button{margin:0}
