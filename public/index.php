@@ -11,11 +11,11 @@ if($_SERVER['REQUEST_METHOD']==='POST'){try{AuthService::requireCsrf();$action=(
  if($action==='join_game'){$u=AuthService::requireLogin();$state=LobbyService::joinByCode((int)$u['user_id'],(string)$_POST['join_code']);header('Location: lobby.php?game='.(int)$state['game']['game_id']);exit;}
  if($action==='request_writer'){$u=AuthService::requireLogin();AuthService::requestWriterAccess((int)$u['user_id'],(string)($_POST['request_text']??''));$notice='Your Story Writer request has been sent for administrator review.';}
 }catch(Throwable$e){$error=$e->getMessage();}}
-$user=AuthService::currentUser();$captchaMode=AuthService::captchaMode();$captchaSiteKey=$captchaMode==='GOOGLE'?AuthService::setting('GOOGLE_RECAPTCHA_SITE_KEY'):'';$plots=[];$games=[];$durationOptions=[];if($user){$q=db()->query('SELECT code,title,genre,setting_name,max_players FROM plots WHERE status="active" ORDER BY title');$plots=$q->fetchAll();$durationOptions=db()->query('SELECT duration_seconds,label_text FROM platform_game_durations WHERE active=1 ORDER BY sort_order,duration_seconds')->fetchAll();$games=LobbyService::userGames((int)$user['user_id']);}
+$user=AuthService::currentUser();$isPublicHome=!$user&&$view==='home';$captchaMode=AuthService::captchaMode();$captchaSiteKey=$captchaMode==='GOOGLE'?AuthService::setting('GOOGLE_RECAPTCHA_SITE_KEY'):'';$plots=[];$games=[];$durationOptions=[];if($user){$q=db()->query('SELECT code,title,genre,setting_name,max_players FROM plots WHERE status="active" ORDER BY title');$plots=$q->fetchAll();$durationOptions=db()->query('SELECT duration_seconds,label_text FROM platform_game_durations WHERE active=1 ORDER BY sort_order,duration_seconds')->fetchAll();$games=LobbyService::userGames((int)$user['user_id']);}
 function csrf_field(): string{return'<input type="hidden" name="csrf_token" value="'.e(AuthService::csrfToken()).'">';}
 ?><!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Toinky</title><style>
 :root{font-family:Inter,system-ui,sans-serif;color:#172033;background:#F4EEE2}*{box-sizing:border-box}body{margin:0}.bar{background:#111827;color:#fff;padding:15px 22px}.barin{max-width:1120px;margin:auto;display:flex;justify-content:space-between;align-items:center;gap:16px}.brand{font-size:21px;font-weight:850}.nav{display:flex;align-items:center;gap:10px}.nav a{color:#fff;text-decoration:none}.nav form{margin:0}.shell{max-width:1120px;margin:0 auto;padding:34px 20px}.hero{padding:52px 0 30px}.hero h1{font-size:clamp(38px,7vw,72px);line-height:.96;margin:0 0 18px;max-width:850px}.hero p{font-size:19px;color:#526071;max-width:720px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px}.card{background:#fff;border:1px solid #dce3ec;border-radius:16px;padding:22px;box-shadow:0 10px 25px #1720330a}.card h2{margin-top:0}.field{display:block;margin:13px 0;font-weight:700}.field input,.field select{display:block;width:100%;padding:11px;border:1px solid #cbd5e1;border-radius:9px;margin-top:6px;font:inherit}.btn{border:0;border-radius:9px;background:#B58E46;color:#1C242B;padding:11px 15px;font:inherit;font-weight:800;cursor:pointer;text-decoration:none;display:inline-block}.btn.alt{background:#fff;color:#273043;border:1px solid #cbd5e1}.notice,.error{max-width:1120px;margin:15px auto 0;padding:12px 16px;border-radius:10px}.notice{background:#dcfce7;color:#166534}.error{background:#fee2e2;color:#991b1b}.code{font-family:ui-monospace,monospace;letter-spacing:.14em}.table{width:100%;border-collapse:collapse;font-size:14px}.table th,.table td{text-align:left;border-bottom:1px solid #e5e7eb;padding:10px 7px}.muted{color:#64748b;font-size:14px}.auth{max-width:480px;margin:45px auto}.captcha-visual{display:flex;align-items:center;gap:10px;margin-top:7px}.captcha-visual img{width:220px;max-width:100%;border:1px solid #B58E46;border-radius:8px}.captcha-refresh{color:#6B2938;font-weight:800}.stars{color:#ca8a04;font-weight:800}@media(max-width:650px){.barin{align-items:flex-start}.nav{flex-wrap:wrap;justify-content:flex-end}.table{display:block;overflow:auto}}
-</style><link rel="stylesheet" href="assets/toinky-theme.css"></head><body><header class="bar"><div class="barin"><div class="toinky-brand-group"><a class="toinky-brand" href="./" aria-label="Toinky home"><span class="toinky-logo-mark" role="img" aria-label="Toinky"></span></a></div><nav class="nav"><?php if($user): ?><span><?=e($user['display_name'])?></span><?php if((int)$user['is_admin']===1): ?><a href="admin.php">Admin</a><a href="lab.php">Engine Lab</a><?php endif; ?><?php if((int)$user['is_admin']===1||AuthService::hasRole((int)$user['user_id'],'WRITER')):?><a href="writer.php">Story Writer</a><?php endif;?><form method="post"><?=csrf_field()?><input type="hidden" name="action" value="logout"><button class="btn alt">Sign out</button></form><?php else: ?><a href="?view=login">Sign in</a><a class="btn" href="?view=register">Register</a><?php endif; ?></nav></div></header>
+</style><link rel="stylesheet" href="assets/toinky-theme.css"><?php if($isPublicHome):?><link rel="stylesheet" href="assets/toinky-home.css"><?php endif;?></head><body class="<?=$isPublicHome?'public-home':''?>"><header class="bar site-header"><div class="barin"><div class="toinky-brand-group"><a class="toinky-brand" href="./" aria-label="Toinky home"><span class="toinky-logo-mark" role="img" aria-label="Toinky"></span></a></div><nav class="nav"><?php if($user): ?><span><?=e($user['display_name'])?></span><?php if((int)$user['is_admin']===1): ?><a href="admin.php">Admin</a><a href="lab.php">Engine Lab</a><?php endif; ?><?php if((int)$user['is_admin']===1||AuthService::hasRole((int)$user['user_id'],'WRITER')):?><a href="writer.php">Story Writer</a><?php endif;?><form method="post"><?=csrf_field()?><input type="hidden" name="action" value="logout"><button class="btn alt">Sign out</button></form><?php else: ?><?php if($isPublicHome):?><a href="#how-it-works">How It Works</a><a href="#stories">Stories</a><?php endif;?><a href="?view=login">Sign in</a><a class="btn" href="?view=register">Register</a><?php endif; ?></nav></div></header>
 <?php if($error): ?><div class="error"><?=e($error)?></div><?php endif; ?><?php if($notice): ?><div class="notice"><?=e($notice)?></div><?php endif; ?>
 <main class="shell">
 <?php if(!$user): ?>
@@ -23,12 +23,82 @@ function csrf_field(): string{return'<input type="hidden" name="csrf_token" valu
  <?php elseif($view==='register'): ?><section class="card auth"><h1>Create your account</h1><p class="muted">Every account can host a story and join as a player.</p><form method="post"><?=csrf_field()?><input type="hidden" name="action" value="register"><input type="hidden" name="invite" value="<?=e((string)($_GET['invite']??''))?>"><input type="hidden" name="game_invite" value="<?=e((string)($_GET['game_invite']??''))?>"><label class="field">Display name<input name="display_name" maxlength="120" required></label><label class="field">Email<input type="email" name="email" required autocomplete="email"></label><label class="field">Password<input type="password" name="password" minlength="10" required autocomplete="new-password"></label><button class="btn">Register</button></form></section>
  <?php elseif($view==='forgot'): ?><section class="card auth"><h1>Reset your password</h1><form method="post"><?=csrf_field()?><input type="hidden" name="action" value="forgot"><label class="field">Email<input type="email" name="email" required></label><button class="btn">Send reset email</button></form></section>
  <?php elseif($view==='reset'): ?><section class="card auth"><h1>Choose a new password</h1><form method="post"><?=csrf_field()?><input type="hidden" name="action" value="reset"><input type="hidden" name="token" value="<?=e((string)($_GET['token']??''))?>"><label class="field">New password<input type="password" name="password" minlength="10" required></label><button class="btn">Update password</button></form></section>
- <?php else: ?><section class="hero"><h1>Every player sees a different story.</h1><p>Host a live character-driven game, invite friends with a game code, choose your roles together, and let AI bring every unclaimed character to life.</p><a class="btn" href="?view=register">Create an account</a> <a class="btn alt" href="?view=login">Sign in</a></section><section class="grid"><div class="card"><h2>Host</h2><p>Choose a story and open a private game lobby.</p></div><div class="card"><h2>Invite</h2><p>Share one six-character code with the people joining you.</p></div><div class="card"><h2>Become someone else</h2><p>Choose an available character while AI controls everyone left unclaimed.</p></div></section><?php endif; ?>
+ <?php else: ?>
+ <section class="toinky-cinematic" id="top" aria-labelledby="hero-title">
+   <div class="parallax-stage" data-parallax-stage aria-hidden="true">
+     <div class="parallax-layer layer-sky" data-depth="0"><img src="assets/parallax/toinky-bg-sky-sun.png" alt="" fetchpriority="high"></div>
+     <div class="parallax-layer layer-far" data-depth="8"><img src="assets/parallax/toinky-bg-far-worlds.png" alt="" decoding="async"></div>
+     <div class="parallax-layer layer-middle" data-depth="16"><img src="assets/parallax/toinky-bg-middle-worlds.png" alt="" decoding="async"></div>
+     <div class="parallax-layer layer-valley" data-depth="24"><img src="assets/parallax/toinky-bg-river-valley.png" alt="" decoding="async"></div>
+     <div class="parallax-layer layer-atmosphere" data-depth="5"><span></span></div>
+     <div class="parallax-layer layer-left-pair" data-depth="30"><img src="assets/parallax/toinky-characters-prince-eighties.png" alt="" decoding="async"></div>
+     <div class="parallax-layer layer-right-upper" data-depth="34"><img src="assets/parallax/toinky-characters-manananggal-rapper.png" alt="" decoding="async"></div>
+     <div class="parallax-layer layer-left-robot" data-depth="44"><img src="assets/parallax/toinky-character-robot.png" alt="" decoding="async"></div>
+     <div class="parallax-layer layer-right-foreground" data-depth="47"><img src="assets/parallax/toinky-characters-reporter-leprechaun.png" alt="" decoding="async"></div>
+     <div class="parallax-layer layer-gold" data-depth="58"></div>
+   </div>
+   <div class="hero-vignette" aria-hidden="true"></div>
+   <div class="hero-copy">
+     <span class="hero-kicker">Live Character-Driven Stories</span>
+     <span class="hero-wordmark" role="img" aria-label="Toinky"></span>
+     <h1 id="hero-title">Every player sees a different story.</h1>
+     <p>Step into one shared world. Follow private motives, make decisions in real time, and discover how differently the same story can unfold.</p>
+     <div class="hero-actions">
+       <a class="btn hero-primary" href="?view=register">Play a Story</a>
+       <a class="btn hero-secondary" href="?view=register">Host a Game</a>
+     </div>
+   </div>
+   <a class="scroll-cue" href="#how-it-works"><span>Enter the story</span><i aria-hidden="true"></i></a>
+ </section>
+
+ <section class="home-section how-section" id="how-it-works">
+   <div class="home-wrap">
+     <p class="section-label">How Toinky Works</p>
+     <div class="section-heading"><h2>One world.<br>Many truths.</h2><p>Everyone enters the same story, but no one receives the same information. Your character’s history, relationships, and private choices shape what you believe—and what happens next.</p></div>
+     <ol class="story-steps">
+       <li><span>01</span><h3>Choose a story</h3><p>Enter a world built around tension, secrets, and meaningful choices.</p></li>
+       <li><span>02</span><h3>Gather your cast</h3><p>Invite friends and choose who each person will become.</p></li>
+       <li><span>03</span><h3>See your side</h3><p>Receive private knowledge, motives, and moments meant only for you.</p></li>
+       <li><span>04</span><h3>Change the ending</h3><p>Act—or hesitate—and watch every decision reshape the shared world.</p></li>
+     </ol>
+   </div>
+ </section>
+
+ <section class="home-section perspective-section">
+   <div class="home-wrap perspective-grid">
+     <div class="perspective-art" aria-hidden="true"><span class="orbit orbit-one"></span><span class="orbit orbit-two"></span><b>?</b></div>
+     <div><p class="section-label">Different Perspectives</p><h2>You never know the whole story.</h2><p>A prince protects a kingdom. A reporter follows a lie. A stranger knows what happens next. Toinky lets each player experience a personal storyline inside one living, shared event.</p><ul class="feature-list"><li>Private information and character motives</li><li>Timed events for one player, several players, or everyone</li><li>Consequences that continue after a decision closes</li><li>AI-controlled characters keep the world moving</li></ul></div>
+   </div>
+ </section>
+
+ <section class="home-section worlds-section" id="stories">
+   <div class="home-wrap">
+     <p class="section-label">Story Worlds</p>
+     <div class="section-heading"><h2>Go anywhere.<br>Become anyone.</h2><p>Every genre uses the same living-story engine while carrying its own atmosphere, pace, relationships, and rules.</p></div>
+     <div class="world-grid">
+       <article><span>Political Intrigue</span><h3>The Empty Throne</h3><p>Loyalty is public. Ambition is private.</p></article>
+       <article><span>Thriller</span><h3>Bellweather Resort</h3><p>The storm is not the only thing closing in.</p></article>
+       <article><span>Coming Soon</span><h3>Worlds Unwritten</h3><p>New eras, genres, and impossible lives are waiting.</p></article>
+     </div>
+   </div>
+ </section>
+
+ <section class="home-section paths-section">
+   <div class="home-wrap path-grid">
+     <article><p class="section-label">For Players</p><h2>Become part of the story.</h2><p>Take a role, follow your instincts, and compare what really happened when the game ends.</p><a href="?view=register">Create an account →</a></article>
+     <article><p class="section-label">For Hosts</p><h2>Bring everyone into one world.</h2><p>Choose the story, invite the cast, and let Toinky manage timing, private events, and unclaimed roles.</p><a href="?view=register">Host your first game →</a></article>
+     <article><p class="section-label">For Writers</p><h2>Build stories people can inhabit.</h2><p>Create characters with conflicting truths, branching decisions, and consequences that feel earned.</p><a href="?view=register">Request writer access →</a></article>
+   </div>
+ </section>
+
+ <section class="home-finale">
+   <div class="home-wrap"><p class="section-label">Your Story Is Waiting</p><h2>Who will you become?</h2><p>The same moment can mean something different to everyone inside it.</p><a class="btn" href="?view=register">Enter Toinky</a></div>
+ </section>
+ <?php endif; ?>
 <?php else: ?>
 <section class="hero"><h1>Your stories are waiting.</h1><p>Create a new lobby or enter the code shared by a host.</p></section>
 <section class="grid"><div class="card"><h2>Host a game</h2><form method="post"><?=csrf_field()?><input type="hidden" name="action" value="create_game"><label class="field">Story<select name="plot_code"><?php foreach($plots as$p): ?><option value="<?=e($p['code'])?>"><?=e($p['title'])?> — <?=e($p['genre'])?></option><?php endforeach; ?></select></label><label class="field">Story Duration<select name="duration_seconds"><?php foreach($durationOptions as$duration):?><option value="<?=(int)$duration['duration_seconds']?>" <?=((int)$duration['duration_seconds']===300)?'selected':''?>><?=e($duration['label_text'])?></option><?php endforeach;?></select></label><button class="btn" <?=!$plots?'disabled':''?>>Create lobby</button></form></div>
 <div class="card"><h2>Join a game</h2><form method="post"><?=csrf_field()?><input type="hidden" name="action" value="join_game"><label class="field">Game code<input class="code" name="join_code" maxlength="8" required autocomplete="off"></label><button class="btn">Join lobby</button></form></div></section>
 <?php if((int)$user['is_admin']!==1&&!AuthService::hasRole((int)$user['user_id'],'WRITER')):?><section class="card" style="margin-top:20px"><h2>Write Stories for Toinky</h2><p>Story Writers use the guided studio to create characters, decisions, branches, outcomes, themes, and optional artwork.</p><form method="post"><?=csrf_field()?><input type="hidden" name="action" value="request_writer"><label class="field">Tell the administrator what you would like to write <input name="request_text" maxlength="1000"></label><button class="btn">Request Story Writer Access</button></form></section><?php endif;?>
 <section class="card" style="margin-top:20px"><h2>Your games</h2><?php if(!$games): ?><p class="muted">You have not hosted or joined a game yet.</p><?php else: ?><table class="table"><thead><tr><th>Story</th><th>Role</th><th>Host</th><th>Status</th><th>Rating</th><th></th></tr></thead><tbody><?php foreach($games as$g): ?><tr><td><b><?=e($g['title'])?></b><br><span class="muted"><?=e($g['genre'])?></span></td><td><?=e($g['character_name']??'Not selected')?></td><td><?=e($g['host_name'])?></td><td><?=e($g['status'])?></td><td class="stars"><?=empty($g['rating'])?'—':str_repeat('★',(int)$g['rating'])?></td><td><a href="<?=e($g['status']==='LOBBY'?'lobby.php?game='.(int)$g['game_id']:'play.php?game='.(int)$g['game_id'])?>">Open</a></td></tr><?php endforeach; ?></tbody></table><?php endif; ?></section>
-<?php endif; ?></main></body></html>
-
+<?php endif; ?></main><?php if($isPublicHome):?><script src="assets/toinky-parallax.js" defer></script><?php endif;?></body></html>
