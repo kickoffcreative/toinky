@@ -1,32 +1,46 @@
 <?php
 declare(strict_types=1);
-$root=dirname(__DIR__);
-require_once $root.'/app/bootstrap.php';
-require_once $root.'/app/MigrationService.php';
-MigrationService::run();
-header('Content-Type: text/css; charset=utf-8');
-header('Cache-Control: public, max-age=60, must-revalidate');
-$roles=[
- 'body'=>'body,input,select,textarea',
- 'headings'=>'h1,h2,h3,.brand,.title',
- 'navigation'=>'.side a,.nav a,.signed-nav a,.sidebar-section a',
- 'labels'=>'label,.eyebrow,.group,.badge,.pill,.code,.slot,.deadline,.muted,small',
- 'buttons'=>'.btn,button,input[type="submit"]',
- 'brand_context'=>'.brand-context',
- 'table_headings'=>'th'
-];
-$q=db()->prepare('SELECT setting_value FROM platform_settings WHERE setting_key="BRAND_FONT_STYLES"');
-$q->execute();
-$styles=json_decode((string)$q->fetchColumn(),true);
-if(!is_array($styles))$styles=[];
-function css_value(string $value,string $pattern,string $fallback):string{return preg_match($pattern,$value)?$value:$fallback;}
-foreach($roles as$key=>$selector){
- $style=is_array($styles[$key]??null)?$styles[$key]:[];
- if(!$style)continue;
- $family=preg_replace('/[^A-Za-z0-9\s,_\-.]/','',(string)($style['family']??''));
- $color=css_value(strtoupper((string)($style['color']??'')),'/^#[0-9A-F]{6}([0-9A-F]{2})?$/','#1C242B');
- $size=css_value((string)($style['size']??''),'/^(?:0\.[1-9][0-9]?|[1-9][0-9]{0,2})(?:px|rem|em|%)$/','16px');
- $weight=css_value((string)($style['weight']??''),'/^(300|400|500|600|700|800|900)$/','400');
- $decoration=css_value((string)($style['decoration']??''),'/^(none|underline|overline|line-through)$/','none');
- echo $selector,'{font-family:',$family,';color:',$color,';font-size:',$size,';font-weight:',$weight,';text-decoration:',$decoration,'}',"\n";
-}
+$root=dirname(__DIR__);require_once $root.'/app/bootstrap.php';require_once $root.'/app/MigrationService.php';MigrationService::run();
+header('Content-Type: text/css; charset=utf-8');header('Cache-Control: public, max-age=60, must-revalidate');
+$defaults=[
+ 'public_hero_title'=>['Cormorant Garamond, Georgia, serif','#F4EEE2','#F4EEE2','clamp(3.2rem,7vw,6rem)','600','0.95','-0.02em','none','none'],
+ 'public_section_title'=>['Cormorant Garamond, Georgia, serif','#1C242B','#F4EEE2','clamp(2.2rem,5vw,4.5rem)','600','1','-0.015em','none','none'],
+ 'public_card_title'=>['Cormorant Garamond, Georgia, serif','#1C242B','#F4EEE2','1.65rem','600','1.08','0','none','none'],
+ 'public_section_label'=>['Instrument Sans, Arial, sans-serif','#6B2938','#D5B56B','0.75rem','700','1.2','0.16em','uppercase','none'],
+ 'public_intro'=>['Instrument Sans, Arial, sans-serif','#35424B','#F4EEE2','1.2rem','400','1.65','0','none','none'],
+ 'public_body'=>['Instrument Sans, Arial, sans-serif','#35424B','#F4EEE2','1rem','400','1.65','0','none','none'],
+ 'public_meta'=>['Instrument Sans, Arial, sans-serif','#66715C','#D9D1C2','0.78rem','600','1.35','0.06em','none','none'],
+ 'public_navigation'=>['Instrument Sans, Arial, sans-serif','#F4EEE2','#F4EEE2','0.9rem','600','1.2','0.02em','none','none'],
+ 'public_actions'=>['Instrument Sans, Arial, sans-serif','#1C242B','#1C242B','0.86rem','700','1.2','0.02em','none','none'],
+ 'internal_page_title'=>['Cormorant Garamond, Georgia, serif','#1C242B','#F4EEE2','2rem','600','1.05','0','none','none'],
+ 'internal_section_title'=>['Cormorant Garamond, Georgia, serif','#1C242B','#F4EEE2','1.35rem','600','1.15','0','none','none'],
+ 'internal_body'=>['Instrument Sans, Arial, sans-serif','#1C242B','#F4EEE2','0.9rem','400','1.5','0','none','none'],
+ 'internal_labels'=>['Instrument Sans, Arial, sans-serif','#52606A','#D9D1C2','0.75rem','600','1.35','0.03em','none','none'],
+ 'internal_navigation'=>['Instrument Sans, Arial, sans-serif','#F4EEE2','#F4EEE2','0.82rem','600','1.25','0.01em','none','none'],
+ 'internal_actions'=>['Instrument Sans, Arial, sans-serif','#1C242B','#F4EEE2','0.8rem','700','1.2','0.01em','none','none'],
+ 'internal_table_heading'=>['Instrument Sans, Arial, sans-serif','#52606A','#F4EEE2','0.72rem','700','1.3','0.06em','uppercase','none'],
+ 'brand_context'=>['Instrument Sans, Arial, sans-serif','#F4EEE2','#F4EEE2','0.72rem','600','1.3','0.02em','none','none']];
+$legacy=['public_body'=>'body','internal_body'=>'body','public_hero_title'=>'headings','public_section_title'=>'headings','public_card_title'=>'headings','internal_page_title'=>'headings','internal_section_title'=>'headings','public_navigation'=>'navigation','internal_navigation'=>'navigation','public_section_label'=>'labels','public_meta'=>'labels','internal_labels'=>'labels','public_actions'=>'buttons','internal_actions'=>'buttons','internal_table_heading'=>'table_headings','brand_context'=>'brand_context'];
+$q=db()->prepare('SELECT setting_value FROM platform_settings WHERE setting_key="BRAND_FONT_STYLES"');$q->execute();$saved=json_decode((string)$q->fetchColumn(),true);if(!is_array($saved))$saved=[];
+function brand_css(string $value,string $pattern,string $fallback):string{return preg_match($pattern,$value)?$value:$fallback;}
+echo ":root{\n";
+foreach($defaults as$key=>$values){[$family,$color,$dark,$size,$weight,$lineHeight,$letterSpacing,$transform,$decoration]=$values;$style=$saved[$key]??($saved[$legacy[$key]??'']??[]);if(!is_array($style))$style=[];$family=preg_replace('/[^A-Za-z0-9\s,_\-.]/','',(string)($style['family']??$family));$color=brand_css(strtoupper((string)($style['color']??$color)),'/^#[0-9A-F]{6}([0-9A-F]{2})?$/',$color);$dark=brand_css(strtoupper((string)($style['dark_color']??$dark)),'/^#[0-9A-F]{6}([0-9A-F]{2})?$/',$dark);$size=brand_css((string)($style['size']??$size),'/^(?:clamp\([^;{}]+\)|(?:0\.[1-9][0-9]?|[1-9][0-9]{0,2})(?:px|rem|em|%))$/',$size);$weight=brand_css((string)($style['weight']??$weight),'/^(300|400|500|600|650|700|750|800|900)$/',$weight);$lineHeight=brand_css((string)($style['line_height']??$lineHeight),'/^(?:0(?:\.\d+)?|[1-9](?:\.\d+)?)$/',$lineHeight);$letterSpacing=brand_css((string)($style['letter_spacing']??$letterSpacing),'/^(?:0|-?(?:0(?:\.\d+)?|[1-9][0-9]?(?:\.\d+)?)(?:px|rem|em))$/',$letterSpacing);$transform=brand_css((string)($style['transform']??$transform),'/^(none|uppercase|capitalize|lowercase)$/',$transform);$decoration=brand_css((string)($style['decoration']??$decoration),'/^(none|underline|overline|line-through)$/',$decoration);$prefix='--type-'.str_replace('_','-',$key);foreach(['family'=>$family,'color'=>$color,'dark-color'=>$dark,'size'=>$size,'weight'=>$weight,'line-height'=>$lineHeight,'letter-spacing'=>$letterSpacing,'transform'=>$transform,'decoration'=>$decoration]as$property=>$value)echo $prefix.'-'.$property.':'.$value.";\n";}
+echo "}\n";
+?>
+.type-public-hero-title{font-family:var(--type-public-hero-title-family);font-size:var(--type-public-hero-title-size);font-weight:var(--type-public-hero-title-weight);line-height:var(--type-public-hero-title-line-height);letter-spacing:var(--type-public-hero-title-letter-spacing);text-transform:var(--type-public-hero-title-transform);text-decoration:var(--type-public-hero-title-decoration)}
+.type-public-section-title{font-family:var(--type-public-section-title-family);font-size:var(--section-title-size,var(--type-public-section-title-size));font-weight:var(--type-public-section-title-weight);line-height:var(--type-public-section-title-line-height);letter-spacing:var(--type-public-section-title-letter-spacing);color:var(--section-title-color,var(--type-public-section-title-color));text-transform:var(--section-title-transform,var(--type-public-section-title-transform));text-decoration:var(--type-public-section-title-decoration)}
+.type-public-card-title{font-family:var(--type-public-card-title-family);font-size:var(--type-public-card-title-size);font-weight:var(--type-public-card-title-weight);line-height:var(--type-public-card-title-line-height);letter-spacing:var(--type-public-card-title-letter-spacing);text-transform:var(--type-public-card-title-transform)}
+.type-public-section-label{font-family:var(--type-public-section-label-family);font-size:var(--section-label-size,var(--type-public-section-label-size));font-weight:var(--type-public-section-label-weight);line-height:var(--type-public-section-label-line-height);letter-spacing:var(--type-public-section-label-letter-spacing);color:var(--section-label-color,var(--type-public-section-label-color));text-transform:var(--section-label-transform,var(--type-public-section-label-transform))}
+.type-public-intro{font-family:var(--type-public-intro-family);font-size:var(--type-public-intro-size);font-weight:var(--type-public-intro-weight);line-height:var(--type-public-intro-line-height);letter-spacing:var(--type-public-intro-letter-spacing);text-transform:var(--type-public-intro-transform)}
+.type-public-body{font-family:var(--type-public-body-family);font-size:var(--section-body-size,var(--type-public-body-size));font-weight:var(--type-public-body-weight);line-height:var(--type-public-body-line-height);letter-spacing:var(--type-public-body-letter-spacing);color:var(--section-body-color,var(--type-public-body-color));text-transform:var(--section-body-transform,var(--type-public-body-transform))}
+.type-public-meta{font-family:var(--type-public-meta-family);font-size:var(--type-public-meta-size);font-weight:var(--type-public-meta-weight);line-height:var(--type-public-meta-line-height);letter-spacing:var(--type-public-meta-letter-spacing);text-transform:var(--type-public-meta-transform)}
+.nav a,.signed-nav a,.public-social-footer a{font-family:var(--type-public-navigation-family);font-size:var(--type-public-navigation-size);font-weight:var(--type-public-navigation-weight);line-height:var(--type-public-navigation-line-height);letter-spacing:var(--type-public-navigation-letter-spacing);text-transform:var(--type-public-navigation-transform)}
+.public-page .btn,.public-home .btn,.public-page a.public-action,.public-home a.public-action{font-family:var(--type-public-actions-family);font-size:var(--type-public-actions-size);font-weight:var(--type-public-actions-weight);letter-spacing:var(--type-public-actions-letter-spacing);text-transform:var(--type-public-actions-transform)}
+body:not(.public-page):not(.public-home),body:not(.public-page):not(.public-home) input,body:not(.public-page):not(.public-home) select,body:not(.public-page):not(.public-home) textarea{font-family:var(--type-internal-body-family);font-size:var(--type-internal-body-size);font-weight:var(--type-internal-body-weight);line-height:var(--type-internal-body-line-height);letter-spacing:var(--type-internal-body-letter-spacing);text-transform:var(--type-internal-body-transform)}
+.top h1,.workspace-page-title{font-family:var(--type-internal-page-title-family);font-size:var(--type-internal-page-title-size);font-weight:var(--type-internal-page-title-weight);line-height:var(--type-internal-page-title-line-height);text-transform:var(--type-internal-page-title-transform)}
+.panel h2,.panel h3,.card h2,.card h3{font-family:var(--type-internal-section-title-family);font-weight:var(--type-internal-section-title-weight);line-height:var(--type-internal-section-title-line-height);text-transform:var(--type-internal-section-title-transform)}
+label,.muted,small,.badge,.pill,.code,.slot,.deadline{font-family:var(--type-internal-labels-family);font-weight:var(--type-internal-labels-weight);letter-spacing:var(--type-internal-labels-letter-spacing);text-transform:var(--type-internal-labels-transform)}
+.sidebar-section a,.workspace-drawer a,.theme-tab,.folder-tab{font-family:var(--type-internal-navigation-family);font-size:var(--type-internal-navigation-size);font-weight:var(--type-internal-navigation-weight);letter-spacing:var(--type-internal-navigation-letter-spacing);text-transform:var(--type-internal-navigation-transform)}
+.btn,button,input[type="submit"]{font-family:var(--type-internal-actions-family);font-size:var(--type-internal-actions-size);font-weight:var(--type-internal-actions-weight);letter-spacing:var(--type-internal-actions-letter-spacing);text-transform:var(--type-internal-actions-transform)}
+th{font-family:var(--type-internal-table-heading-family);font-size:var(--type-internal-table-heading-size);font-weight:var(--type-internal-table-heading-weight);letter-spacing:var(--type-internal-table-heading-letter-spacing);text-transform:var(--type-internal-table-heading-transform)}
+.brand-context{font-family:var(--type-brand-context-family);font-size:var(--type-brand-context-size);font-weight:var(--type-brand-context-weight);letter-spacing:var(--type-brand-context-letter-spacing);text-transform:var(--type-brand-context-transform)}

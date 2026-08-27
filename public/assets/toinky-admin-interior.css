@@ -1,0 +1,10 @@
+/* Quiet, upscale interior navigation and action hierarchy. */
+.tabs,.profile-tabs{display:flex;gap:18px;border-bottom:1px solid #d8d3ca;overflow-x:auto}
+.tab,.profile-tabs button{white-space:nowrap;border:0!important;border-bottom:2px solid transparent!important;border-radius:0!important;background:transparent!important;color:#52606A!important;padding:10px 2px!important;font-weight:700!important;box-shadow:none!important}
+.tab:hover,.profile-tabs button:hover{color:#6B2938!important}
+.tab.active,.profile-tabs button.active{background:transparent!important;color:#6B2938!important;border-bottom-color:#6B2938!important}
+.btn{background:#26323A!important;color:#F8F5EE!important;border:1px solid #26323A!important;box-shadow:none!important}
+.btn:hover{background:#172128!important}
+.btn.alt,.alt{background:#fff!important;color:#6B2938!important;border-color:#c9c3b9!important}
+.btn.good,.good{background:#147A4B!important;color:#fff!important;border-color:#147A4B!important}
+.btn.danger,.danger{background:#FFF1F2!important;color:#9F1239!important;border-color:#FECDD3!important}
