@@ -11,9 +11,9 @@ final class MediaLibraryService
         $sql.=' ORDER BY m.media_type,m.title_text,m.media_id';$q=db()->prepare($sql);$q->execute($args);return$q->fetchAll();
     }
 
-    public static function page(array $user,int $page=1,int $perPage=20): array
+    public static function page(array $user,int $page=1,int $perPage=25): array
     {
-        $perPage=in_array($perPage,[20,50],true)?$perPage:20;$page=max(1,$page);$where=' WHERE m.active=1';$args=[];
+        $perPage=in_array($perPage,[25,50,100],true)?$perPage:25;$page=max(1,$page);$where=' WHERE m.active=1';$args=[];
         if((int)($user['is_admin']??0)!==1){$where.=' AND m.uploaded_by_user_id=?';$args[]=(int)$user['user_id'];}
         $q=db()->prepare('SELECT COUNT(*) FROM writer_media_assets m'.$where);$q->execute($args);$total=(int)$q->fetchColumn();$pages=max(1,(int)ceil($total/$perPage));$page=min($page,$pages);$offset=($page-1)*$perPage;
         $q=db()->prepare('SELECT m.*,u.display_name uploader_name FROM writer_media_assets m LEFT JOIN users u ON u.user_id=m.uploaded_by_user_id'.$where.' ORDER BY m.created_at_utc DESC,m.media_id DESC LIMIT '.$perPage.' OFFSET '.$offset);$q->execute($args);

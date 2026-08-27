@@ -3,3 +3,8 @@
 @media(max-width:900px){.public-page-hero,.public-content-section{grid-template-columns:1fr}.layout-image-left>img,.layout-image-left>.public-section-copy{grid-column:auto;grid-row:auto}.public-three-columns{grid-template-columns:1fr}.public-story-grid{grid-template-columns:1fr 1fr}.public-page-hero{padding-top:190px}.public-page-hero img,.public-content-section>img{max-height:380px}.public-content-section{padding-block:55px}}
 @media(max-width:580px){.site-header-transparent .barin{align-items:flex-start;flex-direction:column}.site-header-transparent .nav{overflow-x:auto;max-width:100%;flex-wrap:nowrap}.public-page-hero{padding-top:220px;min-height:auto}.public-story-grid{grid-template-columns:1fr}.public-content-section{padding-block:42px}.public-page-hero h1{font-size:3.4rem}}
 .managed-section-background[style*="--section-bg-color"]{background-color:var(--section-bg-color)!important}
+.managed-section-background{overflow:hidden}
+.managed-section-background::before{z-index:0}
+.managed-section-background::after{z-index:1}
+.managed-section-background>*{position:relative;z-index:2}
+.public-page-hero h1{color:inherit!important}

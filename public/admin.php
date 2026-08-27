@@ -48,13 +48,13 @@ $themeFontRoles=[
  'button'=>['label'=>'Buttons & Options','font'=>'button_font','color'=>'button_color','size'=>'button_size','weight'=>'button_weight','decoration'=>'button_decoration']
 ];
 $brandFontRoles=[
- 'body'=>['label'=>'Body & Main Content','selector'=>'body,input,select,textarea','family'=>'Instrument Sans, Arial, sans-serif','color'=>'#1C242B','size'=>'16px','weight'=>'400','decoration'=>'none'],
- 'headings'=>['label'=>'Headings & Titles','selector'=>'h1,h2,h3,.brand,.title','family'=>'Cormorant Garamond, Georgia, serif','color'=>'#1C242B','size'=>'32px','weight'=>'700','decoration'=>'none'],
- 'navigation'=>['label'=>'Navigation','selector'=>'.side a,.nav,.bar','family'=>'Instrument Sans, Arial, sans-serif','color'=>'#F4EEE2','size'=>'14px','weight'=>'600','decoration'=>'none'],
- 'labels'=>['label'=>'Labels & Metadata','selector'=>'label,.eyebrow,.group,.badge,.pill,.code,.slot,.deadline,.muted,small','family'=>'Instrument Sans, Arial, sans-serif','color'=>'#52606A','size'=>'12px','weight'=>'600','decoration'=>'none'],
- 'buttons'=>['label'=>'Buttons','selector'=>'.btn,button,input[type="submit"]','family'=>'Instrument Sans, Arial, sans-serif','color'=>'#1C242B','size'=>'13px','weight'=>'600','decoration'=>'none'],
- 'brand_context'=>['label'=>'Brand Context','selector'=>'.brand-context','family'=>'Instrument Sans, Arial, sans-serif','color'=>'#F4EEE2','size'=>'12px','weight'=>'600','decoration'=>'none'],
- 'table_headings'=>['label'=>'Table Headings','selector'=>'th','family'=>'Instrument Sans, Arial, sans-serif','color'=>'#F4EEE2','size'=>'12px','weight'=>'700','decoration'=>'none']
+ 'body'=>['label'=>'Body Text','description'=>'Paragraphs, form fields, and long-form reading text.','selector'=>'body,input,select,textarea','family'=>'Instrument Sans, Arial, sans-serif','color'=>'#1C242B','size'=>'16px','weight'=>'400','decoration'=>'none'],
+ 'headings'=>['label'=>'Page Titles & Headings','description'=>'Primary page titles and section headings.','selector'=>'h1,h2,h3,.brand,.title','family'=>'Cormorant Garamond, Georgia, serif','color'=>'#1C242B','size'=>'32px','weight'=>'700','decoration'=>'none'],
+ 'navigation'=>['label'=>'Navigation Links','description'=>'Public navigation, workspace navigation, and signed-in navigation.','selector'=>'.side a,.nav a,.signed-nav a,.sidebar-section a','family'=>'Instrument Sans, Arial, sans-serif','color'=>'#F4EEE2','size'=>'14px','weight'=>'600','decoration'=>'none'],
+ 'labels'=>['label'=>'Labels & Supporting Text','description'=>'Field labels, metadata, badges, helper text, and small text.','selector'=>'label,.eyebrow,.group,.badge,.pill,.code,.slot,.deadline,.muted,small','family'=>'Instrument Sans, Arial, sans-serif','color'=>'#52606A','size'=>'12px','weight'=>'600','decoration'=>'none'],
+ 'buttons'=>['label'=>'Buttons & Actions','description'=>'Buttons and form actions across public and internal pages.','selector'=>'.btn,button,input[type="submit"]','family'=>'Instrument Sans, Arial, sans-serif','color'=>'#1C242B','size'=>'13px','weight'=>'600','decoration'=>'none'],
+ 'brand_context'=>['label'=>'Workspace Label','description'=>'The small context label beneath the logo in the workspace drawer.','selector'=>'.brand-context','family'=>'Instrument Sans, Arial, sans-serif','color'=>'#F4EEE2','size'=>'12px','weight'=>'600','decoration'=>'none'],
+ 'table_headings'=>['label'=>'Table Headings','description'=>'Column headings used in administrative and game tables.','selector'=>'th','family'=>'Instrument Sans, Arial, sans-serif','color'=>'#F4EEE2','size'=>'12px','weight'=>'700','decoration'=>'none']
 ];
 $view=(string)($_GET['view']??'overview');$viewTitles=['overview'=>'Dashboard','accounts'=>'Users','user'=>'User Details','invitations'=>'Invitations','writer_requests'=>'Writer Requests','pages'=>'Pages','brand_fonts'=>'Brand','security'=>'Security','story_reviews'=>'Story Reviews','story_review'=>'Story Review','themes'=>'Theme Manager','human'=>'Live Games','simulations'=>'Simulation Games','simulation'=>'Simulation Inspector'];$brandTab=in_array((string)($_GET['brand_tab']??$_POST['brand_tab']??'fonts'),['fonts','parallax','socials'],true)?(string)($_GET['brand_tab']??$_POST['brand_tab']??'fonts'):'fonts';$pageCode=strtoupper((string)($_GET['page']??$_POST['page_code']??'HOME'));$activeTheme=(int)($_GET['theme']??$_POST['genre_id']??0);$error=null;$notice=null;$generatedUrl=null;$auditText=null;$auditContext=null;
 if($_SERVER['REQUEST_METHOD']==='POST'){try{AuthService::requireCsrf();$action=(string)($_POST['action']??'');if($action==='logout'){AuthService::logout();header('Location: ./?view=login');exit;}$target=(int)($_POST['user_id']??0);
@@ -101,6 +101,7 @@ $writerRequests=$storyReviews=$themes=[];$themeMedia=[];$parallaxLayers=[];$site
 function csrf_field():string{return'<input type="hidden" name="csrf_token" value="'.e(AuthService::csrfToken()).'">';}
 function theme_rgb(string $color):string{return preg_match('/^#[0-9A-Fa-f]{6}/',$color)?strtoupper(substr($color,0,7)):'#000000';}
 function theme_opacity(string $color):int{return preg_match('/^#[0-9A-Fa-f]{8}$/',$color)?(int)round(hexdec(substr($color,7,2))*100/255):100;}
+function admin_color_control(string $label,string $name,string $color):string{$color=strtoupper($color);return'<label class="color-control page-color-control" data-color-control><span>'.e($label).'</span><input type="color" data-color-picker value="'.e(theme_rgb($color)).'"><input type="text" name="'.e($name).'" data-color-hex value="'.e($color).'" pattern="^#[0-9A-Fa-f]{6}([0-9A-Fa-f]{2})?$" maxlength="9" required><span class="color-alpha"><input type="range" data-color-alpha min="0" max="100" value="'.theme_opacity($color).'" aria-label="'.e($label).' opacity"><output>'.theme_opacity($color).'%</output></span></label>';}
 ?>
 <!doctype html>
 <html lang="en">
@@ -119,6 +120,10 @@ function theme_opacity(string $color):int{return preg_match('/^#[0-9A-Fa-f]{8}$/
 </style>
 <link rel="stylesheet" href="assets/toinky-theme.css">
 <link rel="stylesheet" href="assets/toinky-admin-shell.css">
+<style>
+.main{padding:20px!important}.top h1{margin:.15em 0;font-size:1.75rem}.top p{margin:.25em 0}.cards{gap:10px}.metric,.panel{padding:14px!important;border-radius:10px}.panel{margin-top:14px}.metric b{font-size:27px}.field{margin:8px 0}.field input,.field textarea,.field select{padding:8px!important}.table th,.table td{padding:8px 6px}.page-section-card{padding:0!important;overflow:hidden}.page-section-card>summary,.management-panel>summary,.font-card>summary{list-style:none;cursor:pointer}.page-section-card>summary::-webkit-details-marker,.management-panel>summary::-webkit-details-marker,.font-card>summary::-webkit-details-marker{display:none}.page-section-summary{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 15px;font-weight:800}.page-section-summary::after,.management-panel>summary::after,.font-card>summary::after{content:'+';font-size:18px}.page-section-card[open]>.page-section-summary::after,.management-panel[open]>summary::after,.font-card[open]>summary::after{content:'−'}.page-section-summary small{margin-left:auto;color:#64748b;font-weight:600}.page-section-body{padding:0 15px 15px;border-top:1px solid #e2ded6}.editor-toolbar button{background:#fff!important;color:#1C242B!important;border:1px solid #cbd5e1!important;border-radius:4px!important;padding:4px 7px!important;font-size:11px!important;font-weight:650!important;letter-spacing:0!important;text-transform:none!important;box-shadow:none!important}.editor-toolbar button:hover{background:#eef2f7!important;border-color:#8b98a5!important}.rich-editor{min-height:140px}.page-color-control{margin:10px 0;padding:9px}.page-editor-grid{gap:14px}.page-media-grid{grid-template-columns:repeat(auto-fill,minmax(190px,1fr))!important;gap:10px!important}.page-media-card{padding:8px!important;font-size:12px}.page-media-card>img{height:116px!important}.page-media-card .field{margin:6px 0}.page-media-card .field input,.page-media-card .field select{padding:6px!important;font-size:12px}.page-media-card details{margin-top:7px}.page-media-card summary{cursor:pointer;font-weight:750}.management-panel{margin-top:14px!important;padding:0!important;overflow:hidden}.management-panel>summary{display:flex;align-items:center;gap:10px;padding:14px 16px;font-size:1.25rem;font-weight:800}.management-panel>summary::after{margin-left:auto}.management-panel>summary .muted{font-size:12px;font-weight:650}.management-panel-body{padding:0 14px 14px;border-top:1px solid #e2ded6}.page-media-upload{padding:12px!important;margin:12px 0!important}.font-grid{grid-template-columns:repeat(auto-fill,minmax(220px,1fr))}.font-card{padding:0!important;overflow:hidden}.font-card>summary{display:flex;align-items:center;padding:11px 12px;font-weight:800}.font-card>summary::after{margin-left:auto}.font-card-body{padding:0 12px 12px;border-top:1px solid #e2ded6}.brand-font-guidance{padding:11px 13px;border-left:3px solid #668091;background:#f4eee2;margin:0 0 14px}.brand-font-guidance strong{color:#6B2938}.section-columns[hidden],[data-background-color-control][hidden],[data-background-media-controls][hidden],[data-overlay-start-control][hidden],[data-overlay-end-control][hidden]{display:none!important}.theme-media-panel{margin:14px 0;border:1px solid #d5cec1;border-radius:8px;background:#fbf8f1}.theme-media-panel>summary{padding:11px 13px;cursor:pointer;font-weight:800}.theme-media-body{padding:0 13px 12px;border-top:1px solid #e2ded6}@media(max-width:760px){.main{padding:14px!important}.page-section-summary{align-items:flex-start;flex-wrap:wrap}.page-section-summary small{width:100%;margin-left:0}.metric,.panel{padding:12px!important}}
+</style>
+<style>[data-section-image-controls][hidden],[data-overlay-opacity-control][hidden]{display:none!important}.theme-form .font-card{padding:12px!important;overflow:visible}</style>
 </head>
 <body>
 <div class="layout">
@@ -550,7 +555,7 @@ function theme_opacity(string $color):int{return preg_match('/^#[0-9A-Fa-f]{8}$/
 </div>
 <?php endforeach;?>
 </div>
-<h3>Media</h3>
+<details class="theme-media-panel"><summary>Media &amp; Textures</summary><div class="theme-media-body">
 <?php foreach(['BACKGROUND'=>'Background','DIVIDER'=>'Story Divider','CARD'=>'Card Texture']as$type=>$label):$field=strtolower($type).'_media_id';?>
 <label class="field">
 <?=$label?> Image<select name="<?=$field?>">
@@ -563,6 +568,7 @@ function theme_opacity(string $color):int{return preg_match('/^#[0-9A-Fa-f]{8}$/
 </select>
 </label>
 <?php endforeach;?>
+</div></details>
 <button class="btn">Save <?=e($t['label_text'])?> Theme</button>
 </form>
 <?php endforeach;?>
@@ -589,21 +595,19 @@ function theme_opacity(string $color):int{return preg_match('/^#[0-9A-Fa-f]{8}$/
 <a class="folder-tab <?=$brandTab==='socials'?'active':''?>" href="?view=brand_fonts&amp;brand_tab=socials">Socials</a>
 </div>
 <?php if($brandTab==='fonts'):?>
+<div class="brand-font-guidance"><strong>Use this for site-wide typography defaults.</strong> Genre themes and designed surfaces keep control of their own contrast colors, so changing a default here will not make dark headers or hero sections unreadable.</div>
 <form method="post">
 <?=csrf_field()?>
 <input type="hidden" name="action" value="save_brand_fonts">
 <input type="hidden" name="brand_tab" value="fonts">
 <div class="font-grid">
 <?php foreach($brandFonts as$key=>$role):?>
-<div class="font-card">
-<h3>
+<details class="font-card">
+<summary>
 <?=e($role['label'])?>
-</h3>
-<p class="muted">
-<code>
-<?=e($role['selector'])?>
-</code>
-</p>
+</summary>
+<div class="font-card-body">
+<p class="muted"><?=e($role['description']??'Site-wide typography role.')?></p>
 <label class="field">Font Family<select name="brand_<?=e($key)?>_family" required>
 <?php foreach($themeFonts as$fontLabel=>$fontStack):?>
 <option value="<?=e($fontStack)?>" <?=$role['family']===$fontStack?'selected':''?>>
@@ -612,7 +616,7 @@ function theme_opacity(string $color):int{return preg_match('/^#[0-9A-Fa-f]{8}$/
 <?php endforeach;?>
 </select>
 </label>
-<label class="field">Font Color<span class="font-color" data-color-control>
+<label class="field">Default Color <span class="muted">(designed surfaces may override)</span><span class="font-color" data-color-control>
 <input type="color" data-color-picker value="<?=e(theme_rgb($role['color']))?>">
 <input type="text" name="brand_<?=e($key)?>_color" data-color-hex value="<?=e(strtoupper($role['color']))?>" pattern="^#[0-9A-Fa-f]{6}([0-9A-Fa-f]{2})?$" maxlength="9" required>
 <span class="color-alpha">
@@ -641,6 +645,7 @@ function theme_opacity(string $color):int{return preg_match('/^#[0-9A-Fa-f]{8}$/
 </select>
 </label>
 </div>
+</details>
 <?php endforeach;?>
 </div>
 <button class="btn brand-save">Save Brand Fonts</button>
@@ -734,8 +739,9 @@ function theme_opacity(string $color):int{return preg_match('/^#[0-9A-Fa-f]{8}$/
 <?php endforeach;?>
 </nav>
 <?php foreach($pageSections as$section):?>
-<article class="page-section-card">
-<h3><?=e($section['label_text'])?></h3>
+<details class="page-section-card">
+<summary class="page-section-summary"><span><?=e($section['label_text'])?></span><small><?=e(ucwords(strtolower(str_replace('_',' ',$section['layout_type']??'IMAGE_RIGHT'))))?></small></summary>
+<div class="page-section-body">
 <form method="post" data-rich-form>
 <?=csrf_field()?>
 <input type="hidden" name="action" value="save_page_section">
@@ -756,35 +762,37 @@ function theme_opacity(string $color):int{return preg_match('/^#[0-9A-Fa-f]{8}$/
 <textarea name="content_html" data-rich-source hidden><?=e($section['content_html']??'')?></textarea>
 </div>
 <div>
-<label class="field">Section Layout<select name="layout_type">
+<label class="field">Section Layout<select name="layout_type" data-section-layout>
 <?php foreach(['IMAGE_RIGHT'=>'Image On Right','IMAGE_LEFT'=>'Image On Left','THREE_COLUMN'=>'Three Columns','SOCIALS'=>'Social Media Buttons','TEXT_CENTER'=>'No Image, Centered Text']as$layoutValue=>$layoutLabel):?><option value="<?=e($layoutValue)?>" <?=($section['layout_type']??'IMAGE_RIGHT')===$layoutValue?'selected':''?>><?=e($layoutLabel)?></option><?php endforeach;?>
 </select></label>
-<label class="field">Section Image<select name="image_media_id"><option value="">No image</option><?php foreach($pageMedia as$media):?><option value="<?=(int)$media['media_id']?>" <?=(int)($section['image_media_id']??0)===(int)$media['media_id']?'selected':''?>><?=e($media['title_text'].' · '.$media['media_type'])?></option><?php endforeach;?></select></label>
-<?php if(!empty($section['image_path'])):?><div class="media-choice"><img src="<?=e($section['image_thumbnail']?:$section['image_path'])?>" alt=""><span class="muted">Current section image</span></div><?php endif;?>
+<div data-section-image-controls><label class="field">Section Image<select name="image_media_id"><option value="">No image</option><?php foreach($pageMedia as$media):?><option value="<?=(int)$media['media_id']?>" <?=(int)($section['image_media_id']??0)===(int)$media['media_id']?'selected':''?>><?=e($media['title_text'].' · '.$media['media_type'])?></option><?php endforeach;?></select></label>
+<?php if(!empty($section['image_path'])):?><div class="media-choice"><img src="<?=e($section['image_thumbnail']?:$section['image_path'])?>" alt=""><span class="muted">Current section image</span></div><?php endif;?></div>
 <label class="field">Section Background<select name="background_mode" data-background-mode><option value="DEFAULT" <?=$section['background_mode']==='DEFAULT'?'selected':''?>>Default page design</option><option value="COLOR" <?=$section['background_mode']==='COLOR'?'selected':''?>>Solid color</option><option value="MEDIA" <?=$section['background_mode']==='MEDIA'?'selected':''?>>Media image</option></select></label>
-<label class="field">Background Color<input type="text" name="background_color" value="<?=e($section['background_color']?:'#F4EEE2')?>" pattern="^#[0-9A-Fa-f]{6}([0-9A-Fa-f]{2})?$" maxlength="9"></label>
-<label class="field">Background Image<select name="background_media_id"><option value="">Choose an image</option><?php foreach($pageMedia as$media):?><option value="<?=(int)$media['media_id']?>" <?=(int)($section['background_media_id']??0)===(int)$media['media_id']?'selected':''?>><?=e($media['title_text'].' · '.$media['media_type'])?></option><?php endforeach;?></select></label>
+<div data-background-color-control><?=admin_color_control('Background Color','background_color',(string)($section['background_color']?:'#F4EEE2'))?></div>
+<div data-background-media-controls><label class="field">Background Image<select name="background_media_id"><option value="">Choose an image</option><?php foreach($pageMedia as$media):?><option value="<?=(int)$media['media_id']?>" <?=(int)($section['background_media_id']??0)===(int)$media['media_id']?'selected':''?>><?=e($media['title_text'].' · '.$media['media_type'])?></option><?php endforeach;?></select></label>
 <label class="field">Background Image Fit<select name="background_fit"><?php foreach(['COVER'=>'Cover Section','CONTAIN'=>'Fit Entire Image','TILE'=>'Tile / Repeat','STRETCH'=>'Stretch To Section','CENTER'=>'Original Size, Centered']as$fitValue=>$fitLabel):?><option value="<?=e($fitValue)?>" <?=($section['background_fit']??'COVER')===$fitValue?'selected':''?>><?=e($fitLabel)?></option><?php endforeach;?></select></label>
-<label class="field">Background Image Opacity <output><?=(int)($section['background_opacity']??100)?>%</output><input type="range" name="background_opacity" min="0" max="100" value="<?=(int)($section['background_opacity']??100)?>" oninput="this.previousElementSibling.value=this.value+'%'"></label>
-<label class="field">Tint / Overlay<select name="overlay_mode"><option value="NONE" <?=($section['overlay_mode']??'NONE')==='NONE'?'selected':''?>>None</option><option value="COLOR" <?=($section['overlay_mode']??'NONE')==='COLOR'?'selected':''?>>Plain Color Tint</option><option value="GRADIENT" <?=($section['overlay_mode']??'NONE')==='GRADIENT'?'selected':''?>>Gradient Tint</option></select></label>
-<div class="media-form-row"><label class="field">Tint Color<input type="color" name="overlay_color_start" value="<?=e(substr((string)($section['overlay_color_start']?:'#1C242B'),0,7))?>"></label><label class="field">Gradient End<input type="color" name="overlay_color_end" value="<?=e(substr((string)($section['overlay_color_end']?:'#6B2938'),0,7))?>"></label></div>
-<label class="field">Tint Opacity <output><?=(int)($section['overlay_opacity']??0)?>%</output><input type="range" name="overlay_opacity" min="0" max="100" value="<?=(int)($section['overlay_opacity']??0)?>" oninput="this.previousElementSibling.value=this.value+'%'"></label>
+<label class="field">Background Image Opacity <output><?=(int)($section['background_opacity']??100)?>%</output><input type="range" name="background_opacity" min="0" max="100" value="<?=(int)($section['background_opacity']??100)?>" oninput="this.previousElementSibling.value=this.value+'%'"></label></div>
+<label class="field">Tint / Overlay<select name="overlay_mode" data-overlay-mode><option value="NONE" <?=($section['overlay_mode']??'NONE')==='NONE'?'selected':''?>>None</option><option value="COLOR" <?=($section['overlay_mode']??'NONE')==='COLOR'?'selected':''?>>Plain Color Tint</option><option value="GRADIENT" <?=($section['overlay_mode']??'NONE')==='GRADIENT'?'selected':''?>>Gradient Tint</option></select></label>
+<div data-overlay-start-control><?=admin_color_control('Tint Color','overlay_color_start',(string)($section['overlay_color_start']?:'#1C242B'))?></div><div data-overlay-end-control><?=admin_color_control('Gradient End','overlay_color_end',(string)($section['overlay_color_end']?:'#6B2938'))?></div>
+<label class="field" data-overlay-opacity-control>Tint Opacity <output><?=(int)($section['overlay_opacity']??0)?>%</output><input type="range" name="overlay_opacity" min="0" max="100" value="<?=(int)($section['overlay_opacity']??0)?>" oninput="this.previousElementSibling.value=this.value+'%'"></label>
 </div>
 </div>
 <?php $sectionColumns=PageContentService::columns($section);?>
-<details class="section-columns" <?=($section['layout_type']??'')==='THREE_COLUMN'?'open':''?>><summary>Three-Column Content</summary><div class="three-column-editor">
+<details class="section-columns" data-section-columns <?=($section['layout_type']??'')==='THREE_COLUMN'?'':'hidden'?>><summary>Three-Column Content</summary><div class="three-column-editor">
 <?php for($columnIndex=1;$columnIndex<=3;$columnIndex++):$column=$sectionColumns[$columnIndex-1]??[];?><fieldset><legend>Column <?=$columnIndex?></legend><label class="field">Thumbnail<select name="column_<?=$columnIndex?>_image_media_id"><option value="">No thumbnail</option><?php foreach($pageMedia as$media):?><option value="<?=(int)$media['media_id']?>" <?=(int)($column['image_media_id']??0)===(int)$media['media_id']?'selected':''?>><?=e($media['title_text'])?></option><?php endforeach;?></select></label><label class="field">Title<input name="column_<?=$columnIndex?>_title" maxlength="190" value="<?=e($column['title']??'')?>"></label><label class="field">Content<textarea name="column_<?=$columnIndex?>_content" rows="5"><?=e($column['content']??'')?></textarea></label></fieldset><?php endfor;?>
 </div></details>
 <button class="btn">Save <?=e($section['label_text'])?></button>
 </form>
-</article>
+</div>
+</details>
 <?php endforeach;?>
 <?php if(!$pageSections):?><p class="muted">This page has no editable sections yet.</p><?php endif;?>
 <form method="post" class="add-section-form"><?=csrf_field()?><input type="hidden" name="action" value="add_page_section"><input type="hidden" name="page_code" value="<?=e($pageCode)?>"><h3>Add A New Section</h3><div class="media-form-row"><label class="field">Section Name<input name="label_text" maxlength="120" required placeholder="Example: Testimonials"></label><label class="field">Starting Layout<select name="layout_type"><?php foreach(['IMAGE_RIGHT'=>'Image On Right','IMAGE_LEFT'=>'Image On Left','THREE_COLUMN'=>'Three Columns','SOCIALS'=>'Social Media Buttons','TEXT_CENTER'=>'No Image, Centered Text']as$layoutValue=>$layoutLabel):?><option value="<?=e($layoutValue)?>"><?=e($layoutLabel)?></option><?php endforeach;?></select></label></div><button class="btn">Add Section</button></form>
 </section>
 
-<section class="panel">
-<h2>Page Media</h2>
+<details class="panel management-panel">
+<summary>Page Media <span class="muted"><?=count($pageMedia)?> item<?=count($pageMedia)===1?'':'s'?></span></summary>
+<div class="management-panel-body">
 <p class="muted">Uploaded files are immediately resized to a maximum 1920-pixel edge. The full-size upload is not retained, and a 150 × 150 thumbnail is created automatically.</p>
 <form method="post" enctype="multipart/form-data" class="page-media-upload">
 <?=csrf_field()?>
@@ -804,7 +812,8 @@ function theme_opacity(string $color):int{return preg_match('/^#[0-9A-Fa-f]{8}$/
 </article>
 <?php endforeach;?>
 </div>
-</section>
+</div>
+</details>
 <?php elseif($view==='security'):?>
 <section class="panel">
 <h2>Login CAPTCHA</h2>
@@ -933,6 +942,38 @@ document.querySelectorAll('[data-rich-form]').forEach(form=>{
  toolbar.addEventListener('mousedown',event=>event.preventDefault());
  toolbar.addEventListener('click',event=>{const button=event.target.closest('button');if(!button)return;editor.focus();if(button.dataset.command)document.execCommand(button.dataset.command,false,null);if(button.dataset.block)document.execCommand('formatBlock',false,button.dataset.block);if(button.hasAttribute('data-link')){const href=window.prompt('Link URL');if(href)document.execCommand('createLink',false,href);}});
  form.addEventListener('submit',()=>source.value=editor.innerHTML.trim());
+});
+document.querySelectorAll('.page-section-card form').forEach(form=>{
+ const layout=form.querySelector('[data-section-layout]');
+ const columns=form.querySelector('[data-section-columns]');
+ const sectionImage=form.querySelector('[data-section-image-controls]');
+ const backgroundMode=form.querySelector('[data-background-mode]');
+ const backgroundColor=form.querySelector('[data-background-color-control]');
+ const backgroundMedia=form.querySelector('[data-background-media-controls]');
+ const overlayMode=form.querySelector('[data-overlay-mode]');
+ const overlayStart=form.querySelector('[data-overlay-start-control]');
+ const overlayEnd=form.querySelector('[data-overlay-end-control]');
+ const overlayOpacity=form.querySelector('[data-overlay-opacity-control]');
+ const syncLayout=()=>{
+  if(!layout)return;
+  const threeColumns=layout.value==='THREE_COLUMN';
+  if(columns){columns.hidden=!threeColumns;if(!threeColumns)columns.open=false;}
+  if(sectionImage)sectionImage.hidden=!['IMAGE_LEFT','IMAGE_RIGHT'].includes(layout.value);
+ };
+ const syncBackground=()=>{
+  if(!backgroundMode)return;
+  if(backgroundColor)backgroundColor.hidden=backgroundMode.value!=='COLOR';
+  if(backgroundMedia)backgroundMedia.hidden=backgroundMode.value!=='MEDIA';
+ };
+ const syncOverlay=()=>{
+  if(!overlayMode)return;
+  const active=overlayMode.value!=='NONE';
+  if(overlayStart)overlayStart.hidden=!active;
+  if(overlayEnd)overlayEnd.hidden=overlayMode.value!=='GRADIENT';
+  if(overlayOpacity)overlayOpacity.hidden=!active;
+ };
+ layout?.addEventListener('change',syncLayout);backgroundMode?.addEventListener('change',syncBackground);overlayMode?.addEventListener('change',syncOverlay);
+ syncLayout();syncBackground();syncOverlay();
 });
 document.querySelectorAll('[data-color-control]').forEach(control=>{
  const picker=control.querySelector('[data-color-picker]');

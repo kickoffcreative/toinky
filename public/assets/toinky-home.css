@@ -170,3 +170,7 @@ html { scroll-behavior: smooth; }
   .scroll-cue i { animation: none; }
   html { scroll-behavior: auto; }
 }
+.home-section.managed-section-background,.home-finale.managed-section-background{overflow:hidden}
+.home-section.managed-section-background::before,.home-finale.managed-section-background::before{z-index:0}
+.home-section.managed-section-background::after,.home-finale.managed-section-background::after{z-index:1}
+.home-section.managed-section-background>*,.home-finale.managed-section-background>*{position:relative;z-index:2}
