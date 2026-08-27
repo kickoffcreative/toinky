@@ -35,6 +35,7 @@ try{$pq=db()->query('SELECT code,title,archetype,genre,setting_name,max_players,
 <link rel="stylesheet" href="assets/toinky-theme.css">
 <style>.workspace-main{padding:0!important}.lab-head{margin:0 28px 16px}.lab-head h1{display:none}.lab-head .header-sub{margin-top:0}.wrap{margin:0 28px}.workspace-main>.error{margin:0 28px 16px}body:has(.setup) .lab-head{display:none}@media(max-width:800px){.lab-head,.wrap,.workspace-main>.error{margin-left:18px;margin-right:18px}}</style>
 <link rel="stylesheet" href="assets/toinky-admin-shell.css">
+<link rel="stylesheet" href="assets/toinky-admin-interior.css">
 </head>
 <body><div class="workspace-layout"><?php require __DIR__.'/_workspace_sidebar.php';render_workspace_sidebar($adminUser,'lab',true);?><main class="workspace-main"><header class="workspace-page-header"><div><h1>Story Engine Lab</h1><p>Signed in as <?=e($adminUser['display_name'])?></p></div></header>
 <?php if(!empty($error))echo '<div class="error">'.e($error).'</div>'; ?>
