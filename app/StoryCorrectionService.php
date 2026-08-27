@@ -3,14 +3,14 @@ final class StoryCorrectionService
 {
     private const MAX_BYTES=2097152;
     private const FIELDS=[
-        'plot'=>['table'=>'plots','fields'=>['title','archetype','setting_name','scenario_text','max_players','max_npcs']],
-        'character'=>['table'=>'plot_roles','fields'=>['name','public_description','private_knowledge','starting_location','goal_text','fear_text','pronoun_set','simulation_active','slot_no']],
-        'event'=>['table'=>'plot_world_events','fields'=>['headline','event_text','event_second','phase','active','sort_order']],
-        'decision'=>['table'=>'plot_decision_templates','fields'=>['prompt_text','decision_window_seconds','actor_type']],
-        'option'=>['table'=>'plot_decision_template_options','fields'=>['label','result_text','sort_order']],
-        'opportunity'=>['table'=>'plot_dynamic_opportunities','fields'=>['prompt_text','window_seconds','once_only','priority','active']],
-        'dynamic_option'=>['table'=>'plot_dynamic_opportunity_options','fields'=>['label','result_text','sort_order']],
-        'resolution'=>['table'=>'plot_resolution_fragments','fields'=>['fragment_text','section_order','priority','active']],
+        'plot'=>['table'=>'plots','fields'=>['title','archetype','setting_name','scenario_text']],
+        'character'=>['table'=>'plot_roles','fields'=>['name','public_description','private_knowledge','starting_location','goal_text','fear_text','pronoun_set']],
+        'event'=>['table'=>'plot_world_events','fields'=>['headline','event_text']],
+        'decision'=>['table'=>'plot_decision_templates','fields'=>['prompt_text','decision_window_seconds']],
+        'option'=>['table'=>'plot_decision_template_options','fields'=>['label','result_text','rationale_text','npc_weight']],
+        'opportunity'=>['table'=>'plot_dynamic_opportunities','fields'=>['prompt_text','window_seconds']],
+        'dynamic_option'=>['table'=>'plot_dynamic_opportunity_options','fields'=>['label','result_text']],
+        'resolution'=>['table'=>'plot_resolution_fragments','fields'=>['fragment_text']],
     ];
 
     public static function import(array $admin,int $versionId,array $file): array
@@ -48,8 +48,16 @@ final class StoryCorrectionService
 
     private static function applyChange(PDO $pdo,int $plotId,array $change,int $line): void
     {
-        $entity=strtolower(trim((string)($change['entity']??'')));$key=trim((string)($change['key']??''));$field=strtolower(trim((string)($change['field']??'')));$value=$change['value']??null;if(!is_scalar($value)&&$value!==null)throw new RuntimeException('Correction values must be scalar or null at change '.$line.'.');$spec=self::FIELDS[$entity]??null;if(!$spec||!in_array($field,$spec['fields'],true))throw new RuntimeException('Unsupported entity or field at change '.$line.'.');if($key==='')throw new RuntimeException('Missing key at change '.$line.'.');
+        $entity=strtolower(trim((string)($change['entity']??'')));$key=trim((string)($change['key']??''));$field=strtolower(trim((string)($change['field']??'')));$value=$change['value']??null;if(!is_scalar($value)&&$value!==null)throw new RuntimeException('Correction values must be scalar or null at change '.$line.'.');$spec=self::FIELDS[$entity]??null;if(!$spec)throw new RuntimeException('Unsupported correction entity at change '.$line.'.');if(!in_array($field,$spec['fields'],true))throw new RuntimeException('The field '.$field.' is not safe for automated corrections at change '.$line.'. Timing, sequence, activation, stable keys, cast size, and structural order must be edited and reviewed in Story Writer.');if($key==='')throw new RuntimeException('Missing key at change '.$line.'.');$value=self::validatedValue($pdo,$plotId,$field,$value,$line);
         [$where,$params]=self::locator($pdo,$plotId,$entity,$key,$line);$sql='UPDATE '.$spec['table'].' SET `'.$field.'`=? WHERE '.$where;$q=$pdo->prepare($sql);$q->execute(array_merge([$value],$params));if($q->rowCount()<1){$check=$pdo->prepare('SELECT 1 FROM '.$spec['table'].' WHERE '.$where);$check->execute($params);if(!$check->fetchColumn())throw new RuntimeException('No matching '.$entity.' was found at change '.$line.'.');}
+    }
+
+    private static function validatedValue(PDO $pdo,int $plotId,string $field,mixed $value,int $line): mixed
+    {
+        if($field==='pronoun_set'){$value=strtoupper(trim((string)$value));if(!in_array($value,['HE','SHE','IT'],true))throw new RuntimeException('pronoun_set must be HE, SHE, or IT at change '.$line.'.');return$value;}
+        if($field==='starting_location'){$value=trim((string)$value);$q=$pdo->prepare('SELECT 1 FROM plot_locations WHERE plot_id=? AND label_text=? AND active=1');$q->execute([$plotId,$value]);if(!$q->fetchColumn())throw new RuntimeException('starting_location must use an active location managed in Story Writer at change '.$line.'.');return$value;}
+        if(in_array($field,['decision_window_seconds','window_seconds','npc_weight'],true)){if(!preg_match('/^\d+$/',trim((string)$value)))throw new RuntimeException($field.' must be a whole number at change '.$line.'.');$value=(int)$value;$minimum=$field==='npc_weight'?0:5;$maximum=$field==='npc_weight'?10000:86400;if($value<$minimum||$value>$maximum)throw new RuntimeException($field.' must be between '.$minimum.' and '.$maximum.' at change '.$line.'.');return$value;}
+        return$value;
     }
 
     private static function locator(PDO $pdo,int $plotId,string $entity,string $key,int $line): array

@@ -13,14 +13,14 @@ final class SimulationHarness
         $aiCharacterIds=self::prepareAiCharacters($sid=SimulationService::create($plotCode,$duration,$controllers),$controllerMode);
         try{
             SimulationService::start($sid);self::playAiDecisions($sid,$aiCharacterIds);
-            while(true){$sim=self::simulationRow($sid);if($sim['status']==='COMPLETE')break;if($controllerMode==='human-random')self::playOpenControlledDecisions($sid,$strategy,$aiCharacterIds);elseif($strategy!=='no-action')self::playOpenPlayerDecisions($sid,$strategy,$aiCharacterIds);self::playAiDecisions($sid,$aiCharacterIds);SimulationService::advance($sid,$step);self::playAiDecisions($sid,$aiCharacterIds);}
-            if($controllerMode==='human-random')self::playOpenControlledDecisions($sid,$strategy,$aiCharacterIds);elseif($strategy!=='no-action')self::playOpenPlayerDecisions($sid,$strategy,$aiCharacterIds);self::playAiDecisions($sid,$aiCharacterIds);
+            while(true){$sim=self::simulationRow($sid);if($sim['status']==='COMPLETE')break;if(in_array($controllerMode,['human-random','human-biased'],true))self::playOpenControlledDecisions($sid,$strategy,$aiCharacterIds);elseif($strategy!=='no-action')self::playOpenPlayerDecisions($sid,$strategy,$aiCharacterIds);self::playAiDecisions($sid,$aiCharacterIds);SimulationService::advance($sid,$step);self::playAiDecisions($sid,$aiCharacterIds);}
+            if(in_array($controllerMode,['human-random','human-biased'],true))self::playOpenControlledDecisions($sid,$strategy,$aiCharacterIds);elseif($strategy!=='no-action')self::playOpenPlayerDecisions($sid,$strategy,$aiCharacterIds);self::playAiDecisions($sid,$aiCharacterIds);
         }finally{self::restoreAiCharacters($aiCharacterIds);}
         StateSyncService::reconcile($sid);ResolutionService::refresh($sid);return self::result($sid,$focus);
     }
     private static function controllerAssignments(string $plotCode,string $mode): array
     {
-        if(!in_array($mode,['all-ai','human-random'],true))return[];$q=db()->prepare('SELECT pr.role_code FROM plot_roles pr JOIN plots p ON p.plot_id=pr.plot_id WHERE p.code=? AND pr.simulation_active=1');$q->execute([$plotCode]);$value=$mode==='all-ai'?'AI':'HUMAN';$out=[];foreach($q->fetchAll()as$r)$out[(string)$r['role_code']]=$value;return$out;
+        if(!in_array($mode,['all-ai','human-random','human-biased'],true))return[];$q=db()->prepare('SELECT pr.role_code FROM plot_roles pr JOIN plots p ON p.plot_id=pr.plot_id WHERE p.code=? AND pr.simulation_active=1');$q->execute([$plotCode]);$value=$mode==='all-ai'?'AI':'HUMAN';$out=[];foreach($q->fetchAll()as$r)$out[(string)$r['role_code']]=$value;return$out;
     }
     private static function prepareAiCharacters(int $sid,string $controllerMode='legacy'): array
     {
@@ -69,7 +69,7 @@ final class SimulationHarness
     private static function playOpenControlledDecisions(int $sid,string $strategy,array $excludeCharacterIds=[]): void
     {
         $snapshot=SimulationService::snapshot($sid);
-        foreach($snapshot['characters']as$character){if(($character['controller_type']??'')!=='HUMAN'||in_array((int)$character['character_id'],$excludeCharacterIds,true))continue;foreach($character['open_decisions']as$decision){$options=self::applyFocusWeights($sid,$decision['options']??[],strtoupper(trim((string)getenv('GAME2_SIM_FOCUS'))));if(!$options)continue;$pick=$strategy==='first'?$options[0]:self::weightedPick($options);try{BehaviorService::chooseControlled($sid,(int)$decision['decision_id'],(string)$pick['option_code']);}catch(Throwable $e){}}}
+        foreach($snapshot['characters']as$character){if(($character['controller_type']??'')!=='HUMAN'||in_array((int)$character['character_id'],$excludeCharacterIds,true))continue;foreach($character['open_decisions']as$decision){$options=self::applyFocusWeights($sid,$decision['options']??[],strtoupper(trim((string)getenv('GAME2_SIM_FOCUS'))));if(!$options)continue;$pick=$strategy==='first'?$options[0]:($strategy==='random'?$options[random_int(0,count($options)-1)]:self::weightedPick($options));try{BehaviorService::chooseControlled($sid,(int)$decision['decision_id'],(string)$pick['option_code']);}catch(Throwable $e){}}}
     }
     private static function playOpenPlayerDecisions(int $sid,string $strategy,array $excludeCharacterIds=[]): void
     {

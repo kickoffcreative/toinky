@@ -25,7 +25,7 @@ $usage="Usage: php tools/simulate.php [options]\n"
     ."  --npc-reasoner=NAME     weighted, manual, or ollama\n"
     ."  --player-reasoner=NAME  manual or ollama\n"
     ."  --ai-npc-role=CODE      Optional NPC role routed to the AI reasoner\n"
-    ."  --controller-mode=MODE  legacy, all-ai, or human-random\n"
+    ."  --controller-mode=MODE  legacy, all-ai, human-random, or human-biased\n"
     ."  --focus=CODE            Database focus profile, such as DOCUMENTS or RESCUE\n"
     ."  --json                  Print JSON output\n"
     ."  --reset                 Test-database reset only\n"
@@ -40,13 +40,14 @@ foreach($args as $a){
     $opt[$k]=in_array($k,['runs','duration','step'],true)?(int)$v:$v;
 }
 
-$strategies=['no-action','random','first','anti-rowan','pro-rowan'];
+$strategies=['no-action','random','weighted','first','anti-rowan','pro-rowan'];
 if(!in_array($opt['strategy'],$strategies,true)){fwrite(STDERR,'Strategy must be '.implode(', ',$strategies).".\n");exit(2);}
 if((int)$opt['runs']<1){fwrite(STDERR,"--runs must be at least 1.\n");exit(2);}
 $controllerMode=strtolower(trim((string)$opt['controller-mode']));
-if(!in_array($controllerMode,['legacy','all-ai','human-random'],true)){fwrite(STDERR,"--controller-mode must be legacy, all-ai, or human-random.\n");exit(2);}
+if(!in_array($controllerMode,['legacy','all-ai','human-random','human-biased'],true)){fwrite(STDERR,"--controller-mode must be legacy, all-ai, human-random, or human-biased.\n");exit(2);}
 if($controllerMode==='all-ai'){$opt['npc-reasoner']='ollama';$opt['player-reasoner']='ollama';}
 if($controllerMode==='human-random'){$opt['npc-reasoner']='manual';$opt['player-reasoner']='manual';$opt['strategy']='random';}
+if($controllerMode==='human-biased'){$opt['npc-reasoner']='manual';$opt['player-reasoner']='manual';$opt['strategy']='weighted';}
 if(!in_array(strtolower((string)$opt['npc-reasoner']),['weighted','manual','ollama'],true)){fwrite(STDERR,"--npc-reasoner must be weighted, manual, or ollama.\n");exit(2);}
 if(!in_array(strtolower((string)$opt['player-reasoner']),['manual','ollama'],true)){fwrite(STDERR,"--player-reasoner must be manual or ollama.\n");exit(2);}
 $focus=strtoupper(trim((string)$opt['focus']));
