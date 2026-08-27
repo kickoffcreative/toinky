@@ -88,18 +88,18 @@ function render_public_section(array $section,array $socials): void{$layout=$sec
      <div class="section-heading"><h2><?=e(home_field($homeContent,'WORLDS','title_text','Go anywhere. Become anyone.'))?></h2><div><?=home_field($homeContent,'WORLDS','content_html','<p>Every genre uses the same living-story engine while carrying its own atmosphere, pace, relationships, and rules.</p>')?></div></div>
      <div class="world-grid">
 <?php foreach(array_slice($publicStories,0,3)as$story):?>
-       <article class="world-story"<?php if(!empty($story['image_path'])):?> style="background-image:linear-gradient(160deg,rgba(28,36,43,.08),rgba(28,36,43,.9)),url('<?=e($story['image_path'])?>')"<?php endif;?>><div class="world-number"><?=(int)$story['play_count']?></div><span><?=e($story['genre'])?> · <?=(int)$story['play_count']?> plays</span><h3><?=e($story['title'])?></h3><p><?=e($story['setting_name']?:$story['scenario_text'])?></p></article>
+       <article class="world-story"<?php if(!empty($story['image_path'])):?> style="background-image:linear-gradient(160deg,rgba(28,36,43,.08),rgba(28,36,43,.9)),url('<?=e($story['image_path'])?>')"<?php endif;?>><div class="world-number"><?=(int)$story['play_count']?></div><span class="type-public-meta"><?=e($story['genre'])?> · <?=(int)$story['play_count']?> plays</span><h3 class="type-public-card-title"><?=e($story['title'])?></h3><p><?=e($story['setting_name']?:$story['scenario_text'])?></p></article>
 <?php endforeach;?>
-<?php if(!$publicStories):?><article class="world-story"><div class="world-number">∞</div><span>Coming Soon</span><h3>Worlds Unwritten</h3><p>New story worlds are waiting.</p></article><?php endif;?>
+<?php if(!$publicStories):?><article class="world-story"><div class="world-number">∞</div><span class="type-public-meta">Coming Soon</span><h3 class="type-public-card-title">Worlds Unwritten</h3><p>New story worlds are waiting.</p></article><?php endif;?>
      </div>
    </div>
  </section>
 
  <section class="home-section paths-section managed-section-background" style="<?=e(home_style($homeContent,'PATHS'))?>">
    <div class="home-wrap"><div class="paths-intro"><p class="section-label"><?=e(home_field($homeContent,'PATHS','eyebrow_text','For Players, Hosts, And Writers'))?></p><h2><?=e(home_field($homeContent,'PATHS','title_text','Choose how you enter the story.'))?></h2><?=home_field($homeContent,'PATHS','content_html','<p>Play a role, host a shared world, or build stories people can inhabit.</p>')?></div><div class="path-grid">
-     <article><p class="section-label">For Players</p><h2>Become part of the story.</h2><p>Take a role, follow your instincts, and compare what really happened when the game ends.</p><a href="?view=register">Create an account →</a></article>
-     <article><p class="section-label">For Hosts</p><h2>Bring everyone into one world.</h2><p>Choose the story, invite the cast, and let Toinky manage timing, private events, and unclaimed roles.</p><a href="?view=register">Host your first game →</a></article>
-     <article><p class="section-label">For Writers</p><h2>Build stories people can inhabit.</h2><p>Create characters with conflicting truths, branching decisions, and consequences that feel earned.</p><a href="?view=create">Learn about writing for Toinky →</a></article>
+     <article><p class="section-label">For Players</p><h2 class="type-public-card-title">Become part of the story.</h2><p>Take a role, follow your instincts, and compare what really happened when the game ends.</p><a class="public-action" href="?view=register">Create an account →</a></article>
+     <article><p class="section-label">For Hosts</p><h2 class="type-public-card-title">Bring everyone into one world.</h2><p>Choose the story, invite the cast, and let Toinky manage timing, private events, and unclaimed roles.</p><a class="public-action" href="?view=register">Host your first game →</a></article>
+     <article><p class="section-label">For Writers</p><h2 class="type-public-card-title">Build stories people can inhabit.</h2><p>Create characters with conflicting truths, branching decisions, and consequences that feel earned.</p><a class="public-action" href="?view=create">Learn about writing for Toinky →</a></article>
    </div></div>
  </section>
 
