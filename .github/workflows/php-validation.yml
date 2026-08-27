@@ -53,6 +53,14 @@ jobs:
           php tools/story_immersion_audit.php CONCEALED_FAILURE | tee /tmp/concealed-failure-audit.txt
           ! grep -q '^FAIL | P0 | Dependency and authoring structure' /tmp/empty-throne-audit.txt
           ! grep -q '^FAIL | P0 | Dependency and authoring structure' /tmp/concealed-failure-audit.txt
+      - name: Validate story review safeguards and batch modes
+        env:
+          GAME2_DATABASE_CONFIG: ${{ github.workspace }}/config/database.test.php
+          GAME2_AI_PROVIDER: deterministic
+          GAME2_SIM_NPC_REASONER: weighted
+        run: |
+          php tools/story_correction_guard_test.php
+          php tools/simulation_mode_smoke.php
       - name: Test multiplayer lifecycle
         env:
           GAME2_DATABASE_CONFIG: ${{ github.workspace }}/config/database.test.php

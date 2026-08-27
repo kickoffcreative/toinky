@@ -26,7 +26,7 @@ The Story Writer workspace is intentionally ordered by dependency:
 5. **Story Map** — a readable event → decision → option → effect graph, plus state-driven opportunities, their AND conditions, choices, and effects.
 6. **Endings** — ordered resolution fragments and the state conditions that select them.
 7. **Artwork** — optional writer-uploaded images aligned to characters, openings, scenes, turning points, outcomes, and endings.
-8. **Administrator validation** — only administrators can open **Validate & Submit**, run blocking structural checks, generate the AI-ready critique package, and freeze a numbered revision for review.
+8. **Administrator validation** — only administrators can open **Validate & Submit**, run blocking structural checks, generate the reviewer-ready package, and freeze a numbered revision for review.
 
 When the draft is ready, the writer asks an administrator to validate it. The administrator runs **Validate & Submit**, resolves any blocking findings with the writer, and creates an immutable numbered revision. An administrator reviews that exact snapshot, then requests changes, approves, publishes, or archives it. Later edits do not silently alter the submitted revision.
 
@@ -36,7 +36,7 @@ The story genre selects a reusable database theme. Administrators configure its 
 
 ## Invitations
 
-Hosts can invite players by email from an open lobby. The message is sent as `newsletter@sixpillarsmodel.com` by default and includes both a registration link and the game code. Lobby capacity and invitation validity are rechecked when a new user accepts. The live lobby continues to reserve selected characters in real time, and any unclaimed character is assigned to AI when the host starts.
+Hosts can invite players by email from an open lobby. The message is sent as `newsletter@sixpillarsmodel.com` by default and includes both a registration link and the game code. Lobby capacity and invitation validity are rechecked when a new user accepts. The live lobby continues to reserve selected characters in real time, and any unclaimed character becomes autonomous when the host starts.
 
 ## Decisions a writer must make
 
@@ -102,7 +102,7 @@ Run checks in this order. Do not use polished prose to hide a broken state model
 2. **State integrity** — test legal transitions, prerequisites, helper requirements, custody, exclusivity, and every configured integrity rule.
 3. **Decision coverage** — execute every option and no-action path; confirm later opportunities react to actual prior choices.
 4. **Deterministic batch** — run weighted/manual batches across each supported focus and control mode; require zero integrity warnings.
-5. **AI behavior** — run all-AI samples and audit legal choices, character knowledge, reactions, tradeoffs, confidence, and continuity.
+5. **Autonomous behavior** — run all-autonomous samples and audit legal choices, character knowledge, reactions, tradeoffs, confidence, and continuity.
 6. **Player continuity** — play once as every selectable character and verify that each perspective is comprehensible without privileged knowledge.
 7. **Player immersion** — review POV, pronouns, named participation, natural time, missed-choice prose, deduplication, phase order, and the epilogue.
 8. **Responsive interface** — test phone, tablet, and desktop; open decisions must remain visible and usable on mobile.
