@@ -47,7 +47,7 @@ function render_public_section(array $section,array $socials): void{$layout=$sec
    </div>
    <div class="hero-vignette" aria-hidden="true"></div>
    <div class="hero-copy">
-     <?php if(home_field($homeContent,'HERO','eyebrow_text','Live Character-Driven Stories')!==''):?><span class="hero-kicker"><?=e(home_field($homeContent,'HERO','eyebrow_text','Live Character-Driven Stories'))?></span><?php endif;?>
+     <?php if(home_field($homeContent,'HERO','eyebrow_text','Live Character-Driven Stories')!==''):?><span class="hero-kicker type-public-section-label"><?=e(home_field($homeContent,'HERO','eyebrow_text','Live Character-Driven Stories'))?></span><?php endif;?>
      <span class="hero-wordmark" role="img" aria-label="Toinky"></span>
      <?php if(home_field($homeContent,'HERO','title_text','Every player sees a different story.')!==''):?><h1 class="type-public-hero-title" id="hero-title"><?=e(home_field($homeContent,'HERO','title_text','Every player sees a different story.'))?></h1><?php endif;?>
      <div class="hero-intro type-public-intro"><?=home_field($homeContent,'HERO','content_html','<p>Step into one shared world. Follow private motives, make decisions in real time, and discover how differently the same story can unfold.</p>')?></div>
@@ -62,13 +62,13 @@ function render_public_section(array $section,array $socials): void{$layout=$sec
 
  <section class="home-section how-section managed-section-background" id="how-it-works" style="<?=e(home_style($homeContent,'HOW'))?>">
    <div class="home-wrap">
-     <p class="section-label"><?=e(home_field($homeContent,'HOW','eyebrow_text','How Toinky Works'))?></p>
-     <div class="section-heading"><h2><?=e(home_field($homeContent,'HOW','title_text','One world. Many truths.'))?></h2><div><?=home_field($homeContent,'HOW','content_html','<p>Everyone enters the same story, but no one receives the same information. Your character’s history, relationships, and private choices shape what you believe—and what happens next.</p>')?></div></div>
+     <p class="section-label type-public-section-label"><?=e(home_field($homeContent,'HOW','eyebrow_text','How Toinky Works'))?></p>
+     <div class="section-heading"><h2 class="type-public-section-title"><?=e(home_field($homeContent,'HOW','title_text','One world. Many truths.'))?></h2><div class="type-public-body"><?=home_field($homeContent,'HOW','content_html','<p>Everyone enters the same story, but no one receives the same information. Your character’s history, relationships, and private choices shape what you believe—and what happens next.</p>')?></div></div>
      <ol class="story-steps" aria-label="How a Toinky story unfolds">
-       <li><span>01</span><div class="step-sigil">✦</div><h3>Choose a story</h3><p>Enter a world built around tension, secrets, and meaningful choices.</p></li>
-       <li><span>02</span><div class="step-sigil">♙</div><h3>Gather your cast</h3><p>Invite friends and choose who each person will become.</p></li>
-       <li><span>03</span><div class="step-sigil">◐</div><h3>See your side</h3><p>Receive private knowledge, motives, and moments meant only for you.</p></li>
-       <li><span>04</span><div class="step-sigil">⌁</div><h3>Change the ending</h3><p>Act—or hesitate—and watch every decision reshape the shared world.</p></li>
+       <li><span>01</span><div class="step-sigil">✦</div><h3 class="type-public-card-title">Choose a story</h3><p class="type-public-body">Enter a world built around tension, secrets, and meaningful choices.</p></li>
+       <li><span>02</span><div class="step-sigil">♙</div><h3 class="type-public-card-title">Gather your cast</h3><p class="type-public-body">Invite friends and choose who each person will become.</p></li>
+       <li><span>03</span><div class="step-sigil">◐</div><h3 class="type-public-card-title">See your side</h3><p class="type-public-body">Receive private knowledge, motives, and moments meant only for you.</p></li>
+       <li><span>04</span><div class="step-sigil">⌁</div><h3 class="type-public-card-title">Change the ending</h3><p class="type-public-body">Act—or hesitate—and watch every decision reshape the shared world.</p></li>
      </ol>
    </div>
  </section>
@@ -76,7 +76,7 @@ function render_public_section(array $section,array $socials): void{$layout=$sec
  <section class="home-section perspective-section managed-section-background" style="<?=e(home_style($homeContent,'PERSPECTIVES'))?>">
    <div class="home-wrap perspective-grid">
      <figure class="perspective-art"><img src="<?=e($homeContent['PERSPECTIVES']['image_path']??'assets/parallax/toinky-characters-reporter-leprechaun.png')?>" alt="<?=e(($homeContent['PERSPECTIVES']['image_path']??'')!==''?($homeContent['PERSPECTIVES']['image_alt']??'Characters experiencing the same story from different perspectives'):'A reporter and a fantastical character from different Toinky story worlds')?>"></figure>
-     <div><p class="section-label"><?=e(home_field($homeContent,'PERSPECTIVES','eyebrow_text','Different Perspectives'))?></p><h2><?=e(home_field($homeContent,'PERSPECTIVES','title_text','You never know the whole story.'))?></h2><?=home_field($homeContent,'PERSPECTIVES','content_html','<p>A prince protects a kingdom. A reporter follows a lie. A stranger knows what happens next. Toinky lets each player experience a personal storyline inside one living, shared event.</p>')?><ul class="feature-list"><li>Private information and character motives</li><li>Timed events for one player, several players, or everyone</li><li>Consequences that continue after a decision closes</li><li>AI-controlled characters keep the world moving</li></ul></div>
+     <div><p class="section-label type-public-section-label"><?=e(home_field($homeContent,'PERSPECTIVES','eyebrow_text','Different Perspectives'))?></p><h2 class="type-public-section-title"><?=e(home_field($homeContent,'PERSPECTIVES','title_text','You never know the whole story.'))?></h2><div class="type-public-body"><?=home_field($homeContent,'PERSPECTIVES','content_html','<p>A prince protects a kingdom. A reporter follows a lie. A stranger knows what happens next. Toinky lets each player experience a personal storyline inside one living, shared event.</p>')?><ul class="feature-list"><li>Private information and character motives</li><li>Timed events for one player, several players, or everyone</li><li>Consequences that continue after a decision closes</li><li>AI-controlled characters keep the world moving</li></ul></div></div>
    </div>
  </section>
 
@@ -84,29 +84,29 @@ function render_public_section(array $section,array $socials): void{$layout=$sec
 
  <section class="home-section worlds-section managed-section-background" id="stories" style="<?=e(home_style($homeContent,'WORLDS'))?>">
    <div class="home-wrap">
-     <p class="section-label"><?=e(home_field($homeContent,'WORLDS','eyebrow_text','Story Worlds'))?></p>
-     <div class="section-heading"><h2><?=e(home_field($homeContent,'WORLDS','title_text','Go anywhere. Become anyone.'))?></h2><div><?=home_field($homeContent,'WORLDS','content_html','<p>Every genre uses the same living-story engine while carrying its own atmosphere, pace, relationships, and rules.</p>')?></div></div>
+     <p class="section-label type-public-section-label"><?=e(home_field($homeContent,'WORLDS','eyebrow_text','Story Worlds'))?></p>
+     <div class="section-heading"><h2 class="type-public-section-title"><?=e(home_field($homeContent,'WORLDS','title_text','Go anywhere. Become anyone.'))?></h2><div class="type-public-body"><?=home_field($homeContent,'WORLDS','content_html','<p>Every genre uses the same living-story engine while carrying its own atmosphere, pace, relationships, and rules.</p>')?></div></div>
      <div class="world-grid">
 <?php foreach(array_slice($publicStories,0,3)as$story):?>
-       <article class="world-story"<?php if(!empty($story['image_path'])):?> style="background-image:linear-gradient(160deg,rgba(28,36,43,.08),rgba(28,36,43,.9)),url('<?=e($story['image_path'])?>')"<?php endif;?>><div class="world-number"><?=(int)$story['play_count']?></div><span class="type-public-meta"><?=e($story['genre'])?> · <?=(int)$story['play_count']?> plays</span><h3 class="type-public-card-title"><?=e($story['title'])?></h3><p><?=e($story['setting_name']?:$story['scenario_text'])?></p></article>
+       <article class="world-story"<?php if(!empty($story['image_path'])):?> style="background-image:linear-gradient(160deg,rgba(28,36,43,.08),rgba(28,36,43,.9)),url('<?=e($story['image_path'])?>')"<?php endif;?>><div class="world-number"><?=(int)$story['play_count']?></div><span class="type-public-meta"><?=e($story['genre'])?> · <?=(int)$story['play_count']?> plays</span><h3 class="type-public-card-title"><?=e($story['title'])?></h3><p class="type-public-body"><?=e($story['setting_name']?:$story['scenario_text'])?></p></article>
 <?php endforeach;?>
-<?php if(!$publicStories):?><article class="world-story"><div class="world-number">∞</div><span class="type-public-meta">Coming Soon</span><h3 class="type-public-card-title">Worlds Unwritten</h3><p>New story worlds are waiting.</p></article><?php endif;?>
+<?php if(!$publicStories):?><article class="world-story"><div class="world-number">∞</div><span class="type-public-meta">Coming Soon</span><h3 class="type-public-card-title">Worlds Unwritten</h3><p class="type-public-body">New story worlds are waiting.</p></article><?php endif;?>
      </div>
    </div>
  </section>
 
  <section class="home-section paths-section managed-section-background" style="<?=e(home_style($homeContent,'PATHS'))?>">
-   <div class="home-wrap"><div class="paths-intro"><p class="section-label"><?=e(home_field($homeContent,'PATHS','eyebrow_text','For Players, Hosts, And Writers'))?></p><h2><?=e(home_field($homeContent,'PATHS','title_text','Choose how you enter the story.'))?></h2><?=home_field($homeContent,'PATHS','content_html','<p>Play a role, host a shared world, or build stories people can inhabit.</p>')?></div><div class="path-grid">
-     <article><p class="section-label">For Players</p><h2 class="type-public-card-title">Become part of the story.</h2><p>Take a role, follow your instincts, and compare what really happened when the game ends.</p><a class="public-action" href="?view=register">Create an account →</a></article>
-     <article><p class="section-label">For Hosts</p><h2 class="type-public-card-title">Bring everyone into one world.</h2><p>Choose the story, invite the cast, and let Toinky manage timing, private events, and unclaimed roles.</p><a class="public-action" href="?view=register">Host your first game →</a></article>
-     <article><p class="section-label">For Writers</p><h2 class="type-public-card-title">Build stories people can inhabit.</h2><p>Create characters with conflicting truths, branching decisions, and consequences that feel earned.</p><a class="public-action" href="?view=create">Learn about writing for Toinky →</a></article>
+   <div class="home-wrap"><div class="paths-intro"><p class="section-label type-public-section-label"><?=e(home_field($homeContent,'PATHS','eyebrow_text','For Players, Hosts, And Writers'))?></p><h2 class="type-public-section-title"><?=e(home_field($homeContent,'PATHS','title_text','Choose how you enter the story.'))?></h2><div class="type-public-body"><?=home_field($homeContent,'PATHS','content_html','<p>Play a role, host a shared world, or build stories people can inhabit.</p>')?></div></div><div class="path-grid">
+     <article><p class="section-label type-public-section-label">For Players</p><h2 class="type-public-card-title">Become part of the story.</h2><p class="type-public-body">Take a role, follow your instincts, and compare what really happened when the game ends.</p><a class="public-action" href="?view=register">Create an account →</a></article>
+     <article><p class="section-label type-public-section-label">For Hosts</p><h2 class="type-public-card-title">Bring everyone into one world.</h2><p class="type-public-body">Choose the story, invite the cast, and let Toinky manage timing, private events, and unclaimed roles.</p><a class="public-action" href="?view=register">Host your first game →</a></article>
+     <article><p class="section-label type-public-section-label">For Writers</p><h2 class="type-public-card-title">Build stories people can inhabit.</h2><p class="type-public-body">Create characters with conflicting truths, branching decisions, and consequences that feel earned.</p><a class="public-action" href="?view=create">Learn about writing for Toinky →</a></article>
    </div></div>
  </section>
 
 <?php foreach($homeContent as$homeCode=>$homeSection)if(!in_array($homeCode,['HERO','HOW','PERSPECTIVES','THREE_VIEWPOINTS','WORLDS','PATHS','FINALE'],true))render_public_section($homeSection,$socials);?>
 
  <section class="home-finale managed-section-background" style="<?=e(home_style($homeContent,'FINALE'))?>">
-   <div class="home-wrap"><p class="section-label"><?=e(home_field($homeContent,'FINALE','eyebrow_text','Your Story Is Waiting'))?></p><h2><?=e(home_field($homeContent,'FINALE','title_text','Who will you become?'))?></h2><div class="finale-copy"><?=home_field($homeContent,'FINALE','content_html','<p>The same moment can mean something different to everyone inside it.</p>')?></div><a class="btn" href="?view=register">Enter Toinky</a></div>
+   <div class="home-wrap"><p class="section-label type-public-section-label"><?=e(home_field($homeContent,'FINALE','eyebrow_text','Your Story Is Waiting'))?></p><h2 class="type-public-section-title"><?=e(home_field($homeContent,'FINALE','title_text','Who will you become?'))?></h2><div class="finale-copy type-public-body"><?=home_field($homeContent,'FINALE','content_html','<p>The same moment can mean something different to everyone inside it.</p>')?></div><a class="btn" href="?view=register">Enter Toinky</a></div>
  </section>
  <?php endif; ?>
 <?php else: ?>
