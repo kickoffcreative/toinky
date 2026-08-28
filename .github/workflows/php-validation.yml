@@ -60,6 +60,7 @@ jobs:
           GAME2_SIM_NPC_REASONER: weighted
         run: |
           php tools/story_correction_guard_test.php
+          php tools/story_correction_v2_guard_test.php
           php tools/simulation_mode_smoke.php
           php tools/story_writer_stable_code_test.php
           php tools/story_value_type_guard_test.php
