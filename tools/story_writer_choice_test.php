@@ -23,10 +23,11 @@ try{
         'rationale_text'=>'Used only to verify the Story Writer insertion path.',
         'result_text'=>'The temporary test choice was accepted.',
         'sort_order'=>999,
+        'active'=>1,
     ]);
-    $q=$pdo->prepare('SELECT option_code,label,result_text,npc_weight,rationale_text,sort_order FROM plot_dynamic_opportunity_options WHERE dynamic_option_id=?');
+    $q=$pdo->prepare('SELECT option_code,label,result_text,npc_weight,rationale_text,sort_order,active FROM plot_dynamic_opportunity_options WHERE dynamic_option_id=?');
     $q->execute([$id]);$saved=$q->fetch();
-    if(!$saved||$saved['option_code']!==$code||$saved['label']!=='Test Conditional Choice'||$saved['result_text']!=='The temporary test choice was accepted.'||(int)$saved['npc_weight']!==3||(int)$saved['sort_order']!==999)throw new RuntimeException('Conditional Choice fields were not stored correctly.');
+    if(!$saved||$saved['option_code']!==$code||$saved['label']!=='Test Conditional Choice'||$saved['result_text']!=='The temporary test choice was accepted.'||(int)$saved['npc_weight']!==3||(int)$saved['sort_order']!==999||(int)$saved['active']!==1)throw new RuntimeException('Conditional Choice fields were not stored correctly.');
     $pdo->rollBack();
 }catch(Throwable $error){if($pdo->inTransaction())$pdo->rollBack();throw $error;}
 

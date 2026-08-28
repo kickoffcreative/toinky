@@ -67,6 +67,8 @@ jobs:
           php tools/story_media_attachment_edit_test.php
           php tools/story_condition_status_test.php
           php tools/story_writer_choice_test.php
+          php tools/story_choice_effect_status_test.php
+          php tools/story_character_decision_status_test.php
       - name: Test multiplayer lifecycle
         env:
           GAME2_DATABASE_CONFIG: ${{ github.workspace }}/config/database.test.php

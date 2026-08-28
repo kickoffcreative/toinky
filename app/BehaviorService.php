@@ -9,13 +9,13 @@ final class BehaviorService {
             $pdo->prepare('INSERT INTO character_history(simulation_id,character_id,event_id,event_second,history_type,title,detail_text) VALUES(?,?,?,?,?,?,?)')->execute([$sid,$r['character_id'],$eventId,$deliverySecond,$r['history_type'],$r['title'],$r['perception_text']]);
             if(!empty($r['location_after'])) self::setLocation($sid,(int)$r['character_id'],$r['location_after'],$second,$eventId,'Event movement');
         }
-        $t=$pdo->prepare('SELECT pdt.*,pr.plot_role_id,c.character_id,c.name,c.actor_type,c.controller_type,c.slot_no FROM plot_decision_templates pdt JOIN plot_roles pr ON pr.plot_id=pdt.plot_id AND pr.role_code=pdt.role_code JOIN characters c ON c.simulation_id=? AND c.plot_role_id=pr.plot_role_id WHERE pdt.plot_id=? AND pdt.event_code=?');
+        $t=$pdo->prepare('SELECT pdt.*,pr.plot_role_id,c.character_id,c.name,c.actor_type,c.controller_type,c.slot_no FROM plot_decision_templates pdt JOIN plot_roles pr ON pr.plot_id=pdt.plot_id AND pr.role_code=pdt.role_code AND pr.active=1 JOIN characters c ON c.simulation_id=? AND c.plot_role_id=pr.plot_role_id WHERE pdt.plot_id=? AND pdt.event_code=? AND pdt.active=1');
         $t->execute([$sid,$sim['plot_id'],$eventCode]);
         foreach($t->fetchAll() as $row){
             $opens=$second+self::deliveryOffset($sid,$row,'decision');$closes=$opens+(int)$row['decision_window_seconds'];
             $pdo->prepare('INSERT IGNORE INTO decisions(simulation_id,character_id,event_id,prompt_text,status,opens_at_second,closes_at_second) VALUES(?,?,?,? ,"OPEN",?,?)')->execute([$sid,$row['character_id'],$eventId,$row['prompt_text'],$opens,$closes]);
             $q=$pdo->prepare('SELECT decision_id,status FROM decisions WHERE character_id=? AND event_id=?');$q->execute([$row['character_id'],$eventId]);$decision=$q->fetch();$did=(int)($decision['decision_id']??0);if(!$did)continue;
-            $opts=$pdo->prepare('SELECT * FROM plot_decision_template_options WHERE template_id=? ORDER BY sort_order,template_option_id');$opts->execute([$row['template_id']]);$valid=0;
+            $opts=$pdo->prepare('SELECT * FROM plot_decision_template_options WHERE template_id=? AND active=1 ORDER BY sort_order,template_option_id');$opts->execute([$row['template_id']]);$valid=0;
             foreach($opts->fetchAll() as $o){
                 if(class_exists('CausalService') && !CausalService::optionAllowed($sid,(int)$o['template_option_id']))continue;
                 $pdo->prepare('INSERT IGNORE INTO decision_options(decision_id,option_code,label,sort_order) VALUES(?,?,?,?)')->execute([$did,$o['option_code'],$o['label'],$o['sort_order']]);$valid++;
@@ -82,7 +82,7 @@ final class BehaviorService {
     }
 
     private static function decisionOption(int $sid,array $d,int $decisionId,string $optionCode,array $sim): array {
-        $o=db()->prepare('SELECT pdto.* FROM decision_options do JOIN plot_decision_template_options pdto ON pdto.option_code=do.option_code JOIN plot_decision_templates pdt ON pdt.template_id=pdto.template_id JOIN characters c ON c.character_id=? JOIN plot_roles pr ON pr.plot_role_id=c.plot_role_id WHERE do.decision_id=? AND do.option_code=? AND pdt.plot_id=? AND pdt.role_code=pr.role_code AND pdt.event_code=(SELECT se.event_code FROM decisions dx JOIN simulation_events se ON se.event_id=dx.event_id WHERE dx.decision_id=?) LIMIT 1');
+        $o=db()->prepare('SELECT pdto.* FROM decision_options do JOIN plot_decision_template_options pdto ON pdto.option_code=do.option_code AND pdto.active=1 JOIN plot_decision_templates pdt ON pdt.template_id=pdto.template_id JOIN characters c ON c.character_id=? JOIN plot_roles pr ON pr.plot_role_id=c.plot_role_id WHERE do.decision_id=? AND do.option_code=? AND pdt.plot_id=? AND pdt.role_code=pr.role_code AND pdt.event_code=(SELECT se.event_code FROM decisions dx JOIN simulation_events se ON se.event_id=dx.event_id WHERE dx.decision_id=?) LIMIT 1');
         $o->execute([$d['character_id'],$decisionId,$optionCode,$sim['plot_id'],$decisionId]);$opt=$o->fetch();if(!$opt)throw new RuntimeException('Decision option not found.');
         if(class_exists('CausalService')&&!CausalService::optionAllowed($sid,(int)$opt['template_option_id']))throw new RuntimeException('That action is no longer possible because the world has changed.');
         return$opt;
@@ -117,7 +117,7 @@ final class BehaviorService {
 
     private static function resolveNpc(int $sid,int $decisionId,int $templateId,int $second): void {
         $pdo=db();$q=$pdo->prepare('SELECT d.*,c.name,c.character_id FROM decisions d JOIN characters c ON c.character_id=d.character_id WHERE d.decision_id=?');$q->execute([$decisionId]);$d=$q->fetch();if(!$d||$d['status']!=='OPEN')return;
-        $o=$pdo->prepare('SELECT * FROM plot_decision_template_options WHERE template_id=? ORDER BY sort_order');$o->execute([$templateId]);$options=[];
+        $o=$pdo->prepare('SELECT * FROM plot_decision_template_options WHERE template_id=? AND active=1 ORDER BY sort_order');$o->execute([$templateId]);$options=[];
         foreach($o->fetchAll() as$r){if(class_exists('CausalService')&&!CausalService::optionAllowed($sid,(int)$r['template_option_id']))continue;$options[]=$r;}
         if(!$options){$pdo->prepare('UPDATE decisions SET status="CLOSED",resolved_text="No valid NPC action remained in the current world state." WHERE decision_id=?')->execute([$decisionId]);return;}
         $total=max(1,array_sum(array_map(fn($r)=>max(0,(int)$r['npc_weight']),$options)));$roll=random_int(1,$total);$pick=$options[0];$cursor=0;
@@ -134,7 +134,7 @@ final class BehaviorService {
             if(class_exists('CausalService')&&!CausalService::optionAllowed($sid,(int)$opt['template_option_id']))throw new RuntimeException('Action invalidated by current world state.');
             $pdo->prepare('UPDATE decisions SET status="CHOSEN",chosen_option_code=?,resolved_text=? WHERE decision_id=?')->execute([$opt['option_code'],$opt['result_text'],$d['decision_id']]);
             $pdo->prepare('INSERT INTO character_history(simulation_id,character_id,event_id,event_second,history_type,title,detail_text) VALUES(?,?,?,?,"DECISION",?,?)')->execute([$sid,$d['character_id'],$d['event_id'],$second,'Decision: '.$opt['label'],$opt['result_text']]);
-            $effects=$pdo->prepare('SELECT * FROM plot_option_effects WHERE template_option_id=? ORDER BY sort_order,effect_id');$effects->execute([$opt['template_option_id']]);
+            $effects=$pdo->prepare('SELECT * FROM plot_option_effects WHERE template_option_id=? AND active=1 ORDER BY sort_order,effect_id');$effects->execute([$opt['template_option_id']]);
             $changes=[];foreach($effects->fetchAll() as $e){$changes[]=self::applyEffect($sid,(int)$d['character_id'],$d['event_id'],$second,$e,$actorType,(int)$d['decision_id']);}
             $cq=$pdo->prepare('SELECT name FROM characters WHERE character_id=?');$cq->execute([$d['character_id']]);$name=(string)$cq->fetchColumn();
             $worldText=$opt['result_text'];if(array_filter($changes))$worldText.=' '.implode(' ',array_filter($changes));

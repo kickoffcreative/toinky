@@ -209,7 +209,7 @@ final class StoryCorrectionV2Service
 
     private static function effectsFor(int $plotId,string $scope,string $code): array
     {
-        $q=db()->prepare('SELECT e.delta_value,e.set_value FROM plot_option_effects e JOIN plot_decision_template_options x ON x.template_option_id=e.template_option_id JOIN plot_decision_templates t ON t.template_id=x.template_id WHERE t.plot_id=? AND e.effect_scope=? AND e.target_code=? UNION ALL SELECT e.delta_value,e.set_value FROM plot_dynamic_option_effects e JOIN plot_dynamic_opportunity_options x ON x.dynamic_option_id=e.dynamic_option_id JOIN plot_dynamic_opportunities o ON o.dynamic_opportunity_id=x.dynamic_opportunity_id WHERE o.plot_id=? AND e.effect_scope=? AND e.target_code=?');$q->execute([$plotId,$scope,$code,$plotId,$scope,$code]);return$q->fetchAll();
+        $q=db()->prepare('SELECT e.delta_value,e.set_value FROM plot_option_effects e JOIN plot_decision_template_options x ON x.template_option_id=e.template_option_id JOIN plot_decision_templates t ON t.template_id=x.template_id WHERE t.plot_id=? AND e.active=1 AND x.active=1 AND e.effect_scope=? AND e.target_code=? UNION ALL SELECT e.delta_value,e.set_value FROM plot_dynamic_option_effects e JOIN plot_dynamic_opportunity_options x ON x.dynamic_option_id=e.dynamic_option_id JOIN plot_dynamic_opportunities o ON o.dynamic_opportunity_id=x.dynamic_opportunity_id WHERE o.plot_id=? AND o.active=1 AND x.active=1 AND e.active=1 AND e.effect_scope=? AND e.target_code=?');$q->execute([$plotId,$scope,$code,$plotId,$scope,$code]);return$q->fetchAll();
     }
 
     private static function conditionsFor(int $plotId,string $scope,string $code): array
