@@ -1,42 +1,42 @@
 <?php
 $root=dirname(__DIR__);require_once $root.'/app/bootstrap.php';require_once $root.'/app/MigrationService.php';MigrationService::run();require_once $root.'/app/AuthService.php';require_once $root.'/app/MediaLibraryService.php';require_once $root.'/app/StoryAuthoringService.php';require_once $root.'/app/StoryCorrectionService.php';require_once $root.'/app/StorySimulationBatchService.php';require_once $root.'/app/ParallaxService.php';require_once $root.'/app/PageContentService.php';AuthService::boot();$admin=AuthService::requireAdmin();$themeFonts=[
-'Brand â Cormorant Garamond'=>'Cormorant Garamond, Georgia, serif',
-'Brand â Instrument Sans'=>'Instrument Sans, Arial, sans-serif',
-'Adventure â Cinzel'=>'Cinzel, Georgia, serif',
-'Adventure â Alegreya Sans SC'=>'Alegreya Sans SC, Arial, sans-serif',
-'Comedy â Fredoka'=>'Fredoka, Arial, sans-serif',
-'Comedy â Baloo 2'=>'Baloo 2, Arial, sans-serif',
-'Contemporary â DM Sans'=>'DM Sans, Arial, sans-serif',
-'Contemporary â Manrope'=>'Manrope, Arial, sans-serif',
-'Crime â Oswald'=>'Oswald, Arial, sans-serif',
-'Crime â Roboto Slab'=>'Roboto Slab, Georgia, serif',
-'Drama â Playfair Display'=>'Playfair Display, Georgia, serif',
-'Drama â Cormorant Garamond'=>'Cormorant Garamond, Georgia, serif',
-'Fantasy â Uncial Antiqua'=>'Uncial Antiqua, Georgia, serif',
-'Fantasy â MedievalSharp'=>'MedievalSharp, Georgia, serif',
-'Historical â Libre Baskerville'=>'Libre Baskerville, Georgia, serif',
-'Historical â EB Garamond'=>'EB Garamond, Georgia, serif',
-'Horror â Creepster'=>'Creepster, Georgia, serif',
-'Horror â Nosifer'=>'Nosifer, Georgia, serif',
-'Mystery â Special Elite'=>'Special Elite, Georgia, serif',
-'Mystery â IM Fell English'=>'IM Fell English, Georgia, serif',
-'Political Intrigue â Spectral'=>'Spectral, Georgia, serif',
-'Political Intrigue â Crimson Pro'=>'Crimson Pro, Georgia, serif',
-'Romance â Lora'=>'Lora, Georgia, serif',
-'Romance â Parisienne'=>'Parisienne, cursive',
-'Science Fiction â Orbitron'=>'Orbitron, Arial, sans-serif',
-'Science Fiction â Space Grotesk'=>'Space Grotesk, Arial, sans-serif',
-'Steampunk â Rye'=>'Rye, Georgia, serif',
-'Steampunk â Grenze Gotisch'=>'Grenze Gotisch, Georgia, serif',
-'Survival â Barlow Condensed'=>'Barlow Condensed, Arial, sans-serif',
-'Survival â Archivo Narrow'=>'Archivo Narrow, Arial, sans-serif',
-'Thriller â Bebas Neue'=>'Bebas Neue, Arial, sans-serif',
-'Thriller â Saira Condensed'=>'Saira Condensed, Arial, sans-serif',
-'Body â Inter'=>'Inter, Arial, sans-serif',
-'Body â Merriweather'=>'Merriweather, Georgia, serif',
-'Legacy â Inter System'=>'Inter, system-ui, sans-serif',
-'Legacy â Trebuchet System'=>'Trebuchet MS, system-ui, sans-serif',
-'System â Georgia'=>'Georgia, Times New Roman, serif'
+'Brand — Cormorant Garamond'=>'Cormorant Garamond, Georgia, serif',
+'Brand — Instrument Sans'=>'Instrument Sans, Arial, sans-serif',
+'Adventure — Cinzel'=>'Cinzel, Georgia, serif',
+'Adventure — Alegreya Sans SC'=>'Alegreya Sans SC, Arial, sans-serif',
+'Comedy — Fredoka'=>'Fredoka, Arial, sans-serif',
+'Comedy — Baloo 2'=>'Baloo 2, Arial, sans-serif',
+'Contemporary — DM Sans'=>'DM Sans, Arial, sans-serif',
+'Contemporary — Manrope'=>'Manrope, Arial, sans-serif',
+'Crime — Oswald'=>'Oswald, Arial, sans-serif',
+'Crime — Roboto Slab'=>'Roboto Slab, Georgia, serif',
+'Drama — Playfair Display'=>'Playfair Display, Georgia, serif',
+'Drama — Cormorant Garamond'=>'Cormorant Garamond, Georgia, serif',
+'Fantasy — Uncial Antiqua'=>'Uncial Antiqua, Georgia, serif',
+'Fantasy — MedievalSharp'=>'MedievalSharp, Georgia, serif',
+'Historical — Libre Baskerville'=>'Libre Baskerville, Georgia, serif',
+'Historical — EB Garamond'=>'EB Garamond, Georgia, serif',
+'Horror — Creepster'=>'Creepster, Georgia, serif',
+'Horror — Nosifer'=>'Nosifer, Georgia, serif',
+'Mystery — Special Elite'=>'Special Elite, Georgia, serif',
+'Mystery — IM Fell English'=>'IM Fell English, Georgia, serif',
+'Political Intrigue — Spectral'=>'Spectral, Georgia, serif',
+'Political Intrigue — Crimson Pro'=>'Crimson Pro, Georgia, serif',
+'Romance — Lora'=>'Lora, Georgia, serif',
+'Romance — Parisienne'=>'Parisienne, cursive',
+'Science Fiction — Orbitron'=>'Orbitron, Arial, sans-serif',
+'Science Fiction — Space Grotesk'=>'Space Grotesk, Arial, sans-serif',
+'Steampunk — Rye'=>'Rye, Georgia, serif',
+'Steampunk — Grenze Gotisch'=>'Grenze Gotisch, Georgia, serif',
+'Survival — Barlow Condensed'=>'Barlow Condensed, Arial, sans-serif',
+'Survival — Archivo Narrow'=>'Archivo Narrow, Arial, sans-serif',
+'Thriller — Bebas Neue'=>'Bebas Neue, Arial, sans-serif',
+'Thriller — Saira Condensed'=>'Saira Condensed, Arial, sans-serif',
+'Body — Inter'=>'Inter, Arial, sans-serif',
+'Body — Merriweather'=>'Merriweather, Georgia, serif',
+'Legacy — Inter System'=>'Inter, system-ui, sans-serif',
+'Legacy — Trebuchet System'=>'Trebuchet MS, system-ui, sans-serif',
+'System — Georgia'=>'Georgia, Times New Roman, serif'
 ];
 $fontWeights=['300'=>'Light','400'=>'Regular','500'=>'Medium','600'=>'Semi Bold','700'=>'Bold','800'=>'Extra Bold','900'=>'Black'];
 $fontDecorations=['none'=>'None','underline'=>'Underline','overline'=>'Overline','line-through'=>'Line Through'];
@@ -55,9 +55,9 @@ $brandFontRoles=[
  'public_section_label'=>['group'=>'Public Website','label'=>'Section Label','description'=>'Small labels above public section titles.','family'=>'Instrument Sans, Arial, sans-serif','color'=>'#6B2938','dark_color'=>'#D5B56B','size'=>'0.75rem','weight'=>'700','line_height'=>'1.2','letter_spacing'=>'0.16em','transform'=>'uppercase','decoration'=>'none'],
  'public_intro'=>['group'=>'Public Website','label'=>'Introduction Text','description'=>'Prominent lead copy beneath public hero and section titles.','usage'=>'Homepage introduction, public page hero introductions, and story-detail summaries.','preview'=>'Gather your people and step into a shared world.','family'=>'Instrument Sans, Arial, sans-serif','color'=>'#35424B','dark_color'=>'#F4EEE2','size'=>'1.2rem','weight'=>'400','line_height'=>'1.65','letter_spacing'=>'0','transform'=>'none','decoration'=>'none'],
  'public_body'=>['group'=>'Public Website','label'=>'Body Text','description'=>'Paragraphs and long-form public page copy.','family'=>'Instrument Sans, Arial, sans-serif','color'=>'#35424B','dark_color'=>'#F4EEE2','size'=>'1rem','weight'=>'400','line_height'=>'1.65','letter_spacing'=>'0','transform'=>'none','decoration'=>'none'],
- 'public_meta'=>['group'=>'Public Website','label'=>'Metadata & Details','description'=>'Compact supporting facts that identify or describe public content.','usage'=>'Story genres, play counts, story settings, back links, and small supporting details.','preview'=>'Mystery Â· 24 plays','family'=>'Instrument Sans, Arial, sans-serif','color'=>'#66715C','dark_color'=>'#D9D1C2','size'=>'0.78rem','weight'=>'600','line_height'=>'1.35','letter_spacing'=>'0.06em','transform'=>'none','decoration'=>'none'],
- 'public_navigation'=>['group'=>'Public Website','label'=>'Top Navigation','description'=>'Public website navigationânot workspace drawer links.','usage'=>'Desktop and mobile public header links, plus public footer navigation.','preview'=>'How It Works   Stories   For Writers','family'=>'Instrument Sans, Arial, sans-serif','color'=>'#F4EEE2','dark_color'=>'#F4EEE2','size'=>'0.9rem','weight'=>'600','line_height'=>'1.2','letter_spacing'=>'0.02em','transform'=>'none','decoration'=>'none'],
- 'public_actions'=>['group'=>'Public Website','label'=>'Buttons & Links','description'=>'Prominent public calls to action.','usage'=>'Public buttons, story-card links, social buttons, and calls to action such as Explore This Story.','preview'=>'Explore This Story â','family'=>'Instrument Sans, Arial, sans-serif','color'=>'#1C242B','dark_color'=>'#F4EEE2','size'=>'0.86rem','weight'=>'700','line_height'=>'1.2','letter_spacing'=>'0.02em','transform'=>'none','decoration'=>'none'],
+ 'public_meta'=>['group'=>'Public Website','label'=>'Metadata & Details','description'=>'Compact supporting facts that identify or describe public content.','usage'=>'Story genres, play counts, story settings, back links, and small supporting details.','preview'=>'Mystery · 24 plays','family'=>'Instrument Sans, Arial, sans-serif','color'=>'#66715C','dark_color'=>'#D9D1C2','size'=>'0.78rem','weight'=>'600','line_height'=>'1.35','letter_spacing'=>'0.06em','transform'=>'none','decoration'=>'none'],
+ 'public_navigation'=>['group'=>'Public Website','label'=>'Top Navigation','description'=>'Public website navigation—not workspace drawer links.','usage'=>'Desktop and mobile public header links, plus public footer navigation.','preview'=>'How It Works   Stories   For Writers','family'=>'Instrument Sans, Arial, sans-serif','color'=>'#F4EEE2','dark_color'=>'#F4EEE2','size'=>'0.9rem','weight'=>'600','line_height'=>'1.2','letter_spacing'=>'0.02em','transform'=>'none','decoration'=>'none'],
+ 'public_actions'=>['group'=>'Public Website','label'=>'Buttons & Links','description'=>'Prominent public calls to action.','usage'=>'Public buttons, story-card links, social buttons, and calls to action such as Explore This Story.','preview'=>'Explore This Story →','family'=>'Instrument Sans, Arial, sans-serif','color'=>'#1C242B','dark_color'=>'#F4EEE2','size'=>'0.86rem','weight'=>'700','line_height'=>'1.2','letter_spacing'=>'0.02em','transform'=>'none','decoration'=>'none'],
  'internal_page_title'=>['group'=>'Application & Admin','label'=>'Page Title','description'=>'Primary titles on workspace and account screens.','family'=>'Cormorant Garamond, Georgia, serif','color'=>'#1C242B','dark_color'=>'#F4EEE2','size'=>'2rem','weight'=>'600','line_height'=>'1.05','letter_spacing'=>'0','transform'=>'none','decoration'=>'none'],
  'internal_section_title'=>['group'=>'Application & Admin','label'=>'Section & Card Title','description'=>'Panel and card headings inside the application.','family'=>'Cormorant Garamond, Georgia, serif','color'=>'#1C242B','dark_color'=>'#F4EEE2','size'=>'1.35rem','weight'=>'600','line_height'=>'1.15','letter_spacing'=>'0','transform'=>'none','decoration'=>'none'],
  'internal_body'=>['group'=>'Application & Admin','label'=>'Body & Form Text','description'=>'Application copy, form fields, and table content.','family'=>'Instrument Sans, Arial, sans-serif','color'=>'#1C242B','dark_color'=>'#F4EEE2','size'=>'0.9rem','weight'=>'400','line_height'=>'1.5','letter_spacing'=>'0','transform'=>'none','decoration'=>'none'],
@@ -138,7 +138,7 @@ function admin_optional_color_control(string $label,string $name,?string $color,
 <link rel="stylesheet" href="assets/toinky-theme.css">
 <link rel="stylesheet" href="assets/toinky-admin-shell.css">
 <style>
-.main{padding:20px!important}.top h1{margin:.15em 0;font-size:1.75rem}.top p{margin:.25em 0}.cards{gap:10px}.metric,.panel{padding:14px!important;border-radius:10px}.panel{margin-top:14px}.metric b{font-size:27px}.field{margin:8px 0}.field input,.field textarea,.field select{padding:8px!important}.table th,.table td{padding:8px 6px}.page-section-card{padding:0!important;overflow:hidden}.page-section-card>summary,.management-panel>summary,.font-card>summary{list-style:none;cursor:pointer}.page-section-card>summary::-webkit-details-marker,.management-panel>summary::-webkit-details-marker,.font-card>summary::-webkit-details-marker{display:none}.page-section-summary{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 15px;font-weight:800}.page-section-summary::after,.management-panel>summary::after,.font-card>summary::after{content:'+';font-size:18px}.page-section-card[open]>.page-section-summary::after,.management-panel[open]>summary::after,.font-card[open]>summary::after{content:'â'}.page-section-summary small{margin-left:auto;color:#64748b;font-weight:600}.page-section-body{padding:0 15px 15px;border-top:1px solid #e2ded6}.editor-toolbar button{background:#fff!important;color:#1C242B!important;border:1px solid #cbd5e1!important;border-radius:4px!important;padding:4px 7px!important;font-size:11px!important;font-weight:650!important;letter-spacing:0!important;text-transform:none!important;box-shadow:none!important}.editor-toolbar button:hover{background:#eef2f7!important;border-color:#8b98a5!important}.rich-editor{min-height:140px}.page-color-control{margin:10px 0;padding:9px}.page-editor-grid{gap:14px}.page-media-grid{grid-template-columns:repeat(auto-fill,minmax(190px,1fr))!important;gap:10px!important}.page-media-card{padding:8px!important;font-size:12px}.page-media-card>img{height:116px!important}.page-media-card .field{margin:6px 0}.page-media-card .field input,.page-media-card .field select{padding:6px!important;font-size:12px}.page-media-card details{margin-top:7px}.page-media-card summary{cursor:pointer;font-weight:750}.management-panel{margin-top:14px!important;padding:0!important;overflow:hidden}.management-panel>summary{display:flex;align-items:center;gap:10px;padding:14px 16px;font-size:1.25rem;font-weight:800}.management-panel>summary::after{margin-left:auto}.management-panel>summary .muted{font-size:12px;font-weight:650}.management-panel-body{padding:0 14px 14px;border-top:1px solid #e2ded6}.page-media-upload{padding:12px!important;margin:12px 0!important}.font-grid{grid-template-columns:repeat(auto-fill,minmax(220px,1fr))}.font-card{padding:0!important;overflow:hidden}.font-card>summary{display:flex;align-items:center;padding:11px 12px;font-weight:800}.font-card>summary::after{margin-left:auto}.font-card-body{padding:0 12px 12px;border-top:1px solid #e2ded6}.brand-font-guidance{padding:11px 13px;border-left:3px solid #668091;background:#f4eee2;margin:0 0 14px}.brand-font-guidance strong{color:#6B2938}.section-columns[hidden],[data-background-color-control][hidden],[data-background-media-controls][hidden],[data-overlay-start-control][hidden],[data-overlay-end-control][hidden]{display:none!important}.theme-media-panel{margin:14px 0;border:1px solid #d5cec1;border-radius:8px;background:#fbf8f1}.theme-media-panel>summary{padding:11px 13px;cursor:pointer;font-weight:800}.theme-media-body{padding:0 13px 12px;border-top:1px solid #e2ded6}@media(max-width:760px){.main{padding:14px!important}.page-section-summary{align-items:flex-start;flex-wrap:wrap}.page-section-summary small{width:100%;margin-left:0}.metric,.panel{padding:12px!important}}
+.main{padding:20px!important}.top h1{margin:.15em 0;font-size:1.75rem}.top p{margin:.25em 0}.cards{gap:10px}.metric,.panel{padding:14px!important;border-radius:10px}.panel{margin-top:14px}.metric b{font-size:27px}.field{margin:8px 0}.field input,.field textarea,.field select{padding:8px!important}.table th,.table td{padding:8px 6px}.page-section-card{padding:0!important;overflow:hidden}.page-section-card>summary,.management-panel>summary,.font-card>summary{list-style:none;cursor:pointer}.page-section-card>summary::-webkit-details-marker,.management-panel>summary::-webkit-details-marker,.font-card>summary::-webkit-details-marker{display:none}.page-section-summary{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 15px;font-weight:800}.page-section-summary::after,.management-panel>summary::after,.font-card>summary::after{content:'+';font-size:18px}.page-section-card[open]>.page-section-summary::after,.management-panel[open]>summary::after,.font-card[open]>summary::after{content:'−'}.page-section-summary small{margin-left:auto;color:#64748b;font-weight:600}.page-section-body{padding:0 15px 15px;border-top:1px solid #e2ded6}.editor-toolbar button{background:#fff!important;color:#1C242B!important;border:1px solid #cbd5e1!important;border-radius:4px!important;padding:4px 7px!important;font-size:11px!important;font-weight:650!important;letter-spacing:0!important;text-transform:none!important;box-shadow:none!important}.editor-toolbar button:hover{background:#eef2f7!important;border-color:#8b98a5!important}.rich-editor{min-height:140px}.page-color-control{margin:10px 0;padding:9px}.page-editor-grid{gap:14px}.page-media-grid{grid-template-columns:repeat(auto-fill,minmax(190px,1fr))!important;gap:10px!important}.page-media-card{padding:8px!important;font-size:12px}.page-media-card>img{height:116px!important}.page-media-card .field{margin:6px 0}.page-media-card .field input,.page-media-card .field select{padding:6px!important;font-size:12px}.page-media-card details{margin-top:7px}.page-media-card summary{cursor:pointer;font-weight:750}.management-panel{margin-top:14px!important;padding:0!important;overflow:hidden}.management-panel>summary{display:flex;align-items:center;gap:10px;padding:14px 16px;font-size:1.25rem;font-weight:800}.management-panel>summary::after{margin-left:auto}.management-panel>summary .muted{font-size:12px;font-weight:650}.management-panel-body{padding:0 14px 14px;border-top:1px solid #e2ded6}.page-media-upload{padding:12px!important;margin:12px 0!important}.font-grid{grid-template-columns:repeat(auto-fill,minmax(220px,1fr))}.font-card{padding:0!important;overflow:hidden}.font-card>summary{display:flex;align-items:center;padding:11px 12px;font-weight:800}.font-card>summary::after{margin-left:auto}.font-card-body{padding:0 12px 12px;border-top:1px solid #e2ded6}.brand-font-guidance{padding:11px 13px;border-left:3px solid #668091;background:#f4eee2;margin:0 0 14px}.brand-font-guidance strong{color:#6B2938}.section-columns[hidden],[data-background-color-control][hidden],[data-background-media-controls][hidden],[data-overlay-start-control][hidden],[data-overlay-end-control][hidden]{display:none!important}.theme-media-panel{margin:14px 0;border:1px solid #d5cec1;border-radius:8px;background:#fbf8f1}.theme-media-panel>summary{padding:11px 13px;cursor:pointer;font-weight:800}.theme-media-body{padding:0 13px 12px;border-top:1px solid #e2ded6}@media(max-width:760px){.main{padding:14px!important}.page-section-summary{align-items:flex-start;flex-wrap:wrap}.page-section-summary small{width:100%;margin-left:0}.metric,.panel{padding:12px!important}}
 </style>
 <style>
 [data-section-image-controls][hidden],[data-overlay-opacity-control][hidden]{display:none!important}.theme-form .font-card{padding:12px!important;overflow:visible}
@@ -212,8 +212,8 @@ function admin_optional_color_control(string $label,string $name,?string $color,
 <?=e($detailUser['display_name'])?>
 </h2>
 <p>
-<?=e($detailUser['email'])?> Â· <?=e($detailUser['status'])?>
-<?=((int)$detailUser['is_admin']===1)?' Â· Administrator':''?>
+<?=e($detailUser['email'])?> · <?=e($detailUser['status'])?>
+<?=((int)$detailUser['is_admin']===1)?' · Administrator':''?>
 </p>
 </section>
 <section class="panel">
@@ -429,7 +429,7 @@ function admin_optional_color_control(string $label,string $name,?string $color,
 <?=e($r['title'])?>
 </b>
 <br>
-<?=e($r['code'])?> Â· revision <?=(int)$r['version_no']?>
+<?=e($r['code'])?> · revision <?=(int)$r['version_no']?>
 </td>
 <td>
 <?=e($r['submitted_by'])?>
@@ -456,30 +456,30 @@ function admin_optional_color_control(string $label,string $name,?string $color,
 <p>No submitted revisions yet.</p>
 <?php endif;?>
 </section>
-<section class="panel"><h2>Simulation Review Batches</h2><p class="muted">Run repeatable tests against one story, then generate evidence-backed improvement points and a copy-ready reviewer package. Jobs are stored in the database, so closing or refreshing Admin does not cancel them.</p><form method="post" class="simulation-batch-form"><?=csrf_field()?><input type="hidden" name="action" value="start_simulation_review_batch"><label class="field">Story<select name="plot_id" required><?php foreach($reviewPlots as$reviewPlot):?><option value="<?=(int)$reviewPlot['plot_id']?>"><?=e($reviewPlot['title'].' Â· '.$reviewPlot['code'])?></option><?php endforeach;?></select></label><label class="field">Control Mode<select name="controller_mode"><option value="AUTONOMOUS">All Autonomous</option><option value="HUMAN_RANDOM">All Human (Random)</option><option value="HUMAN_BIASED">All Human (Biased)</option></select><span class="muted">Biased tests use each optionâs Autonomous Choice Weight.</span></label><label class="field">Tests<input type="number" name="requested_runs" min="1" max="250" value="10"></label><label class="field">Story Duration<input type="number" name="duration_seconds" min="60" max="86400" value="300"><span class="muted">Seconds</span></label><label class="field">Clock Step<input type="number" name="step_seconds" min="1" max="3600" value="30"><span class="muted">Seconds</span></label><button class="btn">Queue Tests</button></form><div class="correction-help"><b>Background worker:</b> add a cPanel cron that runs <code>/opt/cpanel/ea-php84/root/usr/bin/php /home/toinkyadmin/public_html/tools/process_simulation_review_batches.php --max=5</code> every minute. The queue and results are durable; the manual button below is a fallback when cron is unavailable.</div><form method="post"><?=csrf_field()?><input type="hidden" name="action" value="process_simulation_review_batch"><button class="btn alt">Run Next Queued Test Now</button></form>
+<section class="panel"><h2>Simulation Review Batches</h2><p class="muted">Run repeatable tests against one story, then generate evidence-backed improvement points and a copy-ready reviewer package. Jobs are stored in the database, so closing or refreshing Admin does not cancel them.</p><form method="post" class="simulation-batch-form"><?=csrf_field()?><input type="hidden" name="action" value="start_simulation_review_batch"><label class="field">Story<select name="plot_id" required><?php foreach($reviewPlots as$reviewPlot):?><option value="<?=(int)$reviewPlot['plot_id']?>"><?=e($reviewPlot['title'].' · '.$reviewPlot['code'])?></option><?php endforeach;?></select></label><label class="field">Control Mode<select name="controller_mode"><option value="AUTONOMOUS">All Autonomous</option><option value="HUMAN_RANDOM">All Human (Random)</option><option value="HUMAN_BIASED">All Human (Biased)</option></select><span class="muted">Biased tests use each option’s Autonomous Choice Weight.</span></label><label class="field">Tests<input type="number" name="requested_runs" min="1" max="250" value="10"></label><label class="field">Story Duration<input type="number" name="duration_seconds" min="60" max="86400" value="300"><span class="muted">Seconds</span></label><label class="field">Clock Step<input type="number" name="step_seconds" min="1" max="3600" value="30"><span class="muted">Seconds</span></label><button class="btn">Queue Tests</button></form><div class="correction-help"><b>Background worker:</b> add a cPanel cron that runs <code>/opt/cpanel/ea-php84/root/usr/bin/php /home/toinkyadmin/public_html/tools/process_simulation_review_batches.php --max=5</code> every minute. The queue and results are durable; the manual button below is a fallback when cron is unavailable.</div><form method="post"><?=csrf_field()?><input type="hidden" name="action" value="process_simulation_review_batch"><button class="btn alt">Run Next Queued Test Now</button></form>
 <table class="table"><tr><th>Story / Mode</th><th>Progress</th><th>Status</th><th>Requested</th><th>Review</th></tr><?php foreach($reviewBatches as$batch):?><tr><td><b><?=e($batch['title'])?></b><br><span class="muted"><?=e(ucwords(strtolower(str_replace('_',' ',$batch['controller_mode']))))?></span></td><td><progress class="batch-progress" max="<?=(int)$batch['requested_runs']?>" value="<?=(int)$batch['completed_runs']?>"></progress><br><?=(int)$batch['completed_runs']?> / <?=(int)$batch['requested_runs']?></td><td><span class="batch-status <?=e($batch['status'])?>"><?=e(ucwords(strtolower($batch['status'])))?></span><?php if($batch['last_error']):?><br><span class="muted"><?=e($batch['last_error'])?></span><?php endif;?></td><td><?=e($batch['requested_by'])?><br><span class="muted"><?=e($batch['created_at_utc'])?></span></td><td><a class="btn alt" href="?view=story_reviews&amp;batch=<?=(int)$batch['simulation_review_batch_id']?>">Open</a></td></tr><?php endforeach;?></table>
 </section>
-<?php if($selectedReviewBatch):?><section class="panel"><h2><?=e($selectedReviewBatch['title'])?> Â· Batch <?=(int)$selectedReviewBatch['simulation_review_batch_id']?></h2><p><span class="batch-status <?=e($selectedReviewBatch['status'])?>"><?=e($selectedReviewBatch['status'])?></span> Â· <?=(int)$selectedReviewBatch['completed_runs']?> of <?=(int)$selectedReviewBatch['requested_runs']?> tests complete</p><?php $batchSummary=json_decode((string)($selectedReviewBatch['summary_json']??''),true)?:[];if($batchSummary):?><h3>Specific Improvement Points</h3><ol><?php foreach(($batchSummary['specific_improvement_points']??[])as$point):?><li><?=e($point)?></li><?php endforeach;?></ol><?php endif;?><?php if($selectedReviewBatch['review_package']):?><button type="button" class="btn" data-copy-target="simulation-review-package">Copy Reviewer Package</button><pre class="review-output" id="simulation-review-package"><?=e($selectedReviewBatch['review_package'])?></pre><?php elseif(in_array($selectedReviewBatch['status'],['QUEUED','RUNNING'],true)):?><p class="muted">This page will refresh while the worker completes the batch.</p><script>setTimeout(()=>location.reload(),15000)</script><?php endif;?></section><?php endif;?>
+<?php if($selectedReviewBatch):?><section class="panel"><h2><?=e($selectedReviewBatch['title'])?> · Batch <?=(int)$selectedReviewBatch['simulation_review_batch_id']?></h2><p><span class="batch-status <?=e($selectedReviewBatch['status'])?>"><?=e($selectedReviewBatch['status'])?></span> · <?=(int)$selectedReviewBatch['completed_runs']?> of <?=(int)$selectedReviewBatch['requested_runs']?> tests complete</p><?php $batchSummary=json_decode((string)($selectedReviewBatch['summary_json']??''),true)?:[];if($batchSummary):?><h3>Specific Improvement Points</h3><ol><?php foreach(($batchSummary['specific_improvement_points']??[])as$point):?><li><?=e($point)?></li><?php endforeach;?></ol><?php endif;?><?php if($selectedReviewBatch['review_package']):?><button type="button" class="btn" data-copy-target="simulation-review-package">Copy Reviewer Package</button><pre class="review-output" id="simulation-review-package"><?=e($selectedReviewBatch['review_package'])?></pre><?php elseif(in_array($selectedReviewBatch['status'],['QUEUED','RUNNING'],true)):?><p class="muted">This page will refresh while the worker completes the batch.</p><script>setTimeout(()=>location.reload(),15000)</script><?php endif;?></section><?php endif;?>
 
 <?php elseif($view==='story_review'):?>
 <?php $versionId=(int)($_GET['version']??0);$q=db()->prepare('SELECT v.*,p.title,p.code,u.display_name submitted_by,reviewer.display_name reviewed_by FROM plot_versions v JOIN plots p ON p.plot_id=v.plot_id JOIN users u ON u.user_id=v.submitted_by_user_id LEFT JOIN users reviewer ON reviewer.user_id=v.reviewed_by_user_id WHERE v.plot_version_id=?');$q->execute([$versionId]);$reviewVersion=$q->fetch();?>
 <?php if(!$reviewVersion):?>
 <section class="panel"><h2>Revision Not Found</h2><p>The requested story revision is unavailable.</p></section>
 <?php else:?>
-<section class="panel"><div class="review-heading"><div><h2><?=e($reviewVersion['title'])?> Â· Revision <?=(int)$reviewVersion['version_no']?></h2><p class="muted"><?=e($reviewVersion['code'])?> Â· submitted by <?=e($reviewVersion['submitted_by'])?> on <?=e($reviewVersion['created_at_utc'])?> Â· <?=e(ucwords(strtolower(str_replace('_',' ',$reviewVersion['workflow_status']))))?></p></div><button type="button" class="btn alt" onclick="window.close()">Close Window</button></div></section>
+<section class="panel"><div class="review-heading"><div><h2><?=e($reviewVersion['title'])?> · Revision <?=(int)$reviewVersion['version_no']?></h2><p class="muted"><?=e($reviewVersion['code'])?> · submitted by <?=e($reviewVersion['submitted_by'])?> on <?=e($reviewVersion['created_at_utc'])?> · <?=e(ucwords(strtolower(str_replace('_',' ',$reviewVersion['workflow_status']))))?></p></div><button type="button" class="btn alt" onclick="window.close()">Close Window</button></div></section>
 <section class="panel"><h2>Review and Decision</h2>
 <form method="post" style="margin-bottom:18px"><?=csrf_field()?><input type="hidden" name="action" value="audit_story"><input type="hidden" name="plot_id" value="<?=(int)$reviewVersion['plot_id']?>"><input type="hidden" name="plot_version_id" value="<?=(int)$reviewVersion['plot_version_id']?>"><button class="btn alt">Generate Reviewer Package</button></form>
 <form method="post"><?=csrf_field()?><input type="hidden" name="action" value="review_story"><input type="hidden" name="plot_version_id" value="<?=(int)$reviewVersion['plot_version_id']?>"><label class="field">Decision<select name="decision"><option value="CHANGES_REQUESTED">Request changes</option><option value="APPROVED">Approve</option><option value="PUBLISHED">Publish</option><option value="ARCHIVED">Archive</option></select></label><label class="field">Review Notes<textarea name="review_notes" rows="5"><?=e($reviewVersion['review_notes']??'')?></textarea></label><button class="btn">Save Review</button></form>
-<form method="post" enctype="multipart/form-data" class="correction-upload"><?=csrf_field()?><input type="hidden" name="plot_version_id" value="<?=(int)$reviewVersion['plot_version_id']?>"><label class="field">Reviewer Correction Package<input type="file" name="correction_file" accept=".json,.csv,application/json,text/csv" required></label><span class="muted">Latest revision only Â· maximum 2 MB Â· v2 structural packages require validation and explicit confirmation</span><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px"><button class="btn alt" name="action" value="preview_story_corrections">Validate and Preview v2</button><label style="display:flex;align-items:center;gap:7px;font-size:12px"><input type="checkbox" name="confirm_structural" value="1"> I reviewed and approve every structural change in this file.</label><button class="btn" name="action" value="import_story_corrections">Apply as New Revision</button></div></form>
+<form method="post" enctype="multipart/form-data" class="correction-upload"><?=csrf_field()?><input type="hidden" name="plot_version_id" value="<?=(int)$reviewVersion['plot_version_id']?>"><label class="field">Reviewer Correction Package<input type="file" name="correction_file" accept=".json,.csv,application/json,text/csv" required></label><span class="muted">Latest revision only · maximum 2 MB · v2 structural packages require validation and explicit confirmation</span><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px"><button class="btn alt" name="action" value="preview_story_corrections">Validate and Preview v2</button><label style="display:flex;align-items:center;gap:7px;font-size:12px"><input type="checkbox" name="confirm_structural" value="1"> I reviewed and approve every structural change in this file.</label><button class="btn" name="action" value="import_story_corrections">Apply as New Revision</button></div></form>
 </section>
 <?php if($correctionPreview):?>
-<section class="panel"><h2>Correction Validation Preview</h2><p><b><?=count($correctionPreview['report'])?></b> validated changes Â· <b><?=(int)$correctionPreview['structural_count']?></b> structural Â· source revision <b><?=(int)$correctionPreview['version_no']?></b></p><p class="muted">Nothing was changed during validation. Compare the old and proposed values below. To apply, reselect the same file, check the structural confirmation, and click Apply as New Revision.</p><table class="table"><tr><th>Risk</th><th>Target</th><th>Current</th><th>Proposed</th><th>Reason</th></tr><?php foreach($correctionPreview['report']as$item):?><tr><td><span class="batch-status <?=$item['risk']==='STRUCTURAL'?'FAILED':'COMPLETE'?>"><?=e(ucwords(strtolower($item['risk'])))?></span></td><td><b><?=e($item['entity'])?></b><br><code><?=e($item['key'])?></code></td><td><code><?=e(json_encode($item['before'],JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES))?></code></td><td><code><?=e(json_encode($item['after'],JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES))?></code></td><td><?=e($item['reason']?:'No model reason supplied.')?></td></tr><?php endforeach;?></table></section>
-<?php if(!empty($correctionPreview['advisories'])):?><section class="panel"><h2>Reviewer Advisories</h2><p class="muted">These observations were not applied as changes. Evaluate them in Story Writer or a later simulation review.</p><ul><?php foreach($correctionPreview['advisories']as$advisory):?><li><?php if(is_array($advisory)):?><b><?=e($advisory['key'])?></b> Â· <?=e($advisory['issue'])?><br><span class="muted"><?=e($advisory['recommendation'])?></span><?php else:?><?=e($advisory)?><?php endif;?></li><?php endforeach;?></ul></section><?php endif;?>
+<section class="panel"><h2>Correction Validation Preview</h2><p><b><?=count($correctionPreview['report'])?></b> validated changes · <b><?=(int)$correctionPreview['structural_count']?></b> structural · source revision <b><?=(int)$correctionPreview['version_no']?></b></p><p class="muted">Nothing was changed during validation. Compare the old and proposed values below. To apply, reselect the same file, check the structural confirmation, and click Apply as New Revision.</p><table class="table"><tr><th>Risk</th><th>Target</th><th>Current</th><th>Proposed</th><th>Reason</th></tr><?php foreach($correctionPreview['report']as$item):?><tr><td><span class="batch-status <?=$item['risk']==='STRUCTURAL'?'FAILED':'COMPLETE'?>"><?=e(ucwords(strtolower($item['risk'])))?></span></td><td><b><?=e($item['entity'])?></b><br><code><?=e($item['key'])?></code></td><td><code><?=e(json_encode($item['before'],JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES))?></code></td><td><code><?=e(json_encode($item['after'],JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES))?></code></td><td><?=e($item['reason']?:'No model reason supplied.')?></td></tr><?php endforeach;?></table></section>
+<?php if(!empty($correctionPreview['advisories'])):?><section class="panel"><h2>Reviewer Advisories</h2><p class="muted">These observations were not applied as changes. Evaluate them in Story Writer or a later simulation review.</p><ul><?php foreach($correctionPreview['advisories']as$advisory):?><li><?php if(is_array($advisory)):?><b><?=e($advisory['key'])?></b> · <?=e($advisory['issue'])?><br><span class="muted"><?=e($advisory['recommendation'])?></span><?php else:?><?=e($advisory)?><?php endif;?></li><?php endforeach;?></ul></section><?php endif;?>
 <?php endif;?>
 <?php if($auditText):?>
 <section class="panel">
 <h2>Reviewer-Ready Story Package</h2>
-<p>Copy this into a capable reviewer. It includes the storyâs managed values, timing, dependencies, effects, ending conditions, and strict correction rules.</p>
+<p>Copy this into a capable reviewer. It includes the story’s managed values, timing, dependencies, effects, ending conditions, and strict correction rules.</p>
 <button type="button" class="btn" id="copy-review-package">Copy All</button>
 <div id="ai-review-copy-source">
 <div class="correction-help">
@@ -496,7 +496,7 @@ function admin_optional_color_control(string $label,string $name,?string $color,
 <li>Structural keys: <code>story_value</code> as <code>SCOPE|TARGET</code>; <code>dynamic_condition</code> as <code>OPPORTUNITY|SOURCE_TYPE|SOURCE_KEY_OR_-|CONDITION_ORDER</code>; <code>option_effect</code> as <code>EVENT|ROLE|OPTION|SCOPE|TARGET</code>; and <code>dynamic_effect</code> as <code>OPPORTUNITY|OPTION|SCOPE|TARGET</code>.</li>
 <li><code>upsert</code> is permitted only for a missing option effect or dynamic effect and must use <code>"expected":null</code>. All other changes use <code>update</code>.</li>
 <li>Event timing may change only when the final stable event sequence remains identical. Phase, stable codes, activation, cast size, ownership, and structural record creation remain protected.</li>
-<li>Use exact types and units: seconds are whole numbers; autonomous weights are 0â10,000; preset values must come from the managed Story Value; operators must be EQ, NEQ, IN, NOT_IN, EXISTS, NOT_EXISTS, LT, LTE, GT, or GTE.</li>
+<li>Use exact types and units: seconds are whole numbers; autonomous weights are 0–10,000; preset values must come from the managed Story Value; operators must be EQ, NEQ, IN, NOT_IN, EXISTS, NOT_EXISTS, LT, LTE, GT, or GTE.</li>
 <li>The administrator validates and previews the package before applying it. The import is transactional and creates a new SUBMITTED revision; it never publishes automatically.</li>
 </ol>
 </div>
@@ -577,7 +577,7 @@ function admin_optional_color_control(string $label,string $name,?string $color,
 <label class="field">Font Weight<select name="<?=e($fields['weight'])?>">
 <?php foreach($fontWeights as$value=>$label):?>
 <option value="<?=$value?>" <?=$t[$fields['weight']]===(string)$value?'selected':''?>>
-<?=e($label.' Â· '.$value)?>
+<?=e($label.' · '.$value)?>
 </option>
 <?php endforeach;?>
 </select>
@@ -605,7 +605,7 @@ function admin_optional_color_control(string $label,string $name,?string $color,
 <option value="">No image</option>
 <?php foreach($themeMedia as$m):if($m['media_type']!==$type)continue;?>
 <option value="<?=(int)$m['media_id']?>" <?=((int)($t[$field]??0)===(int)$m['media_id'])?'selected':''?>>
-<?=e($m['title_text'].' Â· '.($m['uploader_name']??'System'))?>
+<?=e($m['title_text'].' · '.($m['uploader_name']??'System'))?>
 </option>
 <?php endforeach;?>
 </select>
@@ -682,7 +682,7 @@ function admin_optional_color_control(string $label,string $name,?string $color,
 <label class="field">Font Weight<select name="brand_<?=e($key)?>_weight">
 <?php foreach($fontWeights as$value=>$label):?>
 <option value="<?=$value?>" <?=$role['weight']===(string)$value?'selected':''?>>
-<?=e($label.' Â· '.$value)?>
+<?=e($label.' · '.$value)?>
 </option>
 <?php endforeach;?>
 </select>
@@ -709,10 +709,10 @@ function admin_optional_color_control(string $label,string $name,?string $color,
 <div class="parallax-list" data-parallax-list>
 <?php foreach($parallaxLayers as$layer):?>
 <article class="parallax-card" draggable="true" data-layer-id="<?=(int)$layer['parallax_layer_id']?>">
-<div class="drag-handle" title="Drag to reorder" aria-label="Drag to reorder">â®â®</div>
+<div class="drag-handle" title="Drag to reorder" aria-label="Drag to reorder">⋮⋮</div>
 <div>
 <img class="parallax-thumb" src="<?=e($layer['image_path'])?>" alt="Preview of <?=e($layer['label_text'])?>">
-<p class="parallax-meta"><?=(int)$layer['width_px']?> Ã <?=(int)$layer['height_px']?> Â· <?=e(strtoupper(pathinfo($layer['image_path'],PATHINFO_EXTENSION)))?></p>
+<p class="parallax-meta"><?=(int)$layer['width_px']?> × <?=(int)$layer['height_px']?> · <?=e(strtoupper(pathinfo($layer['image_path'],PATHINFO_EXTENSION)))?></p>
 </div>
 <div>
 <form method="post" enctype="multipart/form-data">
@@ -756,7 +756,7 @@ function admin_optional_color_control(string $label,string $name,?string $color,
 <input type="hidden" name="action" value="add_parallax_layer">
 <input type="hidden" name="brand_tab" value="parallax">
 <h3>Add Parallax Layer</h3>
-<p class="muted">PNG and JPG only. Images are optimized and resized proportionally to a maximum of 1920 Ã 1080 pixels.</p>
+<p class="muted">PNG and JPG only. Images are optimized and resized proportionally to a maximum of 1920 × 1080 pixels.</p>
 <div class="parallax-add-grid">
 <label class="field wide">Layer Name<input name="label_text" maxlength="120" required></label>
 <label class="field wide">Image<input type="file" name="layer_image" accept="image/png,image/jpeg,.png,.jpg,.jpeg" required></label>
@@ -806,7 +806,7 @@ function admin_optional_color_control(string $label,string $name,?string $color,
 <label class="field">Title<input name="title_text" maxlength="500" value="<?=e($section['title_text']??'')?>"></label>
 <label class="field">Content</label>
 <div class="editor-toolbar" data-editor-toolbar>
-<button type="button" data-command="undo" title="Undo">â¶</button><button type="button" data-command="redo" title="Redo">â·</button>
+<button type="button" data-command="undo" title="Undo">↶</button><button type="button" data-command="redo" title="Redo">↷</button>
 <button type="button" data-command="bold"><b>B</b></button><button type="button" data-command="italic"><i>I</i></button><button type="button" data-command="underline"><u>U</u></button>
 <button type="button" data-block="h2">Heading 2</button><button type="button" data-block="h3">Heading 3</button><button type="button" data-block="p">Paragraph</button>
 <button type="button" data-command="insertUnorderedList">Bullets</button><button type="button" data-command="insertOrderedList">Numbers</button><button type="button" data-link>Link</button><button type="button" data-command="removeFormat">Clear</button>
@@ -818,11 +818,11 @@ function admin_optional_color_control(string $label,string $name,?string $color,
 <label class="field">Section Layout<select name="layout_type" data-section-layout>
 <?php foreach(['IMAGE_RIGHT'=>'Image On Right','IMAGE_LEFT'=>'Image On Left','THREE_COLUMN'=>'Three Columns','SOCIALS'=>'Social Media Buttons','TEXT_CENTER'=>'No Image, Centered Text']as$layoutValue=>$layoutLabel):?><option value="<?=e($layoutValue)?>" <?=($section['layout_type']??'IMAGE_RIGHT')===$layoutValue?'selected':''?>><?=e($layoutLabel)?></option><?php endforeach;?>
 </select></label>
-<div data-section-image-controls><label class="field">Section Image<select name="image_media_id"><option value="">No image</option><?php foreach($pageMedia as$media):?><option value="<?=(int)$media['media_id']?>" <?=(int)($section['image_media_id']??0)===(int)$media['media_id']?'selected':''?>><?=e($media['title_text'].' Â· '.$media['media_type'])?></option><?php endforeach;?></select></label>
+<div data-section-image-controls><label class="field">Section Image<select name="image_media_id"><option value="">No image</option><?php foreach($pageMedia as$media):?><option value="<?=(int)$media['media_id']?>" <?=(int)($section['image_media_id']??0)===(int)$media['media_id']?'selected':''?>><?=e($media['title_text'].' · '.$media['media_type'])?></option><?php endforeach;?></select></label>
 <?php if(!empty($section['image_path'])):?><div class="media-choice"><img src="<?=e($section['image_thumbnail']?:$section['image_path'])?>" alt=""><span class="muted">Current section image</span></div><?php endif;?></div>
 <label class="field">Section Background<select name="background_mode" data-background-mode><option value="DEFAULT" <?=$section['background_mode']==='DEFAULT'?'selected':''?>>Default page design</option><option value="COLOR" <?=$section['background_mode']==='COLOR'?'selected':''?>>Solid color</option><option value="MEDIA" <?=$section['background_mode']==='MEDIA'?'selected':''?>>Media image</option></select></label>
 <div data-background-color-control><?=admin_color_control('Background Color','background_color',(string)($section['background_color']?:'#F4EEE2'))?></div>
-<div data-background-media-controls><label class="field">Background Image<select name="background_media_id"><option value="">Choose an image</option><?php foreach($pageMedia as$media):?><option value="<?=(int)$media['media_id']?>" <?=(int)($section['background_media_id']??0)===(int)$media['media_id']?'selected':''?>><?=e($media['title_text'].' Â· '.$media['media_type'])?></option><?php endforeach;?></select></label>
+<div data-background-media-controls><label class="field">Background Image<select name="background_media_id"><option value="">Choose an image</option><?php foreach($pageMedia as$media):?><option value="<?=(int)$media['media_id']?>" <?=(int)($section['background_media_id']??0)===(int)$media['media_id']?'selected':''?>><?=e($media['title_text'].' · '.$media['media_type'])?></option><?php endforeach;?></select></label>
 <label class="field">Background Image Fit<select name="background_fit"><?php foreach(['COVER'=>'Cover Section','CONTAIN'=>'Fit Entire Image','TILE'=>'Tile / Repeat','STRETCH'=>'Stretch To Section','CENTER'=>'Original Size, Centered']as$fitValue=>$fitLabel):?><option value="<?=e($fitValue)?>" <?=($section['background_fit']??'COVER')===$fitValue?'selected':''?>><?=e($fitLabel)?></option><?php endforeach;?></select></label>
 <label class="field">Background Image Opacity <output><?=(int)($section['background_opacity']??100)?>%</output><input type="range" name="background_opacity" min="0" max="100" value="<?=(int)($section['background_opacity']??100)?>" oninput="this.previousElementSibling.value=this.value+'%'"></label></div>
 <label class="field">Tint / Overlay<select name="overlay_mode" data-overlay-mode><option value="NONE" <?=($section['overlay_mode']??'NONE')==='NONE'?'selected':''?>>None</option><option value="COLOR" <?=($section['overlay_mode']??'NONE')==='COLOR'?'selected':''?>>Plain Color Tint</option><option value="GRADIENT" <?=($section['overlay_mode']??'NONE')==='GRADIENT'?'selected':''?>>Gradient Tint</option></select></label>
@@ -834,7 +834,7 @@ function admin_optional_color_control(string $label,string $name,?string $color,
 <div class="spacing-grid" data-spacing-fields><?php foreach(['top'=>'Top','right'=>'Right','bottom'=>'Bottom','left'=>'Left']as$edge=>$label):?><label class="field"><?=e($label)?><input type="number" name="padding_<?=e($edge)?>_px" min="0" max="400" value="<?=e((string)($section['padding_'.$edge.'_px']??''))?>" placeholder="Default"></label><?php endforeach;?></div>
 <h4>Mobile Overrides <span class="muted">(optional)</span></h4><div class="spacing-grid"><?php foreach(['top'=>'Top','right'=>'Right','bottom'=>'Bottom','left'=>'Left']as$edge=>$label):?><label class="field"><?=e($label)?><input type="number" name="mobile_padding_<?=e($edge)?>_px" min="0" max="400" value="<?=e((string)($section['mobile_padding_'.$edge.'_px']??''))?>" placeholder="Desktop value"></label><?php endforeach;?></div>
 </div></details>
-<details class="section-style-panel"><summary>Typography Overrides</summary><div class="section-style-body"><p class="muted">These controls override Brand â Typography only for this section. Blank fields continue following the brand role.</p>
+<details class="section-style-panel"><summary>Typography Overrides</summary><div class="section-style-body"><p class="muted">These controls override Brand → Typography only for this section. Blank fields continue following the brand role.</p>
 <?php foreach(['label'=>['Section Label','#6B2938'],'title'=>['Section Title','#1C242B'],'body'=>['Body Text','#35424B']]as$typeKey=>$typeInfo):?><fieldset class="type-override"><legend><?=e($typeInfo[0])?><?php if(!empty($section[$typeKey.'_font_size'])||!empty($section[$typeKey.'_color'])||!empty($section[$typeKey.'_transform'])):?><span class="override-badge">Override</span><?php endif;?></legend><label class="field">Font Size<input name="<?=e($typeKey)?>_font_size" value="<?=e((string)($section[$typeKey.'_font_size']??''))?>" placeholder="Follow Brand"></label><?=admin_optional_color_control('Color',$typeKey.'_color',$section[$typeKey.'_color']??null,$typeInfo[1])?><label class="field">Text Transform<select name="<?=e($typeKey)?>_transform"><option value="">Follow Brand</option><?php foreach($textTransforms as$value=>$label):?><option value="<?=e($value)?>" <?=($section[$typeKey.'_transform']??'')===$value?'selected':''?>><?=e($label)?></option><?php endforeach;?></select></label></fieldset><?php endforeach;?>
 </div></details>
 </div>
@@ -855,7 +855,7 @@ function admin_optional_color_control(string $label,string $name,?string $color,
 <details class="panel management-panel">
 <summary>Page Media <span class="muted"><?=count($pageMedia)?> item<?=count($pageMedia)===1?'':'s'?></span></summary>
 <div class="management-panel-body">
-<p class="muted">Uploaded files are immediately resized to a maximum 1920-pixel edge. The full-size upload is not retained, and a 150 Ã 150 thumbnail is created automatically.</p>
+<p class="muted">Uploaded files are immediately resized to a maximum 1920-pixel edge. The full-size upload is not retained, and a 150 × 150 thumbnail is created automatically.</p>
 <form method="post" enctype="multipart/form-data" class="page-media-upload">
 <?=csrf_field()?>
 <input type="hidden" name="action" value="page_media_upload"><input type="hidden" name="page_code" value="<?=e($pageCode)?>">
@@ -866,10 +866,10 @@ function admin_optional_color_control(string $label,string $name,?string $color,
 <div class="page-media-grid">
 <?php foreach($pageMedia as$media):$preview=$media['thumbnail_path']?:$media['file_path'];?>
 <article class="page-media-card">
-<img src="<?=e($preview)?>" alt="<?=e($media['alt_text'])?>"><p class="source-dimensions"><?=(int)$media['width_px']?> Ã <?=(int)$media['height_px']?> Â· <?=e($media['mime_type'])?></p>
+<img src="<?=e($preview)?>" alt="<?=e($media['alt_text'])?>"><p class="source-dimensions"><?=(int)$media['width_px']?> × <?=(int)$media['height_px']?> · <?=e($media['mime_type'])?></p>
 <form method="post"><?=csrf_field()?><input type="hidden" name="action" value="page_media_update"><input type="hidden" name="page_code" value="<?=e($pageCode)?>"><input type="hidden" name="media_id" value="<?=(int)$media['media_id']?>"><label class="field">Type<select name="media_type"><?php foreach(MediaLibraryService::TYPES as$type):?><option value="<?=e($type)?>" <?=$media['media_type']===$type?'selected':''?>><?=e(ucwords(strtolower(str_replace('_',' ',$type))))?></option><?php endforeach;?></select></label><label class="field">Title<input name="title_text" maxlength="190" value="<?=e($media['title_text'])?>" required></label><label class="field">Alternative Text<input name="alt_text" maxlength="500" value="<?=e($media['alt_text'])?>" required></label><button class="btn alt">Save Details</button></form>
 <details><summary>Crop or resize processed image</summary><form method="post"><?=csrf_field()?><input type="hidden" name="action" value="page_media_crop"><input type="hidden" name="page_code" value="<?=e($pageCode)?>"><input type="hidden" name="media_id" value="<?=(int)$media['media_id']?>"><div class="media-form-row"><label class="field">Crop X<input type="number" name="crop_x" min="0" max="<?=(int)$media['width_px']?>" value="0"></label><label class="field">Crop Y<input type="number" name="crop_y" min="0" max="<?=(int)$media['height_px']?>" value="0"></label><label class="field">Crop Width<input type="number" name="crop_width" min="1" max="<?=(int)$media['width_px']?>" value="<?=(int)$media['width_px']?>"></label><label class="field">Crop Height<input type="number" name="crop_height" min="1" max="<?=(int)$media['height_px']?>" value="<?=(int)$media['height_px']?>"></label><label class="field">Resize Width<input type="number" name="resize_width" min="1" max="1920" placeholder="Keep crop width"></label><label class="field">Resize Height<input type="number" name="resize_height" min="1" max="1920" placeholder="Auto"></label></div><button class="btn alt">Apply Crop / Resize</button></form></details>
-<details><summary>Recreate 150 Ã 150 thumbnail</summary><form method="post"><?=csrf_field()?><input type="hidden" name="action" value="page_media_thumbnail"><input type="hidden" name="page_code" value="<?=e($pageCode)?>"><input type="hidden" name="media_id" value="<?=(int)$media['media_id']?>"><div class="media-form-row"><label class="field">Crop X<input type="number" name="thumbnail_crop_x" min="0" max="<?=(int)$media['width_px']?>" value="<?=(int)($media['thumbnail_crop_x']??0)?>"></label><label class="field">Crop Y<input type="number" name="thumbnail_crop_y" min="0" max="<?=(int)$media['height_px']?>" value="<?=(int)($media['thumbnail_crop_y']??0)?>"></label><label class="field">Square Size<input type="number" name="thumbnail_crop_size" min="1" max="<?=min((int)$media['width_px'],(int)$media['height_px'])?>" value="<?=(int)($media['thumbnail_crop_size']?:min((int)$media['width_px'],(int)$media['height_px']))?>"></label></div><button class="btn alt">Recreate Thumbnail</button></form></details>
+<details><summary>Recreate 150 × 150 thumbnail</summary><form method="post"><?=csrf_field()?><input type="hidden" name="action" value="page_media_thumbnail"><input type="hidden" name="page_code" value="<?=e($pageCode)?>"><input type="hidden" name="media_id" value="<?=(int)$media['media_id']?>"><div class="media-form-row"><label class="field">Crop X<input type="number" name="thumbnail_crop_x" min="0" max="<?=(int)$media['width_px']?>" value="<?=(int)($media['thumbnail_crop_x']??0)?>"></label><label class="field">Crop Y<input type="number" name="thumbnail_crop_y" min="0" max="<?=(int)$media['height_px']?>" value="<?=(int)($media['thumbnail_crop_y']??0)?>"></label><label class="field">Square Size<input type="number" name="thumbnail_crop_size" min="1" max="<?=min((int)$media['width_px'],(int)$media['height_px'])?>" value="<?=(int)($media['thumbnail_crop_size']?:min((int)$media['width_px'],(int)$media['height_px']))?>"></label></div><button class="btn alt">Recreate Thumbnail</button></form></details>
 <form method="post" onsubmit="return confirm('Permanently delete this media item?')"><?=csrf_field()?><input type="hidden" name="action" value="page_media_delete"><input type="hidden" name="page_code" value="<?=e($pageCode)?>"><input type="hidden" name="media_id" value="<?=(int)$media['media_id']?>"><button class="btn danger">Delete Media</button></form>
 </article>
 <?php endforeach;?>
@@ -929,7 +929,7 @@ function admin_optional_color_control(string $label,string $name,?string $color,
 <?=e($g['status'])?>
 </td>
 <td>
-<?=e($g['average_rating']??'â')?> (<?=(int)$g['rating_count']?>)</td>
+<?=e($g['average_rating']??'—')?> (<?=(int)$g['rating_count']?>)</td>
 <td>
 <?=e($g['created_at_utc'])?>
 </td>
@@ -982,16 +982,16 @@ Simulations
 <?=e($s['host_name'])?>
 </td>
 <td>
-<?=(int)$s['human_count']?> human Â· <?=(int)$s['ai_count']?> autonomous</td>
+<?=(int)$s['human_count']?> human · <?=(int)$s['ai_count']?> autonomous</td>
 <td>
 <?=e($s['status'])?>
 <br>
 <span class="muted">
-<?=e($s['current_phase'])?> Â· <?=gmdate('i:s',(int)$s['elapsed_seconds'])?>
+<?=e($s['current_phase'])?> · <?=gmdate('i:s',(int)$s['elapsed_seconds'])?>
 </span>
 </td>
 <td>
-<?=e($s['average_rating']??'â')?>
+<?=e($s['average_rating']??'—')?>
 <?=((int)$s['rating_count']>0)?' ('.(int)$s['rating_count'].')':''?>
 </td>
 <td>
