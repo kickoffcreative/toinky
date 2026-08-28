@@ -13,8 +13,17 @@ final class StoryCorrectionService
         'resolution'=>['table'=>'plot_resolution_fragments','fields'=>['fragment_text']],
     ];
 
-    public static function import(array $admin,int $versionId,array $file): array
+    public static function inspect(array $admin,int $versionId,array $file): array
     {
+        require_once __DIR__.'/StoryCorrectionV2Service.php';
+        if(!StoryCorrectionV2Service::supports($file))throw new RuntimeException('Validation preview is required for Corrections v2 JSON packages. Legacy v1 packages remain prose-only and may be applied directly.');
+        return StoryCorrectionV2Service::inspect($admin,$versionId,$file);
+    }
+
+    public static function import(array $admin,int $versionId,array $file,bool $structuralConfirmed=false): array
+    {
+        require_once __DIR__.'/StoryCorrectionV2Service.php';
+        if(StoryCorrectionV2Service::supports($file))return StoryCorrectionV2Service::import($admin,$versionId,$file,$structuralConfirmed);
         if((int)($admin['is_admin']??0)!==1)throw new RuntimeException('Administrator access is required.');
         if(($file['error']??UPLOAD_ERR_NO_FILE)!==UPLOAD_ERR_OK)throw new RuntimeException('Choose a JSON or CSV correction package.');
         $size=(int)($file['size']??0);if($size<1||$size>self::MAX_BYTES)throw new RuntimeException('Correction packages must be 2 MB or smaller.');
