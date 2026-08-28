@@ -96,7 +96,7 @@ final class StoryCorrectionV2Service
         $pdo->beginTransaction();try{
             foreach($package['changes']as$i=>$change)$report[]=self::apply($pdo,$plotId,$change,$i+1,$affected);
             self::validateChronology($plotId,$beforeOrder);self::validateAffectedValues($plotId,$affected);
-            $audit=StoryAuthoringService::audit($plotId);if($audit['errors'])throw new RuntimeException('Post-import story validation failed: '.implode(' Â· ',$audit['errors']));
+            $audit=StoryAuthoringService::audit($plotId);if($audit['errors'])throw new RuntimeException('Post-import story validation failed: '.implode(' · ',$audit['errors']));
             if(!$commit){$pdo->rollBack();return['plot_id'=>$plotId,'version_no'=>(int)$version['version_no'],'change_count'=>count($report),'structural_count'=>count(array_filter($report,static fn($x)=>$x['risk']==='STRUCTURAL')),'report'=>$report,'advisories'=>$package['advisories']??[],'warnings'=>$audit['warnings']];}
             $snapshot=json_encode(['plot'=>StoryAuthoringService::story($plotId),'content'=>$audit['workspace']],JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES|JSON_THROW_ON_ERROR);$newNo=(int)$version['version_no']+1;
             $pdo->prepare('INSERT INTO plot_versions(plot_id,version_no,snapshot_json,submitted_by_user_id,workflow_status) VALUES(?,?,?,?,"SUBMITTED")')->execute([$plotId,$newNo,$snapshot,$admin['user_id']]);$newId=(int)$pdo->lastInsertId();
