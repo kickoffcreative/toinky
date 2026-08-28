@@ -146,9 +146,9 @@ final class StoryAuthoringService
     {
         $tables=[
             'characters'=>['SELECT * FROM plot_roles WHERE plot_id=? ORDER BY slot_no,plot_role_id',[$plotId]],
-            'locations'=>['SELECT * FROM plot_locations WHERE plot_id=? ORDER BY active DESC,sort_order,label_text',[$plotId]],
-            'state_definitions'=>['SELECT * FROM plot_state_definitions WHERE plot_id=? ORDER BY active DESC,effect_scope,sort_order,label_text',[$plotId]],
-            'story_sections'=>['SELECT * FROM plot_story_sections WHERE plot_id=? ORDER BY active DESC,sort_order,label_text',[$plotId]],
+            'locations'=>['SELECT * FROM plot_locations WHERE plot_id=? ORDER BY label_text,plot_location_id',[$plotId]],
+            'state_definitions'=>['SELECT * FROM plot_state_definitions WHERE plot_id=? ORDER BY label_text,plot_state_definition_id',[$plotId]],
+            'story_sections'=>['SELECT * FROM plot_story_sections WHERE plot_id=? ORDER BY label_text,plot_story_section_id',[$plotId]],
             'events'=>['SELECT * FROM plot_world_events WHERE plot_id=? ORDER BY event_second,sort_order,plot_world_event_id',[$plotId]],
             'decisions'=>['SELECT t.*,COUNT(o.template_option_id) option_count FROM plot_decision_templates t LEFT JOIN plot_decision_template_options o ON o.template_id=t.template_id WHERE t.plot_id=? GROUP BY t.template_id ORDER BY t.event_code,t.role_code',[$plotId]],
             'options'=>['SELECT o.*,t.event_code,t.role_code FROM plot_decision_template_options o JOIN plot_decision_templates t ON t.template_id=o.template_id WHERE t.plot_id=? ORDER BY t.event_code,t.role_code,o.sort_order',[$plotId]],
