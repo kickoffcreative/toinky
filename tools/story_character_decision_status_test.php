@@ -26,11 +26,12 @@ try{
         'role_type'=>$character['role_type'],'slot_no'=>$character['slot_no'],'name'=>$character['name'],
         'public_description'=>$character['public_description'],'private_knowledge'=>$character['private_knowledge'],
         'starting_location'=>$character['starting_location'],'goal_text'=>$character['goal_text'],
-        'fear_text'=>$character['fear_text'],'pronoun_set'=>$character['pronoun_set'],'simulation_active'=>0,
+        'fear_text'=>$character['fear_text'],'pronoun_set'=>$character['pronoun_set'],
+        'simulation_active'=>$character['simulation_active'],'active'=>0,
     ]);
     $q=$pdo->prepare('SELECT active FROM plot_decision_templates WHERE template_id=?');$q->execute([$decision['template_id']]);
     if((int)$q->fetchColumn()!==0)throw new RuntimeException('Decision did not become inactive.');
-    $q=$pdo->prepare('SELECT simulation_active FROM plot_roles WHERE plot_role_id=?');$q->execute([$character['plot_role_id']]);
+    $q=$pdo->prepare('SELECT active FROM plot_roles WHERE plot_role_id=?');$q->execute([$character['plot_role_id']]);
     if((int)$q->fetchColumn()!==0)throw new RuntimeException('Character did not become inactive.');
     $details=StoryAuthoringService::dependencyDetails((int)$decision['plot_id']);
     if(!isset($details['decision'][(int)$decision['template_id']]))throw new RuntimeException('Decision dependency details were not enumerated.');

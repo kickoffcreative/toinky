@@ -8,7 +8,7 @@ final class SimulationService {
             $pdo->prepare('INSERT INTO simulations(plot_id,duration_seconds,mode,status,current_phase) VALUES(?,?,"MANUAL","READY","SETUP")')->execute([$plot['plot_id'],$duration]);$sid=(int)$pdo->lastInsertId();
             $f=$pdo->prepare('SELECT * FROM plot_factors WHERE plot_id=?');$f->execute([$plot['plot_id']]);foreach($f->fetchAll()as$r)$pdo->prepare('INSERT INTO simulation_factors(simulation_id,factor_code,label,current_value,min_value,max_value) VALUES(?,?,?,?,?,?)')->execute([$sid,$r['factor_code'],$r['label'],$r['initial_value'],$r['min_value'],$r['max_value']]);
             if(class_exists('GenericStateService'))GenericStateService::initializePlotState($sid);
-            $roles=$pdo->prepare('SELECT * FROM plot_roles WHERE plot_id=? AND simulation_active=1 ORDER BY CASE WHEN role_type="PLAYER" THEN 0 ELSE 1 END,slot_no');$roles->execute([$plot['plot_id']]);$activeRoles=$roles->fetchAll();
+            $roles=$pdo->prepare('SELECT * FROM plot_roles WHERE plot_id=? AND active=1 AND simulation_active=1 ORDER BY CASE WHEN role_type="PLAYER" THEN 0 ELSE 1 END,slot_no');$roles->execute([$plot['plot_id']]);$activeRoles=$roles->fetchAll();
             $playerCount=count(array_filter($activeRoles,fn($r)=>$r['role_type']==='PLAYER'));$npcCount=count(array_filter($activeRoles,fn($r)=>$r['role_type']==='NPC'));$allowedNpcs=$playerCount===1?2:1;
             if($npcCount>$allowedNpcs)throw new RuntimeException('Story cast exceeds the active NPC budget: solo allows 2 NPCs; multiplayer allows 1 NPC.');
             foreach($activeRoles as$r){

@@ -5,7 +5,7 @@ final class LobbyService
     {
         $pdo=db();$q=$pdo->prepare('SELECT duration_seconds FROM platform_game_durations WHERE duration_seconds=? AND active=1');$q->execute([$duration]);if(!(int)$q->fetchColumn())throw new RuntimeException('That story duration is not available.');
         $q=$pdo->prepare('SELECT timeline_duration_seconds FROM plots WHERE code=? AND status="active"');$q->execute([$plotCode]);$timelineDuration=(int)$q->fetchColumn();if($timelineDuration<1)throw new RuntimeException('The story timeline duration is not configured.');
-        $roles=$pdo->prepare('SELECT pr.role_code FROM plot_roles pr JOIN plots p ON p.plot_id=pr.plot_id WHERE p.code=? AND p.status="active" AND pr.simulation_active=1');$roles->execute([$plotCode]);$controllers=[];foreach($roles->fetchAll()as$r)$controllers[$r['role_code']]='AI';
+        $roles=$pdo->prepare('SELECT pr.role_code FROM plot_roles pr JOIN plots p ON p.plot_id=pr.plot_id WHERE p.code=? AND p.status="active" AND pr.active=1 AND pr.simulation_active=1');$roles->execute([$plotCode]);$controllers=[];foreach($roles->fetchAll()as$r)$controllers[$r['role_code']]='AI';
         $sid=SimulationService::create($plotCode,$timelineDuration,$controllers);$code=self::newCode();
         $pdo->beginTransaction();try{$pdo->prepare('INSERT INTO games(simulation_id,host_user_id,join_code,play_duration_seconds) VALUES(?,?,?,?)')->execute([$sid,$hostUserId,$code,$duration]);$gid=(int)$pdo->lastInsertId();$pdo->prepare('INSERT INTO game_players(game_id,user_id) VALUES(?,?)')->execute([$gid,$hostUserId]);$pdo->commit();}catch(Throwable$e){if($pdo->inTransaction())$pdo->rollBack();throw$e;}
         return self::lobbyState($gid,$hostUserId);

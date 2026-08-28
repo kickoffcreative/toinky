@@ -20,7 +20,7 @@ final class SimulationHarness
     }
     private static function controllerAssignments(string $plotCode,string $mode): array
     {
-        if(!in_array($mode,['all-ai','human-random','human-biased'],true))return[];$q=db()->prepare('SELECT pr.role_code FROM plot_roles pr JOIN plots p ON p.plot_id=pr.plot_id WHERE p.code=? AND pr.simulation_active=1');$q->execute([$plotCode]);$value=$mode==='all-ai'?'AI':'HUMAN';$out=[];foreach($q->fetchAll()as$r)$out[(string)$r['role_code']]=$value;return$out;
+        if(!in_array($mode,['all-ai','human-random','human-biased'],true))return[];$q=db()->prepare('SELECT pr.role_code FROM plot_roles pr JOIN plots p ON p.plot_id=pr.plot_id WHERE p.code=? AND pr.active=1 AND pr.simulation_active=1');$q->execute([$plotCode]);$value=$mode==='all-ai'?'AI':'HUMAN';$out=[];foreach($q->fetchAll()as$r)$out[(string)$r['role_code']]=$value;return$out;
     }
     private static function prepareAiCharacters(int $sid,string $controllerMode='legacy'): array
     {

@@ -46,7 +46,7 @@ final class StateSyncService
     private static function evaluateMotiveLifecycle(int $sid): void
     {
         $pdo=db();$s=$pdo->prepare('SELECT plot_id,elapsed_seconds,current_phase FROM simulations WHERE simulation_id=?');$s->execute([$sid]);$sim=$s->fetch();if(!$sim)return;
-        $rules=$pdo->prepare('SELECT r.*,c.character_id,c.goal_text,c.fear_text FROM plot_motive_lifecycle_rules r JOIN plot_roles pr ON pr.plot_id=r.plot_id AND pr.role_code=r.role_code JOIN characters c ON c.simulation_id=? AND c.plot_role_id=pr.plot_role_id WHERE r.plot_id=? AND r.active=1 ORDER BY r.priority,r.motive_rule_id');$rules->execute([$sid,$sim['plot_id']]);
+        $rules=$pdo->prepare('SELECT r.*,c.character_id,c.goal_text,c.fear_text FROM plot_motive_lifecycle_rules r JOIN plot_roles pr ON pr.plot_id=r.plot_id AND pr.role_code=r.role_code AND pr.active=1 JOIN characters c ON c.simulation_id=? AND c.plot_role_id=pr.plot_role_id WHERE r.plot_id=? AND r.active=1 ORDER BY r.priority,r.motive_rule_id');$rules->execute([$sid,$sim['plot_id']]);
         foreach($rules->fetchAll() as $r){$current=$r['motive_type']==='GOAL'?(string)$r['goal_text']:(string)$r['fear_text'];if($r['match_text']!==null && (string)$r['match_text']!==$current)continue;if(!self::ruleConditionsPass($sid,(int)$r['motive_rule_id'],(string)$sim['current_phase']))continue;self::applyLifecycleRule($sid,(int)$r['character_id'],$r,(int)$sim['elapsed_seconds']);}
     }
 
