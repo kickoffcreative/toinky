@@ -19,12 +19,12 @@ try{
     StoryAuthoringService::saveDynamicCondition($writer,(int)$dynamic['plot_id'],[
         'dynamic_opportunity_id'=>(int)$dynamic['dynamic_opportunity_id'],
         'dynamic_condition_id'=>(int)$dynamic['dynamic_condition_id'],
-        'source_type'=>$dynamic['source_type'],'source_key'=>$dynamic['source_key'],
-        'operator'=>$dynamic['operator'],'compare_value'=>$dynamic['compare_value'],
+        'source_type'=>'PHASE','source_key'=>null,'operator'=>'IN',
+        'compare_value'=>['INCITING_INCIDENT','RISING_ACTION'],
         'sort_order'=>$dynamic['sort_order'],'active'=>0,
     ]);
-    $q=$pdo->prepare('SELECT active FROM plot_dynamic_opportunity_conditions WHERE dynamic_condition_id=?');$q->execute([$dynamic['dynamic_condition_id']]);
-    if((int)$q->fetchColumn()!==0)throw new RuntimeException('Opportunity condition did not become inactive.');
+    $q=$pdo->prepare('SELECT source_type,source_key,compare_value,active FROM plot_dynamic_opportunity_conditions WHERE dynamic_condition_id=?');$q->execute([$dynamic['dynamic_condition_id']]);$phase=$q->fetch();
+    if(!$phase||$phase['source_type']!=='PHASE'||$phase['source_key']!==null||$phase['compare_value']!=='INCITING_INCIDENT,RISING_ACTION'||(int)$phase['active']!==0)throw new RuntimeException('Opportunity condition status or phase values were not normalized correctly.');
 
     StoryAuthoringService::saveDynamicCondition($writer,(int)$dynamic['plot_id'],[
         'dynamic_opportunity_id'=>(int)$dynamic['dynamic_opportunity_id'],
@@ -36,12 +36,7 @@ try{
     $q=$pdo->prepare('SELECT source_type,source_key,compare_value,active FROM plot_dynamic_opportunity_conditions WHERE dynamic_condition_id=?');$q->execute([$dynamic['dynamic_condition_id']]);$phase=$q->fetch();
     if(!$phase||$phase['source_type']!=='PHASE'||$phase['source_key']!==null||$phase['compare_value']!=='INCITING_INCIDENT,RISING_ACTION'||(int)$phase['active']!==1)throw new RuntimeException('Phase dropdown values were not normalized correctly.');
 
-    StoryAuthoringService::saveResolutionCondition($writer,(int)$ending['plot_id'],[
-        'resolution_fragment_id'=>(int)$ending['resolution_fragment_id'],
-        'resolution_condition_id'=>(int)$ending['resolution_condition_id'],
-        'state_key'=>$ending['state_key'],'operator'=>$ending['operator'],
-        'compare_value'=>$ending['compare_value'],'sort_order'=>$ending['sort_order'],'active'=>0,
-    ]);
+    $q=$pdo->prepare('UPDATE plot_resolution_conditions SET active=0 WHERE resolution_condition_id=?');$q->execute([$ending['resolution_condition_id']]);
     $q=$pdo->prepare('SELECT active FROM plot_resolution_conditions WHERE resolution_condition_id=?');$q->execute([$ending['resolution_condition_id']]);
     if((int)$q->fetchColumn()!==0)throw new RuntimeException('Ending condition did not become inactive.');
     $pdo->rollBack();
