@@ -69,7 +69,7 @@ final class DynamicOpportunityService
             if(!$meta || ($filter!=='' && strtoupper((string)$meta['role_code'])!==$filter))$trace=false;
             else $traceLabel='t='.(int)$meta['elapsed_seconds'].' '.$meta['role_code'].'/'.$meta['opportunity_code'];
         }
-        $q=$pdo->prepare('SELECT * FROM plot_dynamic_opportunity_conditions WHERE dynamic_opportunity_id=? ORDER BY sort_order,dynamic_condition_id');$q->execute([$ruleId]);
+        $q=$pdo->prepare('SELECT * FROM plot_dynamic_opportunity_conditions WHERE dynamic_opportunity_id=? AND active=1 ORDER BY sort_order,dynamic_condition_id');$q->execute([$ruleId]);
         foreach($q->fetchAll() as $condition){
             [$exists,$value]=self::sourceValue($sid,$cid,(string)$condition['source_type'],$condition['source_key'],$phase);
             $pass=self::compare($exists,$value,(string)$condition['operator'],$condition['compare_value']);

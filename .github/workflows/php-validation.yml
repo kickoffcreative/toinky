@@ -65,6 +65,7 @@ jobs:
           php tools/story_writer_stable_code_test.php
           php tools/story_value_type_guard_test.php
           php tools/story_media_attachment_edit_test.php
+          php tools/story_condition_status_test.php
       - name: Test multiplayer lifecycle
         env:
           GAME2_DATABASE_CONFIG: ${{ github.workspace }}/config/database.test.php

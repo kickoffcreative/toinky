@@ -16,7 +16,7 @@ final class ResolutionService
     {
         $pdo=db();$q=$pdo->prepare('SELECT * FROM plot_resolution_fragments WHERE plot_id=? AND section_code=? AND active=1 ORDER BY priority,resolution_fragment_id');$q->execute([$plotId,$section]);
         foreach($q->fetchAll() as $f){
-            $c=$pdo->prepare('SELECT state_key,operator,compare_value FROM plot_resolution_conditions WHERE resolution_fragment_id=? ORDER BY sort_order,resolution_condition_id');$c->execute([$f['resolution_fragment_id']]);$ok=true;
+            $c=$pdo->prepare('SELECT state_key,operator,compare_value FROM plot_resolution_conditions WHERE resolution_fragment_id=? AND active=1 ORDER BY sort_order,resolution_condition_id');$c->execute([$f['resolution_fragment_id']]);$ok=true;
             foreach($c->fetchAll() as $cond){if(!GenericStateService::conditionPasses($sid,$cond['state_key'],$cond['operator'],$cond['compare_value'])){$ok=false;break;}}
             if($ok)return self::render($sid,(string)$f['fragment_text']);
         }

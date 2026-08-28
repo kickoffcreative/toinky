@@ -48,7 +48,7 @@ $stateKeys=[];$factorKeys=[];
 foreach($opportunities as $opp){
     echo $opp['role_code'].' / '.$opp['opportunity_code'].":\n";
     echo '  Definition: present | active='.(int)$opp['active'].' | priority='.(int)$opp['priority']."\n";
-    $q=$pdo->prepare('SELECT source_type,source_key,operator,compare_value FROM plot_dynamic_opportunity_conditions WHERE dynamic_opportunity_id=? ORDER BY sort_order,dynamic_condition_id');
+    $q=$pdo->prepare('SELECT source_type,source_key,operator,compare_value FROM plot_dynamic_opportunity_conditions WHERE dynamic_opportunity_id=? AND active=1 ORDER BY sort_order,dynamic_condition_id');
     $q->execute([$opp['dynamic_opportunity_id']]);$conditions=$q->fetchAll();
     foreach($conditions as $c){
         $key=$c['source_key'];
