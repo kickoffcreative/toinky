@@ -145,7 +145,7 @@ final class StoryAuthoringService
     public static function workspace(int $plotId): array
     {
         $tables=[
-            'characters'=>['SELECT * FROM plot_roles WHERE plot_id=? ORDER BY slot_no,plot_role_id',[$plotId]],
+            'characters'=>['SELECT * FROM plot_roles WHERE plot_id=? ORDER BY name,role_code,plot_role_id',[$plotId]],
             'locations'=>['SELECT * FROM plot_locations WHERE plot_id=? ORDER BY label_text,plot_location_id',[$plotId]],
             'state_definitions'=>['SELECT * FROM plot_state_definitions WHERE plot_id=? ORDER BY label_text,plot_state_definition_id',[$plotId]],
             'story_sections'=>['SELECT * FROM plot_story_sections WHERE plot_id=? ORDER BY label_text,plot_story_section_id',[$plotId]],
@@ -153,12 +153,12 @@ final class StoryAuthoringService
             'decisions'=>['SELECT t.*,COUNT(o.template_option_id) option_count FROM plot_decision_templates t LEFT JOIN plot_decision_template_options o ON o.template_id=t.template_id WHERE t.plot_id=? GROUP BY t.template_id ORDER BY t.event_code,t.role_code',[$plotId]],
             'options'=>['SELECT o.*,t.event_code,t.role_code FROM plot_decision_template_options o JOIN plot_decision_templates t ON t.template_id=o.template_id WHERE t.plot_id=? ORDER BY t.event_code,t.role_code,o.sort_order',[$plotId]],
             'effects'=>['SELECT e.*,o.option_code,t.event_code,t.role_code FROM plot_option_effects e JOIN plot_decision_template_options o ON o.template_option_id=e.template_option_id JOIN plot_decision_templates t ON t.template_id=o.template_id WHERE t.plot_id=? ORDER BY t.event_code,t.role_code,o.sort_order,e.sort_order',[$plotId]],
-            'opportunities'=>['SELECT * FROM plot_dynamic_opportunities WHERE plot_id=? ORDER BY priority,opportunity_code',[$plotId]],
-            'dynamic_conditions'=>['SELECT c.*,o.opportunity_code,o.role_code FROM plot_dynamic_opportunity_conditions c JOIN plot_dynamic_opportunities o ON o.dynamic_opportunity_id=c.dynamic_opportunity_id WHERE o.plot_id=? ORDER BY o.priority,c.sort_order',[$plotId]],
-            'dynamic_options'=>['SELECT x.*,o.opportunity_code,o.role_code FROM plot_dynamic_opportunity_options x JOIN plot_dynamic_opportunities o ON o.dynamic_opportunity_id=x.dynamic_opportunity_id WHERE o.plot_id=? ORDER BY o.priority,x.sort_order',[$plotId]],
-            'dynamic_effects'=>['SELECT e.*,x.option_code,o.opportunity_code,o.role_code FROM plot_dynamic_option_effects e JOIN plot_dynamic_opportunity_options x ON x.dynamic_option_id=e.dynamic_option_id JOIN plot_dynamic_opportunities o ON o.dynamic_opportunity_id=x.dynamic_opportunity_id WHERE o.plot_id=? ORDER BY o.priority,x.sort_order,e.sort_order',[$plotId]],
-            'resolutions'=>['SELECT * FROM plot_resolution_fragments WHERE plot_id=? ORDER BY section_order,priority,resolution_fragment_id',[$plotId]],
-            'resolution_conditions'=>['SELECT c.*,f.section_code FROM plot_resolution_conditions c JOIN plot_resolution_fragments f ON f.resolution_fragment_id=c.resolution_fragment_id WHERE f.plot_id=? ORDER BY f.section_order,f.priority,c.sort_order',[$plotId]],
+            'opportunities'=>['SELECT * FROM plot_dynamic_opportunities WHERE plot_id=? ORDER BY opportunity_code,dynamic_opportunity_id',[$plotId]],
+            'dynamic_conditions'=>['SELECT c.*,o.opportunity_code,o.role_code FROM plot_dynamic_opportunity_conditions c JOIN plot_dynamic_opportunities o ON o.dynamic_opportunity_id=c.dynamic_opportunity_id WHERE o.plot_id=? ORDER BY o.opportunity_code,c.sort_order,c.dynamic_condition_id',[$plotId]],
+            'dynamic_options'=>['SELECT x.*,o.opportunity_code,o.role_code FROM plot_dynamic_opportunity_options x JOIN plot_dynamic_opportunities o ON o.dynamic_opportunity_id=x.dynamic_opportunity_id WHERE o.plot_id=? ORDER BY o.opportunity_code,x.sort_order,x.dynamic_option_id',[$plotId]],
+            'dynamic_effects'=>['SELECT e.*,x.option_code,o.opportunity_code,o.role_code FROM plot_dynamic_option_effects e JOIN plot_dynamic_opportunity_options x ON x.dynamic_option_id=e.dynamic_option_id JOIN plot_dynamic_opportunities o ON o.dynamic_opportunity_id=x.dynamic_opportunity_id WHERE o.plot_id=? ORDER BY o.opportunity_code,x.sort_order,e.sort_order,e.dynamic_effect_id',[$plotId]],
+            'resolutions'=>['SELECT * FROM plot_resolution_fragments WHERE plot_id=? ORDER BY section_code,priority,resolution_fragment_id',[$plotId]],
+            'resolution_conditions'=>['SELECT c.*,f.section_code FROM plot_resolution_conditions c JOIN plot_resolution_fragments f ON f.resolution_fragment_id=c.resolution_fragment_id WHERE f.plot_id=? ORDER BY f.section_code,f.priority,c.sort_order,c.resolution_condition_id',[$plotId]],
             'media'=>['SELECT * FROM plot_media_assets WHERE plot_id=? ORDER BY placement,sort_order',[$plotId]]
         ];$out=[];foreach($tables as$key=>$spec){$q=db()->prepare($spec[0]);$q->execute($spec[1]);$out[$key]=$q->fetchAll();}return$out;
     }
