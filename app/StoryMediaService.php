@@ -58,6 +58,16 @@ final class StoryMediaService
         db()->prepare('UPDATE plot_media_assets SET active=0 WHERE media_asset_id=?')->execute([$assetId]);
     }
 
+    public static function updateAttachment(array $user,int $plotId,int $assetId,array $fields): void
+    {
+        if(!self::canEdit($user,$plotId))throw new RuntimeException('You may only change artwork in stories you own.');
+        $q=db()->prepare('SELECT * FROM plot_media_assets WHERE media_asset_id=? AND plot_id=?');$q->execute([$assetId,$plotId]);$current=$q->fetch();if(!$current)throw new RuntimeException('Story artwork not found.');
+        $placement=strtoupper(trim((string)($fields['placement']??$current['placement'])));$placements=['PRIMARY','CHARACTER','OPENING','SCENE','TURNING_POINT','OUTCOME','ENDING','OTHER'];if(!in_array($placement,$placements,true))throw new RuntimeException('Choose a valid image placement.');
+        self::validateStoryValueCondition($plotId,$fields);$mediaId=(int)($fields['library_media_id']??0);$media=null;if($mediaId>0)$media=MediaLibraryService::requireVisible($user,$mediaId,$placement==='OTHER'?null:$placement);
+        $values=[$media?(int)$user['user_id']:(int)$current['uploaded_by_user_id'],$mediaId?:$current['library_media_id'],$placement,self::nullable($fields['role_code']??null),self::nullable($fields['event_code']??null),self::nullableInt($fields['scene_second']??null),self::nullable($fields['condition_state_key']??null),self::nullable($fields['condition_operator']??null),self::nullable($fields['condition_value']??null),self::nullable($fields['title_text']??null)?:($media['title_text']??$current['title_text']),$media['alt_text']??$current['alt_text'],self::nullable($fields['caption_text']??null),$media['file_path']??$current['file_path'],$media['mime_type']??$current['mime_type'],$media['file_size_bytes']??$current['file_size_bytes'],(int)($fields['sort_order']??100),$assetId,$plotId];
+        db()->beginTransaction();try{if($placement==='PRIMARY')db()->prepare('UPDATE plot_media_assets SET active=0 WHERE plot_id=? AND placement="PRIMARY" AND media_asset_id<>?')->execute([$plotId,$assetId]);db()->prepare('UPDATE plot_media_assets SET uploaded_by_user_id=?,library_media_id=?,placement=?,role_code=?,event_code=?,scene_second=?,condition_state_key=?,condition_operator=?,condition_value=?,title_text=?,alt_text=?,caption_text=?,file_path=?,mime_type=?,file_size_bytes=?,sort_order=?,active=1 WHERE media_asset_id=? AND plot_id=?')->execute($values);db()->commit();}catch(Throwable$e){if(db()->inTransaction())db()->rollBack();throw$e;}
+    }
+
     public static function setCharacterImage(array $user,int $plotId,string $roleCode,$mediaChoice): void
     {
         if(!self::canEdit($user,$plotId))throw new RuntimeException('You may only change character images in stories you own.');
