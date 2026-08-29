@@ -7,7 +7,7 @@ The recommended workflow combines authoring rules, structural validation, repeat
 1. Define locations, story values, allowed preset values, and ending sections in **Story Writer → Overview**.
 2. Author characters, timed world events, decisions, options, effects, conditional opportunities, and endings using those managed definitions.
 3. Run **Validate & Submit** to catch blocking references and freeze a numbered revision.
-4. In **Admin → Story Reviews**, queue batches for **All Human (Random)**, **All Human (Biased)**, and **All Autonomous**.
+4. In **Admin → Story Reviews**, queue batches for **All Human (Random)**, **All Human (Biased)**, and **All AI**.
 5. Compare outcome families, warning frequency, timed-out choices, choice frequency, and options not observed in the sample.
 6. Copy the generated reviewer package into a capable external reviewer. Require evidence tied to stable keys.
 7. Import only the safe correction file. Treat chronology, ordering, activation, cast, dependencies, and stable-key changes as manual structural advisories.
@@ -16,14 +16,14 @@ The recommended workflow combines authoring rules, structural validation, repeat
 ## What the simulation modes mean
 
 - **All Human (Random)** chooses each available option uniformly. It is useful for broad branch sampling without author weights.
-- **All Human (Biased)** chooses according to **Autonomous Choice Weight**. It approximates the paths the authored biases make more likely.
-- **All Autonomous** gives every character to the shared autonomous decision system. It tests knowledge, rationale, and continuity behavior.
+- **All Human (Biased)** chooses according to **AI Choice Weight**. It approximates the paths the authored biases make more likely.
+- **All AI** gives every character to the shared AI decision system. It tests knowledge, rationale, and continuity behavior.
 
 An unobserved option is not automatically unreachable. Increase the run count, compare modes, and inspect its conditions before treating it as a dependency defect.
 
 ## Correction safety boundary
 
-Automated correction imports may revise prose, decision windows, and autonomous weights within validated limits. They cannot change event timing, phases, sort order, stable keys, activation flags, cast structure, section order, or priority. Structural recommendations belong in the JSON `advisories` array and require a writer to make and review the change manually.
+Automated correction imports may revise prose, decision windows, and AI weights within validated limits. They cannot change event timing, phases, sort order, stable keys, activation flags, cast structure, section order, or priority. Structural recommendations belong in the JSON `advisories` array and require a writer to make and review the change manually.
 
 Each import is transactional and creates a new numbered revision. A malformed value or protected field rejects the complete package, so partial reviewer edits cannot leak into a story.
 
