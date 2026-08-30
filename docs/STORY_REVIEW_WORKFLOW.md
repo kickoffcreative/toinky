@@ -7,8 +7,8 @@ The recommended workflow combines authoring rules, structural validation, repeat
 1. Define locations, story values, allowed preset values, and ending sections in **Story Writer → Overview**.
 2. Author characters, timed world events, decisions, options, effects, conditional opportunities, and endings using those managed definitions.
 3. Run **Validate & Submit** to catch blocking references and freeze a numbered revision.
-4. In **Admin → Story Reviews**, queue batches for **All Human (Random)**, **All Human (Biased)**, and **All AI**.
-5. Compare outcome families, warning frequency, timed-out choices, choice frequency, and options not observed in the sample.
+4. In **Admin → Story Reviews**, run **Focused Opportunity (Seeded)** for branches that need local verification, then queue broad batches for **All Human (Random)**, **All Human (Biased)**, and **All AI**.
+5. Compare focused choice coverage first, then compare broad outcome families, warning frequency, timed-out choices, choice frequency, and options not observed in the sample.
 6. Copy the generated reviewer package into a capable external reviewer. Require evidence tied to stable keys.
 7. Import only the safe correction file. Treat chronology, ordering, activation, cast, dependencies, and stable-key changes as manual structural advisories.
 8. Run validation and simulations again, then approve or publish the numbered revision only after human review.
@@ -18,6 +18,7 @@ The recommended workflow combines authoring rules, structural validation, repeat
 - **All Human (Random)** chooses each available option uniformly. It is useful for broad branch sampling without author weights.
 - **All Human (Biased)** chooses according to **AI Choice Weight**. It approximates the paths the authored biases make more likely.
 - **All AI** gives every character to the shared AI decision system. It tests knowledge, rationale, and continuity behavior.
+- **Focused Opportunity (Seeded)** creates an isolated checkpoint that satisfies one opportunity's active conditions, exercises every active choice an equal number of times, and then lets later events and opportunities continue normally. It proves that the local branch can be delivered and applied from that manufactured state. It does **not** prove organic reachability from story start.
 
 An unobserved option is not automatically unreachable. Increase the run count, compare modes, and inspect its conditions before treating it as a dependency defect.
 
@@ -35,4 +36,4 @@ Simulation batches are stored in the database and survive browser refreshes. Pro
 /opt/cpanel/ea-php84/root/usr/bin/php /home/toinkyadmin/public_html/tools/process_simulation_review_batches.php --max=5
 ```
 
-The Admin page also has a one-run manual fallback. Configure the cron for unattended batches; a web request is not kept open while every simulation runs.
+Manual queue processing is disabled to prevent overlapping workers. Configure the cron for unattended batches; a web request is not kept open while every simulation runs.

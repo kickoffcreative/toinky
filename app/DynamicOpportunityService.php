@@ -3,6 +3,26 @@ final class DynamicOpportunityService
 {
     public static function evaluate(int $sid,?int $second=null): void { self::reconcile($sid); }
 
+    public static function evaluateFocused(int $sid,string $opportunityCode): array
+    {
+        $pdo=db();$opportunityCode=strtoupper(trim($opportunityCode));
+        $q=$pdo->prepare('SELECT o.*,c.character_id,c.actor_type,p.npc_action_cooldown_seconds,s.elapsed_seconds,s.current_phase,s.duration_seconds,s.status FROM plot_dynamic_opportunities o JOIN simulations s ON s.plot_id=o.plot_id JOIN plot_roles pr ON pr.plot_id=o.plot_id AND pr.role_code=o.role_code AND pr.active=1 JOIN characters c ON c.simulation_id=s.simulation_id AND c.plot_role_id=pr.plot_role_id JOIN plots p ON p.plot_id=o.plot_id WHERE s.simulation_id=? AND o.opportunity_code=? AND o.active=1 LIMIT 1');
+        $q->execute([$sid,$opportunityCode]);$rule=$q->fetch();if(!$rule)throw new RuntimeException('Focused opportunity '.$opportunityCode.' is unavailable in this simulation.');
+        $trace=self::focusedConditionTrace($sid,(int)$rule['dynamic_opportunity_id'],(string)$rule['role_code'],(string)$rule['current_phase']);$eligible=!array_filter($trace,static fn($condition)=>!$condition['passed']);
+        if(!$eligible)return['eligible'=>false,'decision_id'=>null,'conditions'=>$trace];
+        $existing=$pdo->prepare('SELECT decision_id FROM simulation_dynamic_opportunities WHERE simulation_id=? AND dynamic_opportunity_id=? AND character_id=? LIMIT 1');$existing->execute([$sid,$rule['dynamic_opportunity_id'],$rule['character_id']]);$decisionId=(int)$existing->fetchColumn();
+        if(!$decisionId){$pdo->prepare('UPDATE decisions SET status="CLOSED",resolved_text="Closed by isolated focused-test setup." WHERE character_id=? AND status="OPEN"')->execute([$rule['character_id']]);self::openOpportunity($sid,$rule,$rule);$existing->execute([$sid,$rule['dynamic_opportunity_id'],$rule['character_id']]);$decisionId=(int)$existing->fetchColumn();}
+        return['eligible'=>true,'decision_id'=>$decisionId?:null,'conditions'=>$trace];
+    }
+
+    public static function focusedConditionTrace(int $sid,int $ruleId,string $roleCode,string $phase): array
+    {
+        $q=db()->prepare('SELECT c.character_id FROM characters c JOIN plot_roles pr ON pr.plot_role_id=c.plot_role_id WHERE c.simulation_id=? AND pr.role_code=? LIMIT 1');$q->execute([$sid,$roleCode]);$cid=(int)$q->fetchColumn();if(!$cid)throw new RuntimeException('Focused opportunity character '.$roleCode.' is not active.');
+        $q=db()->prepare('SELECT * FROM plot_dynamic_opportunity_conditions WHERE dynamic_opportunity_id=? AND active=1 ORDER BY sort_order,dynamic_condition_id');$q->execute([$ruleId]);$trace=[];
+        foreach($q->fetchAll()as$condition){[$exists,$value]=self::sourceValue($sid,$cid,(string)$condition['source_type'],$condition['source_key'],$phase);$trace[]=['source_type'=>(string)$condition['source_type'],'source_key'=>$condition['source_key'],'operator'=>(string)$condition['operator'],'compare_value'=>$condition['compare_value'],'exists'=>$exists,'actual'=>$exists?$value:null,'passed'=>self::compare($exists,$value,(string)$condition['operator'],$condition['compare_value'])];}
+        return$trace;
+    }
+
     public static function reconcile(int $sid): void
     {
         if($sid<=0)return;
