@@ -167,17 +167,36 @@ final class DynamicOpportunityService
         $pdo->prepare('INSERT IGNORE INTO simulation_dynamic_opportunities(simulation_id,dynamic_opportunity_id,character_id,decision_id,created_at_second,status) VALUES(?,?,?,?,?,?)')->execute([$sid,$rule['dynamic_opportunity_id'],$rule['character_id'],$decisionId,$second,$status]);
     }
 
-    private static function ensureBehaviorTemplate(array $rule): void
+    public static function syncBehaviorTemplateById(int $opportunityId,?string $actorType=null): int
     {
-        $pdo=db();$q=$pdo->prepare('SELECT template_id FROM plot_decision_templates WHERE plot_id=? AND event_code=? AND role_code=? LIMIT 1');$q->execute([$rule['plot_id'],$rule['opportunity_code'],$rule['role_code']]);$templateId=(int)$q->fetchColumn();if($templateId){$pdo->prepare('UPDATE plot_decision_template_options t JOIN plot_dynamic_opportunity_options x ON x.option_code=t.option_code SET t.active=x.active WHERE t.template_id=? AND x.dynamic_opportunity_id=?')->execute([$templateId,$rule['dynamic_opportunity_id']]);$pdo->prepare('UPDATE plot_option_effects e JOIN plot_decision_template_options t ON t.template_option_id=e.template_option_id JOIN plot_dynamic_opportunity_options x ON x.option_code=t.option_code JOIN plot_dynamic_option_effects d ON d.dynamic_option_id=x.dynamic_option_id AND d.effect_scope=e.effect_scope AND d.target_code=e.target_code SET e.active=d.active WHERE t.template_id=? AND x.dynamic_opportunity_id=?')->execute([$templateId,$rule['dynamic_opportunity_id']]);return;}
-        $actorType=(string)($rule['actor_type']??'PLAYER');
-        $pdo->prepare('INSERT INTO plot_decision_templates(plot_id,event_code,role_code,actor_type,prompt_text,decision_window_seconds) VALUES(?,?,?,?,?,?)')->execute([$rule['plot_id'],$rule['opportunity_code'],$rule['role_code'],$actorType,$rule['prompt_text'],$rule['window_seconds']]);$templateId=(int)$pdo->lastInsertId();
-        $o=$pdo->prepare('SELECT * FROM plot_dynamic_opportunity_options WHERE dynamic_opportunity_id=? AND active=1 ORDER BY sort_order,dynamic_option_id');$o->execute([$rule['dynamic_opportunity_id']]);
-        foreach($o->fetchAll() as $opt){
-            $weight=$actorType==='NPC'?(int)($opt['npc_weight']??1):0;$rationale=$opt['rationale_text']??null;
-            $pdo->prepare('INSERT INTO plot_decision_template_options(template_id,option_code,label,npc_weight,rationale_text,result_text,sort_order) VALUES(?,?,?,?,?,?,?)')->execute([$templateId,$opt['option_code'],$opt['label'],$weight,$rationale,$opt['result_text'],$opt['sort_order']]);$templateOptionId=(int)$pdo->lastInsertId();
-            $e=$pdo->prepare('SELECT * FROM plot_dynamic_option_effects WHERE dynamic_option_id=? AND active=1 ORDER BY sort_order,dynamic_effect_id');$e->execute([$opt['dynamic_option_id']]);
-            foreach($e->fetchAll() as $effect)$pdo->prepare('INSERT INTO plot_option_effects(template_option_id,effect_scope,target_code,delta_value,set_value,detail_text,sort_order) VALUES(?,?,?,?,?,?,?)')->execute([$templateOptionId,$effect['effect_scope'],$effect['target_code'],$effect['delta_value'],$effect['set_value'],$effect['detail_text'],$effect['sort_order']]);
+        $q=db()->prepare('SELECT * FROM plot_dynamic_opportunities WHERE dynamic_opportunity_id=? LIMIT 1');$q->execute([$opportunityId]);$rule=$q->fetch();if(!$rule)return 0;if($actorType!==null)$rule['actor_type']=$actorType;return self::ensureBehaviorTemplate($rule);
+    }
+
+    private static function ensureBehaviorTemplate(array $rule): int
+    {
+        $pdo=db();$requestedActorType=in_array(($rule['actor_type']??''),['PLAYER','NPC'],true)?(string)$rule['actor_type']:null;
+        $q=$pdo->prepare('SELECT template_id,actor_type FROM plot_decision_templates WHERE plot_id=? AND event_code=? AND role_code=? LIMIT 1');$q->execute([$rule['plot_id'],$rule['opportunity_code'],$rule['role_code']]);$template=$q->fetch();$templateId=(int)($template['template_id']??0);
+        $actorType=$requestedActorType??(in_array(($template['actor_type']??''),['PLAYER','NPC'],true)?(string)$template['actor_type']:'PLAYER');
+        if(!$templateId){$pdo->prepare('INSERT INTO plot_decision_templates(plot_id,event_code,role_code,actor_type,prompt_text,decision_window_seconds,active) VALUES(?,?,?,?,?,?,?)')->execute([$rule['plot_id'],$rule['opportunity_code'],$rule['role_code'],$actorType,$rule['prompt_text'],$rule['window_seconds'],(int)($rule['active']??1)]);$templateId=(int)$pdo->lastInsertId();}
+        else{$pdo->prepare('UPDATE plot_decision_templates SET actor_type=?,prompt_text=?,decision_window_seconds=?,active=? WHERE template_id=?')->execute([$actorType,$rule['prompt_text'],$rule['window_seconds'],(int)($rule['active']??1),$templateId]);}
+
+        $q=$pdo->prepare('SELECT * FROM plot_decision_template_options WHERE template_id=? ORDER BY template_option_id');$q->execute([$templateId]);$mirrors=[];foreach($q->fetchAll()as$mirror)$mirrors[(string)$mirror['option_code']]=$mirror;
+        $q=$pdo->prepare('SELECT * FROM plot_dynamic_opportunity_options WHERE dynamic_opportunity_id=? ORDER BY sort_order,dynamic_option_id');$q->execute([$rule['dynamic_opportunity_id']]);$dynamicOptions=$q->fetchAll();$dynamicCodes=[];
+        foreach($dynamicOptions as$option){
+            $code=(string)$option['option_code'];$dynamicCodes[]=$code;$mirror=$mirrors[$code]??null;$weight=$actorType==='NPC'?(int)($option['npc_weight']??1):0;
+            if($mirror){$templateOptionId=(int)$mirror['template_option_id'];$pdo->prepare('UPDATE plot_decision_template_options SET label=?,npc_weight=?,rationale_text=?,result_text=?,sort_order=?,active=? WHERE template_option_id=?')->execute([$option['label'],$weight,$option['rationale_text'],$option['result_text'],$option['sort_order'],(int)($option['active']??1),$templateOptionId]);}
+            else{$pdo->prepare('INSERT INTO plot_decision_template_options(template_id,option_code,label,npc_weight,rationale_text,result_text,sort_order,active) VALUES(?,?,?,?,?,?,?,?)')->execute([$templateId,$code,$option['label'],$weight,$option['rationale_text'],$option['result_text'],$option['sort_order'],(int)($option['active']??1)]);$templateOptionId=(int)$pdo->lastInsertId();}
+            self::syncBehaviorEffects($templateOptionId,(int)$option['dynamic_option_id']);
         }
+        foreach($mirrors as$code=>$mirror)if(!in_array($code,$dynamicCodes,true))$pdo->prepare('UPDATE plot_decision_template_options SET active=0 WHERE template_option_id=?')->execute([$mirror['template_option_id']]);
+        return$templateId;
+    }
+
+    private static function syncBehaviorEffects(int $templateOptionId,int $dynamicOptionId): void
+    {
+        $pdo=db();$q=$pdo->prepare('SELECT * FROM plot_option_effects WHERE template_option_id=? ORDER BY effect_id');$q->execute([$templateOptionId]);$available=[];foreach($q->fetchAll()as$effect)$available[$effect['effect_scope'].'|'.$effect['target_code']][]=$effect;
+        $q=$pdo->prepare('SELECT * FROM plot_dynamic_option_effects WHERE dynamic_option_id=? ORDER BY sort_order,dynamic_effect_id');$q->execute([$dynamicOptionId]);
+        foreach($q->fetchAll()as$effect){$key=$effect['effect_scope'].'|'.$effect['target_code'];$mirror=!empty($available[$key])?array_shift($available[$key]):null;if($mirror){$pdo->prepare('UPDATE plot_option_effects SET delta_value=?,set_value=?,detail_text=?,sort_order=?,active=? WHERE effect_id=?')->execute([$effect['delta_value'],$effect['set_value'],$effect['detail_text'],$effect['sort_order'],(int)($effect['active']??1),$mirror['effect_id']]);}else{$pdo->prepare('INSERT INTO plot_option_effects(template_option_id,effect_scope,target_code,delta_value,set_value,detail_text,sort_order,active) VALUES(?,?,?,?,?,?,?,?)')->execute([$templateOptionId,$effect['effect_scope'],$effect['target_code'],$effect['delta_value'],$effect['set_value'],$effect['detail_text'],$effect['sort_order'],(int)($effect['active']??1)]);}}
+        foreach($available as$effects)foreach($effects as$effect)$pdo->prepare('UPDATE plot_option_effects SET active=0 WHERE effect_id=?')->execute([$effect['effect_id']]);
     }
 }
