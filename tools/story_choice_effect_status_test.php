@@ -2,6 +2,12 @@
 declare(strict_types=1);
 
 $root=dirname(__DIR__);
+$writerSource=file_get_contents($root.'/public/writer.php');
+if($writerSource===false)throw new RuntimeException('Story Writer source could not be read.');
+foreach([
+    "const surface=formSurface(form)||active.closest('[data-entry-type]')",
+    "if(surface.matches('details'))surface.querySelector(':scope > summary')?.append(badge)",
+]as$required)if(!str_contains($writerSource,$required))throw new RuntimeException('Choice Effect inactive card status is missing '.$required.'.');
 require_once $root.'/app/bootstrap.php';
 require_once $root.'/app/MigrationService.php';
 MigrationService::run();
