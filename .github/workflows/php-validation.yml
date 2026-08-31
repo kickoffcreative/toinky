@@ -68,6 +68,7 @@ jobs:
           php tools/story_condition_status_test.php
           php tools/story_writer_choice_test.php
           php tools/story_choice_effect_status_test.php
+          php tools/dynamic_opportunity_mirror_sync_test.php
           php tools/story_character_decision_status_test.php
           php tools/story_simulation_batch_resume_test.php
           php tools/story_focused_opportunity_simulation_test.php
