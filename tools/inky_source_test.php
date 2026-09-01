@@ -10,9 +10,10 @@ $style=file_get_contents($root.'/public/assets/toinky-inky.css');
 $connection=file_get_contents($root.'/app/AiConnectionService.php');
 $cowriter=file_get_contents($root.'/app/InkyCowriterService.php');
 $actionEndpoint=file_get_contents($root.'/public/inky-action.php');
+$docs=file_get_contents($root.'/docs/INKY.md');
 $migration=file_get_contents($root.'/database/migrations/083_inky_user_preferences.sql');
 $identityMigration=file_get_contents($root.'/database/migrations/084_inky_character_identity.sql');
-foreach(compact('profile','writer','component','script','style','connection','cowriter','actionEndpoint','migration','identityMigration')as$name=>$source)if($source===false)throw new RuntimeException('Could not read Inky '.$name.' source.');
+foreach(compact('profile','writer','component','script','style','connection','cowriter','actionEndpoint','docs','migration','identityMigration')as$name=>$source)if($source===false)throw new RuntimeException('Could not read Inky '.$name.' source.');
 foreach([
     'data-profile-tab="inky"',
     'save_inky_preferences',
@@ -33,6 +34,8 @@ foreach([
     "UserProfileService::inkyDisplayName",
     "data-character-code",
     "if(!(int)\$preferences['enabled'])return",
+    "'whats_next'=>['label'=>\"What's Next?\",'implemented'=>true]",
+    "'quality_check'=>['label'=>'Quality Check My Work','implemented'=>true]",
 ]as$required)if(!str_contains($component,$required))throw new RuntimeException('Inky component contract is missing '.$required.'.');
 foreach([
     "fetch('inky-status.php'",
@@ -41,6 +44,10 @@ foreach([
     "setPointerCapture",
     "innerWidth>700",
     "button.dataset.implemented!=='1'",
+    "action==='whats_next'",
+    "renderNextSteps",
+    "action==='quality_check'",
+    "renderQualityCheck",
 ]as$required)if(!str_contains($script,$required))throw new RuntimeException('Inky browser behavior is missing '.$required.'.');
 foreach([
     'pointer-events:none',
@@ -52,6 +59,9 @@ if(str_contains($script,'GAME2_AI_')||str_contains($component,'GAME2_AI_'))throw
 if(!str_contains($connection,"'/api/tags'"))throw new RuntimeException('Inky availability does not use the Ollama status endpoint.');
 if(!str_contains($connection,"'/api/chat'"))throw new RuntimeException('Inky co-writer actions do not use the Ollama chat endpoint.');
 foreach(['Separate observed evidence from inference','Never recommend plot-specific PHP','MANUAL STRUCTURAL REVIEW','stable_key']as$required)if(!str_contains($cowriter,$required))throw new RuntimeException('Review Plot contract is missing '.$required.'.');
+foreach(['INKY_WHATS_NEXT','validatedNextSteps','Return 3 to 6 steps','Prioritize blocking validation errors']as$required)if(!str_contains($cowriter,$required))throw new RuntimeException('What\'s Next contract is missing '.$required.'.');
+foreach(['INKY_QUALITY_CHECK','validatedQualityCheck','immersion, viewpoint_continuity, character_agency','Scores are integers from 1 to 5']as$required)if(!str_contains($cowriter,$required))throw new RuntimeException('Quality Check contract is missing '.$required.'.');
+foreach(["`What's Next?` is the second implemented vertical slice",'Every step must cite a stable key','MANUAL STRUCTURAL REVIEW','`Quality Check My Work` is the third implemented vertical slice','scored checks for']as$required)if(!str_contains($docs,$required))throw new RuntimeException('Inky documentation is missing '.$required.'.');
 foreach(['AuthService::requireWriter','AuthService::requireCsrf','InkyCowriterService::run']as$required)if(!str_contains($actionEndpoint,$required))throw new RuntimeException('Inky action endpoint is missing '.$required.'.');
 if(str_contains($actionEndpoint,"'message'=>\$e->getMessage()"))throw new RuntimeException('Inky action errors may expose private connection details to the browser.');
 if(!str_contains($migration,'PRIMARY KEY(user_id)'))throw new RuntimeException('Inky preferences are not scoped uniquely to each user.');
