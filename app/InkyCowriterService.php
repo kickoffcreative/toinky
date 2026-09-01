@@ -8,7 +8,7 @@ final class InkyCowriterService
     public static function run(array $writer,int $plotId,string $action): array
     {
         if(!StoryAuthoringService::canEdit($writer,$plotId))throw new RuntimeException('You may only ask Inky to review stories you can edit.');$displayName=UserProfileService::inkyDisplayName(UserProfileService::inkyPreferences((int)$writer['user_id']));
-        return match($action){'review_plot'=>self::reviewPlot($plotId,$displayName),'whats_next'=>self::whatsNext($plotId,$displayName),'quality_check'=>self::qualityCheck($plotId,$displayName),'dependencies'=>self::dependencyCheck($plotId,$displayName),'character_knowledge'=>self::characterKnowledgeCheck($plotId,$displayName),'story_values'=>self::storyValueSuggestions($plotId,$displayName),default=>throw new RuntimeException('That Inky action is not available yet.')};
+        return match($action){'review_plot'=>self::reviewPlot($plotId,$displayName),'whats_next'=>self::whatsNext($plotId,$displayName),'quality_check'=>self::qualityCheck($plotId,$displayName),'dependencies'=>self::dependencyCheck($plotId,$displayName),'character_knowledge'=>self::characterKnowledgeCheck($plotId,$displayName),'story_values'=>self::storyValueSuggestions($plotId,$displayName),'focused_tests'=>self::focusedTestPlan($plotId,$displayName),default=>throw new RuntimeException('That Inky action is not available yet.')};
     }
 
     private static function reviewPlot(int $plotId,string $displayName): array
@@ -53,6 +53,13 @@ final class InkyCowriterService
         $response=AiConnectionService::completeJson('INKY_STORY_VALUES',$system,$audit['text']);$values=self::validatedStoryValues((array)$response['data']);return['action'=>'story_values','display_name'=>$displayName,'model'=>$response['model'],'story_values'=>$values,'automated_findings'=>['errors'=>count($audit['errors']),'warnings'=>count($audit['warnings'])]];
     }
 
+    private static function focusedTestPlan(int $plotId,string $displayName): array
+    {
+        $audit=StoryAuthoringService::audit($plotId);
+        $system='You are '.$displayName.', a concise co-writer preparing a focused validation plan for authored interactive-story data. Use only the supplied story package. Return advice only; do not claim tests were run, queue jobs, rewrite the story, or propose PHP/schema changes. Suggest tests that an author or administrator can run with existing Toinky validation and Game2 Simulation Lab workflows. Prefer focused-opportunity tests for dynamic opportunities and branch-risk areas, but include broad simulations or manual smoke checks when the evidence warrants them. A seeded focused opportunity test proves local branch behavior from a manufactured checkpoint and does not prove organic reachability from story start. Every test must cite a named stable key from the package and include observed evidence or clearly labeled inference. Return JSON only with this exact shape: {"summary":"one concise paragraph","tests":[{"stable_key":"KEY","test_type":"VALIDATION|FOCUSED_OPPORTUNITY|BROAD_SIMULATION|MANUAL_SMOKE","focus_code":"OPPORTUNITY_OR_AREA","runs":10,"reason":"observed evidence or labeled inference","expected_evidence":"what passing evidence should show"}]}. Return 3 to 6 tests, keep each item short enough to read on a phone, and return no markdown or additional keys.';
+        $response=AiConnectionService::completeJson('INKY_FOCUSED_TESTS',$system,$audit['text']);$tests=self::validatedFocusedTests((array)$response['data']);return['action'=>'focused_tests','display_name'=>$displayName,'model'=>$response['model'],'focused_tests'=>$tests,'automated_findings'=>['errors'=>count($audit['errors']),'warnings'=>count($audit['warnings'])]];
+    }
+
     private static function validatedReview(array $input): array
     {
         $summary=trim((string)($input['summary']??''));if($summary==='')throw new RuntimeException('Inky’s review did not include a summary.');
@@ -95,6 +102,13 @@ final class InkyCowriterService
         return['summary'=>$summary,'suggestions'=>$suggestions];
     }
 
+    private static function validatedFocusedTests(array $input): array
+    {
+        $summary=trim((string)($input['summary']??''));if($summary==='')throw new RuntimeException('Inky’s focused-test plan did not include a summary.');
+        $tests=self::focusedTestItems($input['tests']??null);if(!$tests)throw new RuntimeException('Inky’s focused-test plan did not include usable tests.');
+        return['summary'=>$summary,'tests'=>$tests];
+    }
+
     private static function items(mixed $rows,string $textKey,bool $recommendation): array
     {
         if(!is_array($rows))return[];$out=[];foreach(array_slice($rows,0,10)as$row){if(!is_array($row))continue;$key=trim((string)($row['stable_key']??''));$text=trim((string)($row[$textKey]??''));if($key===''||$text==='')continue;$item=['stable_key'=>$key,$textKey=>$text];if($recommendation){$item['category']=trim((string)($row['category']??'Story quality'));$item['manual_structural_review']=!empty($row['manual_structural_review']);}$out[]=$item;}return$out;
@@ -123,6 +137,11 @@ final class InkyCowriterService
     private static function storyValueItems(mixed $rows): array
     {
         if(!is_array($rows))return[];$scopes=['FACTOR','STAT','LOCATION','KNOWLEDGE','RELATIONSHIP','WORLD_STATE','GOAL','FEAR'];$types=['NUMERIC','PRESET','TEXT'];$out=[];foreach($rows as$row){if(!is_array($row))continue;$key=trim((string)($row['stable_key']??''));$scope=strtoupper(trim((string)($row['scope']??'WORLD_STATE')));$code=self::stableCode((string)($row['target_code']??''));$label=trim((string)($row['label']??''));$type=strtoupper(trim((string)($row['value_type']??'TEXT')));$reason=trim((string)($row['reason']??''));$example=trim((string)($row['example_use']??''));if(!in_array($scope,$scopes,true))$scope='WORLD_STATE';if(!in_array($type,$types,true))$type='TEXT';if($key===''||$code===''||$label===''||$reason===''||$example==='')continue;$allowed=[];foreach((array)($row['allowed_values']??[])as$value){$value=trim((string)$value);if($value!==''&&!in_array($value,$allowed,true))$allowed[]=$value;if(count($allowed)>=8)break;}if($type==='PRESET'&&!$allowed)continue;$out[]=['stable_key'=>$key,'scope'=>$scope,'target_code'=>$code,'label'=>$label,'value_type'=>$type,'allowed_values'=>$type==='PRESET'?$allowed:[],'reason'=>$reason,'example_use'=>$example];if(count($out)>=8)break;}return$out;
+    }
+
+    private static function focusedTestItems(mixed $rows): array
+    {
+        if(!is_array($rows))return[];$types=['VALIDATION','FOCUSED_OPPORTUNITY','BROAD_SIMULATION','MANUAL_SMOKE'];$out=[];foreach($rows as$row){if(!is_array($row))continue;$key=trim((string)($row['stable_key']??''));$type=strtoupper(trim((string)($row['test_type']??'VALIDATION')));$focus=self::stableCode((string)($row['focus_code']??''));$reason=trim((string)($row['reason']??''));$expected=trim((string)($row['expected_evidence']??''));if(!in_array($type,$types,true))$type='VALIDATION';if($key===''||$focus===''||$reason===''||$expected==='')continue;$runs=max(1,min(50,(int)($row['runs']??10)));if($type==='VALIDATION'||$type==='MANUAL_SMOKE')$runs=1;elseif($type==='BROAD_SIMULATION')$runs=max(10,min(250,(int)($row['runs']??50)));$out[]=['stable_key'=>$key,'test_type'=>$type,'focus_code'=>$focus,'runs'=>$runs,'reason'=>$reason,'expected_evidence'=>$expected];if(count($out)>=6)break;}return$out;
     }
 
     private static function stableCode(string $value): string

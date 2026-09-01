@@ -134,6 +134,15 @@ goals, and fears. Every suggestion must cite a stable key, include scope, stable
 target code, label, value type, optional preset values, reason, and example use.
 It remains advice-only and does not change schema or PHP.
 
+`Prepare Focused Tests` is the seventh implemented vertical slice. It sends the
+same authenticated, bounded review package and returns an advice-only validation
+plan using existing Toinky validation and Game2 Simulation Lab workflows. Each
+test must cite a stable key, name a validation, focused opportunity, broad
+simulation, or manual smoke-test type, include a focus code, recommended run
+count, reason, and expected passing evidence. Seeded focused-opportunity tests
+must be described as proof of local branch behavior, not proof of organic
+reachability from story start.
+
 The remaining buttons stay visibly marked as forthcoming and disabled until
 their individual contracts are implemented.
 
