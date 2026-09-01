@@ -12,6 +12,8 @@ $dependencyMethod=new ReflectionMethod(InkyCowriterService::class,'validatedDepe
 $dependencyMethod->setAccessible(true);
 $knowledgeMethod=new ReflectionMethod(InkyCowriterService::class,'validatedCharacterKnowledge');
 $knowledgeMethod->setAccessible(true);
+$valueMethod=new ReflectionMethod(InkyCowriterService::class,'validatedStoryValues');
+$valueMethod->setAccessible(true);
 
 $result=$method->invoke(null,[
     'summary'=>'Start with the highest-risk authoring gaps.',
@@ -92,5 +94,26 @@ $failed=false;
 try{$knowledgeMethod->invoke(null,['summary'=>'','issues'=>[]]);}
 catch(RuntimeException $e){$failed=str_contains($e->getMessage(),'summary');}
 if(!$failed)throw new RuntimeException('Character-knowledge validation accepted a missing summary.');
+
+$values=$valueMethod->invoke(null,[
+    'summary'=>'Add clearer managed values for branch outcomes.',
+    'suggestions'=>[
+        ['stable_key'=>'CHOICE_REVEAL','scope'=>'world_state','target_code'=>'report custody','label'=>'Report custody','value_type'=>'preset','allowed_values'=>['HELD','LOST','HELD'],'reason'=>'Observed evidence: outcomes depend on who has the report.','example_use'=>'Use as a choice effect and ending condition.'],
+        ['stable_key'=>'GOAL_ALIGN','scope'=>'unsupported','target_code'=>'trust','label'=>'Trust','value_type'=>'unexpected','allowed_values'=>[],'reason'=>'Inference: trust could clarify a relationship shift.','example_use'=>'Track branch consequences.'],
+        ['stable_key'=>'SKIP','scope'=>'WORLD_STATE','target_code'=>'','label'=>'Skip','value_type'=>'TEXT','reason'=>'Ignored.','example_use'=>'Ignored.'],
+    ],
+]);
+if($values['summary']!=='Add clearer managed values for branch outcomes.')throw new RuntimeException('Story-value summary was not preserved.');
+if(count($values['suggestions'])!==2)throw new RuntimeException('Story-value validation did not filter malformed suggestions.');
+if($values['suggestions'][0]['scope']!=='WORLD_STATE')throw new RuntimeException('Story-value scope was not normalized.');
+if($values['suggestions'][0]['target_code']!=='REPORT_CUSTODY')throw new RuntimeException('Story-value target code was not normalized.');
+if(count($values['suggestions'][0]['allowed_values'])!==2)throw new RuntimeException('Story-value preset values were not deduplicated.');
+if($values['suggestions'][1]['scope']!=='WORLD_STATE')throw new RuntimeException('Story-value unknown scope was not defaulted.');
+if($values['suggestions'][1]['value_type']!=='TEXT')throw new RuntimeException('Story-value unknown type was not defaulted.');
+
+$failed=false;
+try{$valueMethod->invoke(null,['summary'=>'','suggestions'=>[]]);}
+catch(RuntimeException $e){$failed=str_contains($e->getMessage(),'summary');}
+if(!$failed)throw new RuntimeException('Story-value validation accepted a missing summary.');
 
 echo "PASS: Inky action contract validation normalizes and rejects malformed payloads.\n";
