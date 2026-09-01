@@ -78,6 +78,9 @@ or its credentials.
   AI-dependent actions disabled.
 - The deterministic story reasoner is not presented as Qwen and is not a
   substitute for an Inky co-writer response.
+- Completed guided-action results show the responding companion name, model,
+  and automated story-package error/warning counts so authors can keep AI advice
+  separate from deterministic validation evidence.
 
 ## Initial interaction contracts
 
