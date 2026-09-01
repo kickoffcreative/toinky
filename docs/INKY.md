@@ -144,6 +144,9 @@ consequences, AI rationale guidance, condition/effect fit, character knowledge,
 and mobile readability. Every item must cite an opportunity code and stable key,
 include severity, distinguish observed evidence from inference, recommend an
 authored-data or prose improvement, and may include a focused validation idea.
+When the author is editing an existing decision or conditional opportunity,
+Story Writer sends that stable focus code so Inky can prioritize the selected
+record while still using only the bounded story package.
 
 `Prepare Focused Tests` is the eighth implemented vertical slice. It sends the
 same authenticated, bounded review package and returns an advice-only validation
