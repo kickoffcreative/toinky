@@ -127,6 +127,13 @@ Every issue must cite a character role code and stable key, include severity,
 distinguish observed evidence from inference, recommend an authored-data or
 prose fix, and remain advice-only.
 
+`Suggest Story Values` is the sixth implemented vertical slice. It sends the
+same authenticated, bounded review package and suggests managed Story Framework
+values only: factors, stats, locations, knowledge, relationships, world state,
+goals, and fears. Every suggestion must cite a stable key, include scope, stable
+target code, label, value type, optional preset values, reason, and example use.
+It remains advice-only and does not change schema or PHP.
+
 The remaining buttons stay visibly marked as forthcoming and disabled until
 their individual contracts are implemented.
 

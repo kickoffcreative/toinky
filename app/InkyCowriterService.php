@@ -8,7 +8,7 @@ final class InkyCowriterService
     public static function run(array $writer,int $plotId,string $action): array
     {
         if(!StoryAuthoringService::canEdit($writer,$plotId))throw new RuntimeException('You may only ask Inky to review stories you can edit.');$displayName=UserProfileService::inkyDisplayName(UserProfileService::inkyPreferences((int)$writer['user_id']));
-        return match($action){'review_plot'=>self::reviewPlot($plotId,$displayName),'whats_next'=>self::whatsNext($plotId,$displayName),'quality_check'=>self::qualityCheck($plotId,$displayName),'dependencies'=>self::dependencyCheck($plotId,$displayName),'character_knowledge'=>self::characterKnowledgeCheck($plotId,$displayName),default=>throw new RuntimeException('That Inky action is not available yet.')};
+        return match($action){'review_plot'=>self::reviewPlot($plotId,$displayName),'whats_next'=>self::whatsNext($plotId,$displayName),'quality_check'=>self::qualityCheck($plotId,$displayName),'dependencies'=>self::dependencyCheck($plotId,$displayName),'character_knowledge'=>self::characterKnowledgeCheck($plotId,$displayName),'story_values'=>self::storyValueSuggestions($plotId,$displayName),default=>throw new RuntimeException('That Inky action is not available yet.')};
     }
 
     private static function reviewPlot(int $plotId,string $displayName): array
@@ -46,6 +46,13 @@ final class InkyCowriterService
         $response=AiConnectionService::completeJson('INKY_CHARACTER_KNOWLEDGE',$system,$audit['text']);$knowledge=self::validatedCharacterKnowledge((array)$response['data']);return['action'=>'character_knowledge','display_name'=>$displayName,'model'=>$response['model'],'character_knowledge'=>$knowledge,'automated_findings'=>['errors'=>count($audit['errors']),'warnings'=>count($audit['warnings'])]];
     }
 
+    private static function storyValueSuggestions(int $plotId,string $displayName): array
+    {
+        $audit=StoryAuthoringService::audit($plotId);
+        $system='You are '.$displayName.', a concise co-writer suggesting managed Story Framework values for authored interactive-story data. Use only the supplied story package. Return advice only; do not rewrite the story, claim changes were made, or propose PHP/schema changes. Suggest only database-authored story values that belong in Story Framework: FACTOR, STAT, LOCATION, KNOWLEDGE, RELATIONSHIP, WORLD_STATE, GOAL, or FEAR. Focus on values that would clarify choice effects, dynamic conditions, ending conditions, character knowledge, and replayable branch outcomes. Every suggestion must cite a named stable key from the package and include observed evidence or clearly labeled inference. Use short stable value codes. Return JSON only with this exact shape: {"summary":"one concise paragraph","suggestions":[{"stable_key":"KEY","scope":"WORLD_STATE","target_code":"SHORT_STABLE_CODE","label":"human-readable label","value_type":"NUMERIC|PRESET|TEXT","allowed_values":["VALUE"],"reason":"observed evidence or labeled inference","example_use":"where the author could use it"}]}. Return no markdown and no additional keys.';
+        $response=AiConnectionService::completeJson('INKY_STORY_VALUES',$system,$audit['text']);$values=self::validatedStoryValues((array)$response['data']);return['action'=>'story_values','display_name'=>$displayName,'model'=>$response['model'],'story_values'=>$values,'automated_findings'=>['errors'=>count($audit['errors']),'warnings'=>count($audit['warnings'])]];
+    }
+
     private static function validatedReview(array $input): array
     {
         $summary=trim((string)($input['summary']??''));if($summary==='')throw new RuntimeException('Inky’s review did not include a summary.');
@@ -81,6 +88,13 @@ final class InkyCowriterService
         return['summary'=>$summary,'issues'=>$issues];
     }
 
+    private static function validatedStoryValues(array $input): array
+    {
+        $summary=trim((string)($input['summary']??''));if($summary==='')throw new RuntimeException('Inky’s story-value suggestions did not include a summary.');
+        $suggestions=self::storyValueItems($input['suggestions']??null);if(!$suggestions)throw new RuntimeException('Inky’s story-value suggestions did not include usable suggestions.');
+        return['summary'=>$summary,'suggestions'=>$suggestions];
+    }
+
     private static function items(mixed $rows,string $textKey,bool $recommendation): array
     {
         if(!is_array($rows))return[];$out=[];foreach(array_slice($rows,0,10)as$row){if(!is_array($row))continue;$key=trim((string)($row['stable_key']??''));$text=trim((string)($row[$textKey]??''));if($key===''||$text==='')continue;$item=['stable_key'=>$key,$textKey=>$text];if($recommendation){$item['category']=trim((string)($row['category']??'Story quality'));$item['manual_structural_review']=!empty($row['manual_structural_review']);}$out[]=$item;}return$out;
@@ -103,10 +117,15 @@ final class InkyCowriterService
 
     private static function characterKnowledgeItems(mixed $rows): array
     {
-        if(!is_array($rows))return[];$severities=['BLOCKER','HIGH','MEDIUM','LOW'];$out=[];foreach($rows as$row){if(!is_array($row))continue;$role=self::roleCode((string)($row['role_code']??''));$key=trim((string)($row['stable_key']??''));$issue=trim((string)($row['issue']??''));$evidence=trim((string)($row['evidence']??''));$fix=trim((string)($row['fix']??''));if($role===''||$key===''||$issue===''||$evidence===''||$fix==='')continue;$severity=strtoupper(trim((string)($row['severity']??'MEDIUM')));if(!in_array($severity,$severities,true))$severity='MEDIUM';$out[]=['role_code'=>$role,'stable_key'=>$key,'severity'=>$severity,'issue'=>$issue,'evidence'=>$evidence,'fix'=>$fix];if(count($out)>=8)break;}return$out;
+        if(!is_array($rows))return[];$severities=['BLOCKER','HIGH','MEDIUM','LOW'];$out=[];foreach($rows as$row){if(!is_array($row))continue;$role=self::stableCode((string)($row['role_code']??''));$key=trim((string)($row['stable_key']??''));$issue=trim((string)($row['issue']??''));$evidence=trim((string)($row['evidence']??''));$fix=trim((string)($row['fix']??''));if($role===''||$key===''||$issue===''||$evidence===''||$fix==='')continue;$severity=strtoupper(trim((string)($row['severity']??'MEDIUM')));if(!in_array($severity,$severities,true))$severity='MEDIUM';$out[]=['role_code'=>$role,'stable_key'=>$key,'severity'=>$severity,'issue'=>$issue,'evidence'=>$evidence,'fix'=>$fix];if(count($out)>=8)break;}return$out;
     }
 
-    private static function roleCode(string $value): string
+    private static function storyValueItems(mixed $rows): array
+    {
+        if(!is_array($rows))return[];$scopes=['FACTOR','STAT','LOCATION','KNOWLEDGE','RELATIONSHIP','WORLD_STATE','GOAL','FEAR'];$types=['NUMERIC','PRESET','TEXT'];$out=[];foreach($rows as$row){if(!is_array($row))continue;$key=trim((string)($row['stable_key']??''));$scope=strtoupper(trim((string)($row['scope']??'WORLD_STATE')));$code=self::stableCode((string)($row['target_code']??''));$label=trim((string)($row['label']??''));$type=strtoupper(trim((string)($row['value_type']??'TEXT')));$reason=trim((string)($row['reason']??''));$example=trim((string)($row['example_use']??''));if(!in_array($scope,$scopes,true))$scope='WORLD_STATE';if(!in_array($type,$types,true))$type='TEXT';if($key===''||$code===''||$label===''||$reason===''||$example==='')continue;$allowed=[];foreach((array)($row['allowed_values']??[])as$value){$value=trim((string)$value);if($value!==''&&!in_array($value,$allowed,true))$allowed[]=$value;if(count($allowed)>=8)break;}if($type==='PRESET'&&!$allowed)continue;$out[]=['stable_key'=>$key,'scope'=>$scope,'target_code'=>$code,'label'=>$label,'value_type'=>$type,'allowed_values'=>$type==='PRESET'?$allowed:[],'reason'=>$reason,'example_use'=>$example];if(count($out)>=8)break;}return$out;
+    }
+
+    private static function stableCode(string $value): string
     {
         return trim(strtoupper((string)preg_replace('/[^A-Za-z0-9]+/','_',trim($value))),'_');
     }
