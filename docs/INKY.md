@@ -118,6 +118,15 @@ unreachable endings, and player-visible engine leakage. Every problem must cite
 a stable key, include severity, distinguish observed evidence from inference,
 recommend an authored-data fix, and remain advice-only.
 
+`Check Character Knowledge` is the fifth implemented vertical slice. It sends
+the same authenticated, bounded review package and checks whether characters
+have enough non-privileged information for meaningful choices, whether prompts
+or results expose private knowledge, whether private knowledge is authored
+clearly, and whether choices align with goals, fears, location, and known facts.
+Every issue must cite a character role code and stable key, include severity,
+distinguish observed evidence from inference, recommend an authored-data or
+prose fix, and remain advice-only.
+
 The remaining buttons stay visibly marked as forthcoming and disabled until
 their individual contracts are implemented.
 

@@ -10,6 +10,8 @@ $qualityMethod=new ReflectionMethod(InkyCowriterService::class,'validatedQuality
 $qualityMethod->setAccessible(true);
 $dependencyMethod=new ReflectionMethod(InkyCowriterService::class,'validatedDependencyCheck');
 $dependencyMethod->setAccessible(true);
+$knowledgeMethod=new ReflectionMethod(InkyCowriterService::class,'validatedCharacterKnowledge');
+$knowledgeMethod->setAccessible(true);
 
 $result=$method->invoke(null,[
     'summary'=>'Start with the highest-risk authoring gaps.',
@@ -72,5 +74,23 @@ $failed=false;
 try{$dependencyMethod->invoke(null,['summary'=>'','problems'=>[]]);}
 catch(RuntimeException $e){$failed=str_contains($e->getMessage(),'summary');}
 if(!$failed)throw new RuntimeException('Dependency-check validation accepted a missing summary.');
+
+$knowledge=$knowledgeMethod->invoke(null,[
+    'summary'=>'Two characters need clearer viewpoint boundaries.',
+    'issues'=>[
+        ['role_code'=>'Farah Vale','stable_key'=>'FARAH_SECRET_PROMPT','severity'=>'HIGH','issue'=>'The prompt may expose another character’s private knowledge.','evidence'=>'Inference: the character has no authored known fact for that detail.','fix'=>'Move the detail into private knowledge or reword the prompt around observable behavior.'],
+        ['role_code'=>'ELIAN','stable_key'=>'ELIAN_CLUE','severity'=>'unexpected','issue'=>'The character lacks enough context for a meaningful choice.','evidence'=>'Observed evidence: no private knowledge explains the clue.','fix'=>'Add non-privileged setup in the event or character knowledge.'],
+        ['role_code'=>'','stable_key'=>'SKIP_ME','severity'=>'LOW','issue'=>'Ignored.','evidence'=>'Ignored.','fix'=>'Ignored.'],
+    ],
+]);
+if($knowledge['summary']!=='Two characters need clearer viewpoint boundaries.')throw new RuntimeException('Character-knowledge summary was not preserved.');
+if(count($knowledge['issues'])!==2)throw new RuntimeException('Character-knowledge validation did not filter malformed issues.');
+if($knowledge['issues'][0]['role_code']!=='FARAH_VALE')throw new RuntimeException('Character-knowledge role code was not normalized.');
+if($knowledge['issues'][1]['severity']!=='MEDIUM')throw new RuntimeException('Character-knowledge unknown severity was not normalized.');
+
+$failed=false;
+try{$knowledgeMethod->invoke(null,['summary'=>'','issues'=>[]]);}
+catch(RuntimeException $e){$failed=str_contains($e->getMessage(),'summary');}
+if(!$failed)throw new RuntimeException('Character-knowledge validation accepted a missing summary.');
 
 echo "PASS: Inky action contract validation normalizes and rejects malformed payloads.\n";
