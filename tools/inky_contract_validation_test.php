@@ -14,6 +14,8 @@ $knowledgeMethod=new ReflectionMethod(InkyCowriterService::class,'validatedChara
 $knowledgeMethod->setAccessible(true);
 $valueMethod=new ReflectionMethod(InkyCowriterService::class,'validatedStoryValues');
 $valueMethod->setAccessible(true);
+$focusedMethod=new ReflectionMethod(InkyCowriterService::class,'validatedFocusedTests');
+$focusedMethod->setAccessible(true);
 
 $result=$method->invoke(null,[
     'summary'=>'Start with the highest-risk authoring gaps.',
@@ -115,5 +117,29 @@ $failed=false;
 try{$valueMethod->invoke(null,['summary'=>'','suggestions'=>[]]);}
 catch(RuntimeException $e){$failed=str_contains($e->getMessage(),'summary');}
 if(!$failed)throw new RuntimeException('Story-value validation accepted a missing summary.');
+
+$focused=$focusedMethod->invoke(null,[
+    'summary'=>'Prioritize local branch coverage before broad replay.',
+    'tests'=>[
+        ['stable_key'=>'OPPORTUNITY_REVEAL','test_type'=>'focused_opportunity','focus_code'=>'reveal report','runs'=>8,'reason'=>'Observed evidence: the opportunity controls a high-impact branch.','expected_evidence'=>'Every active choice is delivered and applied from the seeded checkpoint.'],
+        ['stable_key'=>'ENDING_REVIEW','test_type'=>'broad_simulation','focus_code'=>'ending families','runs'=>999,'reason'=>'Inference: broad replay may expose missing aftermath outcomes.','expected_evidence'=>'Outcome families and warning frequency are reviewed.'],
+        ['stable_key'=>'COPY_CHECK','test_type'=>'manual_smoke','focus_code'=>'mobile prose','runs'=>30,'reason'=>'Observed evidence: player-facing prose is long.','expected_evidence'=>'The phone view remains readable without covering choices.'],
+        ['stable_key'=>'DEFAULT_ME','test_type'=>'unexpected','focus_code'=>'validation','runs'=>0,'reason'=>'Inference: validation should catch structural gaps.','expected_evidence'=>'Blocking errors are resolved or confirmed.'],
+        ['stable_key'=>'SKIP','test_type'=>'VALIDATION','focus_code'=>'','runs'=>5,'reason'=>'Ignored.','expected_evidence'=>'Ignored.'],
+    ],
+]);
+if($focused['summary']!=='Prioritize local branch coverage before broad replay.')throw new RuntimeException('Focused-test summary was not preserved.');
+if(count($focused['tests'])!==4)throw new RuntimeException('Focused-test validation did not filter malformed tests.');
+if($focused['tests'][0]['test_type']!=='FOCUSED_OPPORTUNITY')throw new RuntimeException('Focused-test type was not normalized.');
+if($focused['tests'][0]['focus_code']!=='REVEAL_REPORT')throw new RuntimeException('Focused-test focus code was not normalized.');
+if($focused['tests'][1]['runs']!==250)throw new RuntimeException('Broad simulation run count was not capped at 250.');
+if($focused['tests'][2]['runs']!==1)throw new RuntimeException('Manual smoke run count was not forced to one.');
+if($focused['tests'][3]['test_type']!=='VALIDATION')throw new RuntimeException('Unknown focused-test type was not defaulted.');
+if($focused['tests'][3]['runs']!==1)throw new RuntimeException('Validation run count was not forced to one.');
+
+$failed=false;
+try{$focusedMethod->invoke(null,['summary'=>'','tests'=>[]]);}
+catch(RuntimeException $e){$failed=str_contains($e->getMessage(),'summary');}
+if(!$failed)throw new RuntimeException('Focused-test validation accepted a missing summary.');
 
 echo "PASS: Inky action contract validation normalizes and rejects malformed payloads.\n";
