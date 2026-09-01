@@ -49,6 +49,9 @@ foreach([
     "setPointerCapture",
     "innerWidth>700",
     "button.dataset.implemented!=='1'",
+    "addResultMeta",
+    "automated_findings",
+    "inky-result-meta",
     "action==='whats_next'",
     "renderNextSteps",
     "action==='quality_check'",
@@ -81,7 +84,7 @@ foreach(['INKY_CHARACTER_KNOWLEDGE','validatedCharacterKnowledge','non-privilege
 foreach(['INKY_STORY_VALUES','validatedStoryValues','database-authored story values','allowed_values']as$required)if(!str_contains($cowriter,$required))throw new RuntimeException('Story Values contract is missing '.$required.'.');
 foreach(['INKY_OPPORTUNITY_REVIEW','validatedOpportunityReview','AI rationale guidance','condition/effect fit']as$required)if(!str_contains($cowriter,$required))throw new RuntimeException('Opportunity Review contract is missing '.$required.'.');
 foreach(['INKY_FOCUSED_TESTS','validatedFocusedTests','Game2 Simulation Lab workflows','seeded focused opportunity test']as$required)if(!str_contains($cowriter,$required))throw new RuntimeException('Focused Tests contract is missing '.$required.'.');
-foreach(["`What's Next?` is the second implemented vertical slice",'Every step must cite a stable key','MANUAL STRUCTURAL REVIEW','`Quality Check My Work` is the third implemented vertical slice','scored checks for','`Find Dependency Problems` is the fourth implemented vertical slice','recommend an authored-data fix','`Check Character Knowledge` is the fifth implemented vertical slice','cite a character role code','`Suggest Story Values` is the sixth implemented vertical slice','does not change schema or PHP','`Review This Opportunity` is the seventh implemented vertical slice','prompt clarity, player agency','`Prepare Focused Tests` is the eighth implemented vertical slice','not proof of organic reachability']as$required)if(!str_contains($docs,$required))throw new RuntimeException('Inky documentation is missing '.$required.'.');
+foreach(["`What's Next?` is the second implemented vertical slice",'Every step must cite a stable key','MANUAL STRUCTURAL REVIEW','`Quality Check My Work` is the third implemented vertical slice','scored checks for','`Find Dependency Problems` is the fourth implemented vertical slice','recommend an authored-data fix','`Check Character Knowledge` is the fifth implemented vertical slice','cite a character role code','`Suggest Story Values` is the sixth implemented vertical slice','does not change schema or PHP','`Review This Opportunity` is the seventh implemented vertical slice','prompt clarity, player agency','`Prepare Focused Tests` is the eighth implemented vertical slice','not proof of organic reachability','companion name, model']as$required)if(!str_contains($docs,$required))throw new RuntimeException('Inky documentation is missing '.$required.'.');
 foreach(['AuthService::requireWriter','AuthService::requireCsrf','InkyCowriterService::run']as$required)if(!str_contains($actionEndpoint,$required))throw new RuntimeException('Inky action endpoint is missing '.$required.'.');
 if(str_contains($actionEndpoint,"'message'=>\$e->getMessage()"))throw new RuntimeException('Inky action errors may expose private connection details to the browser.');
 if(!str_contains($migration,'PRIMARY KEY(user_id)'))throw new RuntimeException('Inky preferences are not scoped uniquely to each user.');
