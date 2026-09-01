@@ -13,6 +13,8 @@ require_once $root.'/app/StateSyncService.php';
 require_once $root.'/app/SimulationService.php';
 
 $pdo=db();
+$previousNpcReasoner=getenv('GAME2_SIM_NPC_REASONER');
+putenv('GAME2_SIM_NPC_REASONER=manual');
 $plotCode=strtoupper(trim((string)(getenv('TOINKY_TEST_PLOT_CODE')?:'EMPTY_THRONE')));
 $roles=$pdo->prepare('SELECT pr.role_code FROM plot_roles pr JOIN plots p ON p.plot_id=pr.plot_id WHERE p.code=? AND pr.active=1 AND pr.simulation_active=1');
 $roles->execute([$plotCode]);
@@ -44,6 +46,8 @@ try{
     if((int)$mismatch!==0)throw new RuntimeException('Dynamic Choice mirrors do not preserve their authored AI Choice Weights.');
 }finally{
     if($simulationId>0)$pdo->prepare('DELETE FROM simulations WHERE simulation_id=?')->execute([$simulationId]);
+    if($previousNpcReasoner===false)putenv('GAME2_SIM_NPC_REASONER');
+    else putenv('GAME2_SIM_NPC_REASONER='.$previousNpcReasoner);
 }
 
 echo "Human-biased simulations receive authored weighted choices.\n";
