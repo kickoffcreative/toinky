@@ -94,9 +94,24 @@ The guided actions are:
 
 `Review Plot` is the first implemented vertical slice. It sends the authenticated
 writer's current authored review package to Qwen and requires compact JSON with
-separate observed evidence, inference, and stable-key recommendations. The
-remaining buttons stay visibly marked as forthcoming and disabled until their
-individual contracts are implemented.
+separate observed evidence, inference, and stable-key recommendations.
+
+`What's Next?` is the second implemented vertical slice. It sends the same
+authenticated, bounded review package and requires a short prioritized task list
+for the author. Every step must cite a stable key, include a priority, explain
+whether its reason is observed evidence or inference, remain advice-only, and
+mark chronology-sensitive or structural-order changes as **MANUAL STRUCTURAL
+REVIEW**.
+
+`Quality Check My Work` is the third implemented vertical slice. It sends the
+same authenticated, bounded review package and returns scored checks for
+immersion, viewpoint continuity, character agency, branch causality, dependency
+coverage, pacing, replayability, and mobile readability. Each check must cite a
+stable key, distinguish observed evidence from inference, include one specific
+authoring improvement, and remain advice-only.
+
+The remaining buttons stay visibly marked as forthcoming and disabled until
+their individual contracts are implemented.
 
 Each contract must define:
 
