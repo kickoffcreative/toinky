@@ -24,6 +24,8 @@ Inky preferences belong to the user rather than to an administrator or story:
 | Setting | Values | Default |
 | --- | --- | --- |
 | Enabled | On / Off | On |
+| Companion name | Optional name root; Toinky adds “inky” | Empty → Inky |
+| Character | Selectable character catalog | Classic Inky |
 | Size | Small (72 px), Standard (96 px), Large (120 px) | Standard |
 | Dock position | Auto, Left, Right | Auto |
 | Saved anchor | Lower Left, Middle Left, Lower Right, Middle Right | Lower Left |
@@ -33,6 +35,16 @@ Inky preferences belong to the user rather than to an administrator or story:
 
 The profile must contain a clear **Disable Inky** action. Disabling Inky removes
 the companion from supported pages; My Profile remains the recovery path.
+
+Companion naming is playful but predictable. Entering `Bo` displays `Boinky`.
+Leaving the field empty displays `Inky`, and entering a name that already ends
+in `inky` does not add the suffix a second time. Names are stored separately
+from character selection so a user can keep the same name when switching art.
+
+Character selection is catalog-backed. Classic Inky is the first selectable
+character; additional character artwork and personalities may be added later
+without changing the user-preference schema. Unavailable characters must be
+shown as coming soon or omitted, never presented as selectable.
 
 ## Placement and movement
 
@@ -97,7 +109,7 @@ Each contract must define:
 
 ## Delivery sequence
 
-1. Persistent user preferences and profile controls.
+1. Persistent user preferences, companion identity, character catalog, and profile controls.
 2. Safe responsive shell, size, docking, movement, sound, and reduced motion.
 3. Server-side Qwen/Ollama availability check.
 4. Per-action context builders and structured response contracts.

@@ -11,12 +11,16 @@ $connection=file_get_contents($root.'/app/AiConnectionService.php');
 $cowriter=file_get_contents($root.'/app/InkyCowriterService.php');
 $actionEndpoint=file_get_contents($root.'/public/inky-action.php');
 $migration=file_get_contents($root.'/database/migrations/083_inky_user_preferences.sql');
-foreach(compact('profile','writer','component','script','style','connection','cowriter','actionEndpoint','migration')as$name=>$source)if($source===false)throw new RuntimeException('Could not read Inky '.$name.' source.');
+$identityMigration=file_get_contents($root.'/database/migrations/084_inky_character_identity.sql');
+foreach(compact('profile','writer','component','script','style','connection','cowriter','actionEndpoint','migration','identityMigration')as$name=>$source)if($source===false)throw new RuntimeException('Could not read Inky '.$name.' source.');
 foreach([
     'data-profile-tab="inky"',
     'save_inky_preferences',
     'Disable Inky',
     'These personal settings are available to every Toinky user.',
+    'Name Your Inky',
+    'Choose Your Inky Character',
+    'More Inky characters and artwork are in the pipeline.',
 ]as$required)if(!str_contains($profile,$required))throw new RuntimeException('Profile Inky controls are missing '.$required.'.');
 foreach([
     "render_inky(\$writer,['context'=>'story-writer','plot_id'=>\$plotId])",
@@ -26,6 +30,8 @@ foreach([
     "data-inky-action",
     "data-csrf",
     "UserProfileService::inkyPreferences",
+    "UserProfileService::inkyDisplayName",
+    "data-character-code",
     "if(!(int)\$preferences['enabled'])return",
 ]as$required)if(!str_contains($component,$required))throw new RuntimeException('Inky component contract is missing '.$required.'.');
 foreach([
@@ -49,4 +55,5 @@ foreach(['Separate observed evidence from inference','Never recommend plot-speci
 foreach(['AuthService::requireWriter','AuthService::requireCsrf','InkyCowriterService::run']as$required)if(!str_contains($actionEndpoint,$required))throw new RuntimeException('Inky action endpoint is missing '.$required.'.');
 if(str_contains($actionEndpoint,"'message'=>\$e->getMessage()"))throw new RuntimeException('Inky action errors may expose private connection details to the browser.');
 if(!str_contains($migration,'PRIMARY KEY(user_id)'))throw new RuntimeException('Inky preferences are not scoped uniquely to each user.');
+foreach(['CREATE TABLE IF NOT EXISTS inky_characters','companion_name_root','character_code','INKY_CLASSIC']as$required)if(!str_contains($identityMigration,$required))throw new RuntimeException('Inky identity migration is missing '.$required.'.');
 echo "PASS: Inky profile, placement, privacy, Qwen availability, and Review Plot contracts are present.\n";
