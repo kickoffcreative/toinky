@@ -8,6 +8,8 @@ $method=new ReflectionMethod(InkyCowriterService::class,'validatedNextSteps');
 $method->setAccessible(true);
 $qualityMethod=new ReflectionMethod(InkyCowriterService::class,'validatedQualityCheck');
 $qualityMethod->setAccessible(true);
+$dependencyMethod=new ReflectionMethod(InkyCowriterService::class,'validatedDependencyCheck');
+$dependencyMethod->setAccessible(true);
 
 $result=$method->invoke(null,[
     'summary'=>'Start with the highest-risk authoring gaps.',
@@ -51,5 +53,24 @@ $failed=false;
 try{$qualityMethod->invoke(null,['summary'=>'','checks'=>[]]);}
 catch(RuntimeException $e){$failed=str_contains($e->getMessage(),'summary');}
 if(!$failed)throw new RuntimeException('Quality-check validation accepted a missing summary.');
+
+$dependencies=$dependencyMethod->invoke(null,[
+    'summary'=>'Several authored links need tighter dependency coverage.',
+    'problems'=>[
+        ['stable_key'=>'DECISION_OPENING','severity'=>'BLOCKER','problem'=>'The decision has too few active choices.','evidence'=>'Observed evidence: the package reports fewer than two active options.','fix'=>'Add or reactivate a second authored option.','manual_structural_review'=>false],
+        ['stable_key'=>'ENDING_SECRET','severity'=>'unexpected','problem'=>'The ending may not have a clear trigger.','evidence'=>'Inference: no nearby condition appears to set the required value.','fix'=>'Connect a choice effect to the ending condition value.','manual_structural_review'=>true],
+        ['stable_key'=>'SKIP_ME','severity'=>'HIGH','problem'=>'','evidence'=>'Observed evidence: ignored.','fix'=>'Ignored.'],
+    ],
+]);
+if($dependencies['summary']!=='Several authored links need tighter dependency coverage.')throw new RuntimeException('Dependency-check summary was not preserved.');
+if(count($dependencies['problems'])!==2)throw new RuntimeException('Dependency-check validation did not filter malformed problems.');
+if($dependencies['problems'][0]['severity']!=='BLOCKER')throw new RuntimeException('Dependency-check severity was not preserved.');
+if($dependencies['problems'][1]['severity']!=='MEDIUM')throw new RuntimeException('Dependency-check unknown severity was not normalized.');
+if($dependencies['problems'][1]['manual_structural_review']!==true)throw new RuntimeException('Dependency-check manual structural review flag was not preserved.');
+
+$failed=false;
+try{$dependencyMethod->invoke(null,['summary'=>'','problems'=>[]]);}
+catch(RuntimeException $e){$failed=str_contains($e->getMessage(),'summary');}
+if(!$failed)throw new RuntimeException('Dependency-check validation accepted a missing summary.');
 
 echo "PASS: Inky action contract validation normalizes and rejects malformed payloads.\n";

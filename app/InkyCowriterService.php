@@ -8,7 +8,7 @@ final class InkyCowriterService
     public static function run(array $writer,int $plotId,string $action): array
     {
         if(!StoryAuthoringService::canEdit($writer,$plotId))throw new RuntimeException('You may only ask Inky to review stories you can edit.');$displayName=UserProfileService::inkyDisplayName(UserProfileService::inkyPreferences((int)$writer['user_id']));
-        return match($action){'review_plot'=>self::reviewPlot($plotId,$displayName),'whats_next'=>self::whatsNext($plotId,$displayName),'quality_check'=>self::qualityCheck($plotId,$displayName),default=>throw new RuntimeException('That Inky action is not available yet.')};
+        return match($action){'review_plot'=>self::reviewPlot($plotId,$displayName),'whats_next'=>self::whatsNext($plotId,$displayName),'quality_check'=>self::qualityCheck($plotId,$displayName),'dependencies'=>self::dependencyCheck($plotId,$displayName),default=>throw new RuntimeException('That Inky action is not available yet.')};
     }
 
     private static function reviewPlot(int $plotId,string $displayName): array
@@ -32,6 +32,13 @@ final class InkyCowriterService
         $response=AiConnectionService::completeJson('INKY_QUALITY_CHECK',$system,$audit['text']);$quality=self::validatedQualityCheck((array)$response['data']);return['action'=>'quality_check','display_name'=>$displayName,'model'=>$response['model'],'quality_check'=>$quality,'automated_findings'=>['errors'=>count($audit['errors']),'warnings'=>count($audit['warnings'])]];
     }
 
+    private static function dependencyCheck(int $plotId,string $displayName): array
+    {
+        $audit=StoryAuthoringService::audit($plotId);
+        $system='You are '.$displayName.', a concise co-writer finding dependency problems in authored interactive-story data. Use only the supplied story package. Return advice only; do not rewrite the story or claim changes were made. Focus on broken or weak authored dependencies: missing active choices, missing effects, missing conditions, inactive referenced entities, undefined managed story values, unreachable endings, dependency gaps between choices and outcomes, and player-visible engine leakage. Every problem must cite a named stable key from the package and include observed evidence or clearly labeled inference. Never recommend plot-specific PHP. Do not propose chronology or structural-order changes unless the supplied evidence demonstrates a defect; label that item MANUAL STRUCTURAL REVIEW. Return JSON only with this exact shape: {"summary":"one concise paragraph","problems":[{"stable_key":"KEY","severity":"BLOCKER|HIGH|MEDIUM|LOW","problem":"specific dependency issue","evidence":"observed evidence or labeled inference","fix":"specific authored-data fix","manual_structural_review":false}]}. Return no markdown and no additional keys.';
+        $response=AiConnectionService::completeJson('INKY_DEPENDENCY_CHECK',$system,$audit['text']);$dependencies=self::validatedDependencyCheck((array)$response['data']);return['action'=>'dependencies','display_name'=>$displayName,'model'=>$response['model'],'dependency_check'=>$dependencies,'automated_findings'=>['errors'=>count($audit['errors']),'warnings'=>count($audit['warnings'])]];
+    }
+
     private static function validatedReview(array $input): array
     {
         $summary=trim((string)($input['summary']??''));if($summary==='')throw new RuntimeException('Inky’s review did not include a summary.');
@@ -53,6 +60,13 @@ final class InkyCowriterService
         return['summary'=>$summary,'checks'=>$checks];
     }
 
+    private static function validatedDependencyCheck(array $input): array
+    {
+        $summary=trim((string)($input['summary']??''));if($summary==='')throw new RuntimeException('Inky’s dependency check did not include a summary.');
+        $problems=self::dependencyItems($input['problems']??null);if(!$problems)throw new RuntimeException('Inky’s dependency check did not include usable problems.');
+        return['summary'=>$summary,'problems'=>$problems];
+    }
+
     private static function items(mixed $rows,string $textKey,bool $recommendation): array
     {
         if(!is_array($rows))return[];$out=[];foreach(array_slice($rows,0,10)as$row){if(!is_array($row))continue;$key=trim((string)($row['stable_key']??''));$text=trim((string)($row[$textKey]??''));if($key===''||$text==='')continue;$item=['stable_key'=>$key,$textKey=>$text];if($recommendation){$item['category']=trim((string)($row['category']??'Story quality'));$item['manual_structural_review']=!empty($row['manual_structural_review']);}$out[]=$item;}return$out;
@@ -66,5 +80,10 @@ final class InkyCowriterService
     private static function qualityCheckItems(mixed $rows): array
     {
         if(!is_array($rows))return[];$allowed=['immersion','viewpoint_continuity','character_agency','branch_causality','dependency_coverage','pacing','replayability','mobile_readability'];$out=[];foreach($rows as$row){if(!is_array($row))continue;$category=strtolower(trim((string)($row['category']??'')));$key=trim((string)($row['stable_key']??''));$note=trim((string)($row['note']??''));$improvement=trim((string)($row['improvement']??''));if(!in_array($category,$allowed,true)||$key===''||$note===''||$improvement==='')continue;$score=max(1,min(5,(int)($row['score']??3)));$out[]=['category'=>$category,'score'=>$score,'stable_key'=>$key,'note'=>$note,'improvement'=>$improvement,'manual_structural_review'=>!empty($row['manual_structural_review'])];if(count($out)>=8)break;}return$out;
+    }
+
+    private static function dependencyItems(mixed $rows): array
+    {
+        if(!is_array($rows))return[];$severities=['BLOCKER','HIGH','MEDIUM','LOW'];$out=[];foreach($rows as$row){if(!is_array($row))continue;$key=trim((string)($row['stable_key']??''));$problem=trim((string)($row['problem']??''));$evidence=trim((string)($row['evidence']??''));$fix=trim((string)($row['fix']??''));if($key===''||$problem===''||$evidence===''||$fix==='')continue;$severity=strtoupper(trim((string)($row['severity']??'MEDIUM')));if(!in_array($severity,$severities,true))$severity='MEDIUM';$out[]=['stable_key'=>$key,'severity'=>$severity,'problem'=>$problem,'evidence'=>$evidence,'fix'=>$fix,'manual_structural_review'=>!empty($row['manual_structural_review'])];if(count($out)>=8)break;}return$out;
     }
 }

@@ -110,6 +110,14 @@ coverage, pacing, replayability, and mobile readability. Each check must cite a
 stable key, distinguish observed evidence from inference, include one specific
 authoring improvement, and remain advice-only.
 
+`Find Dependency Problems` is the fourth implemented vertical slice. It sends
+the same authenticated, bounded review package and returns dependency issues
+such as missing active choices, missing effects, missing conditions, inactive
+references, undefined managed story values, weak choice-to-outcome links,
+unreachable endings, and player-visible engine leakage. Every problem must cite
+a stable key, include severity, distinguish observed evidence from inference,
+recommend an authored-data fix, and remain advice-only.
+
 The remaining buttons stay visibly marked as forthcoming and disabled until
 their individual contracts are implemented.
 
