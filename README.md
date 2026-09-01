@@ -62,3 +62,10 @@ The smoke test creates temporary users and a temporary simulation, verifies lobb
 ## Story writing
 
 Story ownership, optional writer-uploaded artwork, player-immersion rules, and the required validation order are documented in [docs/STORY_AUTHORING.md](docs/STORY_AUTHORING.md).
+
+## Inky
+
+Inky is Toinky's optional guided AI companion and co-writer. Its approved
+settings, safe placement rules, Qwen availability behavior, structured
+interaction contracts, and validation requirements are documented in
+[docs/INKY.md](docs/INKY.md).
