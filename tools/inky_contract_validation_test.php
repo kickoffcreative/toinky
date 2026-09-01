@@ -14,6 +14,8 @@ $knowledgeMethod=new ReflectionMethod(InkyCowriterService::class,'validatedChara
 $knowledgeMethod->setAccessible(true);
 $valueMethod=new ReflectionMethod(InkyCowriterService::class,'validatedStoryValues');
 $valueMethod->setAccessible(true);
+$opportunityMethod=new ReflectionMethod(InkyCowriterService::class,'validatedOpportunityReview');
+$opportunityMethod->setAccessible(true);
 $focusedMethod=new ReflectionMethod(InkyCowriterService::class,'validatedFocusedTests');
 $focusedMethod->setAccessible(true);
 
@@ -117,6 +119,25 @@ $failed=false;
 try{$valueMethod->invoke(null,['summary'=>'','suggestions'=>[]]);}
 catch(RuntimeException $e){$failed=str_contains($e->getMessage(),'summary');}
 if(!$failed)throw new RuntimeException('Story-value validation accepted a missing summary.');
+
+$opportunity=$opportunityMethod->invoke(null,[
+    'summary'=>'Several opportunities need tighter authored consequences.',
+    'opportunities'=>[
+        ['opportunity_code'=>'reveal report','stable_key'=>'CHOICE_REVEAL','severity'=>'HIGH','finding'=>'Observed evidence: the choice result names a major reveal.','recommendation'=>'Make the immediate consequence explicit in the result text.','focused_test'=>'Run a seeded focused opportunity test for each active choice.'],
+        ['opportunity_code'=>'COURT_HEARING','stable_key'=>'RATIONALE_GAP','severity'=>'unexpected','finding'=>'Inference: AI rationale guidance may be too thin.','recommendation'=>'Add private rationale guidance for why this option fits the character.','focused_test'=>''],
+        ['opportunity_code'=>'','stable_key'=>'SKIP','severity'=>'LOW','finding'=>'Ignored.','recommendation'=>'Ignored.'],
+    ],
+]);
+if($opportunity['summary']!=='Several opportunities need tighter authored consequences.')throw new RuntimeException('Opportunity-review summary was not preserved.');
+if(count($opportunity['opportunities'])!==2)throw new RuntimeException('Opportunity-review validation did not filter malformed items.');
+if($opportunity['opportunities'][0]['opportunity_code']!=='REVEAL_REPORT')throw new RuntimeException('Opportunity-review code was not normalized.');
+if($opportunity['opportunities'][1]['severity']!=='MEDIUM')throw new RuntimeException('Opportunity-review unknown severity was not normalized.');
+if($opportunity['opportunities'][0]['focused_test']==='')throw new RuntimeException('Opportunity-review focused test text was not preserved.');
+
+$failed=false;
+try{$opportunityMethod->invoke(null,['summary'=>'','opportunities'=>[]]);}
+catch(RuntimeException $e){$failed=str_contains($e->getMessage(),'summary');}
+if(!$failed)throw new RuntimeException('Opportunity-review validation accepted a missing summary.');
 
 $focused=$focusedMethod->invoke(null,[
     'summary'=>'Prioritize local branch coverage before broad replay.',
