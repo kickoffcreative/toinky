@@ -5,10 +5,10 @@ require_once __DIR__.'/UserProfileService.php';
 
 final class InkyCowriterService
 {
-    public static function run(array $writer,int $plotId,string $action): array
+    public static function run(array $writer,int $plotId,string $action,array $context=[]): array
     {
         if(!StoryAuthoringService::canEdit($writer,$plotId))throw new RuntimeException('You may only ask Inky to review stories you can edit.');$displayName=UserProfileService::inkyDisplayName(UserProfileService::inkyPreferences((int)$writer['user_id']));
-        return match($action){'review_plot'=>self::reviewPlot($plotId,$displayName),'whats_next'=>self::whatsNext($plotId,$displayName),'quality_check'=>self::qualityCheck($plotId,$displayName),'dependencies'=>self::dependencyCheck($plotId,$displayName),'character_knowledge'=>self::characterKnowledgeCheck($plotId,$displayName),'story_values'=>self::storyValueSuggestions($plotId,$displayName),'review_opportunity'=>self::opportunityReview($plotId,$displayName),'focused_tests'=>self::focusedTestPlan($plotId,$displayName),default=>throw new RuntimeException('That Inky action is not available yet.')};
+        return match($action){'review_plot'=>self::reviewPlot($plotId,$displayName),'whats_next'=>self::whatsNext($plotId,$displayName),'quality_check'=>self::qualityCheck($plotId,$displayName),'dependencies'=>self::dependencyCheck($plotId,$displayName),'character_knowledge'=>self::characterKnowledgeCheck($plotId,$displayName),'story_values'=>self::storyValueSuggestions($plotId,$displayName),'review_opportunity'=>self::opportunityReview($plotId,$displayName,$context),'focused_tests'=>self::focusedTestPlan($plotId,$displayName),default=>throw new RuntimeException('That Inky action is not available yet.')};
     }
 
     private static function reviewPlot(int $plotId,string $displayName): array
@@ -53,11 +53,12 @@ final class InkyCowriterService
         $response=AiConnectionService::completeJson('INKY_STORY_VALUES',$system,$audit['text']);$values=self::validatedStoryValues((array)$response['data']);return['action'=>'story_values','display_name'=>$displayName,'model'=>$response['model'],'story_values'=>$values,'automated_findings'=>['errors'=>count($audit['errors']),'warnings'=>count($audit['warnings'])]];
     }
 
-    private static function opportunityReview(int $plotId,string $displayName): array
+    private static function opportunityReview(int $plotId,string $displayName,array $context=[]): array
     {
-        $audit=StoryAuthoringService::audit($plotId);
+        $audit=StoryAuthoringService::audit($plotId);$target=self::targetFocus($context);
         $system='You are '.$displayName.', a concise co-writer reviewing authored decision opportunities in an interactive story. Use only the supplied story package. Return advice only; do not rewrite the story, claim changes were made, or propose PHP/schema changes. Review world-event decisions and conditional opportunities for prompt clarity, player agency, option contrast, visible consequences, AI rationale guidance, condition/effect fit, character knowledge, and mobile readability. Every item must cite a named stable key from the package, identify the opportunity code being reviewed, and include observed evidence or clearly labeled inference. A seeded focused opportunity test proves local branch behavior only, not organic reachability. Return JSON only with this exact shape: {"summary":"one concise paragraph","opportunities":[{"opportunity_code":"EVENT_OR_OPPORTUNITY","stable_key":"KEY","severity":"BLOCKER|HIGH|MEDIUM|LOW","finding":"specific opportunity issue or strength","recommendation":"specific authored-data or prose improvement","focused_test":"optional focused validation idea"}]}. Return 3 to 8 items, keep each item short enough to read on a phone, and return no markdown or additional keys.';
-        $response=AiConnectionService::completeJson('INKY_OPPORTUNITY_REVIEW',$system,$audit['text']);$review=self::validatedOpportunityReview((array)$response['data']);return['action'=>'review_opportunity','display_name'=>$displayName,'model'=>$response['model'],'opportunity_review'=>$review,'automated_findings'=>['errors'=>count($audit['errors']),'warnings'=>count($audit['warnings'])]];
+        $prompt=$target['type']!==''&&$target['code']!==''?'REQUESTED FOCUS: '.$target['type'].' '.$target['code']."\nIf that exact record appears in the story package, prioritize it before broader opportunity advice. If it is not found, say so in the summary and continue with the closest stable-key evidence.\n\n".$audit['text']:$audit['text'];
+        $response=AiConnectionService::completeJson('INKY_OPPORTUNITY_REVIEW',$system,$prompt);$review=self::validatedOpportunityReview((array)$response['data']);return['action'=>'review_opportunity','display_name'=>$displayName,'model'=>$response['model'],'target_focus'=>$target,'opportunity_review'=>$review,'automated_findings'=>['errors'=>count($audit['errors']),'warnings'=>count($audit['warnings'])]];
     }
 
     private static function focusedTestPlan(int $plotId,string $displayName): array
@@ -161,6 +162,12 @@ final class InkyCowriterService
     private static function focusedTestItems(mixed $rows): array
     {
         if(!is_array($rows))return[];$types=['VALIDATION','FOCUSED_OPPORTUNITY','BROAD_SIMULATION','MANUAL_SMOKE'];$out=[];foreach($rows as$row){if(!is_array($row))continue;$key=trim((string)($row['stable_key']??''));$type=strtoupper(trim((string)($row['test_type']??'VALIDATION')));$focus=self::stableCode((string)($row['focus_code']??''));$reason=trim((string)($row['reason']??''));$expected=trim((string)($row['expected_evidence']??''));if(!in_array($type,$types,true))$type='VALIDATION';if($key===''||$focus===''||$reason===''||$expected==='')continue;$runs=max(1,min(50,(int)($row['runs']??10)));if($type==='VALIDATION'||$type==='MANUAL_SMOKE')$runs=1;elseif($type==='BROAD_SIMULATION')$runs=max(10,min(250,(int)($row['runs']??50)));$out[]=['stable_key'=>$key,'test_type'=>$type,'focus_code'=>$focus,'runs'=>$runs,'reason'=>$reason,'expected_evidence'=>$expected];if(count($out)>=6)break;}return$out;
+    }
+
+    private static function targetFocus(array $context): array
+    {
+        $type=strtolower(trim((string)($context['target_type']??'')));if(!in_array($type,['decision','opportunity'],true))$type='';
+        $code=self::stableCode((string)($context['target_code']??''));return['type'=>$type,'code'=>$code];
     }
 
     private static function stableCode(string $value): string
