@@ -39,6 +39,7 @@ foreach([
     "'dependencies'=>['label'=>'Find Dependency Problems','implemented'=>true]",
     "'character_knowledge'=>['label'=>'Check Character Knowledge','implemented'=>true]",
     "'story_values'=>['label'=>'Suggest Story Values','implemented'=>true]",
+    "'review_opportunity'=>['label'=>'Review This Opportunity','implemented'=>true]",
     "'focused_tests'=>['label'=>'Prepare Focused Tests','implemented'=>true]",
 ]as$required)if(!str_contains($component,$required))throw new RuntimeException('Inky component contract is missing '.$required.'.');
 foreach([
@@ -58,6 +59,8 @@ foreach([
     "renderCharacterKnowledge",
     "action==='story_values'",
     "renderStoryValues",
+    "action==='review_opportunity'",
+    "renderOpportunityReview",
     "action==='focused_tests'",
     "renderFocusedTests",
 ]as$required)if(!str_contains($script,$required))throw new RuntimeException('Inky browser behavior is missing '.$required.'.');
@@ -76,8 +79,9 @@ foreach(['INKY_QUALITY_CHECK','validatedQualityCheck','immersion, viewpoint_cont
 foreach(['INKY_DEPENDENCY_CHECK','validatedDependencyCheck','missing active choices','undefined managed story values']as$required)if(!str_contains($cowriter,$required))throw new RuntimeException('Dependency Check contract is missing '.$required.'.');
 foreach(['INKY_CHARACTER_KNOWLEDGE','validatedCharacterKnowledge','non-privileged information','role_code']as$required)if(!str_contains($cowriter,$required))throw new RuntimeException('Character Knowledge contract is missing '.$required.'.');
 foreach(['INKY_STORY_VALUES','validatedStoryValues','database-authored story values','allowed_values']as$required)if(!str_contains($cowriter,$required))throw new RuntimeException('Story Values contract is missing '.$required.'.');
+foreach(['INKY_OPPORTUNITY_REVIEW','validatedOpportunityReview','AI rationale guidance','condition/effect fit']as$required)if(!str_contains($cowriter,$required))throw new RuntimeException('Opportunity Review contract is missing '.$required.'.');
 foreach(['INKY_FOCUSED_TESTS','validatedFocusedTests','Game2 Simulation Lab workflows','seeded focused opportunity test']as$required)if(!str_contains($cowriter,$required))throw new RuntimeException('Focused Tests contract is missing '.$required.'.');
-foreach(["`What's Next?` is the second implemented vertical slice",'Every step must cite a stable key','MANUAL STRUCTURAL REVIEW','`Quality Check My Work` is the third implemented vertical slice','scored checks for','`Find Dependency Problems` is the fourth implemented vertical slice','recommend an authored-data fix','`Check Character Knowledge` is the fifth implemented vertical slice','cite a character role code','`Suggest Story Values` is the sixth implemented vertical slice','does not change schema or PHP','`Prepare Focused Tests` is the seventh implemented vertical slice','not proof of organic reachability']as$required)if(!str_contains($docs,$required))throw new RuntimeException('Inky documentation is missing '.$required.'.');
+foreach(["`What's Next?` is the second implemented vertical slice",'Every step must cite a stable key','MANUAL STRUCTURAL REVIEW','`Quality Check My Work` is the third implemented vertical slice','scored checks for','`Find Dependency Problems` is the fourth implemented vertical slice','recommend an authored-data fix','`Check Character Knowledge` is the fifth implemented vertical slice','cite a character role code','`Suggest Story Values` is the sixth implemented vertical slice','does not change schema or PHP','`Review This Opportunity` is the seventh implemented vertical slice','prompt clarity, player agency','`Prepare Focused Tests` is the eighth implemented vertical slice','not proof of organic reachability']as$required)if(!str_contains($docs,$required))throw new RuntimeException('Inky documentation is missing '.$required.'.');
 foreach(['AuthService::requireWriter','AuthService::requireCsrf','InkyCowriterService::run']as$required)if(!str_contains($actionEndpoint,$required))throw new RuntimeException('Inky action endpoint is missing '.$required.'.');
 if(str_contains($actionEndpoint,"'message'=>\$e->getMessage()"))throw new RuntimeException('Inky action errors may expose private connection details to the browser.');
 if(!str_contains($migration,'PRIMARY KEY(user_id)'))throw new RuntimeException('Inky preferences are not scoped uniquely to each user.');
