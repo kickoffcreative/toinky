@@ -183,7 +183,7 @@ final class DynamicOpportunityService
         $q=$pdo->prepare('SELECT * FROM plot_decision_template_options WHERE template_id=? ORDER BY template_option_id');$q->execute([$templateId]);$mirrors=[];foreach($q->fetchAll()as$mirror)$mirrors[(string)$mirror['option_code']]=$mirror;
         $q=$pdo->prepare('SELECT * FROM plot_dynamic_opportunity_options WHERE dynamic_opportunity_id=? ORDER BY sort_order,dynamic_option_id');$q->execute([$rule['dynamic_opportunity_id']]);$dynamicOptions=$q->fetchAll();$dynamicCodes=[];
         foreach($dynamicOptions as$option){
-            $code=(string)$option['option_code'];$dynamicCodes[]=$code;$mirror=$mirrors[$code]??null;$weight=$actorType==='NPC'?(int)($option['npc_weight']??1):0;
+            $code=(string)$option['option_code'];$dynamicCodes[]=$code;$mirror=$mirrors[$code]??null;$weight=max(0,(int)($option['npc_weight']??1));
             if($mirror){$templateOptionId=(int)$mirror['template_option_id'];$pdo->prepare('UPDATE plot_decision_template_options SET label=?,npc_weight=?,rationale_text=?,result_text=?,sort_order=?,active=? WHERE template_option_id=?')->execute([$option['label'],$weight,$option['rationale_text'],$option['result_text'],$option['sort_order'],(int)($option['active']??1),$templateOptionId]);}
             else{$pdo->prepare('INSERT INTO plot_decision_template_options(template_id,option_code,label,npc_weight,rationale_text,result_text,sort_order,active) VALUES(?,?,?,?,?,?,?,?)')->execute([$templateId,$code,$option['label'],$weight,$option['rationale_text'],$option['result_text'],$option['sort_order'],(int)($option['active']??1)]);$templateOptionId=(int)$pdo->lastInsertId();}
             self::syncBehaviorEffects($templateOptionId,(int)$option['dynamic_option_id']);
