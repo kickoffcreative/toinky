@@ -26,16 +26,19 @@ $simulationId=0;
 try{
     $simulationId=SimulationService::create($plotCode,300,$controllers);
     SimulationService::start($simulationId);
-    SimulationService::advance($simulationId,30);
-    $snapshot=SimulationService::snapshot($simulationId);
     $optionCount=0;
     $positiveWeightCount=0;
-    foreach($snapshot['characters'] as $character){
-        foreach($character['open_decisions'] as $decision){
-            foreach($decision['options'] as $option){
-                $optionCount++;
-                if(!array_key_exists('npc_weight',$option))throw new RuntimeException('Simulation snapshot omitted an AI Choice Weight.');
-                if((int)$option['npc_weight']>0)$positiveWeightCount++;
+    for($attempt=0;$attempt<24&&$optionCount===0;$attempt++){
+        if($attempt>0)SimulationService::advance($simulationId,5);
+        $snapshot=SimulationService::snapshot($simulationId);
+        $positiveWeightCount=0;
+        foreach($snapshot['characters'] as $character){
+            foreach($character['open_decisions'] as $decision){
+                foreach($decision['options'] as $option){
+                    $optionCount++;
+                    if(!array_key_exists('npc_weight',$option))throw new RuntimeException('Simulation snapshot omitted an AI Choice Weight.');
+                    if((int)$option['npc_weight']>0)$positiveWeightCount++;
+                }
             }
         }
     }
