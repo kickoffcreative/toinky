@@ -73,6 +73,8 @@ jobs:
           php tools/story_simulation_batch_resume_test.php
           php tools/story_focused_opportunity_simulation_test.php
           php tools/human_biased_weighted_sampling_test.php
+          php tools/inky_source_test.php
+          php tools/inky_preferences_test.php
       - name: Test multiplayer lifecycle
         env:
           GAME2_DATABASE_CONFIG: ${{ github.workspace }}/config/database.test.php

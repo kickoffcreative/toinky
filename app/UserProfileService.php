@@ -66,7 +66,26 @@ final class UserProfileService
         $q=db()->prepare('SELECT v.plot_version_id,v.version_no,v.workflow_status,v.review_notes,v.created_at_utc,v.reviewed_at_utc,p.title FROM plot_versions v JOIN plots p ON p.plot_id=v.plot_id WHERE p.author_user_id=? ORDER BY v.created_at_utc DESC LIMIT 100');$q->execute([$userId]);return['stories'=>$stories,'reviews'=>$q->fetchAll()];
     }
 
+    public static function inkyPreferences(int $userId): array
+    {
+        $defaults=['enabled'=>1,'size_code'=>'STANDARD','dock_position'=>'AUTO','anchor_position'=>'LOWER_LEFT','sounds_enabled'=>1,'animation_level'=>'FULL','proactive_help'=>'CLICK_ONLY'];
+        $q=db()->prepare('SELECT enabled,size_code,dock_position,anchor_position,sounds_enabled,animation_level,proactive_help FROM user_inky_preferences WHERE user_id=?');$q->execute([$userId]);$saved=$q->fetch();return$saved?array_merge($defaults,$saved):$defaults;
+    }
+
+    public static function saveInkyPreferences(int $userId,array $input): void
+    {
+        $size=self::allowed((string)($input['size_code']??''),['SMALL','STANDARD','LARGE'],'STANDARD');$dock=self::allowed((string)($input['dock_position']??''),['AUTO','LEFT','RIGHT'],'AUTO');$animation=self::allowed((string)($input['animation_level']??''),['FULL','REDUCED','OFF'],'FULL');$proactive=self::allowed((string)($input['proactive_help']??''),['SUGGESTIONS','CLICK_ONLY'],'CLICK_ONLY');$current=self::inkyPreferences($userId);
+        db()->prepare('INSERT INTO user_inky_preferences(user_id,enabled,size_code,dock_position,anchor_position,sounds_enabled,animation_level,proactive_help) VALUES(?,?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE enabled=VALUES(enabled),size_code=VALUES(size_code),dock_position=VALUES(dock_position),sounds_enabled=VALUES(sounds_enabled),animation_level=VALUES(animation_level),proactive_help=VALUES(proactive_help)')->execute([$userId,!empty($input['enabled'])?1:0,$size,$dock,$current['anchor_position'],!empty($input['sounds_enabled'])?1:0,$animation,$proactive]);
+    }
+
+    public static function saveInkyPosition(int $userId,string $anchor): void
+    {
+        $anchor=self::allowed($anchor,['LOWER_LEFT','MIDDLE_LEFT','LOWER_RIGHT','MIDDLE_RIGHT'],'');if($anchor==='')throw new RuntimeException('Choose a valid Inky position.');
+        db()->prepare('INSERT INTO user_inky_preferences(user_id,anchor_position) VALUES(?,?) ON DUPLICATE KEY UPDATE anchor_position=VALUES(anchor_position)')->execute([$userId,$anchor]);
+    }
+
     private static function pair(int $a,int $b): array{return$a<$b?[$a,$b]:[$b,$a];}
+    private static function allowed(string $value,array $allowed,string $default): string{$value=strtoupper(trim($value));return in_array($value,$allowed,true)?$value:$default;}
     private static function storeSquare(string $source,string $target,string $mime,int $width,int $height): void
     {
         if(!function_exists('imagecreatetruecolor')){if(max($width,$height)>512)throw new RuntimeException('This server needs PHP GD to resize profile images larger than 512 pixels.');if(!move_uploaded_file($source,$target)&&!rename($source,$target))throw new RuntimeException('The profile image could not be saved.');return;}
