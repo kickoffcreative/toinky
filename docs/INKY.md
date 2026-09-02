@@ -75,6 +75,8 @@ Inky first appears in Story Writer.
   behaves like a bottom sheet; mobile does not use free dragging.
 - The panel opens inward from the selected edge and collapses when editing
   resumes.
+- In Story Writer's desktop workspace layout, a left-anchored Inky shifts beside
+  the open navigation drawer instead of hiding behind it.
 
 The transparent shell uses no pointer input. Only the visible character,
 controls, and open panel may receive clicks. Inky yields to focused fields,
