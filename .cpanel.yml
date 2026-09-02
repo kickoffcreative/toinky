@@ -2,8 +2,8 @@
 deployment:
   tasks:
     - export DEPLOYPATH=/home/toinkyadmin/public_html/
-    - /bin/cp -f index.php install.php admin.php lab.php lobby.php lobby-state.php play.php writer.php profile.php inky-status.php inky-preferences.php inky-action.php theme-media.php brand-fonts.php captcha-image.php $DEPLOYPATH
-    - /bin/chmod 0644 $DEPLOYPATH/index.php $DEPLOYPATH/install.php $DEPLOYPATH/admin.php $DEPLOYPATH/lab.php $DEPLOYPATH/lobby.php $DEPLOYPATH/lobby-state.php $DEPLOYPATH/play.php $DEPLOYPATH/writer.php $DEPLOYPATH/profile.php $DEPLOYPATH/inky-status.php $DEPLOYPATH/inky-preferences.php $DEPLOYPATH/inky-action.php $DEPLOYPATH/theme-media.php $DEPLOYPATH/brand-fonts.php $DEPLOYPATH/captcha-image.php
+    - /bin/cp -f index.php install.php admin.php security-ai.php lab.php lobby.php lobby-state.php play.php writer.php profile.php inky-status.php inky-preferences.php inky-action.php theme-media.php brand-fonts.php captcha-image.php $DEPLOYPATH
+    - /bin/chmod 0644 $DEPLOYPATH/index.php $DEPLOYPATH/install.php $DEPLOYPATH/admin.php $DEPLOYPATH/security-ai.php $DEPLOYPATH/lab.php $DEPLOYPATH/lobby.php $DEPLOYPATH/lobby-state.php $DEPLOYPATH/play.php $DEPLOYPATH/writer.php $DEPLOYPATH/profile.php $DEPLOYPATH/inky-status.php $DEPLOYPATH/inky-preferences.php $DEPLOYPATH/inky-action.php $DEPLOYPATH/theme-media.php $DEPLOYPATH/brand-fonts.php $DEPLOYPATH/captcha-image.php
     - /bin/cp -Rf app $DEPLOYPATH
     - /bin/cp -Rf public $DEPLOYPATH
     - /bin/mkdir -p $DEPLOYPATH/assets
