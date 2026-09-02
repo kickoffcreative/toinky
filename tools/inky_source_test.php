@@ -25,7 +25,6 @@ foreach([
     'These personal settings are available to every Toinky user.',
     'Name Your Inky',
     'Choose Your Inky Character',
-    'More Inky characters and artwork are in the pipeline.',
     'inky-coming-soon-badge',
 ]as$required)if(!str_contains($profile,$required))throw new RuntimeException('Profile Inky controls are missing '.$required.'.');
 foreach(["return'Inky'","'character_code'=>'INKY_OCTOPUS'","'INKY_OCTOPUS'"]as$required)if(!str_contains($profileService,$required))throw new RuntimeException('Profile Inky service default is missing '.$required.'.');
