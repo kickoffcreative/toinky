@@ -1,1 +1,3 @@
-<?php require __DIR__.'/public/security-ai.php';
+<?php
+header('Location: ai-settings.php',true,302);
+exit;
