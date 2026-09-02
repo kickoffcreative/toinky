@@ -18,7 +18,7 @@ function render_inky(array $user,array $context=[]):void
     <a class="inky-settings-link" href="profile.php?section=inky">Inky settings</a>
   </section>
   <button class="inky-character" type="button" aria-controls="inky-panel" aria-expanded="false" aria-label="Open <?=e($displayName)?>. Drag to move <?=e($displayName)?>.">
-    <span class="inky-artwork-wrap inky-rig-wrap" aria-hidden="true">
+    <span class="inky-artwork-wrap inky-rig-wrap <?=$isLantern?'inky-lantern-wrap':''?>" aria-hidden="true">
       <span class="inky-rig-effects" data-inky-rig-effects></span>
       <span class="inky-rig-character <?=$isLantern?'inky-lantern-rig':''?>">
 <?php if($isLantern): ?>
