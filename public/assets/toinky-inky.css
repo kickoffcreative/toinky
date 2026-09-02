@@ -6,7 +6,7 @@
 .inky-rig-character,.inky-rig-effects{position:absolute;inset:0;pointer-events:none}
 .inky-rig-character{z-index:2;transform-origin:50% 78%}
 .inky-rig-effects{z-index:1}
-.inky-rig-part,.inky-rig-fx{position:absolute;display:block;pointer-events:none;user-select:none;-webkit-user-drag:none}
+.inky-rig-part,.inky-rig-fx,.inky-tentacle,.inky-sucker,.inky-pen{position:absolute;display:block;pointer-events:none;user-select:none;-webkit-user-drag:none}
 .inky-rig-body{z-index:4;width:86.667%;left:6.667%;top:9.333%;filter:drop-shadow(0 10px 11px rgba(28,36,43,.22))}
 .inky-rig-pen-arm{z-index:7;width:20.333%;right:18%;top:40.333%;transform-origin:28% 58%;animation:inky-pen-rest 3.7s ease-in-out infinite}
 .inky-rig-scarf{z-index:12;width:42%;left:29%;top:47.333%;transform-origin:50% 24%;animation:inky-scarf-sway 4.2s ease-in-out infinite}

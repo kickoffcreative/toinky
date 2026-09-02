@@ -21,8 +21,8 @@ function render_inky(array $user,array $context=[]):void
     <span class="inky-artwork-wrap inky-rig-wrap" aria-hidden="true">
       <span class="inky-rig-effects" data-inky-rig-effects></span>
       <span class="inky-rig-character">
-        <img class="inky-rig-part inky-rig-body" src="<?=e($rig)?>body_base_blank.png?v=<?=e($rigVersion)?>" alt="">
-        <img class="inky-rig-part inky-rig-pen-arm" src="<?=e($rig)?>pen_arm.png?v=<?=e($rigVersion)?>" alt="">
+        <img class="inky-rig-part inky-rig-body inky-tentacle inky-sucker" src="<?=e($rig)?>body_base_blank.png?v=<?=e($rigVersion)?>" alt="">
+        <img class="inky-rig-part inky-rig-pen-arm inky-pen" src="<?=e($rig)?>pen_arm.png?v=<?=e($rigVersion)?>" alt="">
         <img class="inky-rig-part inky-rig-scarf" src="<?=e($rig)?>scarf_full.png?v=<?=e($rigVersion)?>" alt="">
         <img class="inky-rig-part inky-rig-eye inky-rig-eye-left" src="<?=e($rig)?>eye_left_open.png?v=<?=e($rigVersion)?>" alt="">
         <img class="inky-rig-part inky-rig-eye inky-rig-eye-right" src="<?=e($rig)?>eye_right_open.png?v=<?=e($rigVersion)?>" alt="">
