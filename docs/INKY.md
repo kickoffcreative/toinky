@@ -25,7 +25,7 @@ Inky preferences belong to the user rather than to an administrator or story:
 | --- | --- | --- |
 | Enabled | On / Off | On |
 | Companion name | Optional name root; Toinky adds “inky” | Empty → Inky |
-| Character | Selectable character catalog | Classic Inky |
+| Character | Selectable character catalog | Octopus |
 | Size | Small (72 px), Standard (96 px), Large (120 px) | Standard |
 | Dock position | Auto, Left, Right | Auto |
 | Saved anchor | Lower Left, Middle Left, Lower Right, Middle Right | Lower Left |
@@ -46,15 +46,17 @@ Leaving the field empty displays `Inky`, and entering a name that already ends
 in `inky` does not add the suffix a second time. Names are stored separately
 from character selection so a user can keep the same name when switching art.
 
-Character selection is catalog-backed. Classic Inky is the first selectable
-character; additional character artwork and personalities may be added later
-without changing the user-preference schema. Unavailable characters must be
-shown as coming soon or omitted, never presented as selectable.
+Character selection is catalog-backed. Octopus is the default selectable
+character type from approved character direction F; additional character artwork
+and personalities may be added later without changing the user-preference
+schema. Unavailable characters must be shown as coming soon or omitted, never
+presented as selectable.
 
-The first future catalog entries preserve the approved Inky character directions
-F and D as non-selectable coming-soon options. The cute octopus and squid
-concepts also remain in the future catalog rather than becoming the initial
-selectable companion.
+Lantern preserves approved character direction D as a non-selectable
+coming-soon option. Squid preserves approved character direction G as a future
+catalog option rather than becoming the default companion. Catalog labels should
+describe character types, leaving personal names to the user's companion-name
+setting.
 
 ## Placement and movement
 
