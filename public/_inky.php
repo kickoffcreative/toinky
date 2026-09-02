@@ -51,5 +51,5 @@ function render_inky(array $user,array $context=[]):void
     </span>
     <span class="inky-online-dot" aria-hidden="true"></span>
   </button>
-</aside><script src="assets/toinky-inky.js?v=<?=e($jsVersion)?>" defer></script><?php
+</aside><script src="assets/toinky-inky.js?v=<?=e($jsVersion)?>" defer></script><?php if($isLantern): ?><script src="assets/vendor/pixi.min.js" defer></script><script src="assets/toinky-inky-pixi.js?v=<?=e($jsVersion)?>" defer></script><?php endif; ?><?php
 }}

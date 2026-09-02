@@ -4,6 +4,7 @@
 /* Layered Inky rig */
 .inky-rig-wrap{inset:-32%;display:block;overflow:visible}
 .inky-lantern-wrap{inset:0}
+.inky-pixi-canvas{position:absolute;inset:0;width:100%;height:100%;display:block;pointer-events:none}
 .inky-rig-character,.inky-rig-effects{position:absolute;inset:0;pointer-events:none}
 .inky-rig-character{z-index:2;transform-origin:50% 78%}
 .inky-rig-effects{z-index:1}

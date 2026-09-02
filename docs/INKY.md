@@ -60,7 +60,9 @@ character type. Squid preserves approved character direction G as a future
 catalog option rather than becoming the default companion. Catalog labels should
 describe character types, leaving personal names to the user's companion-name
 setting. Lantern uses the approved layered artwork with independent cape pieces
-and the same generic mood and animation engine as the default Octopus.
+and the same generic mood engine as the default Octopus. Its live artwork is
+rendered through the pinned local PixiJS 8.14.0 runtime so all layers share one
+scene coordinate system; the existing DOM rig remains the fallback path.
 
 ## Placement and movement
 
