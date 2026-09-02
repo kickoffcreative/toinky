@@ -17,10 +17,11 @@ function render_inky(array $user,array $context=[]):void
   </section>
   <button class="inky-character" type="button" aria-controls="inky-panel" aria-expanded="false" aria-label="Open <?=e($displayName)?>. Drag to move <?=e($displayName)?>.">
     <svg viewBox="0 0 120 120" role="img" aria-label="<?=e($displayName)?>">
-      <path class="inky-body" d="M60 7C45 27 23 42 23 70c0 23 16 41 37 41s37-18 37-41C97 42 75 27 60 7Z"/>
-      <ellipse class="inky-eye" cx="47" cy="65" rx="5" ry="7"/><ellipse class="inky-eye" cx="73" cy="65" rx="5" ry="7"/>
-      <path class="inky-smile" d="M49 81c7 7 15 7 22 0"/><circle class="inky-cheek" cx="39" cy="79" r="5"/><circle class="inky-cheek" cx="81" cy="79" r="5"/>
-      <path class="inky-highlight" d="M44 30c-8 9-13 18-15 28"/>
+      <path class="inky-body" d="M60 9c-23 0-39 17-39 39 0 15 7 25 18 31-7 8-13 17-13 27 0 4 3 7 7 7 9 0 13-12 16-24h5c-2 8-3 17 0 23 2 4 8 5 11 1 4-5 3-15 1-24h5c3 12 7 24 16 24 4 0 7-3 7-7 0-10-6-19-13-27 11-6 18-16 18-31 0-22-16-39-39-39Z"/>
+      <path class="inky-tentacle" d="M38 80c-11 8-17 17-17 27M51 86c-5 12-6 22-2 29M69 86c5 12 6 22 2 29M82 80c11 8 17 17 17 27"/>
+      <ellipse class="inky-eye" cx="47" cy="47" rx="5" ry="7"/><ellipse class="inky-eye" cx="73" cy="47" rx="5" ry="7"/>
+      <path class="inky-smile" d="M50 64c7 7 13 7 20 0"/><circle class="inky-cheek" cx="38" cy="62" r="5"/><circle class="inky-cheek" cx="82" cy="62" r="5"/>
+      <path class="inky-highlight" d="M42 25c-8 7-13 15-15 25"/>
     </svg>
     <span class="inky-online-dot" aria-hidden="true"></span>
   </button>

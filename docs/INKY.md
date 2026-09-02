@@ -52,6 +52,9 @@ and personalities may be added later without changing the user-preference
 schema. Unavailable characters must be shown as coming soon or omitted, never
 presented as selectable.
 
+The default floating artwork should read as the Octopus character type even
+when the user leaves the companion name as `Inky`.
+
 Lantern preserves approved character direction D as a non-selectable
 coming-soon option. Squid preserves approved character direction G as a future
 catalog option rather than becoming the default companion. Catalog labels should
