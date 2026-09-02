@@ -26,3 +26,30 @@ const runAction=async button=>{const action=button.dataset.inkyAction;if(button.
 if(proactiveHelp){root.classList.add('has-proactive-suggestion');character.setAttribute('title','Open '+companionName+' for story suggestions.');}
 actions.forEach(button=>button.addEventListener('click',()=>runAction(button)));
 })();
+
+
+/* Layered Inky mood and facial animation */
+(()=>{const root=document.querySelector('[data-inky][data-inky-asset-root]');if(!root)return;const character=root.querySelector('.inky-character'),effects=root.querySelector('[data-inky-rig-effects]'),mouths=[...root.querySelectorAll('[data-inky-mouth]')],eyes=[...root.querySelectorAll('.inky-rig-eye')],result=root.querySelector('[data-inky-result]'),assetRoot=root.dataset.inkyAssetRoot;
+const moods={
+idle:{mouth:'happy',fx:[['ink_ring_1',9,65,25,'ripple'],['ink_drop_mid_1',82,27,5,'drift'],['ink_drop_small_1',18,70,4,'rest']]},
+hover:{mouth:'happy',fx:[['ink_wave_1',6,58,30,'orbit'],['ink_wave_2',65,58,30,'orbit'],['ink_drop_large',84,42,5,'focus'],['ink_ring_2',68,68,23,'ripple']]},
+opened:{mouth:'open',fx:[['ink_wave_2',7,64,32,'pop'],['ink_wave_1',63,63,31,'pop'],['ink_drop_mid_2',83,29,9,'rise'],['ink_bubbles_cluster',11,30,10,'rise']]},
+listening:{mouth:'happy',fx:[['ink_ring_3',6,62,26,'ripple'],['ink_ring_3',68,62,26,'ripple'],['ink_drop_small_1',83,50,4,'rest']]},
+thinking:{mouth:'small_o',fx:[['ink_wave_1',4,62,31,'write'],['ink_ring_4',67,65,25,'orbit'],['ink_wave_2',64,20,28,'orbit'],['ink_ring_2',9,19,22,'ripple'],['ink_bubbles_cluster',83,50,10,'rise']]},
+found:{mouth:'open',fx:[['ink_ring_1',67,62,26,'focus'],['ink_ring_3',8,65,25,'ripple'],['ink_drop_large',84,42,5,'pop'],['ink_bubble_large',10,27,12,'rise']]},
+success:{mouth:'open',fx:[['ink_wave_2',6,63,33,'pop'],['ink_wave_1',63,62,32,'pop'],['ink_bubbles_cluster',81,26,10,'rise'],['ink_bubble_large',11,26,12,'rise'],['ink_drop_mid_2',85,60,8,'rise']]},
+help:{mouth:'small_o',fx:[['ink_ring_2',8,64,25,'wobble'],['ink_drop_mid_1',83,29,5,'rest'],['ink_drop_large',84,52,5,'wobble'],['ink_bubble_large',68,68,11,'rest']]},
+error:{mouth:'small_o',fx:[['ink_wave_1',6,63,31,'jitter alert'],['ink_ring_4',68,64,24,'jitter alert'],['ink_drop_mid_2',83,30,8,'jitter alert'],['ink_bubbles_cluster',11,29,10,'jitter alert']]},
+offline:{mouth:'small_o',fx:[['ink_ring_3',9,65,25,'rest dim'],['ink_drop_small_1',83,48,4,'rest dim'],['ink_drop_mid_1',15,31,5,'rest dim']]}
+};
+let mood='idle',resetTimer=0;
+const setMood=next=>{if(!moods[next])return;mood=next;root.dataset.inkyMood=next;mouths.forEach(item=>item.classList.toggle('is-active',item.dataset.inkyMouth===moods[next].mouth));effects.replaceChildren(...moods[next].fx.map(([name,x,y,w,motion],index)=>{const image=document.createElement('img');image.src=assetRoot+name+'.png';image.alt='';image.className='inky-rig-fx is-visible '+motion;image.style.cssText='left:'+x+'%;top:'+y+'%;width:'+w+'%;animation-delay:'+(-index*.31)+'s';return image}))};
+const settledMood=()=>root.classList.contains('is-offline')?'offline':root.classList.contains('is-open')?'opened':'idle';
+character.addEventListener('pointerenter',()=>{if(!root.classList.contains('is-open')&&!root.classList.contains('is-offline'))setMood('hover')});
+character.addEventListener('pointerleave',()=>{eyes.forEach(eye=>eye.style.transform='');if(mood==='hover')setMood(settledMood())});
+character.addEventListener('pointermove',event=>{if(root.classList.contains('is-offline'))return;const box=character.getBoundingClientRect(),dx=Math.max(-1,Math.min(1,(event.clientX-(box.left+box.width/2))/(box.width/2))),dy=Math.max(-1,Math.min(1,(event.clientY-(box.top+box.height/2))/(box.height/2)));eyes.forEach(eye=>eye.style.transform='translate('+(dx*5)+'%,'+(dy*4)+'%)')});
+new MutationObserver(()=>{if(root.classList.contains('is-offline'))setMood('offline');else if(root.classList.contains('is-open')&&mood!=='thinking'&&mood!=='found'&&mood!=='success'&&mood!=='error')setMood('opened');else if(!root.classList.contains('is-open')&&mood!=='hover')setMood('idle')}).observe(root,{attributes:true,attributeFilter:['class']});
+root.querySelectorAll('[data-inky-action]').forEach(button=>button.addEventListener('click',()=>{clearTimeout(resetTimer);setMood('thinking')}));
+if(result)new MutationObserver(()=>{if(result.hidden||!result.textContent.trim())return;const failed=/could not|error|unavailable|failed/i.test(result.textContent);setMood(failed?'error':'found');clearTimeout(resetTimer);resetTimer=setTimeout(()=>{setMood(failed?'help':'success');resetTimer=setTimeout(()=>setMood(settledMood()),1700)},1100)}).observe(result,{attributes:true,childList:true,subtree:true,characterData:true});
+const blink=()=>{if(!root.classList.contains('is-offline')){root.classList.add('is-inky-blinking');setTimeout(()=>root.classList.remove('is-inky-blinking'),135)}setTimeout(blink,2600+Math.random()*2600)};setMood('idle');setTimeout(blink,1900);
+})();
