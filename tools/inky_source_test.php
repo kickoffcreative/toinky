@@ -13,7 +13,8 @@ $actionEndpoint=file_get_contents($root.'/public/inky-action.php');
 $docs=file_get_contents($root.'/docs/INKY.md');
 $migration=file_get_contents($root.'/database/migrations/083_inky_user_preferences.sql');
 $identityMigration=file_get_contents($root.'/database/migrations/084_inky_character_identity.sql');
-foreach(compact('profile','writer','component','script','style','connection','cowriter','actionEndpoint','docs','migration','identityMigration')as$name=>$source)if($source===false)throw new RuntimeException('Could not read Inky '.$name.' source.');
+$futureCatalogMigration=file_get_contents($root.'/database/migrations/085_inky_future_character_catalog.sql');
+foreach(compact('profile','writer','component','script','style','connection','cowriter','actionEndpoint','docs','migration','identityMigration','futureCatalogMigration')as$name=>$source)if($source===false)throw new RuntimeException('Could not read Inky '.$name.' source.');
 foreach([
     'data-profile-tab="inky"',
     'save_inky_preferences',
@@ -22,6 +23,7 @@ foreach([
     'Name Your Inky',
     'Choose Your Inky Character',
     'More Inky characters and artwork are in the pipeline.',
+    'inky-coming-soon-badge',
 ]as$required)if(!str_contains($profile,$required))throw new RuntimeException('Profile Inky controls are missing '.$required.'.');
 foreach([
     "render_inky(\$writer,['context'=>'story-writer','plot_id'=>\$plotId])",
@@ -83,6 +85,7 @@ foreach([
     '@media(prefers-reduced-motion:reduce)',
     'inky-nudge',
     'has-proactive-suggestion',
+    'inky-coming-soon-badge',
 ]as$required)if(!str_contains($style,$required))throw new RuntimeException('Inky safe responsive styling is missing '.$required.'.');
 if(str_contains($script,'GAME2_AI_')||str_contains($component,'GAME2_AI_'))throw new RuntimeException('Inky exposed a server connection setting to the browser.');
 if(!str_contains($connection,"'/api/tags'"))throw new RuntimeException('Inky availability does not use the Ollama status endpoint.');
@@ -95,9 +98,10 @@ foreach(['INKY_CHARACTER_KNOWLEDGE','validatedCharacterKnowledge','non-privilege
 foreach(['INKY_STORY_VALUES','validatedStoryValues','database-authored story values','allowed_values']as$required)if(!str_contains($cowriter,$required))throw new RuntimeException('Story Values contract is missing '.$required.'.');
 foreach(['INKY_OPPORTUNITY_REVIEW','validatedOpportunityReview','AI rationale guidance','condition/effect fit','targetFocus','REQUESTED FOCUS']as$required)if(!str_contains($cowriter,$required))throw new RuntimeException('Opportunity Review contract is missing '.$required.'.');
 foreach(['INKY_FOCUSED_TESTS','validatedFocusedTests','Game2 Simulation Lab workflows','seeded focused opportunity test']as$required)if(!str_contains($cowriter,$required))throw new RuntimeException('Focused Tests contract is missing '.$required.'.');
-foreach(["`What's Next?` is the second implemented vertical slice",'Every step must cite a stable key','MANUAL STRUCTURAL REVIEW','`Quality Check My Work` is the third implemented vertical slice','scored checks for','`Find Dependency Problems` is the fourth implemented vertical slice','recommend an authored-data fix','`Check Character Knowledge` is the fifth implemented vertical slice','cite a character role code','`Suggest Story Values` is the sixth implemented vertical slice','does not change schema or PHP','`Review This Opportunity` is the seventh implemented vertical slice','prompt clarity, player agency','stable focus code','`Prepare Focused Tests` is the eighth implemented vertical slice','not proof of organic reachability','companion name, model','passive nudge','does not auto-open the panel','auto-run AI actions','Only When Clicked']as$required)if(!str_contains($docs,$required))throw new RuntimeException('Inky documentation is missing '.$required.'.');
+foreach(["`What's Next?` is the second implemented vertical slice",'Every step must cite a stable key','MANUAL STRUCTURAL REVIEW','`Quality Check My Work` is the third implemented vertical slice','scored checks for','`Find Dependency Problems` is the fourth implemented vertical slice','recommend an authored-data fix','`Check Character Knowledge` is the fifth implemented vertical slice','cite a character role code','`Suggest Story Values` is the sixth implemented vertical slice','does not change schema or PHP','`Review This Opportunity` is the seventh implemented vertical slice','prompt clarity, player agency','stable focus code','`Prepare Focused Tests` is the eighth implemented vertical slice','not proof of organic reachability','companion name, model','passive nudge','does not auto-open the panel','auto-run AI actions','Only When Clicked','directions F and D','octopus and squid']as$required)if(!str_contains($docs,$required))throw new RuntimeException('Inky documentation is missing '.$required.'.');
 foreach(['AuthService::requireWriter','AuthService::requireCsrf','InkyCowriterService::run']as$required)if(!str_contains($actionEndpoint,$required))throw new RuntimeException('Inky action endpoint is missing '.$required.'.');
 if(str_contains($actionEndpoint,"'message'=>\$e->getMessage()"))throw new RuntimeException('Inky action errors may expose private connection details to the browser.');
 if(!str_contains($migration,'PRIMARY KEY(user_id)'))throw new RuntimeException('Inky preferences are not scoped uniquely to each user.');
 foreach(['CREATE TABLE IF NOT EXISTS inky_characters','companion_name_root','character_code','INKY_CLASSIC']as$required)if(!str_contains($identityMigration,$required))throw new RuntimeException('Inky identity migration is missing '.$required.'.');
+foreach(['INKY_DIRECTION_F','INKY_DIRECTION_D','INKY_OCTOPUS','INKY_SQUID','selectable,active)','20,0,1']as$required)if(!str_contains($futureCatalogMigration,$required))throw new RuntimeException('Inky future character catalog migration is missing '.$required.'.');
 echo "PASS: Inky profile, placement, privacy, Qwen availability, and Review Plot contracts are present.\n";

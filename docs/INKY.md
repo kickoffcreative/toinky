@@ -51,6 +51,11 @@ character; additional character artwork and personalities may be added later
 without changing the user-preference schema. Unavailable characters must be
 shown as coming soon or omitted, never presented as selectable.
 
+The first future catalog entries preserve the approved Inky character directions
+F and D as non-selectable coming-soon options. The cute octopus and squid
+concepts also remain in the future catalog rather than becoming the initial
+selectable companion.
+
 ## Placement and movement
 
 Inky first appears in Story Writer.
