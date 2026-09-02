@@ -3,7 +3,7 @@
 
 /* Layered Inky rig */
 .inky-rig-wrap{inset:-32%;display:block;overflow:visible}
-.inky-lantern-wrap{inset:0}.inky-shell.inky-lantern-shell{--inky-size:190px}
+.inky-lantern-wrap{inset:-17%}
 .inky-pixi-canvas{position:absolute;inset:0;width:100%;height:100%;display:block;pointer-events:none}
 .inky-rig-character,.inky-rig-effects{position:absolute;inset:0;pointer-events:none}
 .inky-rig-character{z-index:2;transform-origin:50% 78%}
@@ -35,4 +35,4 @@
 .inky-coming-soon-badge{display:inline-flex;align-items:center;border-radius:999px;padding:.15em .55em;font-size:.75em;font-weight:700}
 @media(min-width:801px){.workspace-floating.workspace-menu-open .inky-shell[class*="anchor-left"]{transform:translateX(12px)}}
 @media(prefers-reduced-motion:reduce){.inky-rig-part,.inky-rig-fx,.inky-rig-character{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important}}
-@media(max-width:700px){.inky-shell.inky-lantern-shell{--inky-size:120px}}
+@media(max-width:700px){.inky-lantern-wrap{inset:-14%}}
