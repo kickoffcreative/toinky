@@ -3,7 +3,7 @@ const root=document.querySelector('[data-inky][data-character-code="INKY_DIRECTI
 if(!root||!window.PIXI)return;
 const wrap=root.querySelector('.inky-lantern-wrap'),domRig=root.querySelector('.inky-lantern-rig'),domEffects=root.querySelector('[data-inky-rig-effects]'),character=root.querySelector('.inky-character'),assetRoot=root.dataset.inkyAssetRoot;
 const specs={
-  halo:[365,359,0,0,365,359],glow:[291,252,0,0,291,252],capeLeft:[1536,1024,145,342,185,124],capeRight:[1536,1024,300,342,185,124],body:[440,813,150,18,300,813],scarf:[2172,724,205,338,190,92],eyeLeft:[87,127,254,242,43,63],eyeRight:[101,117,300,246,47,54],lidLeft:[89,89,252,241,89,89],lidRight:[85,44,300,267,85,44],mouthSmile:[79,72,276,291,79,72],mouthOpen:[96,102,270,291,96,102],mouthO:[32,39,290,292,32,39],broken:[340,320,0,0,340,320],sparks:[250,280,0,0,250,280]
+  halo:[365,359,0,0,365,359],glow:[291,252,0,0,291,252],capeLeft:[1536,1024,145,342,185,124],capeRight:[1536,1024,300,342,185,124],body:[440,813,150,18,300,554],scarf:[2172,724,205,338,190,92],eyeLeft:[87,127,254,242,43,63],eyeRight:[101,117,300,246,47,54],lidLeft:[89,89,252,241,89,89],lidRight:[85,44,300,267,85,44],mouthSmile:[79,72,276,291,79,72],mouthOpen:[96,102,270,291,96,102],mouthO:[32,39,290,292,32,39],broken:[340,320,0,0,340,320],sparks:[250,280,0,0,250,280]
 };
 const moodFx={idle:'halo',hover:'halo',opened:'halo',listening:'halo',thinking:'halo',found:'halo',success:'halo',help:'broken',error:'broken',offline:'broken'};
 const loaded={};let app,scene,layers={},blinkTimer;
