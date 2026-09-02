@@ -75,8 +75,11 @@ Inky first appears in Story Writer.
   behaves like a bottom sheet; mobile does not use free dragging.
 - The panel opens inward from the selected edge and collapses when editing
   resumes.
+- Choosing a preferred side in the profile moves the saved anchor to that side
+  immediately while preserving the vertical position.
 - In Story Writer's desktop workspace layout, a left-anchored Inky shifts beside
   the open navigation drawer instead of hiding behind it.
+- The floating character button must remain transparent on mobile and desktop.
 
 The transparent shell uses no pointer input. Only the visible character,
 controls, and open panel may receive clicks. Inky yields to focused fields,
