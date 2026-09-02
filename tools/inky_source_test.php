@@ -16,8 +16,9 @@ $migration=file_get_contents($root.'/database/migrations/083_inky_user_preferenc
 $identityMigration=file_get_contents($root.'/database/migrations/084_inky_character_identity.sql');
 $futureCatalogMigration=file_get_contents($root.'/database/migrations/085_inky_future_character_catalog.sql');
 $defaultCatalogMigration=file_get_contents($root.'/database/migrations/086_inky_character_type_catalog.sql');
+$lanternMigration=file_get_contents($root.'/database/migrations/092_enable_lantern_inky.sql');
 $profileService=file_get_contents($root.'/app/UserProfileService.php');
-foreach(compact('profile','profileScript','writer','component','script','style','connection','cowriter','actionEndpoint','docs','migration','identityMigration','futureCatalogMigration','defaultCatalogMigration','profileService')as$name=>$source)if($source===false)throw new RuntimeException('Could not read Inky '.$name.' source.');
+foreach(compact('profile','profileScript','writer','component','script','style','connection','cowriter','actionEndpoint','docs','migration','identityMigration','futureCatalogMigration','defaultCatalogMigration','lanternMigration','profileService')as$name=>$source)if($source===false)throw new RuntimeException('Could not read Inky '.$name.' source.');
 foreach([
     'data-profile-tab="inky"',
     'save_inky_preferences',
@@ -122,4 +123,7 @@ foreach(['CREATE TABLE IF NOT EXISTS inky_characters','companion_name_root','cha
 foreach(['anchorForDock','anchor_position=VALUES(anchor_position)']as$required)if(!str_contains($profileService,$required))throw new RuntimeException('Inky side preference does not update the saved anchor.');
 foreach(['INKY_DIRECTION_F','INKY_DIRECTION_D','INKY_OCTOPUS','INKY_SQUID','selectable,active)','20,0,1']as$required)if(!str_contains($futureCatalogMigration,$required))throw new RuntimeException('Inky future character catalog migration is missing '.$required.'.');
 foreach(['INKY_OCTOPUS','Octopus','INKY_SQUID','Squid','Lantern',"ALTER character_code SET DEFAULT 'INKY_OCTOPUS'","WHERE character_code IN('INKY_CLASSIC','INKY_DIRECTION_F','INKY_TOINKY')"]as$required)if(!str_contains($defaultCatalogMigration,$required))throw new RuntimeException('Inky corrected character catalog migration is missing '.$required.'.');
+foreach(["character_code='INKY_DIRECTION_D'","selectable=1","artwork_path='assets/inky/lantern/source/lantern_master_v1.png'","092_enable_lantern_inky.sql"]as$required)if(!str_contains($lanternMigration,$required))throw new RuntimeException('Lantern activation migration is missing '.$required.'.');
+foreach(['inky-lantern-rig','assets/inky/lantern/rig/','INKY_DIRECTION_D']as$required)if(!str_contains($component,$required))throw new RuntimeException('Live Lantern renderer is missing '.$required.'.');
+foreach(['lanternMoods','characterMoods','broken_halo']as$required)if(!str_contains($script,$required))throw new RuntimeException('Lantern mood animation support is missing '.$required.'.');
 echo "PASS: Inky profile, placement, privacy, Qwen availability, and Review Plot contracts are present.\n";

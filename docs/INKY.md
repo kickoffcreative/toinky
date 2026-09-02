@@ -55,11 +55,12 @@ presented as selectable.
 The default floating artwork should read as the Octopus character type even
 when the user leaves the companion name as `Inky`.
 
-Lantern preserves approved character direction D as a non-selectable
-coming-soon option. Squid preserves approved character direction G as a future
+Lantern preserves approved character direction D as the second selectable
+character type. Squid preserves approved character direction G as a future
 catalog option rather than becoming the default companion. Catalog labels should
 describe character types, leaving personal names to the user's companion-name
-setting.
+setting. Lantern uses the approved layered artwork with independent cape pieces
+and the same generic mood and animation engine as the default Octopus.
 
 ## Placement and movement
 

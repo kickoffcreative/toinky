@@ -42,8 +42,21 @@ help:{mouth:'small_o',fx:[['ink_ring_2',8,64,25,'wobble'],['ink_drop_mid_1',83,2
 error:{mouth:'small_o',fx:[['ink_wave_1',6,63,31,'jitter alert'],['ink_ring_4',68,64,24,'jitter alert'],['ink_drop_mid_2',83,30,8,'jitter alert'],['ink_bubbles_cluster',11,29,10,'jitter alert']]},
 offline:{mouth:'small_o',fx:[['ink_ring_3',9,65,25,'rest dim'],['ink_drop_small_1',83,48,4,'rest dim'],['ink_drop_mid_1',15,31,5,'rest dim']]}
 };
+const lanternMoods={
+idle:{mouth:'happy',fx:[['halo',35,29,30,'rest']]},
+hover:{mouth:'happy',fx:[['halo',35,29,30,'focus'],['sparks',8,30,13,'drift'],['sparks',79,31,13,'drift']]},
+opened:{mouth:'open',fx:[['halo',35,29,30,'focus'],['sparks',8,30,13,'pop'],['sparks',79,31,13,'pop']]},
+listening:{mouth:'happy',fx:[['halo',35,29,30,'rest'],['sparks',8,30,13,'drift']]},
+thinking:{mouth:'small_o',fx:[['halo',35,29,30,'orbit'],['sparks',8,30,13,'write'],['sparks',79,31,13,'write']]},
+found:{mouth:'open',fx:[['halo',35,29,30,'focus'],['sparks',8,30,13,'pop'],['sparks',79,31,13,'pop']]},
+success:{mouth:'open',fx:[['halo',35,29,30,'focus'],['sparks',8,30,13,'pop'],['sparks',79,31,13,'pop']]},
+help:{mouth:'small_o',fx:[['broken_halo',35,29,30,'wobble'],['sparks',8,30,13,'rest']]},
+error:{mouth:'small_o',fx:[['broken_halo',35,29,30,'jitter alert'],['sparks',8,30,13,'jitter alert']]},
+offline:{mouth:'small_o',fx:[['broken_halo',35,29,30,'rest dim']]}
+};
+const characterMoods=root.dataset.characterCode==='INKY_DIRECTION_D'?lanternMoods:moods;
 let mood='idle',resetTimer=0;
-const setMood=next=>{if(!moods[next])return;mood=next;root.dataset.inkyMood=next;mouths.forEach(item=>item.classList.toggle('is-active',item.dataset.inkyMouth===moods[next].mouth));effects.replaceChildren(...moods[next].fx.map(([name,x,y,w,motion],index)=>{const image=document.createElement('img');image.src=assetRoot+name+'.png';image.alt='';image.className='inky-rig-fx is-visible '+motion;image.style.cssText='left:'+x+'%;top:'+y+'%;width:'+w+'%;animation-delay:'+(-index*.31)+'s';return image}))};
+const setMood=next=>{if(!characterMoods[next])return;mood=next;root.dataset.inkyMood=next;mouths.forEach(item=>item.classList.toggle('is-active',item.dataset.inkyMouth===characterMoods[next].mouth));effects.replaceChildren(...characterMoods[next].fx.map(([name,x,y,w,motion],index)=>{const image=document.createElement('img');image.src=assetRoot+name+'.png';image.alt='';image.className='inky-rig-fx is-visible '+motion;image.style.cssText='left:'+x+'%;top:'+y+'%;width:'+w+'%;animation-delay:'+(-index*.31)+'s';return image}))};
 const settledMood=()=>root.classList.contains('is-offline')?'offline':root.classList.contains('is-open')?'opened':'idle';
 character.addEventListener('pointerenter',()=>{if(!root.classList.contains('is-open')&&!root.classList.contains('is-offline'))setMood('hover')});
 character.addEventListener('pointerleave',()=>{eyes.forEach(eye=>eye.style.transform='');if(mood==='hover')setMood(settledMood())});

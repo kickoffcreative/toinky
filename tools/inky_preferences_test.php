@@ -24,6 +24,8 @@ try{
     UserProfileService::saveInkyPreferences($userId,['enabled'=>0,'companion_name_root'=>'Boinky','character_code'=>'INKY_OCTOPUS','size_code'=>'STANDARD','dock_position'=>'AUTO','sounds_enabled'=>1,'animation_level'=>'OFF','proactive_help'=>'CLICK_ONLY']);
     $saved=UserProfileService::inkyPreferences($userId);if((int)$saved['enabled']!==0)throw new RuntimeException('Disable Inky did not persist.');if($saved['anchor_position']!=='MIDDLE_RIGHT')throw new RuntimeException('Saving profile settings erased the dragged Inky position.');
     if(UserProfileService::inkyDisplayName($saved)!=='Boinky')throw new RuntimeException('A complete Inky name received a duplicate suffix.');
+    UserProfileService::saveInkyPreferences($userId,['enabled'=>1,'companion_name_root'=>'bo','character_code'=>'INKY_DIRECTION_D','size_code'=>'STANDARD','dock_position'=>'RIGHT','sounds_enabled'=>0,'animation_level'=>'FULL','proactive_help'=>'CLICK_ONLY']);
+    $saved=UserProfileService::inkyPreferences($userId);if($saved['character_code']!=='INKY_DIRECTION_D')throw new RuntimeException('Selectable Lantern character did not persist.');
     $pdo->rollBack();
 }catch(Throwable $error){if($pdo->inTransaction())$pdo->rollBack();throw$error;}
 echo "PASS: Inky preferences persist per user and preserve the saved anchor.\n";
