@@ -36,6 +36,11 @@ Inky preferences belong to the user rather than to an administrator or story:
 The profile must contain a clear **Disable Inky** action. Disabling Inky removes
 the companion from supported pages; My Profile remains the recovery path.
 
+When Proactive help is set to **Helpful Suggestions**, supported pages may show
+a passive nudge on the Inky character. The nudge is only an invitation to open
+Inky; it does not auto-open the panel, perform a Qwen health check, or auto-run
+AI actions. **Only When Clicked** suppresses that nudge.
+
 Companion naming is playful but predictable. Entering `Bo` displays `Boinky`.
 Leaving the field empty displays `Inky`, and entering a name that already ends
 in `inky` does not add the suffix a second time. Names are stored separately
