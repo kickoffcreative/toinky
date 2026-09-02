@@ -88,10 +88,10 @@ final class UserProfileService
         db()->prepare('INSERT INTO user_inky_preferences(user_id,enabled,companion_name_root,character_code,size_code,dock_position,anchor_position,sounds_enabled,animation_level,proactive_help) VALUES(?,?,?,?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE enabled=VALUES(enabled),companion_name_root=VALUES(companion_name_root),character_code=VALUES(character_code),size_code=VALUES(size_code),dock_position=VALUES(dock_position),anchor_position=VALUES(anchor_position),sounds_enabled=VALUES(sounds_enabled),animation_level=VALUES(animation_level),proactive_help=VALUES(proactive_help)')->execute([$userId,!empty($input['enabled'])?1:0,$name!==''?$name:null,$character,$size,$dock,$anchor,!empty($input['sounds_enabled'])?1:0,$animation,$proactive]);
     }
 
-    public static function saveInkyPosition(int $userId,string $anchor): void
+    public static function saveInkyPosition(int $userId,string $anchor): string
     {
-        $anchor=self::allowed($anchor,['LOWER_LEFT','MIDDLE_LEFT','LOWER_RIGHT','MIDDLE_RIGHT'],'');if($anchor==='')throw new RuntimeException('Choose a valid Inky position.');
-        db()->prepare('INSERT INTO user_inky_preferences(user_id,anchor_position) VALUES(?,?) ON DUPLICATE KEY UPDATE anchor_position=VALUES(anchor_position)')->execute([$userId,$anchor]);
+        $anchor=self::allowed($anchor,['LOWER_LEFT','MIDDLE_LEFT','LOWER_RIGHT','MIDDLE_RIGHT'],'');if($anchor==='')throw new RuntimeException('Choose a valid Inky position.');$current=self::inkyPreferences($userId);$anchor=self::anchorForDock((string)$current['dock_position'],$anchor);
+        db()->prepare('INSERT INTO user_inky_preferences(user_id,anchor_position) VALUES(?,?) ON DUPLICATE KEY UPDATE anchor_position=VALUES(anchor_position)')->execute([$userId,$anchor]);return$anchor;
     }
 
     private static function pair(int $a,int $b): array{return$a<$b?[$a,$b]:[$b,$a];}
