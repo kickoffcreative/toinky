@@ -42,8 +42,13 @@ foreach([
     "UserProfileService::inkyPreferences",
     "UserProfileService::inkyDisplayName",
     "data-character-code",
+    "data-display-name",
     "data-proactive-help",
+    "filemtime(__DIR__.'/assets/toinky-inky.css')",
+    "filemtime(__DIR__.'/assets/toinky-inky.js')",
     "inky-tentacle",
+    "inky-sucker",
+    "inky-pen",
     "if(!(int)\$preferences['enabled'])return",
     "'whats_next'=>['label'=>\"What's Next?\",'implemented'=>true]",
     "'quality_check'=>['label'=>'Quality Check My Work','implemented'=>true]",
@@ -67,8 +72,10 @@ foreach([
     "target_type",
     "target_code",
     "proactiveHelp",
+    "companionName",
+    "replace(/^Inky\\b/,companionName)",
     "has-proactive-suggestion",
-    "Open Inky for story suggestions.",
+    "Open '+companionName+' for story suggestions.",
     "action==='whats_next'",
     "renderNextSteps",
     "action==='quality_check'",
@@ -93,6 +100,8 @@ foreach([
     'has-proactive-suggestion',
     'inky-coming-soon-badge',
     'inky-tentacle',
+    'background:transparent!important',
+    '@media(min-width:801px)',
     '.workspace-floating.workspace-menu-open .inky-shell[class*="anchor-left"]',
 ]as$required)if(!str_contains($style,$required))throw new RuntimeException('Inky safe responsive styling is missing '.$required.'.');
 if(str_contains($script,'GAME2_AI_')||str_contains($component,'GAME2_AI_'))throw new RuntimeException('Inky exposed a server connection setting to the browser.');
@@ -106,11 +115,12 @@ foreach(['INKY_CHARACTER_KNOWLEDGE','validatedCharacterKnowledge','non-privilege
 foreach(['INKY_STORY_VALUES','validatedStoryValues','database-authored story values','allowed_values']as$required)if(!str_contains($cowriter,$required))throw new RuntimeException('Story Values contract is missing '.$required.'.');
 foreach(['INKY_OPPORTUNITY_REVIEW','validatedOpportunityReview','AI rationale guidance','condition/effect fit','targetFocus','REQUESTED FOCUS']as$required)if(!str_contains($cowriter,$required))throw new RuntimeException('Opportunity Review contract is missing '.$required.'.');
 foreach(['INKY_FOCUSED_TESTS','validatedFocusedTests','Game2 Simulation Lab workflows','seeded focused opportunity test']as$required)if(!str_contains($cowriter,$required))throw new RuntimeException('Focused Tests contract is missing '.$required.'.');
-foreach(["`What's Next?` is the second implemented vertical slice",'Every step must cite a stable key','MANUAL STRUCTURAL REVIEW','`Quality Check My Work` is the third implemented vertical slice','scored checks for','`Find Dependency Problems` is the fourth implemented vertical slice','recommend an authored-data fix','`Check Character Knowledge` is the fifth implemented vertical slice','cite a character role code','`Suggest Story Values` is the sixth implemented vertical slice','does not change schema or PHP','`Review This Opportunity` is the seventh implemented vertical slice','prompt clarity, player agency','stable focus code','`Prepare Focused Tests` is the eighth implemented vertical slice','not proof of organic reachability','companion name, model','passive nudge','does not auto-open the panel','auto-run AI actions','Only When Clicked','Octopus is the default selectable','default floating artwork should read as the Octopus','open navigation drawer instead of hiding behind it','Lantern preserves','Squid preserves','Catalog labels should describe character types']as$required)if(!str_contains($docs,$required))throw new RuntimeException('Inky documentation is missing '.$required.'.');
+foreach(["`What's Next?` is the second implemented vertical slice",'Every step must cite a stable key','MANUAL STRUCTURAL REVIEW','`Quality Check My Work` is the third implemented vertical slice','scored checks for','`Find Dependency Problems` is the fourth implemented vertical slice','recommend an authored-data fix','`Check Character Knowledge` is the fifth implemented vertical slice','cite a character role code','`Suggest Story Values` is the sixth implemented vertical slice','does not change schema or PHP','`Review This Opportunity` is the seventh implemented vertical slice','prompt clarity, player agency','stable focus code','`Prepare Focused Tests` is the eighth implemented vertical slice','not proof of organic reachability','companion name, model','passive nudge','does not auto-open the panel','auto-run AI actions','Only When Clicked','Octopus is the default selectable','default floating artwork should read as the Octopus','moves the saved anchor to that side','open navigation drawer instead of hiding behind it','must remain transparent','Lantern preserves','Squid preserves','Catalog labels should describe character types']as$required)if(!str_contains($docs,$required))throw new RuntimeException('Inky documentation is missing '.$required.'.');
 foreach(['AuthService::requireWriter','AuthService::requireCsrf','InkyCowriterService::run']as$required)if(!str_contains($actionEndpoint,$required))throw new RuntimeException('Inky action endpoint is missing '.$required.'.');
 if(str_contains($actionEndpoint,"'message'=>\$e->getMessage()"))throw new RuntimeException('Inky action errors may expose private connection details to the browser.');
 if(!str_contains($migration,'PRIMARY KEY(user_id)'))throw new RuntimeException('Inky preferences are not scoped uniquely to each user.');
 foreach(['CREATE TABLE IF NOT EXISTS inky_characters','companion_name_root','character_code','INKY_CLASSIC']as$required)if(!str_contains($identityMigration,$required))throw new RuntimeException('Inky identity migration is missing '.$required.'.');
+foreach(['anchorForDock','anchor_position=VALUES(anchor_position)']as$required)if(!str_contains($profileService,$required))throw new RuntimeException('Inky side preference does not update the saved anchor.');
 foreach(['INKY_DIRECTION_F','INKY_DIRECTION_D','INKY_OCTOPUS','INKY_SQUID','selectable,active)','20,0,1']as$required)if(!str_contains($futureCatalogMigration,$required))throw new RuntimeException('Inky future character catalog migration is missing '.$required.'.');
 foreach(['INKY_OCTOPUS','Octopus','INKY_SQUID','Squid','Lantern',"ALTER character_code SET DEFAULT 'INKY_OCTOPUS'","WHERE character_code IN('INKY_CLASSIC','INKY_DIRECTION_F','INKY_TOINKY')"]as$required)if(!str_contains($defaultCatalogMigration,$required))throw new RuntimeException('Inky corrected character catalog migration is missing '.$required.'.');
 echo "PASS: Inky profile, placement, privacy, Qwen availability, and Review Plot contracts are present.\n";

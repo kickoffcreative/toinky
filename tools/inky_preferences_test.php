@@ -17,6 +17,10 @@ try{
     $expected=['enabled'=>1,'companion_name_root'=>'bo','character_code'=>'INKY_OCTOPUS','size_code'=>'LARGE','dock_position'=>'RIGHT','anchor_position'=>'MIDDLE_RIGHT','sounds_enabled'=>0,'animation_level'=>'REDUCED','proactive_help'=>'SUGGESTIONS'];
     foreach($expected as$key=>$value)if((string)$saved[$key]!== (string)$value)throw new RuntimeException('Inky preference '.$key.' did not persist.');
     if(UserProfileService::inkyDisplayName($saved)!=='Boinky')throw new RuntimeException('The Inky name suffix was not applied.');
+    UserProfileService::saveInkyPreferences($userId,['enabled'=>1,'companion_name_root'=>'bo','character_code'=>'INKY_OCTOPUS','size_code'=>'LARGE','dock_position'=>'LEFT','sounds_enabled'=>0,'animation_level'=>'REDUCED','proactive_help'=>'SUGGESTIONS']);
+    $saved=UserProfileService::inkyPreferences($userId);if($saved['anchor_position']!=='MIDDLE_LEFT')throw new RuntimeException('Left side preference did not move Inky to the left.');
+    UserProfileService::saveInkyPreferences($userId,['enabled'=>1,'companion_name_root'=>'bo','character_code'=>'INKY_OCTOPUS','size_code'=>'LARGE','dock_position'=>'RIGHT','sounds_enabled'=>0,'animation_level'=>'REDUCED','proactive_help'=>'SUGGESTIONS']);
+    $saved=UserProfileService::inkyPreferences($userId);if($saved['anchor_position']!=='MIDDLE_RIGHT')throw new RuntimeException('Right side preference did not move Inky to the right.');
     UserProfileService::saveInkyPreferences($userId,['enabled'=>0,'companion_name_root'=>'Boinky','character_code'=>'INKY_OCTOPUS','size_code'=>'STANDARD','dock_position'=>'AUTO','sounds_enabled'=>1,'animation_level'=>'OFF','proactive_help'=>'CLICK_ONLY']);
     $saved=UserProfileService::inkyPreferences($userId);if((int)$saved['enabled']!==0)throw new RuntimeException('Disable Inky did not persist.');if($saved['anchor_position']!=='MIDDLE_RIGHT')throw new RuntimeException('Saving profile settings erased the dragged Inky position.');
     if(UserProfileService::inkyDisplayName($saved)!=='Boinky')throw new RuntimeException('A complete Inky name received a duplicate suffix.');
