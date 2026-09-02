@@ -68,7 +68,7 @@ final class UserProfileService
 
     public static function inkyPreferences(int $userId): array
     {
-        $defaults=['enabled'=>1,'companion_name_root'=>null,'character_code'=>'INKY_CLASSIC','size_code'=>'STANDARD','dock_position'=>'AUTO','anchor_position'=>'LOWER_LEFT','sounds_enabled'=>1,'animation_level'=>'FULL','proactive_help'=>'CLICK_ONLY'];
+        $defaults=['enabled'=>1,'companion_name_root'=>null,'character_code'=>'INKY_OCTOPUS','size_code'=>'STANDARD','dock_position'=>'AUTO','anchor_position'=>'LOWER_LEFT','sounds_enabled'=>1,'animation_level'=>'FULL','proactive_help'=>'CLICK_ONLY'];
         $q=db()->prepare('SELECT enabled,companion_name_root,character_code,size_code,dock_position,anchor_position,sounds_enabled,animation_level,proactive_help FROM user_inky_preferences WHERE user_id=?');$q->execute([$userId]);$saved=$q->fetch();return$saved?array_merge($defaults,$saved):$defaults;
     }
 
@@ -84,7 +84,7 @@ final class UserProfileService
 
     public static function saveInkyPreferences(int $userId,array $input): void
     {
-        $size=self::allowed((string)($input['size_code']??''),['SMALL','STANDARD','LARGE'],'STANDARD');$dock=self::allowed((string)($input['dock_position']??''),['AUTO','LEFT','RIGHT'],'AUTO');$animation=self::allowed((string)($input['animation_level']??''),['FULL','REDUCED','OFF'],'FULL');$proactive=self::allowed((string)($input['proactive_help']??''),['SUGGESTIONS','CLICK_ONLY'],'CLICK_ONLY');$current=self::inkyPreferences($userId);$name=self::inkyNameRoot((string)($input['companion_name_root']??''));$character=self::selectableInkyCharacter((string)($input['character_code']??'INKY_CLASSIC'));
+        $size=self::allowed((string)($input['size_code']??''),['SMALL','STANDARD','LARGE'],'STANDARD');$dock=self::allowed((string)($input['dock_position']??''),['AUTO','LEFT','RIGHT'],'AUTO');$animation=self::allowed((string)($input['animation_level']??''),['FULL','REDUCED','OFF'],'FULL');$proactive=self::allowed((string)($input['proactive_help']??''),['SUGGESTIONS','CLICK_ONLY'],'CLICK_ONLY');$current=self::inkyPreferences($userId);$name=self::inkyNameRoot((string)($input['companion_name_root']??''));$character=self::selectableInkyCharacter((string)($input['character_code']??'INKY_OCTOPUS'));
         db()->prepare('INSERT INTO user_inky_preferences(user_id,enabled,companion_name_root,character_code,size_code,dock_position,anchor_position,sounds_enabled,animation_level,proactive_help) VALUES(?,?,?,?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE enabled=VALUES(enabled),companion_name_root=VALUES(companion_name_root),character_code=VALUES(character_code),size_code=VALUES(size_code),dock_position=VALUES(dock_position),sounds_enabled=VALUES(sounds_enabled),animation_level=VALUES(animation_level),proactive_help=VALUES(proactive_help)')->execute([$userId,!empty($input['enabled'])?1:0,$name!==''?$name:null,$character,$size,$dock,$current['anchor_position'],!empty($input['sounds_enabled'])?1:0,$animation,$proactive]);
     }
 
@@ -97,7 +97,7 @@ final class UserProfileService
     private static function pair(int $a,int $b): array{return$a<$b?[$a,$b]:[$b,$a];}
     private static function allowed(string $value,array $allowed,string $default): string{$value=strtoupper(trim($value));return in_array($value,$allowed,true)?$value:$default;}
     private static function inkyNameRoot(string $value): string{$value=trim((string)preg_replace('/[^\p{L}\p{N}\s\x{2019}\x{0027}-]+/u','',$value));$value=(string)preg_replace('/\s+/u',' ',$value);return mb_substr($value,0,32,'UTF-8');}
-    private static function selectableInkyCharacter(string $code): string{$code=self::allowed($code,array_column(self::inkyCharacters(),'character_code'),'INKY_CLASSIC');$q=db()->prepare('SELECT 1 FROM inky_characters WHERE character_code=? AND active=1 AND selectable=1');$q->execute([$code]);return$q->fetchColumn()?$code:'INKY_CLASSIC';}
+    private static function selectableInkyCharacter(string $code): string{$code=self::allowed($code,array_column(self::inkyCharacters(),'character_code'),'INKY_OCTOPUS');$q=db()->prepare('SELECT 1 FROM inky_characters WHERE character_code=? AND active=1 AND selectable=1');$q->execute([$code]);return$q->fetchColumn()?$code:'INKY_OCTOPUS';}
     private static function storeSquare(string $source,string $target,string $mime,int $width,int $height): void
     {
         if(!function_exists('imagecreatetruecolor')){if(max($width,$height)>512)throw new RuntimeException('This server needs PHP GD to resize profile images larger than 512 pixels.');if(!move_uploaded_file($source,$target)&&!rename($source,$target))throw new RuntimeException('The profile image could not be saved.');return;}
