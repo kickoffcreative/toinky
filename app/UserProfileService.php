@@ -69,7 +69,7 @@ final class UserProfileService
     public static function inkyPreferences(int $userId): array
     {
         $defaults=['enabled'=>1,'companion_name_root'=>null,'character_code'=>'INKY_OCTOPUS','size_code'=>'STANDARD','dock_position'=>'AUTO','anchor_position'=>'LOWER_LEFT','sounds_enabled'=>1,'animation_level'=>'FULL','proactive_help'=>'CLICK_ONLY'];
-        $q=db()->prepare('SELECT enabled,companion_name_root,character_code,size_code,dock_position,anchor_position,sounds_enabled,animation_level,proactive_help FROM user_inky_preferences WHERE user_id=?');$q->execute([$userId]);$saved=$q->fetch();return$saved?array_merge($defaults,$saved):$defaults;
+        $q=db()->prepare('SELECT enabled,companion_name_root,character_code,size_code,dock_position,anchor_position,sounds_enabled,animation_level,proactive_help FROM user_inky_preferences WHERE user_id=?');$q->execute([$userId]);$saved=$q->fetch();$preferences=$saved?array_merge($defaults,$saved):$defaults;$preferences['anchor_position']=self::effectiveInkyAnchor($preferences);return$preferences;
     }
 
     public static function inkyCharacters(): array
@@ -80,6 +80,11 @@ final class UserProfileService
     public static function inkyDisplayName(array $preferences): string
     {
         $root=self::inkyNameRoot((string)($preferences['companion_name_root']??''));if($root==='')return'Inky';$root=mb_convert_case($root,MB_CASE_TITLE,'UTF-8');return preg_match('/inky$/iu',$root)?$root:$root.'inky';
+    }
+
+    public static function effectiveInkyAnchor(array $preferences): string
+    {
+        return self::anchorForDock((string)($preferences['dock_position']??'AUTO'),(string)($preferences['anchor_position']??'LOWER_LEFT'));
     }
 
     public static function saveInkyPreferences(int $userId,array $input): void
