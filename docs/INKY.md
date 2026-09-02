@@ -210,3 +210,11 @@ Each contract must define:
 - No endpoint, access token, basic-auth value, or raw private story state appears
   in browser responses.
 - Existing PHP validation and Game2 Simulation Lab checks continue to pass.
+
+
+## Validation Contract Notes
+
+- Structural review output is labeled `MANUAL STRUCTURAL REVIEW`.
+- Focused test results are useful evidence, not proof of organic reachability.
+- Inky controls do not auto-run AI actions.
+- Catalog labels should describe character types; personal names stay in the companion-name setting.
