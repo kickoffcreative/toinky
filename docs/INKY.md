@@ -59,7 +59,8 @@ surface; story-specific behavior remains authored data and shared engine code.
 ## Guided story starter
 
 **Create With Inky** is the first authoring workflow for a new writer. The
-writer supplies a genre, a short idea, and an optional tone. Ollama returns a
+writer supplies a genre, story idea or detailed instructions up to 12,000
+characters, and an optional tone. Ollama returns a
 strictly bounded package containing one setting, one playable character, one
 opening event, one decision with two choices, and two ending fragments.
 
