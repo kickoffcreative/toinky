@@ -5,13 +5,13 @@ require_once dirname(__DIR__).'/app/bootstrap.php';
 require_once dirname(__DIR__).'/app/StoryAuthoringService.php';
 
 $pdo=db();
-$plot=$pdo->query("SELECT p.plot_id FROM plots p WHERE EXISTS(SELECT 1 FROM plot_world_events e JOIN plot_decision_templates d ON d.plot_id=e.plot_id AND d.event_code=e.event_code WHERE e.plot_id=p.plot_id) ORDER BY p.plot_id LIMIT 1")->fetch();
+$plot=$pdo->query("SELECT p.plot_id FROM plots p WHERE EXISTS(SELECT 1 FROM plot_world_events e JOIN plot_decision_templates d ON d.plot_id=e.plot_id AND d.event_code=e.event_code AND d.active=1 WHERE e.plot_id=p.plot_id AND e.active=1) ORDER BY p.plot_id LIMIT 1")->fetch();
 $user=$pdo->query('SELECT user_id FROM users ORDER BY is_admin DESC,user_id LIMIT 1')->fetch();
 if(!$plot||!$user)throw new RuntimeException('Stable-code test needs a seeded story and user.');
 
 $plotId=(int)$plot['plot_id'];
 $writer=['user_id'=>(int)$user['user_id'],'is_admin'=>1];
-$referenced=$pdo->prepare('SELECT e.* FROM plot_world_events e WHERE e.plot_id=? AND EXISTS(SELECT 1 FROM plot_decision_templates d WHERE d.plot_id=e.plot_id AND d.event_code=e.event_code) LIMIT 1');
+$referenced=$pdo->prepare('SELECT e.* FROM plot_world_events e WHERE e.plot_id=? AND e.active=1 AND EXISTS(SELECT 1 FROM plot_decision_templates d WHERE d.plot_id=e.plot_id AND d.event_code=e.event_code AND d.active=1) LIMIT 1');
 $referenced->execute([$plotId]);
 $event=$referenced->fetch();
 if(!$event)throw new RuntimeException('Stable-code test could not find a referenced event.');
