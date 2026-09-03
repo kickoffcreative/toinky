@@ -32,6 +32,6 @@ const reset=()=>{step=0;answersState={};briefState={};accepted={};currentKey='';
 const start=async()=>{if(started)return;started=true;accepted={};create.hidden=true;complete.querySelector('.inky-story-help').textContent='Inky is creating a draft so every accepted entry can be saved immediately.';hidden();try{await createDraft();await requestProposal(keys[0],null);}catch(error){setStatus(error.message||displayName()+' could not create the story draft.',true);started=false;}};
 create.addEventListener('click',()=>{if(draftId)window.location.href='writer.php?plot='+encodeURIComponent(draftId)+'&tab=overview&subtab=story';});
 suggestContent?.addEventListener('click',requestContent);suggestEdits?.addEventListener('click',requestEdits);form.querySelectorAll('[data-inky-guide-reset]').forEach(button=>button.addEventListener('click',reset));form.addEventListener('submit',event=>{event.preventDefault();if(!busy)requestTurn();});
-new MutationObserver(()=>{if(complete.hidden)reset();else setTimeout(start,0);}).observe(complete,{attributes:true,attributeFilter:['hidden']});
+new MutationObserver(()=>{if(!complete.hidden&&!started)setTimeout(()=>{if(!complete.hidden&&!started)start();},0);}).observe(complete,{attributes:true,attributeFilter:['hidden']});
 reset();
 })();
