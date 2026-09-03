@@ -68,4 +68,6 @@ Story ownership, optional writer-uploaded artwork, player-immersion rules, and t
 Inky is Toinky's optional guided AI companion and co-writer. Its approved
 settings, safe placement rules, Qwen availability behavior, structured
 interaction contracts, and validation requirements are documented in
-[docs/INKY.md](docs/INKY.md).
+[docs/INKY.md](docs/INKY.md). The current implementation status and the
+repeatable workflow for designing and adding future characters are documented
+in [docs/INKY_CHARACTER_PLAYBOOK.md](docs/INKY_CHARACTER_PLAYBOOK.md).

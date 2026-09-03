@@ -5,6 +5,38 @@ co-writer inside Story Writer. It is not an unrestricted chat box: every action
 has a named interaction contract, a bounded story-data context, and a
 structured result.
 
+## Current project status
+
+**Status: Active Inky v1 implementation.** The core companion workflow is in
+place and the animated default and Lantern character paths are working in the
+Story Writer UI.
+
+Completed:
+
+- Per-user settings, Disable Inky, companion naming, character selection, size,
+  docking, movement, sounds, reduced motion, and proactive-help controls.
+- Octopus as the default character type from direction F.
+- Lantern as the active second character type from direction D, using the
+  approved layered artwork, PixiJS 8.14.0, mood states, independent scarf-cape
+  layers, mouth variants, and visible eye blinking with a DOM fallback.
+- Squid as a catalog-backed future character type from direction G.
+- Optimized frontend image sets for both Octopus and Lantern. The original
+  full-resolution files remain available for future editing and new exports.
+- Eight bounded Inky co-writer interaction contracts and the associated
+  privacy, authored-data, and validation rules.
+
+Next planned work:
+
+- Add future character artwork only after it passes the repeatable workflow in
+  [docs/INKY_CHARACTER_PLAYBOOK.md](INKY_CHARACTER_PLAYBOOK.md).
+- Continue production smoke tests for new hosting or deployment changes.
+- Keep the generic mood engine and user preference schema stable while adding
+  characters through catalog data and asset packages.
+
+The project status is intentionally separate from story content. Character
+artwork, mood behavior, and frontend asset loading belong to the generic Inky
+surface; story-specific behavior remains authored data and shared engine code.
+
 ## Product principles
 
 - Inky is optional. Every authenticated user can enable or disable it from My
@@ -194,12 +226,16 @@ Each contract must define:
 
 ## Delivery sequence
 
-1. Persistent user preferences, companion identity, character catalog, and profile controls.
-2. Safe responsive shell, size, docking, movement, sound, and reduced motion.
-3. Server-side Qwen/Ollama availability check.
-4. Per-action context builders and structured response contracts.
-5. Action-specific result rendering and reviewed application workflows.
-6. Final animated artwork and interaction polish.
+1. [x] Persistent user preferences, companion identity, character catalog, and profile controls.
+2. [x] Safe responsive shell, size, docking, movement, sound, and reduced motion.
+3. [x] Server-side Qwen/Ollama availability check.
+4. [x] Per-action context builders and structured response contracts.
+5. [x] Action-specific result rendering and reviewed application workflows.
+6. [x] Initial animated Octopus and Lantern artwork with generic mood behavior.
+7. [ ] Additional character artwork, beginning with the future Squid option.
+
+The detailed, low-prompt process for step 7 and all later characters is in
+[docs/INKY_CHARACTER_PLAYBOOK.md](INKY_CHARACTER_PLAYBOOK.md).
 
 ## Validation
 

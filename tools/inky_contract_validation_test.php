@@ -4,6 +4,17 @@ declare(strict_types=1);
 $root=dirname(__DIR__);
 require_once $root.'/app/InkyCowriterService.php';
 
+$decodeMethod=new ReflectionMethod(AiConnectionService::class,'decodeStructuredResponse');
+$decodeMethod->setAccessible(true);
+$decoded=$decodeMethod->invoke(null,['message'=>['content'=>"<think>Reason privately before answering.</think>\n```json\n{\"summary\":\"Recovered\",\"steps\":[]}\n```\n"]]);
+if($decoded['summary']!=='Recovered')throw new RuntimeException('AI structured-response normalization did not remove reasoning and fences.');
+$decoded=$decodeMethod->invoke(null,['response'=>'Prefix text {"summary":"Extracted"} trailing text']);
+if($decoded['summary']!=='Extracted')throw new RuntimeException('AI structured-response normalization did not extract embedded JSON.');
+$decoded=$decodeMethod->invoke(null,['choices'=>[['message'=>['content'=>['summary'=>'Array content']]]]]);
+if($decoded['summary']!=='Array content')throw new RuntimeException('AI structured-response normalization did not accept provider array content.');
+$decoded=$decodeMethod->invoke(null,['message'=>['content'=>[['type'=>'text','text'=>'{"summary":"Block content"}']]]]);
+if($decoded['summary']!=='Block content')throw new RuntimeException('AI structured-response normalization did not join provider text blocks.');
+
 $method=new ReflectionMethod(InkyCowriterService::class,'validatedNextSteps');
 $method->setAccessible(true);
 $qualityMethod=new ReflectionMethod(InkyCowriterService::class,'validatedQualityCheck');
