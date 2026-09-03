@@ -36,9 +36,9 @@
 @media(min-width:801px){.workspace-floating.workspace-menu-open .inky-shell[class*="anchor-left"]{transform:translateX(12px)}}
 @media(prefers-reduced-motion:reduce){.inky-rig-part,.inky-rig-fx,.inky-rig-character{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important}}
 @media(max-width:700px){.inky-lantern-wrap{inset:-14%}}
-.inky-lantern-wrap{inset:-37.1%}
+.inky-lantern-wrap{inset:-54.5%}
 .inky-lantern-rig .inky-rig-mouth{z-index:15;left:46%;top:51%;width:9.333%;opacity:0;transition:opacity .13s ease}
 .inky-lantern-rig .inky-rig-mouth.is-active{opacity:1}
 .inky-lantern-rig .inky-rig-mouth-open{left:46.667%;top:49.333%;width:9%}
 .inky-lantern-rig .inky-rig-mouth-o{left:48%;top:51%;width:4%}
-@media(max-width:700px){.inky-lantern-wrap{inset:-33.2%}}
+@media(max-width:700px){.inky-lantern-wrap{inset:-49.8%}}
