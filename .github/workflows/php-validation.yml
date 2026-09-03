@@ -74,7 +74,7 @@ jobs:
           php tools/story_focused_opportunity_simulation_test.php
           php tools/human_biased_weighted_sampling_test.php
           php tools/inky_contract_validation_test.php
-          php tools/inky_starter_contract_test.php
+          php tools/inky_guide_contract_test.php
           php tools/inky_source_test.php
           php tools/inky_preferences_test.php
       - name: Test multiplayer lifecycle

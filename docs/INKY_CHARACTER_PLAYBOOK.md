@@ -331,23 +331,30 @@ coordination with a bounded engineering contract.
 
 ## Guided authoring workflow
 
-The first guided authoring slice is Create With Inky. It is intentionally
-bounded so a new writer can reach a playable draft quickly:
+Write New Story with [Inky name] is a conversation inside the floating Inky
+panel for helping an amateur writer develop an idea without taking over the
+authoring process. It replaces the old top-level Create With Inky form; the
+normal New Story form remains available as a separate direct-authoring path.
+The story metadata fields stay editable beside the conversation: Stable Story
+Code, Title, Genre, Setting, Archetype, Players, AI Cast, and Story Concept.
 
-1. Ask for a genre, story idea or detailed instructions, and an optional tone.
-2. Generate one setting, one playable character, one opening event, one
-   decision, two choices, and two ending fragments.
-3. Show the complete package as a preview before creating database records.
-4. Require an explicit Use This Starter action.
-5. Normalize and validate the package on the server again.
-6. Create the draft transactionally through StoryAuthoringService.
-7. Continue authoring in the normal Story Writer tabs and run validation before
-   submission.
+1. Choose a genre.
+2. Answer five questions, one at a time: the spark, protagonist and desire,
+   place and time, central problem or choice, and tone or player feeling.
+3. Let Inky acknowledge each answer and ask only the next single question.
+4. Review the final story brief: title, setting, concept, tone, and notes.
+5. Optionally use **Use Brief In New Story** to copy only the title, setting,
+   and concept into the normal New Story form.
+6. Author locations, characters, events, decisions, options, and endings in
+   the normal Story Writer tabs.
+7. Run the standard validation workflow before submission.
 
+The conversation does not create any story records or pre-built structure.
+The writer remains responsible for deciding what becomes part of the story.
 The assistant must not generate an entire story in one unbounded response.
 Every future guided authoring action should use a narrow context package,
-return structured data, show a visible preview, require approval, and preserve
-the generic engine boundary.
+return structured data, show a visible review, require approval before any
+write, and preserve the generic engine boundary.
 
 ## Definition of done
 

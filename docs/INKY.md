@@ -24,14 +24,18 @@ Completed:
   full-resolution files remain available for future editing and new exports.
 - Eight bounded Inky co-writer interaction contracts and the associated
   privacy, authored-data, and validation rules.
-- The first guided authoring slice, **Create With Inky**, which generates a
-  bounded starter preview and transactionally creates a small playable draft
-  only after the writer approves it.
+- **Create With Inky**, a five-step conversation that helps an amateur writer
+  shape an idea into a story brief without creating story records or a
+  pre-built structure.
+- Story creation now starts from **Write New Story with [Inky name]** inside
+  the floating companion panel. The normal **New Story** form remains
+  available for writers who prefer to author the initial metadata directly;
+  only the old top-of-workspace **Create With Inky** form was removed.
 
 Next planned work:
 
-- Add field-level regenerate, edit, and alternative controls to the guided
-  starter without bypassing Story Writer validation.
+- Add context-aware guided authoring actions for individual Story Writer fields
+  without bypassing Story Writer validation.
 - Add context-aware guided authoring actions for existing locations,
   characters, events, decisions, options, and endings.
 - Add future character artwork only after it passes the repeatable workflow in
@@ -56,25 +60,32 @@ surface; story-specific behavior remains authored data and shared engine code.
   data, credentials, connection URLs, or raw AI payloads.
 - Inky provides editing assistance. It does not silently change story content.
 
-## Guided story starter
+## Guided authoring conversation
 
-**Create With Inky** is the first authoring workflow for a new writer. The
-writer supplies a genre, story idea or detailed instructions up to 12,000
-characters, and an optional tone. Ollama returns a
-strictly bounded package containing one setting, one playable character, one
-opening event, one decision with two choices, and two ending fragments.
+**Write New Story with [Inky name]** opens inside the floating Inky panel. It
+is a five-step conversation for writers who are still discovering their
+story. The writer chooses a genre and answers one question at a time. The
+questions cover the story spark, protagonist and desire, place and time,
+central problem or choice, and tone or intended player feeling. Answers may
+be long, and the browser keeps them in the active conversation while Inky
+acknowledges each answer and asks only the next question.
 
-The package is shown in a preview before any story record is created. **Use
-This Starter** is an explicit approval step. The server validates the complete
-package again, normalizes stable codes, checks the requested genre, and creates
-the draft in one database transaction through StoryAuthoringService. A
-failed request cannot leave half a story behind.
+The story metadata fields remain visible and editable throughout the
+conversation: Stable Story Code, Title, Genre, Setting, Archetype, Players,
+AI Cast, and Story Concept.
 
-The starter is intentionally small. It gives a new writer a playable shape
-that can be expanded in Story Writer, rather than asking Ollama to invent an
-entire unvalidated story at once. Future guided actions should follow the same
-pattern: narrow context, structured data, visible preview, explicit approval,
-server validation, and existing generic authoring services for persistence.
+The final response is a story brief containing a title, setting, concept,
+tone, and notes. It is not a story structure: Inky does not create locations,
+characters, events, decisions, options, endings, stable codes, or database
+records during this process. **Use Brief In New Story** is an explicit,
+optional action that copies only the title, setting, and concept into the
+normal New Story form for the writer to review. The ordinary Create Draft
+action remains the point where a story is saved.
+
+Future guided authoring actions should follow this same pattern: a narrow
+context, one understandable question or task at a time, a structured result,
+visible review, explicit approval, server validation, and existing generic
+authoring services for persistence.
 
 ## Personal settings
 
