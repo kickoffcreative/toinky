@@ -36,7 +36,7 @@ foreach([
 foreach(["return'Inky'","'character_code'=>'INKY_OCTOPUS'","'INKY_OCTOPUS'"]as$required)if(!str_contains($profileService,$required))throw new RuntimeException('Profile Inky service default is missing '.$required.'.');
 foreach(["return'Inky'"]as$required)if(!str_contains($profileScript,$required))throw new RuntimeException('Profile Inky preview default is missing '.$required.'.');
 foreach([
-    "render_inky(\$writer,['context'=>'story-writer','plot_id'=>\$plotId])",
+    "render_inky(\$writer,['context'=>'story-writer'",
     "require_once dirname(__DIR__).'/app/UserProfileService.php'",
     'data-inky-target-type="decision"',
     'data-inky-target-type="opportunity"',
@@ -58,9 +58,15 @@ foreach([
     "'whats_next'=>['label'=>\"What's Next?\",'implemented'=>true]",
     "'quality_check'=>['label'=>'Quality Check My Work','implemented'=>true]",
     "'dependencies'=>['label'=>'Find Dependency Problems','implemented'=>true]",
-    "'character_knowledge'=>['label'=>'Check Character Knowledge','implemented'=>true]",
-    "'story_values'=>['label'=>'Suggest Story Values','implemented'=>true]",
-    "'review_opportunity'=>['label'=>'Review This Opportunity','implemented'=>true]",
+    'data-inky-next-actions',
+    'data-inky-action="guide_story"',
+    'data-inky-action="review_plot"',
+    'data-inky-action="character_knowledge"',
+    'data-inky-action="story_values"',
+    'data-inky-action="review_opportunity"',
+    'data-prerequisite="characters"',
+    'data-prerequisite="values"',
+    'data-prerequisite="opportunities"',
     "'focused_tests'=>['label'=>'Prepare Focused Tests','implemented'=>true]",
 ]as$required)if(!str_contains($component,$required))throw new RuntimeException('Inky component contract is missing '.$required.'.');
 foreach([
@@ -81,8 +87,8 @@ foreach([
     "replace(/^Inky\\b/,companionName)",
     "has-proactive-suggestion",
     "Open '+companionName+' for story suggestions.",
-    "action==='whats_next'",
-    "renderNextSteps",
+    'nextToggle',
+    "action==='guide_story'",
     "action==='quality_check'",
     "renderQualityCheck",
     "action==='dependencies'",
@@ -127,14 +133,15 @@ if(str_contains($actionEndpoint,"'message'=>\$e->getMessage()"))throw new Runtim
 foreach(['INKY_STORY_GUIDE','INKY_STORY_GUIDE_CONTENT','INKY_STORY_GUIDE_EDITS','suggestContent','suggestEdits','AiConnectionService::completeJson','validatedResponse','STEP_COUNT','guidedDrafts','loadProgress','saveProgress','variation']as$required)if(!str_contains($guideService,$required))throw new RuntimeException('Inky guided conversation service is missing '.$required.'.');
 if(str_contains($guideService,'StoryAuthoringService'))throw new RuntimeException('Inky guide must not create story records during the conversation.');
 foreach(['InkyGuideService::guide','InkyGuideService::suggestContent','InkyGuideService::suggestEdits','InkyGuideService::loadProgress','InkyGuideService::saveProgress','StoryAuthoringService::createStory','StoryAuthoringService::deleteDraft','StoryAuthoringService::applyInkyProposal','suggest_content','suggest_edits','load_progress','save_progress','create_draft','save_proposal','mode','requireCsrf']as$required)if(!str_contains($guideEndpoint,$required))throw new RuntimeException('Inky guided conversation endpoint is missing '.$required.'.');
-foreach(['public static function deleteDraft','inky_story_guide_drafts']as$required)if(!str_contains($authoringService,$required))throw new RuntimeException('Draft lifecycle support is missing '.$required.'.');
+foreach(['public static function deleteDraft','inky_story_guide_drafts','ARCHETYPES']as$required)if(!str_contains($authoringService,$required))throw new RuntimeException('Draft lifecycle support is missing '.$required.'.');
 foreach(['data-inky-guide-form','data-inky-guide-question','data-inky-guide-submit','data-inky-guide-complete','Use Brief In New Story','guidePost','inky-starter.php','writer.php?inky_starter=1']as$required)if(!str_contains($writer,$required))throw new RuntimeException('Story Writer guided conversation UI is missing '.$required.'.');
 foreach(['story-creation-grid','story-creation-tabs','data-story-creation-tab','data-story-creation-panel','story-switcher .inky-starter']as$required)if(!str_contains($writer,$required))throw new RuntimeException('Story Writer creation layout is missing '.$required.'.');
 foreach(['Write New Story with','data-inky-story-panel','data-inky-guide-form','name="code"','name="title"','name="genre_id"','name="setting_name"','name="archetype"','name="max_players"','name="max_npcs"','data-inky-story-create']as$required)if(!str_contains($component,$required))throw new RuntimeException('Inky popup story form is missing '.$required.'.');
 foreach(['stable-code-label','Stable Story Code','white-space:normal','overflow-wrap:anywhere']as$required)if(!str_contains($writer,$required))throw new RuntimeException('Stable Story Code label rendering is missing '.$required.'.');
 foreach(['panelIndex={locations:0,values:1,sections:2}[active]','writer-content .overview-manager','manager.hidden=index!==panelIndex']as$required)if(!str_contains($writer,$required))throw new RuntimeException('Story Framework subtab visibility fallback is missing '.$required.'.');
 foreach(['framework-subtab-<?=e($subtab)?>','framework-subtab-locations','.overview-manager:nth-of-type(1)']as$required)if(!str_contains($writer,$required))throw new RuntimeException('Story Framework server visibility rules are missing '.$required.'.');
-foreach(['openStoryComposer','is-composing','mainActions.hidden=true','requestContent','requestEdits','Suggest Content','Suggest Edits','Accept and Save','Save Draft','Edit','loadProgress','saveDraft','variationOptions','Effect Scope','Allowed Values','role_type','phase','createDraft','save_proposal','data-inky-story-create','Accepted entries will be saved as you approve them','inky-actions[hidden]','width:min(720px','inky-guide-variation-menu']as$required)if(!str_contains($script.$guideScript.$component.$style,$required))throw new RuntimeException('Inky popup authoring flow is missing '.$required.'.');
+foreach(['openStoryComposer','is-composing','mainActions.hidden=true','actionAvailable','nextToggle','data-inky-next-actions','requestContent','requestEdits','Suggest Content','Suggest Edits','Accept and Save','Save Draft','Edit','loadProgress','saveDraft','variationOptions','proposalStages','showAccepted','renderAccepted','Effect Scope','Allowed Values','role_type','phase','createDraft','save_proposal','data-inky-story-create','Continue Story with','inky-actions[hidden]','width:min(720px','inky-guide-variation-menu']as$required)if(!str_contains($script.$guideScript.$component.$style,$required))throw new RuntimeException('Inky popup authoring flow is missing '.$required.'.');
+if(!str_contains($writer,'writer_archetype_field'))throw new RuntimeException('Story Writer archetype dropdown is missing.');
 if(str_contains($script,'initStoryGuide();'))throw new RuntimeException('The legacy Story Writer guide initializer must not run alongside the active Inky guide.');
 if(!str_contains($writer,'story-creation-grid{display:block!important}'))throw new RuntimeException('The normal New Story form is not visible.');
 if(!str_contains($writer,'story-creation-tab[data-story-creation-tab="inky"],.story-creation-panel.inky-starter{display:none!important}'))throw new RuntimeException('The old top-level Create With Inky form is still visible.');

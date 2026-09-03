@@ -4,6 +4,11 @@ require_once __DIR__.'/DynamicOpportunityService.php';
 
 final class StoryAuthoringService
 {
+    public const ARCHETYPES=[
+        'Hero\'s Journey','Rags to Riches','The Quest','Voyage and Return','Overcoming the Monster',
+        'Comedy','Tragedy','Rebirth','Romance','Mystery','Coming of Age','Rivalry','Survival',
+        'Transformation','Redemption','Found Family','Forbidden Love','Political Intrigue','Heist','Slice of Life'
+    ];
     public static function canEdit(array $user,int $plotId): bool
     {
         return StoryMediaService::canEdit($user,$plotId);
