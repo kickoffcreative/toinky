@@ -36,6 +36,32 @@ final class InkyGuideService
         $prompt=json_encode(['genre'=>$genre,'step'=>$step+1,'current_answer'=>$answer,'previous_answers'=>$answers,'instruction'=>'Acknowledge the latest answer, then ask the next single question. At step five, summarize only the writer concept into the brief.'],JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);if($prompt===false)throw new RuntimeException('The Inky conversation request could not be prepared.');$response=AiConnectionService::completeJson('INKY_STORY_GUIDE',$system,$prompt);$guided=self::validatedResponse((array)$response['data'],$step);return['step'=>$step,'next_step'=>$guided['complete']?null:$step+1,'reply'=>$guided['reply'],'question'=>$guided['question'],'complete'=>$guided['complete'],'brief'=>$guided['brief'],'answers'=>$answers,'model'=>$response['model']];
     }
 
+    public static function suggestContent(array $user,array $input): array
+    {
+        [$genre,$step,$answer,$answers,$brief]=self::context($input);
+        $system='You are Inky, a patient story coach for an amateur interactive-fiction writer. Return JSON only and exactly this shape: {"content":"writer-ready answer"}. Suggest content for the current question only. Build from the supplied answers and brief, do not invent major facts without signaling them as a suggestion, and do not use technical engine terms. Keep the answer useful but concise.';
+        $prompt=json_encode(['genre'=>$genre,'step'=>$step+1,'question'=>self::questions()[$step],'current_answer'=>$answer,'previous_answers'=>$answers,'current_brief'=>$brief,'instruction'=>'Suggest a possible answer the writer can edit before continuing.'],JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);if($prompt===false)throw new RuntimeException('The Inky content suggestion request could not be prepared.');
+        $response=AiConnectionService::completeJson('INKY_STORY_GUIDE_CONTENT',$system,$prompt);$content=self::text(((array)$response['data'])['content']??'','suggested content',self::MAX_ANSWER_CHARS);if(mb_strlen($content)<3)throw new RuntimeException('Inky returned an empty content suggestion.');return['content'=>$content,'model'=>$response['model']];
+    }
+
+    public static function suggestEdits(array $user,array $input): array
+    {
+        [$genre,$step,$answer,$answers,$brief]=self::context($input);
+        $system='You are Inky, a precise story editor for an amateur interactive-fiction writer. Return JSON only and exactly this shape: {"edits":[{"edit":"replacement or concrete revision","reason":"why this improves the answer"}]}. Return between 1 and 20 itemized edits. Each edit must be independently understandable and focused on the current answer. Do not rewrite the whole story, invent hidden rules, or use PHP, schema, or engine instructions.';
+        $prompt=json_encode(['genre'=>$genre,'step'=>$step+1,'question'=>self::questions()[$step],'current_answer'=>$answer,'previous_answers'=>$answers,'current_brief'=>$brief,'instruction'=>'Identify the most useful improvements. If the answer is already strong, suggest optional refinements rather than claiming it is wrong.'],JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);if($prompt===false)throw new RuntimeException('The Inky edit suggestion request could not be prepared.');
+        $response=AiConnectionService::completeJson('INKY_STORY_GUIDE_EDITS',$system,$prompt);$data=(array)$response['data'];$edits=[];foreach(array_slice((array)($data['edits']??[]),0,20)as$item){if(!is_array($item))continue;$edit=self::text($item['edit']??'','edit suggestion',self::MAX_ANSWER_CHARS,false);$reason=self::text($item['reason']??'','edit explanation',600,false);if($edit!=='')$edits[]=['edit'=>$edit,'reason'=>$reason];}if(!$edits)throw new RuntimeException('Inky returned no usable edit suggestions.');return['edits'=>$edits,'model'=>$response['model']];
+    }
+
+    private static function context(array $input): array
+    {
+        $genreId=(int)($input['genre_id']??0);$q=db()->prepare('SELECT label_text FROM story_genres WHERE genre_id=? AND active=1');$q->execute([$genreId]);$genre=trim((string)$q->fetchColumn());if($genre==='')throw new RuntimeException('Choose a genre for the conversation.');$step=(int)($input['step']??0);if($step<0||$step>=self::STEP_COUNT)throw new RuntimeException('That Inky conversation step is not available.');$answer=self::text($input['answer']??'','current answer',self::MAX_ANSWER_CHARS,false);return[$genre,$step,$answer,self::answers($input['answers']??[]),self::jsonObject($input['brief']??[],'story brief')];
+    }
+
+    private static function questions(): array
+    {
+        return['What is the spark for the story?','Who does the story follow, and what do they want?','Where and when does it happen?','What problem, mystery, or meaningful choice drives the story?','What tone should it have, and what feeling should the player leave with?'];
+    }
+
     private static function proposal(array $input): array
     {
         $key=trim((string)($input['proposal_key']??''));$definition=self::PROPOSALS[$key]??null;if(!$definition)throw new RuntimeException('That Inky proposal is not available.');

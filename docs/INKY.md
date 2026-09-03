@@ -83,13 +83,20 @@ The story metadata fields remain visible and editable throughout the
 conversation: Stable Story Code, Title, Genre, Setting, Archetype, Players,
 AI Cast, and Story Concept.
 
-The final response is a story brief containing a title, setting, concept,
-tone, and notes. It is not a story structure: Inky does not create locations,
-characters, events, decisions, options, endings, stable codes, or database
-records during this process. **Use Brief In New Story** is an explicit,
-optional action that copies only the title, setting, and concept into the
-normal New Story form for the writer to review. The ordinary Create Draft
-action remains the point where a story is saved.
+  Every question has **Suggest Content** and **Suggest Edits** actions. Suggest
+  Content fills the current answer with editable text. Suggest Edits returns up
+  to twenty itemized, explained edits; each proposed revision can be edited and
+  used as the current answer. The writer remains responsible for the final
+  answer before continuing.
+
+  After the five questions, Inky creates a real draft before presenting the
+  structured proposal sequence. Title, archetype, setting, scenario briefing,
+  locations, story values, characters, events, decisions, conditional
+  opportunities, ending sections, endings, and player or AI cast limits are
+  presented as editable controls. Accepting a proposal saves it immediately
+  through the generic Story Authoring service. The writer can open the saved
+  draft at any time; accepted content is not held only in browser state and is
+  not lost if the panel is closed or refreshed.
 
 Future guided authoring actions should follow this same pattern: a narrow
 context, one understandable question or task at a time, a structured result,
