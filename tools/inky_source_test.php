@@ -11,6 +11,8 @@ $style=file_get_contents($root.'/public/assets/toinky-inky.css');
 $connection=file_get_contents($root.'/app/AiConnectionService.php');
 $cowriter=file_get_contents($root.'/app/InkyCowriterService.php');
 $actionEndpoint=file_get_contents($root.'/public/inky-action.php');
+$starterService=file_get_contents($root.'/app/InkyStarterService.php');
+$starterEndpoint=file_get_contents($root.'/public/inky-starter.php');
 $docs=file_get_contents($root.'/docs/INKY.md');
 $migration=file_get_contents($root.'/database/migrations/083_inky_user_preferences.sql');
 $identityMigration=file_get_contents($root.'/database/migrations/084_inky_character_identity.sql');
@@ -18,7 +20,7 @@ $futureCatalogMigration=file_get_contents($root.'/database/migrations/085_inky_f
 $defaultCatalogMigration=file_get_contents($root.'/database/migrations/086_inky_character_type_catalog.sql');
 $lanternMigration=file_get_contents($root.'/database/migrations/092_enable_lantern_inky.sql');
 $profileService=file_get_contents($root.'/app/UserProfileService.php');
-foreach(compact('profile','profileScript','writer','component','script','style','connection','cowriter','actionEndpoint','docs','migration','identityMigration','futureCatalogMigration','defaultCatalogMigration','lanternMigration','profileService')as$name=>$source)if($source===false)throw new RuntimeException('Could not read Inky '.$name.' source.');
+foreach(compact('profile','profileScript','writer','component','script','style','connection','cowriter','actionEndpoint','starterService','starterEndpoint','docs','migration','identityMigration','futureCatalogMigration','defaultCatalogMigration','lanternMigration','profileService')as$name=>$source)if($source===false)throw new RuntimeException('Could not read Inky '.$name.' source.');
 foreach([
     'data-profile-tab="inky"',
     'save_inky_preferences',
@@ -119,6 +121,9 @@ foreach(['INKY_FOCUSED_TESTS','validatedFocusedTests','Game2 Simulation Lab work
 foreach(["`What's Next?` is the second implemented vertical slice",'Every step must cite a stable key','MANUAL STRUCTURAL REVIEW','`Quality Check My Work` is the third implemented vertical slice','scored checks for','`Find Dependency Problems` is the fourth implemented vertical slice','recommend an authored-data fix','`Check Character Knowledge` is the fifth implemented vertical slice','cite a character role code','`Suggest Story Values` is the sixth implemented vertical slice','does not change schema or PHP','`Review This Opportunity` is the seventh implemented vertical slice','prompt clarity, player agency','stable focus code','`Prepare Focused Tests` is the eighth implemented vertical slice','not proof of organic reachability','companion name, model','passive nudge','does not auto-open the panel','auto-run AI actions','Only When Clicked','Octopus is the default selectable','default floating artwork should read as the Octopus','moves the saved anchor to that side','open navigation drawer instead of hiding behind it','must remain transparent','Lantern preserves','Squid preserves','Catalog labels should describe character types']as$required)if(!str_contains($docs,$required))throw new RuntimeException('Inky documentation is missing '.$required.'.');
 foreach(['AuthService::requireWriter','AuthService::requireCsrf','InkyCowriterService::run']as$required)if(!str_contains($actionEndpoint,$required))throw new RuntimeException('Inky action endpoint is missing '.$required.'.');
 if(str_contains($actionEndpoint,"'message'=>\$e->getMessage()"))throw new RuntimeException('Inky action errors may expose private connection details to the browser.');
+foreach(['INKY_STORY_STARTER','StoryAuthoringService::createStory','StoryAuthoringService::saveDecision','StoryAuthoringService::saveOption','beginTransaction','validatedDraft']as$required)if(!str_contains($starterService,$required))throw new RuntimeException('Inky guided starter service is missing '.$required.'.');
+foreach(['InkyStarterService::draft','InkyStarterService::apply','mode','csrf_token']as$required)if(!str_contains($starterEndpoint,$required))throw new RuntimeException('Inky guided starter endpoint is missing '.$required.'.');
+foreach(['data-inky-starter-form','data-inky-starter-preview','data-inky-starter-apply','Use This Starter','inky-starter.php','starterDraft']as$required)if(!str_contains($writer,$required))throw new RuntimeException('Story Writer guided starter UI is missing '.$required.'.');
 if(!str_contains($migration,'PRIMARY KEY(user_id)'))throw new RuntimeException('Inky preferences are not scoped uniquely to each user.');
 foreach(['CREATE TABLE IF NOT EXISTS inky_characters','companion_name_root','character_code','INKY_CLASSIC']as$required)if(!str_contains($identityMigration,$required))throw new RuntimeException('Inky identity migration is missing '.$required.'.');
 foreach(['anchorForDock','anchor_position=VALUES(anchor_position)']as$required)if(!str_contains($profileService,$required))throw new RuntimeException('Inky side preference does not update the saved anchor.');

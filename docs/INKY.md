@@ -24,9 +24,16 @@ Completed:
   full-resolution files remain available for future editing and new exports.
 - Eight bounded Inky co-writer interaction contracts and the associated
   privacy, authored-data, and validation rules.
+- The first guided authoring slice, **Create With Inky**, which generates a
+  bounded starter preview and transactionally creates a small playable draft
+  only after the writer approves it.
 
 Next planned work:
 
+- Add field-level regenerate, edit, and alternative controls to the guided
+  starter without bypassing Story Writer validation.
+- Add context-aware guided authoring actions for existing locations,
+  characters, events, decisions, options, and endings.
 - Add future character artwork only after it passes the repeatable workflow in
   [docs/INKY_CHARACTER_PLAYBOOK.md](INKY_CHARACTER_PLAYBOOK.md).
 - Continue production smoke tests for new hosting or deployment changes.
@@ -48,6 +55,25 @@ surface; story-specific behavior remains authored data and shared engine code.
 - Inky must not expose another character's private knowledge, administrator-only
   data, credentials, connection URLs, or raw AI payloads.
 - Inky provides editing assistance. It does not silently change story content.
+
+## Guided story starter
+
+**Create With Inky** is the first authoring workflow for a new writer. The
+writer supplies a genre, a short idea, and an optional tone. Ollama returns a
+strictly bounded package containing one setting, one playable character, one
+opening event, one decision with two choices, and two ending fragments.
+
+The package is shown in a preview before any story record is created. **Use
+This Starter** is an explicit approval step. The server validates the complete
+package again, normalizes stable codes, checks the requested genre, and creates
+the draft in one database transaction through StoryAuthoringService. A
+failed request cannot leave half a story behind.
+
+The starter is intentionally small. It gives a new writer a playable shape
+that can be expanded in Story Writer, rather than asking Ollama to invent an
+entire unvalidated story at once. Future guided actions should follow the same
+pattern: narrow context, structured data, visible preview, explicit approval,
+server validation, and existing generic authoring services for persistence.
 
 ## Personal settings
 

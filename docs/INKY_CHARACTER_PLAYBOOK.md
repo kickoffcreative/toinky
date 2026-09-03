@@ -329,6 +329,26 @@ asset counts and byte totals, visual checks, browser/network checks, failed
 checks, and the commit or deployment state. This replaces prompt-by-prompt
 coordination with a bounded engineering contract.
 
+## Guided authoring workflow
+
+The first guided authoring slice is Create With Inky. It is intentionally
+bounded so a new writer can reach a playable draft quickly:
+
+1. Ask for a genre, a short story idea, and an optional tone.
+2. Generate one setting, one playable character, one opening event, one
+   decision, two choices, and two ending fragments.
+3. Show the complete package as a preview before creating database records.
+4. Require an explicit Use This Starter action.
+5. Normalize and validate the package on the server again.
+6. Create the draft transactionally through StoryAuthoringService.
+7. Continue authoring in the normal Story Writer tabs and run validation before
+   submission.
+
+The assistant must not generate an entire story in one unbounded response.
+Every future guided authoring action should use a narrow context package,
+return structured data, show a visible preview, require approval, and preserve
+the generic engine boundary.
+
 ## Definition of done
 
 A new Inky character is complete only when:
