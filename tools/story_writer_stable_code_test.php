@@ -37,5 +37,19 @@ try{
     $eventId=StoryAuthoringService::saveWorldEvent($writer,$plotId,['event_second'=>1,'phase'=>'EXPOSITION','event_code'=>$temporary,'headline'=>'Stable code test','event_text'=>'Temporary test event.','sort_order'=>999,'active'=>1]);
     StoryAuthoringService::saveWorldEvent($writer,$plotId,['plot_world_event_id'=>$eventId,'event_second'=>1,'phase'=>'EXPOSITION','event_code'=>$temporary.'_RENAMED','headline'=>'Stable code test','event_text'=>'Temporary test event.','sort_order'=>999,'active'=>1]);
     $pdo->rollBack();
+
+    $emptyCode='EMPTY_STORY_CODE_TEST_'.strtoupper(bin2hex(random_bytes(4)));$renamedCode=$emptyCode.'_RENAMED';$genreId=(int)$pdo->query('SELECT genre_id FROM story_genres WHERE active=1 ORDER BY sort_order,genre_id LIMIT 1')->fetchColumn();
+    $pdo->beginTransaction();
+    try{
+        $pdo->prepare('INSERT INTO plots(code,title,archetype,genre,genre_id,setting_name,max_players,max_npcs,status,workflow_status,author_user_id,scenario_text) VALUES(?,?,?,?,?,?,?,?,"draft","DRAFT",?,?)')->execute([$emptyCode,'Empty story code test','Interactive Drama','Test',$genreId,'Unspecified setting',1,0,(int)$user['user_id'],str_repeat('A',80)]);
+        $emptyPlotId=(int)$pdo->lastInsertId();StoryAuthoringService::updateOverview($writer,$emptyPlotId,['story_code'=>$renamedCode,'title'=>'Empty story code test','genre_id'=>$genreId,'archetype'=>'Interactive Drama','setting_name'=>'Unspecified setting','max_players'=>1,'max_npcs'=>0,'scenario_text'=>str_repeat('A',80)]);
+        $check=$pdo->prepare('SELECT code FROM plots WHERE plot_id=?');$check->execute([$emptyPlotId]);if((string)$check->fetchColumn()!==$renamedCode)throw new RuntimeException('An empty story code could not be renamed.');
+        $historyCode='PLAY_HISTORY_CODE_TEST_'.strtoupper(bin2hex(random_bytes(4)));$pdo->prepare('INSERT INTO plots(code,title,archetype,genre,genre_id,setting_name,max_players,max_npcs,status,workflow_status,author_user_id,scenario_text) VALUES(?,?,?,?,?,?,?,?,"draft","DRAFT",?,?)')->execute([$historyCode,'Play history code test','Interactive Drama','Test',$genreId,'Unspecified setting',1,0,(int)$user['user_id'],str_repeat('A',80)]);$historyPlotId=(int)$pdo->lastInsertId();$pdo->prepare('INSERT INTO simulations(plot_id) VALUES(?)')->execute([$historyPlotId]);$historyLocked=false;
+        try{StoryAuthoringService::updateOverview($writer,$historyPlotId,['story_code'=>$historyCode.'_RENAMED','title'=>'Play history code test','genre_id'=>$genreId,'archetype'=>'Interactive Drama','setting_name'=>'Unspecified setting','max_players'=>1,'max_npcs'=>0,'scenario_text'=>str_repeat('A',80)]);}catch(RuntimeException $error){$historyLocked=str_contains($error->getMessage(),'Stable Story Code is locked')&&str_contains($error->getMessage(),'PLAY HISTORY');}
+        if(!$historyLocked)throw new RuntimeException('A story with play history was not code-locked.');
+        StoryAuthoringService::saveLocation($writer,$emptyPlotId,['location_code'=>'TEST_PLACE','label_text'=>'Test Place','description'=>'','sort_order'=>1,'active'=>1]);$locked=false;
+        try{StoryAuthoringService::updateOverview($writer,$emptyPlotId,['story_code'=>$emptyCode,'title'=>'Empty story code test','genre_id'=>$genreId,'archetype'=>'Interactive Drama','setting_name'=>'Unspecified setting','max_players'=>1,'max_npcs'=>0,'scenario_text'=>str_repeat('A',80)]);}catch(RuntimeException $error){$locked=str_contains($error->getMessage(),'Stable Story Code is locked')&&str_contains($error->getMessage(),'LOCATIONS');}
+        if(!$locked)throw new RuntimeException('A story with a location was not code-locked.');$pdo->rollBack();
+    }catch(Throwable$emptyError){if($pdo->inTransaction())$pdo->rollBack();throw$emptyError;}
     echo "Story Writer stable-code locking passed.\n";
 }catch(Throwable $error){if($pdo->inTransaction())$pdo->rollBack();throw$error;}
