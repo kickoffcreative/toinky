@@ -27,6 +27,10 @@ Completed:
 - **Create With Inky**, a five-step conversation that helps an amateur writer
   shape an idea into a story brief without creating story records or a
   pre-built structure.
+- Empty, never-played stories can have their Stable Story Code edited or be
+  permanently deleted from Story Writer. Once any authored record, revision,
+  audit record, or play history exists, the code is locked and deletion is
+  blocked with the recorded usage reasons.
 - Story creation now starts from **Write New Story with [Inky name]** inside
   the floating companion panel. The normal **New Story** form remains
   available for writers who prefer to author the initial metadata directly;
@@ -86,6 +90,21 @@ Future guided authoring actions should follow this same pattern: a narrow
 context, one understandable question or task at a time, a structured result,
 visible review, explicit approval, server validation, and existing generic
 authoring services for persistence.
+
+## Story lifecycle safeguards
+
+Stable Story Code is the story's durable namespace. Story Writer recalculates
+its usage from the live database rather than relying only on the visible
+dependency map. A code can be changed only while the story has no authored
+child records, revisions, audits, or play history. Empty submissions preserve
+the existing code, and duplicate codes are rejected.
+
+The Story Overview also exposes **Delete Story** only when the same live usage
+check is empty. The server repeats the check before deleting, so hiding or
+forging the button cannot bypass the rule. Deletion is permanent and is never
+offered for a story with locations, characters, events, decisions, story
+values, endings, artwork, revisions, audits, simulations, or other records
+that reference the story.
 
 ## Personal settings
 

@@ -70,4 +70,6 @@ settings, safe placement rules, Qwen availability behavior, structured
 interaction contracts, and validation requirements are documented in
 [docs/INKY.md](docs/INKY.md). The current implementation status and the
 repeatable workflow for designing and adding future characters are documented
-in [docs/INKY_CHARACTER_PLAYBOOK.md](docs/INKY_CHARACTER_PLAYBOOK.md).
+in [docs/INKY_CHARACTER_PLAYBOOK.md](docs/INKY_CHARACTER_PLAYBOOK.md). Current
+continuity, deployment checks, and handoff instructions are documented in
+[docs/TOINKY_HANDOFF.md](docs/TOINKY_HANDOFF.md).

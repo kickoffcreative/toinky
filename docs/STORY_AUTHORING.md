@@ -30,6 +30,28 @@ The Story Writer workspace is intentionally ordered by dependency:
 
 When the draft is ready, the writer asks an administrator to validate it. The administrator runs **Validate & Submit**, resolves any blocking findings with the writer, and creates an immutable numbered revision. An administrator reviews that exact snapshot, then requests changes, approves, publishes, or archives it. Later edits do not silently alter the submitted revision.
 
+## Story code and deletion safeguards
+
+The **Stable Story Code** is the durable namespace for a story package. It is
+editable in **Story Framework → Story Overview** only while the story is empty
+and has never been played. The server checks all database tables that reference
+the story, including authored records, revisions, audit records, and
+simulations. Empty submissions preserve the current code, and a code already
+assigned to another story cannot be saved.
+
+The same rule controls the **Delete Story** action. Story Writer shows the
+action only for a story with no locations, characters, events, decisions,
+story values, endings, artwork, revisions, audits, or play history. The delete
+request repeats the database check and refuses the operation with the blocking
+record types when anything has been added. Deletion is permanent, so a writer
+should use it only to remove an accidental empty draft. Deactivate or revise a
+story after authoring has begun; do not delete its history to make the action
+available.
+
+The generic implementation lives in `StoryAuthoringService` and is shared by
+every story. Do not add story-specific exceptions or hard-coded plot names to
+support this workflow.
+
 ## Genre themes
 
 The story genre selects a reusable database theme. Administrators configure its colors, heading and body font stacks, and optional background, story-divider, and card-texture images in **Admin → Theme Manager**. Gameplay reads this configuration generically; a new story gains the same presentation simply by choosing that genre. Empty image fields use the clean default interface.
