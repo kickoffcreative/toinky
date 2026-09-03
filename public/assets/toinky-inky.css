@@ -42,3 +42,4 @@
 .inky-lantern-rig .inky-rig-mouth-open{left:46.667%;top:49.333%;width:9%}
 .inky-lantern-rig .inky-rig-mouth-o{left:48%;top:51%;width:4%}
 @media(max-width:700px){.inky-lantern-wrap{inset:-49.8%}}
+.inky-shell.is-inky-blinking .inky-rig-eye{opacity:0}
