@@ -29,6 +29,7 @@ CREATE TABLE IF NOT EXISTS plot_roles (
   plot_id BIGINT UNSIGNED NOT NULL,
   role_code VARCHAR(100) NOT NULL,
   role_type ENUM('PLAYER','NPC') NOT NULL,
+  mystery_character TINYINT(1) NOT NULL DEFAULT 0,
   slot_no TINYINT UNSIGNED NOT NULL,
   name VARCHAR(180) NOT NULL,
   public_description TEXT NOT NULL,

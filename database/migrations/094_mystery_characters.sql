@@ -1,0 +1,2 @@
+ALTER TABLE plot_roles
+  ADD COLUMN IF NOT EXISTS mystery_character TINYINT(1) NOT NULL DEFAULT 0 AFTER role_type;

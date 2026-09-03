@@ -52,5 +52,5 @@ function render_inky(array $user,array $context=[]):void
     </span>
     <span class="inky-online-dot" aria-hidden="true"></span>
   </button>
-</aside><script src="assets/toinky-inky.js?v=<?=e($jsVersion)?>" defer></script><?php if($isStoryWriter): ?><script src="assets/toinky-inky-guide.js?v=<?=e($guideJsVersion)?>" defer></script><?php endif; ?><?php if($isLantern): ?><script src="assets/vendor/pixi.min.js" defer></script><script src="assets/toinky-inky-pixi.js?v=<?=e($pixiVersion)?>" defer></script><?php endif; ?><?php
+</aside><?php if($isStoryWriter): ?><script>(function(){var root=document.querySelector('[data-inky][data-context="story-writer"]');if(root)root.dataset.currentCode=<?=json_encode((string)($plot['code']??''),JSON_UNESCAPED_SLASHES|JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT)?>;})();</script><?php endif; ?><script src="assets/toinky-inky.js?v=<?=e($jsVersion)?>" defer></script><?php if($isStoryWriter): ?><script src="assets/toinky-inky-guide.js?v=<?=e($guideJsVersion)?>" defer></script><?php endif; ?><?php if($isLantern): ?><script src="assets/vendor/pixi.min.js" defer></script><script src="assets/toinky-inky-pixi.js?v=<?=e($pixiVersion)?>" defer></script><?php endif; ?><?php
 }}
