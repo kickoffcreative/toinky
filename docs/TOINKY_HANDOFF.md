@@ -2,6 +2,13 @@
 
 **Handoff date:** 2026-09-03
 
+**Primary handoff document:** [Toinky - Handoff Document](https://docs.google.com/document/d/18CDcgrcHctWcG6BRBd43ij43fJGQ0FGtwapqpN8UoVw/edit)
+
+The shared Google Doc is the primary continuity record. This repository file
+is the code-local implementation mirror and should be updated alongside it.
+When the two differ, verify the current GitHub `main` state and update this
+mirror rather than treating older copied sections as current.
+
 This document is the continuity note for the next engineer or coding agent.
 Use it with `README.md`, `docs/STORY_AUTHORING.md`, and `docs/INKY.md`.
 

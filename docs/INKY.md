@@ -7,6 +7,11 @@ structured result.
 
 ## Current project status
 
+The primary project handoff is maintained in the shared
+[Toinky - Handoff Document](https://docs.google.com/document/d/18CDcgrcHctWcG6BRBd43ij43fJGQ0FGtwapqpN8UoVw/edit).
+This file records the Inky-specific implementation details that support that
+handoff.
+
 **Status: Active Inky v1 implementation.** The core companion workflow is in
 place and the animated default and Lantern character paths are working in the
 Story Writer UI.

@@ -72,4 +72,5 @@ interaction contracts, and validation requirements are documented in
 repeatable workflow for designing and adding future characters are documented
 in [docs/INKY_CHARACTER_PLAYBOOK.md](docs/INKY_CHARACTER_PLAYBOOK.md). Current
 continuity, deployment checks, and handoff instructions are documented in
-[docs/TOINKY_HANDOFF.md](docs/TOINKY_HANDOFF.md).
+[docs/TOINKY_HANDOFF.md](docs/TOINKY_HANDOFF.md); the shared Google Doc is the
+[primary handoff record](https://docs.google.com/document/d/18CDcgrcHctWcG6BRBd43ij43fJGQ0FGtwapqpN8UoVw/edit).
