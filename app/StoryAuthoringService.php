@@ -227,7 +227,7 @@ final class StoryAuthoringService
     public static function storyCodeUsage(int $plotId): array
     {
         $usage=[];$q=db()->prepare('SELECT table_name FROM information_schema.columns WHERE table_schema=DATABASE() AND column_name="plot_id" ORDER BY table_name');$q->execute();
-        foreach($q->fetchAll(PDO::FETCH_COLUMN)as$table){$table=(string)$table;if(in_array($table,['plots','simulations'],true)||!preg_match('/^[a-z0-9_]+$/',$table))continue;$countQ=db()->prepare('SELECT COUNT(*) FROM `'.$table.'` WHERE plot_id=?');$countQ->execute([$plotId]);$count=(int)$countQ->fetchColumn();if($count>0){$label=strtoupper(str_replace('_',' ',preg_replace('/^plot_/','',$table)));$usage[$label]=$count;}}
+        foreach($q->fetchAll(PDO::FETCH_COLUMN)as$table){$table=(string)$table;if(in_array($table,['plots','simulations','inky_story_guide_drafts'],true)||!preg_match('/^[a-z0-9_]+$/',$table))continue;$countQ=db()->prepare('SELECT COUNT(*) FROM `'.$table.'` WHERE plot_id=?');$countQ->execute([$plotId]);$count=(int)$countQ->fetchColumn();if($count>0){$label=strtoupper(str_replace('_',' ',preg_replace('/^plot_/','',$table)));$usage[$label]=$count;}}
         $historyQ=db()->prepare('SELECT COUNT(*) FROM simulations WHERE plot_id=?');$historyQ->execute([$plotId]);$history=(int)$historyQ->fetchColumn();if($history>0)$usage['PLAY HISTORY']=$history;return$usage;
     }
 
@@ -235,6 +235,11 @@ final class StoryAuthoringService
     {
         self::guard($user,$plotId);$usage=self::storyCodeUsage($plotId);if($usage){$parts=[];foreach($usage as$keyword=>$count)$parts[]=$keyword.' '.$count;throw new RuntimeException('Cannot delete this story while it has linked records: '.implode(' · ',$parts));}
         $pdo=db();$pdo->beginTransaction();try{$q=$pdo->prepare('DELETE FROM plots WHERE plot_id=?');$q->execute([$plotId]);if($q->rowCount()<1)throw new RuntimeException('Story not found.');$pdo->commit();}catch(Throwable$e){if($pdo->inTransaction())$pdo->rollBack();throw$e;}
+    }
+
+    public static function deleteDraft(array $user,int $plotId): void
+    {
+        self::guard($user,$plotId);$q=db()->prepare('SELECT workflow_status FROM plots WHERE plot_id=? LIMIT 1');$q->execute([$plotId]);if((string)$q->fetchColumn()!=='DRAFT')throw new RuntimeException('Only draft stories can be deleted here.');$pdo=db();$pdo->beginTransaction();try{$q=$pdo->prepare('DELETE FROM plots WHERE plot_id=?');$q->execute([$plotId]);if($q->rowCount()<1)throw new RuntimeException('Story not found.');$pdo->commit();}catch(Throwable$e){if($pdo->inTransaction())$pdo->rollBack();throw$e;}
     }
 
     public static function dependencyDetails(int $plotId,?array $workspace=null): array

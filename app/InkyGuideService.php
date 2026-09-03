@@ -27,6 +27,27 @@ final class InkyGuideService
         'max_npcs'=>['label'=>'AI Cast','type'=>'number'],
     ];
 
+    public static function guidedDrafts(array $user): array
+    {
+        $q=db()->prepare('SELECT d.guide_draft_id,d.plot_id,d.updated_at_utc,p.title FROM inky_story_guide_drafts d JOIN plots p ON p.plot_id=d.plot_id WHERE d.author_user_id=? AND p.workflow_status="DRAFT" ORDER BY d.updated_at_utc DESC');
+        $q->execute([(int)$user['user_id']]);return$q->fetchAll();
+    }
+
+    public static function loadProgress(array $user,int $plotId): ?array
+    {
+        self::assertDraftAccess($user,$plotId);$q=db()->prepare('SELECT state_json FROM inky_story_guide_drafts WHERE plot_id=? AND author_user_id=? LIMIT 1');$q->execute([$plotId,(int)$user['user_id']]);$raw=$q->fetchColumn();if($raw===false)return null;return self::jsonObject($raw,'saved draft state');
+    }
+
+    public static function saveProgress(array $user,int $plotId,mixed$raw): void
+    {
+        self::assertDraftAccess($user,$plotId);$state=self::jsonObject($raw,'draft state');$state['step']=max(0,min(self::STEP_COUNT,(int)($state['step']??0)));$state['answers']=self::answers($state['answers']??[]);$state['accepted_proposals']=self::jsonObject($state['accepted_proposals']??[],'accepted proposals');$json=json_encode($state,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);if($json===false||mb_strlen($json)>500000)throw new RuntimeException('The Inky draft is too large to save.');$q=db()->prepare('INSERT INTO inky_story_guide_drafts(plot_id,author_user_id,state_json) VALUES(?,?,?) ON DUPLICATE KEY UPDATE author_user_id=VALUES(author_user_id),state_json=VALUES(state_json),updated_at_utc=CURRENT_TIMESTAMP');$q->execute([$plotId,(int)$user['user_id'],$json]);
+    }
+
+    private static function assertDraftAccess(array $user,int$plotId): void
+    {
+        $q=db()->prepare('SELECT author_user_id,workflow_status FROM plots WHERE plot_id=? LIMIT 1');$q->execute([$plotId]);$plot=$q->fetch();if(!$plot||((int)($user['is_admin']??0)!==1&&(int)$plot['author_user_id']!==(int)$user['user_id']))throw new RuntimeException('You may only edit your own Inky drafts.');if((string)$plot['workflow_status']!=='DRAFT')throw new RuntimeException('Only draft stories can be resumed through Inky.');
+    }
+
     public static function guide(array $user,array $input): array
     {
         if((string)($input['phase']??'')==='proposal')return self::proposal($input);
@@ -41,7 +62,7 @@ final class InkyGuideService
         [$genre,$step,$answer,$answers,$brief]=self::context($input);
         $system='You are Inky, a patient story coach for an amateur interactive-fiction writer. Return JSON only and exactly this shape: {"content":"writer-ready answer"}. Suggest content for the current question only. Build from the supplied answers and brief, do not invent major facts without signaling them as a suggestion, and do not use technical engine terms. Keep the answer useful but concise.';
         $prompt=json_encode(['genre'=>$genre,'step'=>$step+1,'question'=>self::questions()[$step],'current_answer'=>$answer,'previous_answers'=>$answers,'current_brief'=>$brief,'instruction'=>'Suggest a possible answer the writer can edit before continuing.'],JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);if($prompt===false)throw new RuntimeException('The Inky content suggestion request could not be prepared.');
-        $response=AiConnectionService::completeJson('INKY_STORY_GUIDE_CONTENT',$system,$prompt);$content=self::text(((array)$response['data'])['content']??'','suggested content',self::MAX_ANSWER_CHARS);if(mb_strlen($content)<3)throw new RuntimeException('Inky returned an empty content suggestion.');return['content'=>$content,'model'=>$response['model']];
+        $response=AiConnectionService::completeJson('INKY_STORY_GUIDE_CONTENT',$system,$prompt);$contentData=(array)$response['data'];$content=self::text($contentData['content']??$contentData['suggestion']??$contentData['answer']??'','suggested content',self::MAX_ANSWER_CHARS);if(mb_strlen($content)<3)throw new RuntimeException('Inky returned an empty content suggestion.');return['content'=>$content,'model'=>$response['model']];
     }
 
     public static function suggestEdits(array $user,array $input): array
@@ -49,7 +70,7 @@ final class InkyGuideService
         [$genre,$step,$answer,$answers,$brief]=self::context($input);
         $system='You are Inky, a precise story editor for an amateur interactive-fiction writer. Return JSON only and exactly this shape: {"edits":[{"edit":"replacement or concrete revision","reason":"why this improves the answer"}]}. Return between 1 and 20 itemized edits. Each edit must be independently understandable and focused on the current answer. Do not rewrite the whole story, invent hidden rules, or use PHP, schema, or engine instructions.';
         $prompt=json_encode(['genre'=>$genre,'step'=>$step+1,'question'=>self::questions()[$step],'current_answer'=>$answer,'previous_answers'=>$answers,'current_brief'=>$brief,'instruction'=>'Identify the most useful improvements. If the answer is already strong, suggest optional refinements rather than claiming it is wrong.'],JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);if($prompt===false)throw new RuntimeException('The Inky edit suggestion request could not be prepared.');
-        $response=AiConnectionService::completeJson('INKY_STORY_GUIDE_EDITS',$system,$prompt);$data=(array)$response['data'];$edits=[];foreach(array_slice((array)($data['edits']??[]),0,20)as$item){if(!is_array($item))continue;$edit=self::text($item['edit']??'','edit suggestion',self::MAX_ANSWER_CHARS,false);$reason=self::text($item['reason']??'','edit explanation',600,false);if($edit!=='')$edits[]=['edit'=>$edit,'reason'=>$reason];}if(!$edits)throw new RuntimeException('Inky returned no usable edit suggestions.');return['edits'=>$edits,'model'=>$response['model']];
+        $response=AiConnectionService::completeJson('INKY_STORY_GUIDE_EDITS',$system,$prompt);$data=(array)$response['data'];$rawEdits=$data['edits']??$data['edit_suggestions']??$data['suggestions']??$data['recommendations']??$data['items']??$data['changes']??$data;if(isset($rawEdits['edit'])||isset($rawEdits['suggestion'])||isset($rawEdits['revision'])||isset($rawEdits['replacement'])||isset($rawEdits['proposed_edit']))$rawEdits=[$rawEdits];$edits=[];foreach(array_slice((array)$rawEdits,0,20)as$item){if(!is_array($item))continue;$edit=self::text($item['edit']??$item['suggestion']??$item['revision']??$item['replacement']??$item['proposed_edit']??$item['suggested_edit']??'','edit suggestion',self::MAX_ANSWER_CHARS,false);$reason=self::text($item['reason']??$item['explanation']??$item['why']??$item['details']??'','edit explanation',600,false);if($edit!=='')$edits[]=['edit'=>$edit,'reason'=>$reason];}if(!$edits)throw new RuntimeException('Inky returned no usable edit suggestions.');return['edits'=>$edits,'model'=>$response['model']];
     }
 
     private static function context(array $input): array
@@ -65,9 +86,9 @@ final class InkyGuideService
     private static function proposal(array $input): array
     {
         $key=trim((string)($input['proposal_key']??''));$definition=self::PROPOSALS[$key]??null;if(!$definition)throw new RuntimeException('That Inky proposal is not available.');
-        $answers=self::jsonObject($input['answers']??[],'conversation answers');$brief=self::jsonObject($input['brief']??[],'story brief');$accepted=self::jsonObject($input['accepted_proposals']??[],'accepted proposals');$rejected=self::jsonValue($input['rejected_value']??null);
+        $answers=self::jsonObject($input['answers']??[],'conversation answers');$brief=self::jsonObject($input['brief']??[],'story brief');$accepted=self::jsonObject($input['accepted_proposals']??[],'accepted proposals');$rejected=self::jsonValue($input['rejected_value']??null);$variation=self::text($input['variation']??'','suggestion variation',80,false);
         $system='You are Inky, a patient story coach helping an amateur interactive-fiction writer. Return JSON only and exactly this shape: {"key":"'.$key.'","value":PROPOSAL_VALUE,"reason":"one short reason","label":"'.$definition['label'].'"}. Propose only the requested item. Use the writer answers and current brief. Do not repeat a rejected proposal. Do not create database records, PHP, schema, or hidden story rules. For locations, propose a name or description only. For characters, return an object with exactly name, role_code, role_type, public_description, private_knowledge, starting_location, goal_text, fear_text, pronoun_set. For events, return an object with exactly event_code, phase, headline, text. For decisions, return an object with exactly event_code, character, prompt, options, where options is an array of exactly two objects with label and result. For conditional opportunities, return an object with exactly opportunity_code, character, trigger, prompt, condition, options, where condition has source_type, source_key, operator, compare_value and options is an array of exactly two objects with label and result. For ending sections, return an object with exactly section_code, label, description. For endings, return an object with exactly section, headline, text. For story values, return an object with exactly scope, target_code, label, value_type, allowed_values, description. Story value scope must be FACTOR, STAT, LOCATION, KNOWLEDGE, RELATIONSHIP, WORLD_STATE, GOAL, or FEAR. Story value type must be NUMERIC, PRESET, or TEXT. Keep all prose concise and usable in Story Writer.';
-        $prompt=json_encode(['requested_proposal'=>$key,'requested_label'=>$definition['label'],'writer_answers'=>$answers,'current_brief'=>$brief,'accepted_proposals'=>$accepted,'rejected_proposal'=>$rejected],JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);if($prompt===false)throw new RuntimeException('The Inky proposal request could not be prepared.');
+        $prompt=json_encode(['requested_proposal'=>$key,'requested_label'=>$definition['label'],'writer_answers'=>$answers,'current_brief'=>$brief,'accepted_proposals'=>$accepted,'rejected_proposal'=>$rejected,'variation'=>$variation,'instruction'=>$variation!==''?'Make this alternative '.$variation.'.':'Make this a fresh alternative.'],JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);if($prompt===false)throw new RuntimeException('The Inky proposal request could not be prepared.');
         $response=AiConnectionService::completeJson('INKY_STORY_PROPOSAL',$system,$prompt);$proposal=self::validatedProposal((array)$response['data'],$key,$definition);return['proposal'=>$proposal,'model'=>$response['model']];
     }
 
