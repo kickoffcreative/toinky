@@ -6,6 +6,8 @@ final class InkyGuideService
     private const STEP_COUNT=5;
     private const MAX_ANSWER_CHARS=12000;
     private const MAX_TOTAL_CHARS=24000;
+    private const MAX_PROPOSAL_ANSWERS_CHARS=8000;
+    private const MAX_PROPOSAL_ACCEPTED_CHARS=14000;
     private const PROPOSALS=[
         'title'=>['label'=>'Title','type'=>'text','max'=>190],
         'archetype'=>['label'=>'Archetype','type'=>'text','max'=>120],
@@ -101,7 +103,7 @@ final class InkyGuideService
     private static function proposal(array $input): array
     {
         $key=trim((string)($input['proposal_key']??''));$definition=self::PROPOSALS[$key]??null;if(!$definition)throw new RuntimeException('That Inky proposal is not available.');
-        $answers=self::jsonObject($input['answers']??[],'conversation answers');$brief=self::jsonObject($input['brief']??[],'story brief');$accepted=self::jsonObject($input['accepted_proposals']??[],'accepted proposals');$rejected=self::jsonValue($input['rejected_value']??null);$live=self::jsonValue($input['current_proposal']??null);if($live!==null&&$live!==''&&$live!==[])$rejected=$live;$variation=self::text($input['variation']??'','suggestion variation',80,false);$editableFields=self::proposalFields($input['editable_fields']??[]);
+        $answers=self::boundedPromptContext(self::jsonObject($input['answers']??[],'conversation answers'),self::MAX_PROPOSAL_ANSWERS_CHARS);$brief=self::jsonObject($input['brief']??[],'story brief');$accepted=self::boundedPromptContext(self::jsonObject($input['accepted_proposals']??[],'accepted proposals'),self::MAX_PROPOSAL_ACCEPTED_CHARS);$rejected=self::jsonValue($input['rejected_value']??null);$live=self::jsonValue($input['current_proposal']??null);if($live!==null&&$live!==''&&$live!==[])$rejected=$live;$variation=self::text($input['variation']??'','suggestion variation',80,false);$editableFields=self::proposalFields($input['editable_fields']??[]);
         $system='You are Inky, a patient story coach helping an amateur interactive-fiction writer. Return JSON only and exactly this shape: {"key":"'.$key.'","value":PROPOSAL_VALUE,"reason":"one short reason","label":"'.$definition['label'].'"}. Propose only the requested item. Use the writer answers and current brief. Do not repeat a rejected proposal. Do not create database records, PHP, schema, or hidden story rules. For locations, propose a name or description only. For characters, return an object with exactly name, role_code, role_type, mystery_character, public_description, private_knowledge, starting_location, goal_text, fear_text, pronoun_set. Set mystery_character to true only when the character should be selectable in the lobby with its identity and details hidden until the story begins. For events, return an object with exactly event_code, phase, headline, text. For decisions, return an object with exactly event_code, character, prompt, options, where options is an array of exactly two objects with label and result. For conditional opportunities, return an object with exactly opportunity_code, character, trigger, prompt, condition, options, where condition has source_type, source_key, operator, compare_value and options is an array of exactly two objects with label and result. For ending sections, return an object with exactly section_code, label, description. For endings, return an object with exactly section, headline, text. For story values, return an object with exactly scope, target_code, label, value_type, allowed_values, description. Story value scope must be FACTOR, STAT, LOCATION, KNOWLEDGE, RELATIONSHIP, WORLD_STATE, GOAL, or FEAR. Story value type must be NUMERIC, PRESET, or TEXT. Keep all prose concise and usable in Story Writer. When a live edited proposal is supplied, it is the authoritative source for the current item. Use it as the basis for the new suggestion and never copy current-item fields from accepted_proposals. For character suggestions, ignore all accepted character entries and use only live_edited_character as the character being revised.';
         if($editableFields&&$rejected!==null)$system.=' A current proposal is supplied. Only revise these selected field paths: '.json_encode($editableFields,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES).'. Preserve every other field exactly, including nested fields and option details, and return the complete item with those preserved values included.';
         $prompt=json_encode(['requested_proposal'=>$key,'requested_label'=>$definition['label'],'writer_answers'=>$answers,'current_brief'=>$brief,'accepted_proposals'=>$accepted,'rejected_proposal'=>$rejected,'live_edited_proposal'=>$live,'live_edited_character'=>$input['live_edited_character']??null,'variation'=>$variation,'editable_fields'=>$editableFields,'instruction'=>$variation!==''?'Make this alternative '.$variation.'.':'Make this a fresh alternative.'],JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);if($prompt===false)throw new RuntimeException('The Inky proposal request could not be prepared.');
@@ -134,6 +136,16 @@ final class InkyGuideService
     private static function jsonValue(mixed$raw): mixed
     {
         if(!is_string($raw)||trim($raw)==='')return$raw;try{return json_decode($raw,true,20,JSON_THROW_ON_ERROR);}catch(Throwable$e){return$raw;}
+    }
+
+    private static function boundedPromptContext(mixed$value,int$limit): mixed
+    {
+        $remaining=$limit;return self::boundPromptValue($value,$remaining);
+    }
+
+    private static function boundPromptValue(mixed$value,int &$remaining): mixed
+    {
+        if($remaining<=0)return null;if(is_string($value)){$text=mb_substr($value,0,$remaining);$remaining-=mb_strlen($text);return$text;}if(is_int($value)||is_float($value)||is_bool($value)||$value===null)return$value;if(!is_array($value))return null;$bounded=[];foreach($value as$key=>$item){if($remaining<=0)break;$bounded[$key]=self::boundPromptValue($item,$remaining);}return$bounded;
     }
 
     private static function proposalFields(mixed$raw): array
