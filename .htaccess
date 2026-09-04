@@ -6,6 +6,8 @@ Options -Indexes
 RewriteEngine On
 # Keep stored parallax files private while serving their public URL namespace.
 RewriteRule ^uploads/parallax/(.*)$ public/uploads/parallax/$1 [END]
+# Route media-library paths through the database-backed visibility check.
+RewriteRule ^public/uploads/media-library/(.*)$ theme-media.php?path=public/uploads/media-library/$1 [END,QSA]
 RewriteRule ^(?:app|config|database|tools|public|\.git|\.github)(?:/|$) - [R=404,L]
 
 <FilesMatch "^(?:\.env|\.gitignore|\.cpanel\.yml|README(?:\.md)?|error_log)$">
