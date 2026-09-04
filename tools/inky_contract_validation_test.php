@@ -31,6 +31,31 @@ $targetMethod=new ReflectionMethod(InkyCowriterService::class,'targetFocus');
 $targetMethod->setAccessible(true);
 $focusedMethod=new ReflectionMethod(InkyCowriterService::class,'validatedFocusedTests');
 $focusedMethod->setAccessible(true);
+$characterSuggestionMethod=new ReflectionMethod(InkyCowriterService::class,'validatedCharacterSuggestion');
+$characterSuggestionMethod->setAccessible(true);
+
+$characterSuggestion=$characterSuggestionMethod->invoke(null,[
+    'summary'=>'A cautious cartographer can join the expedition.',
+    'character'=>[
+        'role_code'=>'CARTOGRAPHER',
+        'role_type'=>'NPC',
+        'mystery_character'=>true,
+        'name'=>'Mara Vale',
+        'public_description'=>'A careful cartographer who reads coastlines like stories.',
+        'private_knowledge'=>'She recognizes the island from a forbidden map.',
+        'starting_location'=>'Harbor',
+        'goal_text'=>'To map a safe route home.',
+        'fear_text'=>'That the map will lead the crew into danger.',
+        'pronoun_set'=>'SHE',
+    ],
+],['NPC'],['Harbor'],[['role_code'=>'KEEPER','name'=>'Elias']]);
+if($characterSuggestion['character']['role_code']!=='CARTOGRAPHER'||$characterSuggestion['character']['starting_location']!=='Harbor')throw new RuntimeException('Character suggestion validation did not preserve the usable proposal.');
+if($characterSuggestion['character']['mystery_character']!==true)throw new RuntimeException('Character suggestion validation did not preserve mystery status.');
+
+$failed=false;
+try{$characterSuggestionMethod->invoke(null,['summary'=>'New character','character'=>['name'=>'Elias','role_type'=>'NPC','starting_location'=>'Harbor','public_description'=>'Duplicate.']],['NPC'],['Harbor'],[['role_code'=>'KEEPER','name'=>'Elias']]);}
+catch(RuntimeException $e){$failed=str_contains($e->getMessage(),'existing character');}
+if(!$failed)throw new RuntimeException('Character suggestion validation accepted a duplicate character.');
 
 $result=$method->invoke(null,[
     'summary'=>'Start with the highest-risk authoring gaps.',
