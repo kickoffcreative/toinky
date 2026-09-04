@@ -279,3 +279,6 @@ body:has(#game-live) {
     border-color: var(--primary) !important;
   }
 }
+
+/* Keep checkbox labels readable across the authoring and admin forms. */
+label > input[type="checkbox"] { margin-right: 8px; vertical-align: middle; }
