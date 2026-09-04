@@ -34,7 +34,7 @@ const storyPanel=root.querySelector('[data-inky-story-panel]'),storyForm=root.qu
   if(new URLSearchParams(window.location.search).has('inky_draft'))setTimeout(()=>openStoryComposer('continue'),0);
   if(proactiveHelp){root.classList.add('has-proactive-suggestion');character.setAttribute('title','Open '+companionName+' for story suggestions.');}
   storyBack?.addEventListener('click',event=>{event.preventDefault();closeStoryComposer();});
-  nextToggle?.addEventListener('click',event=>{event.preventDefault();if(!actionAvailable(nextToggle)||!nextActions)return;const expanded=nextActions.hidden;nextActions.hidden=!expanded;nextToggle.setAttribute('aria-expanded',String(expanded));});
+  nextToggle?.addEventListener('click',event=>{event.preventDefault();if(!actionAvailable(nextToggle)||!nextActions)return;const expanded=nextActions.hidden;nextActions.hidden=!expanded;nextToggle.setAttribute('aria-expanded',String(expanded));if(expanded)window.toinkyGuidePrefetch?.();});
   root.addEventListener('click',event=>{const button=event.target.closest('[data-inky-action]');if(!button||!root.contains(button))return;const action=button.dataset.inkyAction;if(action==='suggest_character'||action==='whats_next')return;if(action==='write_story'){openStoryComposer('new');return;}if(action==='guide_story'){openStoryComposer('continue');return;}runAction(button);});
 })();
 
