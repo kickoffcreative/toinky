@@ -107,7 +107,8 @@ foreach([
     "action==='focused_tests'",
     "renderFocusedTests",
 ]as$required)if(!str_contains($script,$required))throw new RuntimeException('Inky browser behavior is missing '.$required.'.');
-foreach(['Suggest A Character','Add and Continue Story with','toinkyGuideQueueProposal','action:\'suggest_character\'','character_suggestion','data-next-character-capacity']as$required)if(!str_contains($script.$component,$required))throw new RuntimeException('Inky character suggestion behavior is missing '.$required.'.');
+foreach(['Suggest A Character','Add and Continue Story with','toinkyGuideQueueProposal','action:\'suggest_character\'','character_suggestion','has-character-suggestion','inky-character-suggestion-details','data-next-character-capacity']as$required)if(!str_contains($script.$component,$required))throw new RuntimeException('Inky character suggestion behavior is missing '.$required.'.');
+if(str_contains($script,'Open Characters to review and save'))throw new RuntimeException('The character suggestion must use the Continue Story approval flow.');
 if(is_file($root.'/public/security-ai.php'))throw new RuntimeException('The obsolete public security-ai.php route must remain deleted.');
 foreach([
     'pointer-events:none',
