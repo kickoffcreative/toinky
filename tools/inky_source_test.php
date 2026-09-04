@@ -60,19 +60,18 @@ foreach([
     "inky-sucker",
     "inky-pen",
     "if(!(int)\$preferences['enabled'])return",
-    "'whats_next'=>['label'=>\"What's Next?\",'implemented'=>true]",
-    "'quality_check'=>['label'=>'Quality Check My Work','implemented'=>true]",
+    "'guide_story'",
+    "'whats_next'=>['label'=>'Improve Story','implemented'=>true]",
+    "'quality_check'=>['label'=>'Quality Check','implemented'=>true]",
     "'dependencies'=>['label'=>'Find Dependency Problems','implemented'=>true]",
     'data-inky-next-actions',
-    'data-inky-action="guide_story"',
     'data-inky-action="review_plot"',
     'data-inky-action="review_characters"',
-    'data-inky-action="story_values"',
     'data-inky-action="review_opportunities"',
     'data-prerequisite="characters"',
     'characterCapacity',
     'data-prerequisite="opportunities"',
-    "'focused_tests'=>['label'=>'Prepare Focused Tests','implemented'=>true]",
+    'Prepare Focus Tests',
 ]as$required)if(!str_contains($component,$required))throw new RuntimeException('Inky component contract is missing '.$required.'.');
 foreach([
     "fetch('inky-status.php'",
@@ -100,14 +99,12 @@ foreach([
     "renderDependencyCheck",
     "action==='review_characters'",
     "renderCharacterKnowledge",
-    "action==='story_values'",
-    "renderStoryValues",
     "action==='review_opportunities'",
     "renderOpportunityReview",
     "action==='focused_tests'",
     "renderFocusedTests",
 ]as$required)if(!str_contains($script,$required))throw new RuntimeException('Inky browser behavior is missing '.$required.'.');
- foreach(['Next Suggestion','Suggest a Character','Suggest Story Values','requestCharacterSuggestion','requestStoryValueSuggestion','action:\'suggest_character\'','character_suggestion','toinkyCancelRequest','data-inky-cancel','inky-guide-proposal-tools','MutationObserver']as$required)if(!str_contains($script.$component,$required))throw new RuntimeException('Inky guided continuation behavior is missing '.$required.'.');
+ foreach(['Next Suggestion','Suggest A Character','Suggest a Story Value','requestCharacterSuggestion','requestStoryValueSuggestion','action:\'suggest_character\'','character_suggestion','toinkyCancelRequest','data-inky-cancel','inky-guide-proposal-tools','MutationObserver']as$required)if(!str_contains($script.$component,$required))throw new RuntimeException('Inky guided continuation behavior is missing '.$required.'.');
 foreach(['grid-template-columns:minmax(0,1fr) minmax(260px,340px)','position:static!important','inky-side-right.has-character-suggestion','@media(max-width:700px)']as$required)if(!str_contains($characterLayoutStyle,$required))throw new RuntimeException('Inky character suggestion layout is missing '.$required.'.');
 if(str_contains($script,'Open Characters to review and save'))throw new RuntimeException('The character suggestion must use the Continue Story approval flow.');
 if(is_file($root.'/public/security-ai.php'))throw new RuntimeException('The obsolete public security-ai.php route must remain deleted.');
