@@ -52,6 +52,18 @@ $characterSuggestion=$characterSuggestionMethod->invoke(null,[
 if($characterSuggestion['character']['role_code']!=='CARTOGRAPHER'||$characterSuggestion['character']['starting_location']!=='Harbor')throw new RuntimeException('Character suggestion validation did not preserve the usable proposal.');
 if($characterSuggestion['character']['mystery_character']!==true)throw new RuntimeException('Character suggestion validation did not preserve mystery status.');
 
+$characterLocationFallback=$characterSuggestionMethod->invoke(null,[
+    'summary'=>'A new character with a distant connection to the shore.',
+    'character'=>[
+        'role_code'=>'SIGNAL_KEEPER',
+        'role_type'=>'NPC',
+        'name'=>'Ivo March',
+        'public_description'=>'A quiet keeper who notices patterns in the tide.',
+        'starting_location'=>'The old signal tower',
+    ],
+],['NPC'],[['location_code'=>'FORGOTTEN_SHORE','label_text'=>'Forgotten Shore']],[]);
+if($characterLocationFallback['character']['starting_location']!=='Forgotten Shore')throw new RuntimeException('Character suggestion validation did not normalize an invalid starting location to an active location.');
+
 $failed=false;
 try{$characterSuggestionMethod->invoke(null,['summary'=>'New character','character'=>['name'=>'Elias','role_type'=>'NPC','starting_location'=>'Harbor','public_description'=>'Duplicate.']],['NPC'],['Harbor'],[['role_code'=>'KEEPER','name'=>'Elias']]);}
 catch(RuntimeException $e){$failed=str_contains($e->getMessage(),'existing character');}
