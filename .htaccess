@@ -4,6 +4,8 @@ Options -Indexes
 # public wrappers for cPanel compatibility. Keep those directories callable
 # by internal includes, but prevent direct HTTP access to them.
 RewriteEngine On
+# Keep stored parallax files private while serving their public URL namespace.
+RewriteRule ^uploads/parallax/(.*)$ public/uploads/parallax/$1 [END]
 RewriteRule ^(?:app|config|database|tools|public|\.git|\.github)(?:/|$) - [R=404,L]
 
 <FilesMatch "^(?:\.env|\.gitignore|\.cpanel\.yml|README(?:\.md)?|error_log)$">
