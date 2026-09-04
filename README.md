@@ -88,6 +88,13 @@ to `app/`, `config/`, `database/`, `tools/`, and the internal `public/` tree.
 Keep diagnostic and migration tools CLI-only and do not expose them as web
 endpoints.
 
+The cPanel domain must use PHP 8.4 for its web handler, configured in
+MultiPHP Manager or Select PHP Version. The shell binary used for linting and
+migrations does not control Apache's PHP version. If the web handler is older,
+the public entrypoint displays a compatibility error before loading the
+application. The application explicitly uses UTC so it does not depend on the
+server's timezone setting.
+
 ## Story writing
 
 Story ownership, optional writer-uploaded artwork, player-immersion rules, and the required validation order are documented in [docs/STORY_AUTHORING.md](docs/STORY_AUTHORING.md).

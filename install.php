@@ -1,4 +1,5 @@
 <?php
+require __DIR__ . '/app/runtime_check.php';
 $root = __DIR__;
 $marker = $root . '/.installed';
 $configDir = $root . '/config';

@@ -1,4 +1,6 @@
 <?php
+date_default_timezone_set('UTC');
+
 function db(): PDO {
     static $pdo = null;
     if ($pdo instanceof PDO) return $pdo;

@@ -114,6 +114,15 @@ keep the previous commit available for rollback, inspect the deployment log,
 and rerun the migration command before opening Story Writer. Do not work around
 a failed migration by deleting `schema_migrations`.
 
+The public web handler must be set to PHP 8.4 in cPanel's MultiPHP Manager or
+Select PHP Version. Running `/opt/cpanel/ea-php84/root/usr/bin/php` in the
+terminal only verifies the CLI runtime; it does not change the PHP version used
+by Apache. A web request served by an older PHP version will fail while parsing
+the public entrypoint, typically with `unexpected '?'`. The root entrypoints
+now return a direct PHP-version message in that case. Application timestamps
+default to UTC, so the web handler's `date.timezone` setting is no longer a
+runtime prerequisite.
+
 Before release, check `git diff --check`, inspect the changed files, deploy to
 the intended Toinky host, run the cPanel tests, and perform a live Story Writer
 smoke test. Do not edit files under `sources/`; they are synced reference
