@@ -7,7 +7,13 @@ final class ParallaxService
 
     public static function all(): array
     {
-        return db()->query('SELECT * FROM site_parallax_layers ORDER BY sort_order,parallax_layer_id')->fetchAll();
+        $layers=db()->query('SELECT * FROM site_parallax_layers ORDER BY sort_order,parallax_layer_id')->fetchAll();
+        foreach($layers as&$layer){
+            $path=(string)$layer['image_path'];
+            if(str_starts_with($path,'public/'))$layer['image_path']=substr($path,7);
+        }
+        unset($layer);
+        return$layers;
     }
 
     public static function add(array $user,array $fields,array $file): int
