@@ -16,6 +16,12 @@ handoff.
 place and the animated default and Lantern character paths are working in the
 Story Writer UI.
 
+**Milestone 3 completed 2026-09-04: guided character proposal handoff.** A
+character suggested from Story Writer can be opened directly in Continue Story
+for editing, copying, review, and explicit approval. The proposal is saved
+through the generic authoring service only after approval, and Suggest Another
+uses the writer's live edited fields instead of an older accepted character.
+
 Completed:
 
 - Per-user settings, Disable Inky, companion naming, character selection, size,
@@ -40,6 +46,14 @@ Completed:
   the floating companion panel. The normal **New Story** form remains
   available for writers who prefer to author the initial metadata directly;
   only the old top-of-workspace **Create With Inky** form was removed.
+- `Suggest A Character` is available only when an active location exists and
+  the Story Framework still has a player or AI-character slot available. Its
+  result is reviewed in the side card, then **Add and Continue Story with
+  [Inky name]** opens the character proposal in Continue Story.
+- Character proposal fields remain editable, and **Copy Suggestion** copies
+  the current edited proposal. **Suggest Another** sends the current field
+  values as the authoritative revision source and excludes previously
+  accepted character entries from the AI context.
 
 Next planned work:
 
@@ -102,6 +116,22 @@ Future guided authoring actions should follow this same pattern: a narrow
 context, one understandable question or task at a time, a structured result,
 visible review, explicit approval, server validation, and existing generic
 authoring services for persistence.
+
+### Character proposal handoff
+
+The character suggestion workflow has one save boundary. Inky may suggest a
+character, but it must not write that character directly from the review card.
+The writer selects **Add and Continue Story with [Inky name]**, edits the
+proposal in Continue Story, and uses **Accept and Save**. That action posts the
+complete edited character to `save_proposal`, where Story Writer validation and
+the generic persistence service add it to the draft.
+
+When the writer uses **Suggest Another**, the browser serializes the current
+controls from the open proposal, including edits made after the suggestion was
+received. The server treats that live value as authoritative, removes accepted
+character proposals from the AI context, and merges only the selected field
+paths returned by Inky. This prevents an earlier character proposal from
+silently replacing the writer's current work.
 
 ## Story lifecycle safeguards
 
@@ -301,7 +331,9 @@ Each contract must define:
 4. [x] Per-action context builders and structured response contracts.
 5. [x] Action-specific result rendering and reviewed application workflows.
 6. [x] Initial animated Octopus and Lantern artwork with generic mood behavior.
-7. [ ] Additional character artwork, beginning with the future Squid option.
+7. [x] Guided character suggestion handoff, editable approval, and live-field
+   revision context.
+8. [ ] Additional character artwork, beginning with the future Squid option.
 
 The detailed, low-prompt process for step 7 and all later characters is in
 [docs/INKY_CHARACTER_PLAYBOOK.md](INKY_CHARACTER_PLAYBOOK.md).

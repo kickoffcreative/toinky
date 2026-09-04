@@ -349,6 +349,24 @@ Code, Title, Genre, Setting, Archetype, Players, AI Cast, and Story Concept.
    the normal Story Writer tabs.
 7. Run the standard validation workflow before submission.
 
+### Suggested character handoff
+
+The guided character path is a proposal workflow, not an automatic import:
+
+1. Enable **Suggest A Character** only when Story Framework has an active
+   location and remaining player or AI-character capacity.
+2. Show the complete suggestion in a bounded side card. Do not provide a
+   second direct-save route from that card.
+3. Use **Add and Continue Story with [Inky name]** to carry the suggestion into
+   Continue Story as the active editable proposal.
+4. Let the writer edit every character field, copy the current proposal, and
+   review it before selecting **Accept and Save**.
+5. Persist the approved value through `save_proposal` and the generic Story
+   Authoring service. A suggestion is not part of the story until this step.
+6. For **Suggest Another**, send the live values from the open editor, remove
+   prior accepted character entries from the AI context, and merge only the
+   fields selected for revision.
+
 The conversation does not create any story records or pre-built structure.
 The writer remains responsible for deciding what becomes part of the story.
 The assistant must not generate an entire story in one unbounded response.

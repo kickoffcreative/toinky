@@ -31,6 +31,21 @@ Story content, conditions, consequences, integrity rules, focus profiles, and ou
 - Administrator-only Story Engine Lab
 - Grouped admin panel for users, simulations, human games, and simulation games
 
+## Milestone 3 — Guided Inky Authoring
+
+Completed 2026-09-04:
+
+- Guided five-question story development inside the floating Inky companion,
+  with resumable drafts and editable answers.
+- Structured Story Writer proposals for overview fields, locations, story
+  values, characters, events, decisions, opportunities, and endings.
+- Explicit review and approval before proposed content is written to a story.
+- `Suggest A Character` now opens the suggested character in Continue Story,
+  where the writer can edit, copy, review, and approve it through the normal
+  authoring service.
+- Character revisions use the writer's current field values and exclude older
+  accepted character proposals from the revision context.
+
 ## Administrator Bootstrap
 
 After registering the intended administrator through the public portal, run:

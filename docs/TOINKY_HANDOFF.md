@@ -34,6 +34,33 @@ Inky v1 is active in Story Writer:
   It produces a reviewed brief and does not create a pre-built story
   structure until the writer explicitly creates the draft.
 
+## Milestone 3 — Guided Inky character authoring
+
+**Completed 2026-09-04.** Story Writer character suggestions now have a
+complete review-to-save handoff:
+
+- `Suggest A Character` checks active locations and remaining Story Framework
+  player or AI-character capacity.
+- The result appears in a bounded side card with a visible close control.
+- `Add and Continue Story with [Inky name]` opens the suggestion as the active
+  Continue Story proposal.
+- The writer can edit and copy the proposal, then `Accept and Save` persists it
+  through `save_proposal` and the generic authoring service.
+- `Suggest Another` receives the live edited field values and excludes older
+  accepted character proposals from its AI context.
+- The old direct Characters review link was removed because it did not persist
+  the pending suggestion.
+
+Implementation locations:
+
+- `public/assets/toinky-inky.js`: side-card rendering, close behavior, and
+  Continue Story handoff.
+- `public/assets/toinky-inky-guide.js`: editable proposal state, copy
+  fallback, approval, and live revision payload.
+- `app/InkyGuideService.php`: authoritative live-proposal context and
+  character-context isolation.
+- `tools/inky_source_test.php`: regression markers for the handoff contract.
+
 ## Latest authoring safeguard
 
 Story Writer now supports the following lifecycle:

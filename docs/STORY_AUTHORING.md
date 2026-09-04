@@ -30,6 +30,19 @@ The Story Writer workspace is intentionally ordered by dependency:
 
 When the draft is ready, the writer asks an administrator to validate it. The administrator runs **Validate & Submit**, resolves any blocking findings with the writer, and creates an immutable numbered revision. An administrator reviews that exact snapshot, then requests changes, approves, publishes, or archives it. Later edits do not silently alter the submitted revision.
 
+### Inky-assisted character authoring
+
+Inky character suggestions follow the same authoring boundary. **Suggest A
+Character** is a recommendation only. The writer must open it with **Add and
+Continue Story with [Inky name]**, edit the proposal, and select **Accept and
+Save** before a character is added to the draft. The direct Characters link is
+not a save path for Inky suggestions.
+
+When requesting another suggestion, the current values in the editable
+proposal are the source of truth. The AI may revise only the fields selected by
+the writer, while unselected fields remain unchanged. Previously accepted
+character proposals must not be used as a substitute for the live proposal.
+
 ## Story code and deletion safeguards
 
 The **Stable Story Code** is the durable namespace for a story package. It is
