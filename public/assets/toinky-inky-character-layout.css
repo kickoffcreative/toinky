@@ -1,0 +1,9 @@
+.inky-assistant-layout{display:block}
+.inky-assistant-main{min-width:0}
+.inky-shell.has-character-suggestion .inky-panel{width:min(760px,calc(100vw - 36px))}
+.inky-shell.has-character-suggestion .inky-assistant-layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(260px,340px);gap:18px;align-items:start}
+.inky-shell.has-character-suggestion .inky-character-suggestion-result{position:static!important;grid-column:2;grid-row:1;width:auto!important;max-height:none;overflow:visible;padding:0 0 0 16px;border:0;border-left:1px solid #c8b896;border-radius:0;background:transparent;box-shadow:none}
+.inky-shell.inky-side-right.has-character-suggestion .inky-assistant-main{grid-column:2;grid-row:1}
+.inky-shell.inky-side-right.has-character-suggestion .inky-character-suggestion-result{grid-column:1;padding:0 16px 0 0;border-left:0;border-right:1px solid #c8b896}
+.inky-shell.has-character-suggestion .inky-character-suggestion-result .inky-character-suggestion-details{max-height:min(420px,calc(100vh - 180px))}
+@media(max-width:700px){.inky-shell.has-character-suggestion .inky-panel{width:auto}.inky-shell.has-character-suggestion .inky-assistant-layout{display:block}.inky-shell.has-character-suggestion .inky-character-suggestion-result,.inky-shell.inky-side-right.has-character-suggestion .inky-character-suggestion-result{margin-top:16px;padding:16px 0 0;border:0;border-top:1px solid #c8b896}.inky-shell.has-character-suggestion .inky-character-suggestion-result .inky-character-suggestion-details{max-height:36vh}}

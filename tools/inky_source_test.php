@@ -12,6 +12,7 @@ $script=file_get_contents($root.'/public/assets/toinky-inky.js');
 $guideScript=file_get_contents($root.'/public/assets/toinky-inky-guide.js');
 $style=file_get_contents($root.'/public/assets/toinky-inky.css');
 $guideStyle=file_get_contents($root.'/public/assets/toinky-inky-guide.css');
+$characterLayoutStyle=file_get_contents($root.'/public/assets/toinky-inky-character-layout.css');
 $connection=file_get_contents($root.'/app/AiConnectionService.php');
 $cowriter=file_get_contents($root.'/app/InkyCowriterService.php');
 $actionEndpoint=file_get_contents($root.'/public/inky-action.php');
@@ -27,7 +28,7 @@ $defaultCatalogMigration=file_get_contents($root.'/database/migrations/086_inky_
 $lanternMigration=file_get_contents($root.'/database/migrations/092_enable_lantern_inky.sql');
 $guideDraftMigration=file_get_contents($root.'/database/migrations/093_inky_guided_story_drafts.sql');
 $profileService=file_get_contents($root.'/app/UserProfileService.php');
-foreach(compact('profile','profileScript','writer','component','script','guideScript','style','guideStyle','connection','cowriter','actionEndpoint','guideService','guideEndpoint','authoringService','docs','migration','identityMigration','futureCatalogMigration','defaultCatalogMigration','lanternMigration','guideDraftMigration','profileService')as$name=>$source)if($source===false)throw new RuntimeException('Could not read Inky '.$name.' source.');
+foreach(compact('profile','profileScript','writer','component','script','guideScript','style','guideStyle','characterLayoutStyle','connection','cowriter','actionEndpoint','guideService','guideEndpoint','authoringService','docs','migration','identityMigration','futureCatalogMigration','defaultCatalogMigration','lanternMigration','guideDraftMigration','profileService')as$name=>$source)if($source===false)throw new RuntimeException('Could not read Inky '.$name.' source.');
 foreach([
     'data-profile-tab="inky"',
     'save_inky_preferences',
@@ -107,7 +108,8 @@ foreach([
     "action==='focused_tests'",
     "renderFocusedTests",
 ]as$required)if(!str_contains($script,$required))throw new RuntimeException('Inky browser behavior is missing '.$required.'.');
-foreach(['Suggest A Character','Add and Continue Story with','toinkyGuideQueueProposal','action:\'suggest_character\'','character_suggestion','has-character-suggestion','inky-character-suggestion-details','data-next-character-capacity']as$required)if(!str_contains($script.$component,$required))throw new RuntimeException('Inky character suggestion behavior is missing '.$required.'.');
+foreach(['Suggest A Character','Add and Continue Story with','toinkyGuideQueueProposal','action:\'suggest_character\'','character_suggestion','has-character-suggestion','inky-character-suggestion-details','data-next-character-capacity','inky-assistant-layout','MutationObserver']as$required)if(!str_contains($script.$component,$required))throw new RuntimeException('Inky character suggestion behavior is missing '.$required.'.');
+foreach(['grid-template-columns:minmax(0,1fr) minmax(260px,340px)','position:static!important','inky-side-right.has-character-suggestion','@media(max-width:700px)']as$required)if(!str_contains($characterLayoutStyle,$required))throw new RuntimeException('Inky character suggestion layout is missing '.$required.'.');
 if(str_contains($script,'Open Characters to review and save'))throw new RuntimeException('The character suggestion must use the Continue Story approval flow.');
 if(is_file($root.'/public/security-ai.php'))throw new RuntimeException('The obsolete public security-ai.php route must remain deleted.');
 foreach([
