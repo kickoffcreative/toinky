@@ -86,10 +86,18 @@ recovery path.
 The repository also deploys a root `.htaccess` that blocks direct HTTP access
 to `app/`, `config/`, `database/`, `tools/`, and the internal `public/` tree.
 Keep diagnostic and migration tools CLI-only and do not expose them as web
-endpoints.
+endpoints. Deployment installs these rules using `tools/deploy_htaccess.php`,
+preserving cPanel-generated PHP handler and PHP INI blocks from the live file.
+If the PHP handler was removed by an older deployment, it restores the
+`application/x-httpd-ea-php84` handler used by this host. Before replacing the
+file, it saves a private backup under `config/htaccess-backup-*` and then
+replaces `.htaccess` atomically. An incomplete cPanel block stops deployment.
+Do not copy the repository `.htaccess` directly over the live file.
 
 The cPanel domain must use PHP 8.4 for its web handler, configured in
-MultiPHP Manager or Select PHP Version. The shell binary used for linting and
+MultiPHP Manager or Select PHP Version. This setting survives subsequent
+cPanel Git deployments; it does not need to be reapplied for each release.
+The shell binary used for linting and
 migrations does not control Apache's PHP version. If the web handler is older,
 the public entrypoint displays a compatibility error before loading the
 application. The application explicitly uses UTC so it does not depend on the
