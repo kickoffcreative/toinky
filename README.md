@@ -74,6 +74,20 @@ GAME2_DATABASE_CONFIG=/absolute/path/to/database.test.php \
 
 The smoke test creates temporary users and a temporary simulation, verifies lobby and ownership behavior, then removes its test records.
 
+## Deployment safety
+
+The cPanel deployment runs database migrations explicitly through
+`tools/migrate.php` before the release is considered ready. Web requests use a
+deployment marker and do not rerun migrations when the deployed migration set
+is unchanged. If a deployment is interrupted, the web fallback can still
+complete pending migrations; rerunning the deployment is the preferred
+recovery path.
+
+The repository also deploys a root `.htaccess` that blocks direct HTTP access
+to `app/`, `config/`, `database/`, `tools/`, and the internal `public/` tree.
+Keep diagnostic and migration tools CLI-only and do not expose them as web
+endpoints.
+
 ## Story writing
 
 Story ownership, optional writer-uploaded artwork, player-immersion rules, and the required validation order are documented in [docs/STORY_AUTHORING.md](docs/STORY_AUTHORING.md).

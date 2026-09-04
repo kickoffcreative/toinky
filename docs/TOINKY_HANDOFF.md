@@ -94,6 +94,7 @@ run on the cPanel host after deployment:
 ```bash
 cd /home/toinkyadmin/public_html
 PHP=/opt/cpanel/ea-php84/root/usr/bin/php
+$PHP tools/migrate.php
 $PHP -l app/StoryAuthoringService.php
 $PHP -l public/writer.php
 $PHP -l tools/story_writer_stable_code_test.php
@@ -105,6 +106,13 @@ Also run the relevant Inky and Story Writer contract tests available in
 a story with a location or simulation is blocked. Never run destructive tests
 against production data; the regression test uses a transaction and temporary
 records.
+
+The cPanel deployment now runs `tools/migrate.php` explicitly. The root
+`.htaccess` blocks direct HTTP access to private application, database, and
+tool directories, while CLI includes continue to work. If a deployment fails,
+keep the previous commit available for rollback, inspect the deployment log,
+and rerun the migration command before opening Story Writer. Do not work around
+a failed migration by deleting `schema_migrations`.
 
 Before release, check `git diff --check`, inspect the changed files, deploy to
 the intended Toinky host, run the cPanel tests, and perform a live Story Writer

@@ -1,0 +1,11 @@
+Options -Indexes
+
+# The application currently keeps its private PHP directories beside the
+# public wrappers for cPanel compatibility. Keep those directories callable
+# by internal includes, but prevent direct HTTP access to them.
+RewriteEngine On
+RewriteRule ^(?:app|config|database|tools|public|\.git|\.github)(?:/|$) - [R=404,L]
+
+<FilesMatch "^(?:\.env|\.gitignore|\.cpanel\.yml|README(?:\.md)?|error_log)$">
+    Require all denied
+</FilesMatch>
