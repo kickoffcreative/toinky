@@ -1,10 +1,12 @@
 # Inky Action Rules
 
-This document defines the current behavior of the two Story Writer Inky
-surfaces. It is derived from `public/assets/toinky-inky.js`,
+The shared Google Handoff and Story Writer's Guide are the primary
+documentation sources for this behavior. This repository file is their
+synchronized implementation mirror. The current behavior is derived from
+`public/assets/toinky-inky.js`,
 `public/assets/toinky-inky-guide.js`, `app/InkyGuideService.php`, and
-`app/InkyCowriterService.php`. Update this document when those contracts
-change.
+`app/InkyCowriterService.php`. Update the shared Google documents first when
+those contracts change, then synchronize this file.
 
 ## Shared rules
 

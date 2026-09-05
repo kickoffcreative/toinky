@@ -1,6 +1,10 @@
 # Writing a Toinky Story
 
-Toinky stories are authored as data. The PHP engine is shared by every story and must never contain plot names, character names, option codes, or special-case rules for one story.
+The shared Google Handoff and Story Writer's Guide are the primary project and
+writer-facing documentation sources. This repository file is a synchronized
+mirror. Toinky stories are authored as data. The PHP engine is shared by every
+story and must never contain plot names, character names, option codes, or
+special-case rules for one story.
 
 ## Ownership and roles
 

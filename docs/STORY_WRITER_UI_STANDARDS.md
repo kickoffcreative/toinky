@@ -1,8 +1,10 @@
 # Story Writer UI Standards
 
-This is the current visual and navigation standard for Story Writer. It
-describes the implemented workspace structure, not a future design proposal.
-The source of truth is `public/_writer_navigation.php`,
+The shared Google Handoff and Story Writer's Guide are the primary
+documentation sources for this standard. This repository file is their
+synchronized implementation mirror. It describes the implemented workspace
+structure, not a future design proposal. The implementation is in
+`public/_writer_navigation.php`,
 `public/writer.php`, `public/assets/toinky-writer-navigation.css`, and
 `public/assets/toinky-writer-navigation.js`.
 

@@ -7,10 +7,11 @@ structured result.
 
 ## Current project status
 
-The primary project handoff is maintained in the shared
+The primary project handoff is maintained in the shared Google
 [Toinky - Handoff Document](https://docs.google.com/document/d/18CDcgrcHctWcG6BRBd43ij43fJGQ0FGtwapqpN8UoVw/edit).
-This file records the Inky-specific implementation details that support that
-handoff.
+The shared Google Story Writer's Guide is the primary writer-facing source.
+This file records the Inky-specific implementation mirror that supports those
+documents.
 
 **Status: Active Inky v1 implementation.** The core companion workflow is in
 place and the animated default and Lantern character paths are working in the
@@ -71,13 +72,14 @@ The project status is intentionally separate from story content. Character
 artwork, mood behavior, and frontend asset loading belong to the generic Inky
 surface; story-specific behavior remains authored data and shared engine code.
 
-The authoritative rules for the current Draft with Inky proposal controls and
-the What can I do for you? assistant menu are in
-[docs/INKY_ACTION_RULES.md](INKY_ACTION_RULES.md). Keep that document aligned
-with the frontend handlers and server contracts.
+The shared Google Handoff and Story Writer's Guide are the primary rules for
+the current Draft with Inky proposal controls and the What can I do for you?
+assistant menu. The synchronized repository mirror is
+[docs/INKY_ACTION_RULES.md](INKY_ACTION_RULES.md).
 
 The Story Writer navigation, shared Quick Add / Edit and filter controls,
 record layout, Media sub-tabs, and responsive standards are maintained in
+the shared Google documents and mirrored in
 [docs/STORY_WRITER_UI_STANDARDS.md](STORY_WRITER_UI_STANDARDS.md).
 
 ## Product principles

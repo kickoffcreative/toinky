@@ -4,8 +4,10 @@
 
 **Primary handoff document:** [Toinky - Handoff Document](https://docs.google.com/document/d/18CDcgrcHctWcG6BRBd43ij43fJGQ0FGtwapqpN8UoVw/edit)
 
-The shared Google Doc is the primary continuity record. This repository file
-is the code-local implementation mirror and should be updated alongside it.
+The shared Google Handoff is the primary continuity record, and the shared
+Story Writer's Guide is the primary writer-facing source. This repository file
+is the code-local implementation mirror and should be synchronized only after
+the Google documents are updated.
 When the two differ, verify the current GitHub `main` state and update this
 mirror rather than treating older copied sections as current.
 
