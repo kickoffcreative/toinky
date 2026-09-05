@@ -306,7 +306,7 @@ final class InkyCowriterService
     private static function validatedReview(array $input,array $allowedKeys=[]): array
     {
         $summary=trim((string)($input['summary']??''));if($summary==='')throw new RuntimeException('Inky’s review did not include a summary.');
-        $observed=self::items($input['observed_evidence']??null,'finding',false,$allowedKeys);$inferences=self::items($input['inferences']??null,'inference',false,$allowedKeys);$recommendations=self::items($input['recommendations']??null,'recommendation',true,$allowedKeys);self::requireReviewItems($input['recommendations']??null,$recommendations,'Inky’s review recommendations did not cite usable stable keys.');
+        $observed=self::items($input['observed_evidence']??null,'finding',false,$allowedKeys);$inferences=self::items($input['inferences']??null,'inference',false,$allowedKeys);$recommendations=self::items($input['recommendations']??null,'recommendation',true,$allowedKeys);self::requireReviewItems($input['recommendations']??null,$recommendations,'Inky’s review recommendations did not cite usable stable keys.');$observed=array_values(array_filter($observed,static fn(array$row):bool=>!self::isStructuralDiagnostic((string)($row['finding']??''))));$inferences=array_values(array_filter($inferences,static fn(array$row):bool=>!self::isStructuralDiagnostic((string)($row['inference']??''))));$recommendations=array_values(array_filter($recommendations,static fn(array$row):bool=>!self::isStructuralDiagnostic((string)($row['recommendation']??''))));
         return['summary'=>$summary,'observed_evidence'=>$observed,'inferences'=>$inferences,'recommendations'=>$recommendations];
     }
 
@@ -327,7 +327,7 @@ final class InkyCowriterService
     private static function validatedQualityCheck(array $input,array $allowedKeys=[]): array
     {
         $summary=trim((string)($input['summary']??''));if($summary==='')throw new RuntimeException('Inky’s quality check did not include a summary.');
-        $checks=self::qualityCheckItems($input['checks']??null,$allowedKeys);self::requireReviewItems($input['checks']??null,$checks,'Inky’s quality checks did not cite usable stable keys.');
+        $checks=self::qualityCheckItems($input['checks']??null,$allowedKeys);self::requireReviewItems($input['checks']??null,$checks,'Inky’s quality checks did not cite usable stable keys.');$checks=array_values(array_filter($checks,static fn(array$row):bool=>!self::isStructuralDiagnostic((string)($row['note']??'').' '.(string)($row['improvement']??''))));
         return['summary'=>$summary,'checks'=>$checks];
     }
 
@@ -341,7 +341,7 @@ final class InkyCowriterService
     private static function validatedCharacterKnowledge(array $input,array $allowedKeys=[],array $allowedRoles=[]): array
     {
         $summary=trim((string)($input['summary']??''));if($summary==='')throw new RuntimeException('Inky’s character-knowledge check did not include a summary.');
-        $issues=self::characterKnowledgeItems($input['issues']??null,$allowedKeys,$allowedRoles);self::requireReviewItems($input['issues']??null,$issues,'Inky’s character issues did not cite usable stable keys and role codes.');
+        $issues=self::characterKnowledgeItems($input['issues']??null,$allowedKeys,$allowedRoles);
         return['summary'=>$summary,'issues'=>$issues];
     }
 
@@ -355,7 +355,7 @@ final class InkyCowriterService
     private static function validatedOpportunityReview(array $input,array $allowedKeys=[],array $allowedOpportunities=[]): array
     {
         $summary=trim((string)($input['summary']??''));if($summary==='')throw new RuntimeException('Inky’s opportunity review did not include a summary.');
-        $opportunities=self::opportunityItems($input['opportunities']??null,$allowedKeys,$allowedOpportunities);self::requireReviewItems($input['opportunities']??null,$opportunities,'Inky’s opportunity review did not cite usable stable keys and opportunity codes.');
+        $opportunities=self::opportunityItems($input['opportunities']??null,$allowedKeys,$allowedOpportunities);self::requireReviewItems($input['opportunities']??null,$opportunities,'Inky’s opportunity review did not cite usable stable keys and opportunity codes.');$opportunities=array_values(array_filter($opportunities,static fn(array$row):bool=>!self::isStructuralDiagnostic((string)($row['finding']??'').' '.(string)($row['recommendation']??''))));
         return['summary'=>$summary,'opportunities'=>$opportunities];
     }
 
@@ -369,6 +369,11 @@ final class InkyCowriterService
     private static function requireReviewItems(mixed $raw,array $items,string $message): void
     {
         if(is_array($raw)&&$raw!==[]&&$items===[])throw new RuntimeException($message);
+    }
+
+    private static function isStructuralDiagnostic(string $text): bool
+    {
+        return preg_match('/(?:invalid|undefined|not allowed|only available|unavailable).*(?:world[_ ]state|world[_ ]?s|story value|preset value|condition|effect|reference|operator)|(?:world[_ ]state|world[_ ]?s|story value|preset value|condition|effect|reference|operator).*(?:invalid|undefined|not allowed|only available|unavailable)/i',$text)===1;
     }
 
     private static function items(mixed $rows,string $textKey,bool $recommendation,array $allowedKeys=[]): array
