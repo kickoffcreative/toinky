@@ -15,6 +15,16 @@ $actions=[
     'quality_check',
     'focused_tests',
 ];
+$purposes=[
+    'whats_next'=>'INKY_WHATS_NEXT',
+    'review_consistency'=>'INKY_STORY_CONSISTENCY',
+    'review_plot'=>'INKY_REVIEW_PLOT',
+    'review_characters'=>'INKY_CHARACTER_KNOWLEDGE',
+    'review_opportunities'=>'INKY_OPPORTUNITY_REVIEW',
+    'dependencies'=>'INKY_DEPENDENCY_CHECK',
+    'quality_check'=>'INKY_QUALITY_CHECK',
+    'focused_tests'=>'INKY_FOCUSED_TESTS',
+];
 $target=trim((string)($argv[1]??''));
 if($target===''||in_array(strtolower($target),['-h','--help','help'],true)){
     fwrite(STDOUT,"Usage: php tools/inky_review_batch.php <plot_id|story_code|all> [action ...]\n");
@@ -50,18 +60,27 @@ $countItems=static function(array$result): int{
     }
     return 0;
 };
+$summaryText=static function(array$result): string{
+    foreach(['next_steps','review','character_knowledge','opportunity_review','dependency_check','quality_check','focused_tests']as$key)if(isset($result[$key]['summary']))return trim((string)$result[$key]['summary']);
+    return '';
+};
+$latestInteraction=static function(PDO$pdo,string$purpose,int$afterId): ?int{
+    $query=$pdo->prepare('SELECT ai_interaction_id FROM ai_reasoner_interactions WHERE purpose=? AND ai_interaction_id>? ORDER BY ai_interaction_id DESC LIMIT 1');
+    $query->execute([$purpose,$afterId]);$id=$query->fetchColumn();return$id===false?null:(int)$id;
+};
 $passed=0;$failed=0;
 foreach($stories as$story){
     $plotId=(int)$story['plot_id'];
     foreach($actions as$action){
         $started=hrtime(true);
+        $beforeId=(int)$pdo->query('SELECT COALESCE(MAX(ai_interaction_id),0) FROM ai_reasoner_interactions')->fetchColumn();
         try{
             $result=InkyCowriterService::run($writer,$plotId,$action);
             $passed++;
-            echo json_encode(['plot_id'=>$plotId,'code'=>$story['code'],'title'=>$story['title'],'action'=>$action,'success'=>true,'items'=>$countItems($result),'elapsed_ms'=>round((hrtime(true)-$started)/1e6,2)],JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES).PHP_EOL;
+            echo json_encode(['plot_id'=>$plotId,'code'=>$story['code'],'title'=>$story['title'],'action'=>$action,'success'=>true,'interaction_id'=>$latestInteraction($pdo,$purposes[$action],$beforeId),'items'=>$countItems($result),'summary'=>$summaryText($result),'elapsed_ms'=>round((hrtime(true)-$started)/1e6,2)],JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES).PHP_EOL;
         }catch(Throwable$e){
             $failed++;
-            echo json_encode(['plot_id'=>$plotId,'code'=>$story['code'],'title'=>$story['title'],'action'=>$action,'success'=>false,'error'=>$e->getMessage(),'elapsed_ms'=>round((hrtime(true)-$started)/1e6,2)],JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES).PHP_EOL;
+            echo json_encode(['plot_id'=>$plotId,'code'=>$story['code'],'title'=>$story['title'],'action'=>$action,'success'=>false,'interaction_id'=>$latestInteraction($pdo,$purposes[$action],$beforeId),'error'=>$e->getMessage(),'elapsed_ms'=>round((hrtime(true)-$started)/1e6,2)],JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES).PHP_EOL;
         }
     }
 }

@@ -1,6 +1,6 @@
 <?php
 $root=dirname(__DIR__);require_once $root.'/app/bootstrap.php';
-$id=(int)($argv[1]??0);if($id<=0){fwrite(STDERR,"Usage: php tools/ai_interaction_report.php <interaction_id>\n");exit(2);} 
+$id=(int)($argv[1]??0);$includeResponse=in_array('--response',$argv,true);if($id<=0){fwrite(STDERR,"Usage: php tools/ai_interaction_report.php <interaction_id> [--response]\n");exit(2);}
 $q=db()->prepare('SELECT * FROM ai_reasoner_interactions WHERE ai_interaction_id=?');$q->execute([$id]);$r=$q->fetch();if(!$r){fwrite(STDERR,"AI interaction not found.\n");exit(1);} 
 $ms=static fn($ns)=>$ns===null?null:round(((float)$ns)/1e6,2);
 $out=[
@@ -38,4 +38,5 @@ $out=[
    'gpu_power_watts'=>$r['host_gpu_power_watts']===null?null:(float)$r['host_gpu_power_watts'],
  ],
 ];
+if($includeResponse){$parsed=$r['parsed_response_json']!==null?json_decode((string)$r['parsed_response_json'],true):null;$out['parsed_response']=$parsed;}
 echo json_encode($out,JSON_PRETTY_PRINT|JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES).PHP_EOL;

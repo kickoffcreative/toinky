@@ -413,9 +413,16 @@ Optional action names can follow the story target to run only selected reviews:
 `review_opportunities`, `dependencies`, `quality_check`, and `focused_tests`.
 The runner uses the same authenticated service and AI logger as the web action,
 executes one request at a time to avoid overloading the model, and prints a
-compact pass/fail line for each action. It records diagnostics in
-`ai_reasoner_interactions`, but does not save or preload browser review cards;
-the web panel remains an on-demand, read-only result surface.
+compact JSON line with the action, interaction ID, item count, and summary. To
+inspect the exact parsed response for a reported interaction, run:
+
+```bash
+$PHP tools/ai_interaction_report.php <interaction_id> --response
+```
+
+It records diagnostics in `ai_reasoner_interactions`, but does not save or
+preload browser review cards; the web panel remains an on-demand, read-only
+result surface.
 
 ## Delivery sequence
 
