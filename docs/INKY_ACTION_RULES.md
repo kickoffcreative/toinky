@@ -177,6 +177,29 @@ This is the primary Inky assistant menu. Its current Story Writer actions are:
   were identified. Empty findings are not treated as an incomplete response;
   missing summaries, malformed JSON, and invalid item data remain errors.
 
+### Making review suggestions effective
+
+- Each Improve Story request receives an action-specific checklist and a
+  stable-key catalog derived from the current authored package. The checklist
+  keeps Plot Review, Review Characters, Review Opportunities, Dependency
+  Problems, Quality Check, and Focused Tests focused on the fields that can
+  answer that request.
+- A usable finding must identify the exact stable key, authored field, record,
+  or dependency; separate observed evidence from inference; explain why it
+  matters; and state a concrete copy, data, or test change. Generic labels such
+  as `scenario_text`, `chronology`, `events`, `media`, and
+  `OPPORTUNITY_OR_AREA` are not usable citations.
+- The server normalizes and validates every structured item against the
+  catalog. Invalid keys, role codes, opportunity codes, and focused-test
+  targets are discarded. If a non-empty response has no usable items, the
+  server makes one correction request containing the exact catalogs and the
+  failed validation reason. A valid empty result still requires a summary.
+- Recommendations include a normalized `BLOCKER`, `HIGH`, `MEDIUM`, or `LOW`
+  severity so the UI can present the most important authored work first.
+- Focused Tests must name an actual stable key as both the item and its focus
+  when a focus is required. A seeded focused opportunity test remains local
+  branch evidence and never proves organic reachability.
+
 ## Change rule
 
 Any future Draft proposal or assistant-menu action must define its trigger,

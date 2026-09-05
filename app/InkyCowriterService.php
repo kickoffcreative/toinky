@@ -20,13 +20,13 @@ final class InkyCowriterService
 
     private static function reviewAudit(int $plotId,string $reviewType='review_plot'): array
     {
-        $audit=StoryAuthoringService::audit($plotId);$audit['text']=self::buildReviewPackage(StoryAuthoringService::story($plotId),$audit['workspace'],$audit,$reviewType);return$audit;
+        $audit=StoryAuthoringService::audit($plotId);$plot=StoryAuthoringService::story($plotId);$audit['stable_keys']=self::reviewStableKeys($plot,$audit['workspace']);$audit['role_codes']=self::reviewRoleCodes($audit['workspace']);$audit['opportunity_codes']=self::reviewOpportunityCodes($audit['workspace']);$audit['text']=self::buildReviewPackage($plot,$audit['workspace'],$audit,$reviewType);return$audit;
     }
 
     private static function buildReviewPackage(array $plot,array $workspace,array $audit,string $reviewType): string
     {
         $active=static fn(array$row):bool=>(int)($row['active']??1)===1;
-        $package=['review_request'=>$reviewType,'checklist'=>self::reviewChecklist($reviewType),'story'=>self::reviewRow($plot,['code','title','genre_label','archetype','setting_name','max_players','max_npcs','workflow_status','scenario_text'],900),'automated_findings'=>['errors'=>array_values($audit['errors']??[]),'warnings'=>array_values($audit['warnings']??[])]];
+        $package=['review_request'=>$reviewType,'checklist'=>self::reviewChecklist($reviewType),'stable_key_catalog'=>$audit['stable_keys']??[],'role_code_catalog'=>$audit['role_codes']??[],'opportunity_code_catalog'=>$audit['opportunity_codes']??[],'story'=>self::reviewRow($plot,['code','title','genre_label','archetype','setting_name','max_players','max_npcs','workflow_status','scenario_text'],900),'automated_findings'=>['errors'=>array_values($audit['errors']??[]),'warnings'=>array_values($audit['warnings']??[])]];
         $package['counts']=[];foreach(['locations','state_definitions','characters','events','decisions','options','effects','opportunities','dynamic_conditions','dynamic_options','dynamic_effects','story_sections','resolutions','resolution_conditions','media']as$key)$package['counts'][$key]=['total'=>count($workspace[$key]??[]),'active'=>count(array_filter($workspace[$key]??[],$active))];
         switch($reviewType){
             case'whats_next':$package['readiness']=['active_characters'=>self::reviewRows(array_values(array_filter($workspace['characters']??[],$active)),['role_code','name','role_type','starting_location'],180,16),'active_events'=>self::reviewRows(array_values(array_filter($workspace['events']??[],$active)),['event_code','event_second','phase','headline'],180,24),'active_decisions'=>self::reviewRows(array_values(array_filter($workspace['decisions']??[],$active)),['event_code','role_code','option_count','active'],180,24),'active_opportunities'=>self::reviewRows(array_values(array_filter($workspace['opportunities']??[],$active)),['opportunity_code','role_code','priority','active'],180,24),'active_endings'=>self::reviewRows(array_values(array_filter($workspace['resolutions']??[],$active)),['section_code','priority','active'],180,24)];break;
@@ -64,6 +64,32 @@ final class InkyCowriterService
     private static function reviewRow(array $row,array $fields,int $limit=400): array
     {
         $out=[];foreach($fields as$field)if(array_key_exists($field,$row)){$value=$row[$field];if(is_string($value))$value=function_exists('mb_substr')?mb_substr($value,0,$limit):substr($value,0,$limit);$out[$field]=$value;}return$out;
+    }
+
+    private static function reviewStableKeys(array $plot,array $workspace): array
+    {
+        $keys=[];$add=static function(mixed$value)use(&$keys):void{$value=trim((string)$value);if($value!=='')$keys[]=self::stableCode($value);};$add($plot['code']??'');foreach(['locations'=>['location_code','label_text'],'state_definitions'=>['target_code'],'characters'=>['role_code'],'events'=>['event_code'],'decisions'=>['event_code','role_code'],'options'=>['option_code'],'effects'=>['option_code','target_code'],'opportunities'=>['opportunity_code'],'dynamic_conditions'=>['opportunity_code','source_key'],'dynamic_options'=>['option_code'],'dynamic_effects'=>['option_code','target_code'],'story_sections'=>['section_code'],'resolutions'=>['section_code'],'resolution_conditions'=>['section_code','state_key']]as$section=>$fields)foreach($workspace[$section]??[]as$row)foreach($fields as$field)$add($row[$field]??'');foreach($workspace['decisions']??[]as$row)$add(($row['event_code']??'').'_'.$($row['role_code']??''));foreach($workspace['options']??[]as$row)$add(($row['event_code']??'').'_'.$($row['role_code']??'').'_'.$($row['option_code']??''));return array_values(array_unique(array_filter($keys,static fn($key)=>$key!=='')));
+    }
+
+    private static function reviewRoleCodes(array $workspace): array
+    {
+        $codes=[];foreach($workspace['characters']??[]as$row){$code=self::stableCode((string)($row['role_code']??''));if($code!=='')$codes[]=$code;}return array_values(array_unique($codes));
+    }
+
+    private static function reviewOpportunityCodes(array $workspace): array
+    {
+        $codes=[];foreach($workspace['opportunities']??[]as$row){$code=self::stableCode((string)($row['opportunity_code']??''));if($code!=='')$codes[]=$code;}return array_values(array_unique($codes));
+    }
+
+    private static function completeReview(string $purpose,string $system,array $audit,callable $validator): array
+    {
+        $prompt=(string)$audit['text'];$correction='\n\nVALIDATION CORRECTION: The previous response was not usable. '.$purpose.' must cite only exact values from STABLE KEY CATALOG: '.implode(', ',(array)($audit['stable_keys']??[])).'. Use exact role codes from ROLE CODE CATALOG: '.implode(', ',(array)($audit['role_codes']??[])).' and exact opportunity codes from OPPORTUNITY CODE CATALOG: '.implode(', ',(array)($audit['opportunity_codes']??[])).'. Never use placeholders such as OPPORTUNITY_OR_AREA, field names, generic categories, or invented keys. Make each recommendation concrete: identify the authored field, dependency, or test target and state the specific change to make. If no actionable item is supported, return the required summary with an empty result array. Return JSON only.';
+        try{$response=AiConnectionService::completeJson($purpose,$system,$prompt);$data=$validator((array)$response['data']);return['response'=>$response,'data'=>$data];}catch(Throwable$first){$message=strtolower($first->getMessage());if(str_contains($message,'timed out')||str_contains($message,'timeout')||preg_match('/\bhttp\s+[45]\d\d\b/',$message)===1||str_contains($message,'not enabled')||str_contains($message,'cannot be reached'))throw$first;$response=AiConnectionService::completeJson($purpose,$system,$prompt.$correction);$data=$validator((array)$response['data']);return['response'=>$response,'data'=>$data];}
+    }
+
+    private static function actionableReviewRules(): string
+    {
+        return' Actionability rules: cite exact stable keys from the supplied catalog; name the exact authored field, record, or dependency; explain why it matters; and give a concrete change, replacement wording, or test target. Do not use generic citations such as scenario_text, chronology, events, media, OPPORTUNITY_OR_AREA, or other placeholders. If the supplied evidence does not support an actionable item, return an empty array and explain that in the summary.';
     }
 
     private static function compactReviewTree(mixed $value,int $maxRows,int $limit): mixed
@@ -115,57 +141,57 @@ final class InkyCowriterService
     private static function reviewPlot(int $plotId,string $displayName): array
     {
         $audit=self::reviewAudit($plotId,'review_plot');
-        $system='You are '.$displayName.', a concise co-writer reviewing an authored interactive story. Use only the supplied story package. Separate observed evidence from inference. Every finding and recommendation must cite a named stable key from the package. Review immersion, viewpoint continuity, creative prose, character agency, branch causality, dependency coverage, reachability, pacing, replayability, mobile readability, and whether each character receives enough non-privileged information for meaningful choices. Never recommend plot-specific PHP. Do not propose chronology or structural-order changes unless the supplied evidence demonstrates a defect; label any such recommendation MANUAL STRUCTURAL REVIEW. Prefer prose and authored-data corrections. Unobserved simulation options are not proof of unreachability. Return JSON only with this exact shape: {"summary":"one concise paragraph","observed_evidence":[{"stable_key":"KEY","finding":"fact directly supported by the package"}],"inferences":[{"stable_key":"KEY","inference":"clearly labeled interpretation"}],"recommendations":[{"stable_key":"KEY","category":"one review category","recommendation":"specific copy-ready improvement","manual_structural_review":false}]}. Keep each item short enough to read on a phone. Return no markdown and no additional keys.';
-        $response=AiConnectionService::completeJson('INKY_REVIEW_PLOT',$system,$audit['text']);$review=self::validatedReview((array)$response['data']);return['action'=>'review_plot','display_name'=>$displayName,'model'=>$response['model'],'review'=>$review,'automated_findings'=>['errors'=>count($audit['errors']),'warnings'=>count($audit['warnings'])]];
+        $system='You are '.$displayName.', a concise co-writer reviewing an authored interactive story. Use only the supplied story package. Separate observed evidence from inference. Every finding and recommendation must cite a named stable key from the package. Review immersion, viewpoint continuity, creative prose, character agency, branch causality, dependency coverage, reachability, pacing, replayability, mobile readability, and whether each character receives enough non-privileged information for meaningful choices. Never recommend plot-specific PHP. Do not propose chronology or structural-order changes unless the supplied evidence demonstrates a defect; label any such recommendation MANUAL STRUCTURAL REVIEW. Prefer prose and authored-data corrections. Unobserved simulation options are not proof of unreachability. Return JSON only with this exact shape: {"summary":"one concise paragraph","observed_evidence":[{"stable_key":"KEY","finding":"fact directly supported by the package"}],"inferences":[{"stable_key":"KEY","inference":"clearly labeled interpretation"}],"recommendations":[{"stable_key":"KEY","severity":"BLOCKER|HIGH|MEDIUM|LOW","category":"one review category","recommendation":"specific copy-ready improvement naming the exact field or authored dependency to change","manual_structural_review":false}]}. Keep each item short enough to read on a phone. Return no markdown and no additional keys.';
+        $reviewResult=self::completeReview('INKY_REVIEW_PLOT',$system.self::actionableReviewRules(),$audit,static fn(array$input)=>self::validatedReview($input,$audit['stable_keys']??[]));$response=$reviewResult['response'];$review=$reviewResult['data'];return['action'=>'review_plot','display_name'=>$displayName,'model'=>$response['model'],'review'=>$review,'automated_findings'=>['errors'=>count($audit['errors']),'warnings'=>count($audit['warnings'])]];
     }
 
     private static function whatsNext(int $plotId,string $displayName): array
     {
         $audit=self::reviewAudit($plotId,'whats_next');
         $system='You are '.$displayName.', a concise co-writer helping an author decide the next best Story Writer tasks. Use only the supplied story package. Return advice only; do not rewrite the story or claim changes were made. Every step must cite one named stable key from the package. Prioritize blocking validation errors, then missing authored data, then high-value prose or dependency improvements. Separate direct evidence from inference inside the reason text. Never recommend plot-specific PHP. Do not propose chronology or structural-order changes unless the supplied evidence demonstrates a defect; label any such step MANUAL STRUCTURAL REVIEW. Prefer prose and authored-data corrections. Return JSON only with this exact shape: {"summary":"one concise paragraph","steps":[{"stable_key":"KEY","priority":"BLOCKER|HIGH|MEDIUM|LOW","action":"specific next authoring task","reason":"brief observed evidence or clearly labeled inference","manual_structural_review":false}]}. Return 3 to 6 steps, keep each item short enough to read on a phone, and return no markdown or additional keys.';
-        $response=AiConnectionService::completeJson('INKY_WHATS_NEXT',$system,$audit['text']);$next=self::validatedNextSteps((array)$response['data']);return['action'=>'whats_next','display_name'=>$displayName,'model'=>$response['model'],'next_steps'=>$next,'automated_findings'=>['errors'=>count($audit['errors']),'warnings'=>count($audit['warnings'])]];
+        $reviewResult=self::completeReview('INKY_WHATS_NEXT',$system.self::actionableReviewRules(),$audit,static fn(array$input)=>self::validatedNextSteps($input,$audit['stable_keys']??[]));$response=$reviewResult['response'];$next=$reviewResult['data'];return['action'=>'whats_next','display_name'=>$displayName,'model'=>$response['model'],'next_steps'=>$next,'automated_findings'=>['errors'=>count($audit['errors']),'warnings'=>count($audit['warnings'])]];
     }
 
     private static function qualityCheck(int $plotId,string $displayName): array
     {
         $audit=self::reviewAudit($plotId,'quality_check');
         $system='You are '.$displayName.', a concise co-writer performing a quality check on authored interactive-story data. Use only the supplied story package. Return advice only; do not rewrite the story or claim changes were made. Score only these categories: immersion, viewpoint_continuity, character_agency, branch_causality, dependency_coverage, pacing, replayability, mobile_readability. Each category must cite a named stable key from the package, distinguish observed evidence from inference in the note, and include one specific improvement. Never recommend plot-specific PHP. Do not propose chronology or structural-order changes unless the supplied evidence demonstrates a defect; label that item MANUAL STRUCTURAL REVIEW. Return JSON only with this exact shape: {"summary":"one concise paragraph","checks":[{"category":"immersion","score":1,"stable_key":"KEY","note":"observed evidence or labeled inference","improvement":"specific authoring improvement","manual_structural_review":false}]}. Scores are integers from 1 to 5. Return no markdown and no additional keys.';
-        $response=AiConnectionService::completeJson('INKY_QUALITY_CHECK',$system,$audit['text']);$quality=self::validatedQualityCheck((array)$response['data']);return['action'=>'quality_check','display_name'=>$displayName,'model'=>$response['model'],'quality_check'=>$quality,'automated_findings'=>['errors'=>count($audit['errors']),'warnings'=>count($audit['warnings'])]];
+        $reviewResult=self::completeReview('INKY_QUALITY_CHECK',$system.self::actionableReviewRules(),$audit,static fn(array$input)=>self::validatedQualityCheck($input,$audit['stable_keys']??[]));$response=$reviewResult['response'];$quality=$reviewResult['data'];return['action'=>'quality_check','display_name'=>$displayName,'model'=>$response['model'],'quality_check'=>$quality,'automated_findings'=>['errors'=>count($audit['errors']),'warnings'=>count($audit['warnings'])]];
     }
 
     private static function dependencyCheck(int $plotId,string $displayName): array
     {
         $audit=self::reviewAudit($plotId,'dependencies');
         $system='You are '.$displayName.', a concise co-writer finding dependency problems in authored interactive-story data. Use only the supplied story package. Return advice only; do not rewrite the story or claim changes were made. Focus on broken or weak authored dependencies: missing active choices, missing effects, missing conditions, inactive referenced entities, undefined managed story values, unreachable endings, dependency gaps between choices and outcomes, and player-visible engine leakage. Every problem must cite a named stable key from the package and include observed evidence or clearly labeled inference. Never recommend plot-specific PHP. Do not propose chronology or structural-order changes unless the supplied evidence demonstrates a defect; label that item MANUAL STRUCTURAL REVIEW. Return JSON only with this exact shape: {"summary":"one concise paragraph","problems":[{"stable_key":"KEY","severity":"BLOCKER|HIGH|MEDIUM|LOW","problem":"specific dependency issue","evidence":"observed evidence or labeled inference","fix":"specific authored-data fix","manual_structural_review":false}]}. Return no markdown and no additional keys.';
-        $response=AiConnectionService::completeJson('INKY_DEPENDENCY_CHECK',$system,$audit['text']);$dependencies=self::validatedDependencyCheck((array)$response['data']);return['action'=>'dependencies','display_name'=>$displayName,'model'=>$response['model'],'dependency_check'=>$dependencies,'automated_findings'=>['errors'=>count($audit['errors']),'warnings'=>count($audit['warnings'])]];
+        $reviewResult=self::completeReview('INKY_DEPENDENCY_CHECK',$system.self::actionableReviewRules(),$audit,static fn(array$input)=>self::validatedDependencyCheck($input,$audit['stable_keys']??[]));$response=$reviewResult['response'];$dependencies=$reviewResult['data'];return['action'=>'dependencies','display_name'=>$displayName,'model'=>$response['model'],'dependency_check'=>$dependencies,'automated_findings'=>['errors'=>count($audit['errors']),'warnings'=>count($audit['warnings'])]];
     }
 
     private static function characterKnowledgeCheck(int $plotId,string $displayName): array
     {
         $audit=self::reviewAudit($plotId,'review_characters');
         $system='You are '.$displayName.', a concise co-writer checking character knowledge and viewpoint continuity in authored interactive-story data. Use only the supplied story package. Return advice only; do not rewrite the story or claim changes were made. Focus on whether each character has enough non-privileged information for meaningful choices, whether prompts or results expose private knowledge they should not have, whether private knowledge is authored clearly, and whether choices align with stated goals, fears, location, and known facts. Every issue must cite a named stable key from the package and include observed evidence or clearly labeled inference. Never recommend plot-specific PHP. Prefer authored-data and prose fixes. Return JSON only with this exact shape: {"summary":"one concise paragraph","issues":[{"role_code":"ROLE","stable_key":"KEY","severity":"BLOCKER|HIGH|MEDIUM|LOW","issue":"specific knowledge or viewpoint issue","evidence":"observed evidence or labeled inference","fix":"specific authored-data or prose fix"}]}. Return no markdown and no additional keys.';
-        $response=AiConnectionService::completeJson('INKY_CHARACTER_KNOWLEDGE',$system,$audit['text']);$knowledge=self::validatedCharacterKnowledge((array)$response['data']);return['action'=>'review_characters','display_name'=>$displayName,'model'=>$response['model'],'character_knowledge'=>$knowledge,'automated_findings'=>['errors'=>count($audit['errors']),'warnings'=>count($audit['warnings'])]];
+        $reviewResult=self::completeReview('INKY_CHARACTER_KNOWLEDGE',$system.self::actionableReviewRules(),$audit,static fn(array$input)=>self::validatedCharacterKnowledge($input,$audit['stable_keys']??[],$audit['role_codes']??[]));$response=$reviewResult['response'];$knowledge=$reviewResult['data'];return['action'=>'review_characters','display_name'=>$displayName,'model'=>$response['model'],'character_knowledge'=>$knowledge,'automated_findings'=>['errors'=>count($audit['errors']),'warnings'=>count($audit['warnings'])]];
     }
 
     private static function storyValueSuggestions(int $plotId,string $displayName): array
     {
         $audit=self::reviewAudit($plotId,'story_values');
         $system='You are '.$displayName.', a concise co-writer suggesting managed Story Framework values for authored interactive-story data. Use only the supplied story package. Return advice only; do not rewrite the story, claim changes were made, or propose PHP/schema changes. Suggest only database-authored story values that belong in Story Framework: FACTOR, STAT, LOCATION, KNOWLEDGE, RELATIONSHIP, WORLD_STATE, GOAL, or FEAR. Focus on values that would clarify choice effects, dynamic conditions, ending conditions, character knowledge, and replayable branch outcomes. Every suggestion must cite a named stable key from the package and include observed evidence or clearly labeled inference. Use short stable value codes. Return JSON only with this exact shape: {"summary":"one concise paragraph","suggestions":[{"stable_key":"KEY","scope":"WORLD_STATE","target_code":"SHORT_STABLE_CODE","label":"human-readable label","value_type":"NUMERIC|PRESET|TEXT","allowed_values":["VALUE"],"reason":"observed evidence or labeled inference","example_use":"where the author could use it"}]}. Return no markdown and no additional keys.';
-        $response=AiConnectionService::completeJson('INKY_STORY_VALUES',$system,$audit['text']);$values=self::validatedStoryValues((array)$response['data']);return['action'=>'story_values','display_name'=>$displayName,'model'=>$response['model'],'story_values'=>$values,'automated_findings'=>['errors'=>count($audit['errors']),'warnings'=>count($audit['warnings'])]];
+        $reviewResult=self::completeReview('INKY_STORY_VALUES',$system.self::actionableReviewRules(),$audit,static fn(array$input)=>self::validatedStoryValues($input,$audit['stable_keys']??[]));$response=$reviewResult['response'];$values=$reviewResult['data'];return['action'=>'story_values','display_name'=>$displayName,'model'=>$response['model'],'story_values'=>$values,'automated_findings'=>['errors'=>count($audit['errors']),'warnings'=>count($audit['warnings'])]];
     }
 
     private static function opportunityReview(int $plotId,string $displayName,array $context=[]): array
     {
         $audit=self::reviewAudit($plotId,'review_opportunities');
         $system='You are '.$displayName.', a concise co-writer reviewing authored decision opportunities in an interactive story. Use only the supplied story package. Return advice only; do not rewrite the story, claim changes were made, or propose PHP/schema changes. Review world-event decisions and conditional opportunities for prompt clarity, player agency, option contrast, visible consequences, AI rationale guidance, condition/effect fit, character knowledge, and mobile readability. Every item must cite a named stable key from the package, identify the opportunity code being reviewed, and include observed evidence or clearly labeled inference. A seeded focused opportunity test proves local branch behavior only, not organic reachability. Return JSON only with this exact shape: {"summary":"one concise paragraph","opportunities":[{"opportunity_code":"EVENT_OR_OPPORTUNITY","stable_key":"KEY","severity":"BLOCKER|HIGH|MEDIUM|LOW","finding":"specific opportunity issue or strength","recommendation":"specific authored-data or prose improvement","focused_test":"optional focused validation idea"}]}. Return 3 to 8 items, keep each item short enough to read on a phone, and return no markdown or additional keys.';
-        $response=AiConnectionService::completeJson('INKY_OPPORTUNITY_REVIEW',$system,$audit['text']);$review=self::validatedOpportunityReview((array)$response['data']);return['action'=>'review_opportunities','display_name'=>$displayName,'model'=>$response['model'],'opportunity_review'=>$review,'automated_findings'=>['errors'=>count($audit['errors']),'warnings'=>count($audit['warnings'])]];
+        $reviewResult=self::completeReview('INKY_OPPORTUNITY_REVIEW',$system.self::actionableReviewRules(),$audit,static fn(array$input)=>self::validatedOpportunityReview($input,$audit['stable_keys']??[],$audit['opportunity_codes']??[]));$response=$reviewResult['response'];$review=$reviewResult['data'];return['action'=>'review_opportunities','display_name'=>$displayName,'model'=>$response['model'],'opportunity_review'=>$review,'automated_findings'=>['errors'=>count($audit['errors']),'warnings'=>count($audit['warnings'])]];
     }
 
     private static function focusedTestPlan(int $plotId,string $displayName): array
     {
         $audit=self::reviewAudit($plotId,'focused_tests');
-        $system='You are '.$displayName.', a concise co-writer preparing a focused validation plan for authored interactive-story data. Use only the supplied story package. Return advice only; do not claim tests were run, queue jobs, rewrite the story, or propose PHP/schema changes. Suggest tests that an author or administrator can run with existing Toinky validation and Game2 Simulation Lab workflows. Prefer focused-opportunity tests for dynamic opportunities and branch-risk areas, but include broad simulations or manual smoke checks when the evidence warrants them. A seeded focused opportunity test proves local branch behavior from a manufactured checkpoint and does not prove organic reachability from story start. Every test must cite a named stable key from the package and include observed evidence or clearly labeled inference. Return JSON only with this exact shape: {"summary":"one concise paragraph","tests":[{"stable_key":"KEY","test_type":"VALIDATION|FOCUSED_OPPORTUNITY|BROAD_SIMULATION|MANUAL_SMOKE","focus_code":"OPPORTUNITY_OR_AREA","runs":10,"reason":"observed evidence or labeled inference","expected_evidence":"what passing evidence should show"}]}. Return 3 to 6 tests, keep each item short enough to read on a phone, and return no markdown or additional keys.';
-        $response=AiConnectionService::completeJson('INKY_FOCUSED_TESTS',$system,$audit['text']);$tests=self::validatedFocusedTests((array)$response['data']);return['action'=>'focused_tests','display_name'=>$displayName,'model'=>$response['model'],'focused_tests'=>$tests,'automated_findings'=>['errors'=>count($audit['errors']),'warnings'=>count($audit['warnings'])]];
+        $system='You are '.$displayName.', a concise co-writer preparing a focused validation plan for authored interactive-story data. Use only the supplied story package. Return advice only; do not claim tests were run, queue jobs, rewrite the story, or propose PHP/schema changes. Suggest tests that an author or administrator can run with existing Toinky validation and Game2 Simulation Lab workflows. Prefer focused-opportunity tests for dynamic opportunities and branch-risk areas, but include broad simulations or manual smoke checks when the evidence warrants them. A seeded focused opportunity test proves local branch behavior from a manufactured checkpoint and does not prove organic reachability from story start. Every test must cite a named stable key from the package and use an exact stable key as focus_code when a focus is needed. Return JSON only with this exact shape: {"summary":"one concise paragraph","tests":[{"stable_key":"KEY","test_type":"VALIDATION|FOCUSED_OPPORTUNITY|BROAD_SIMULATION|MANUAL_SMOKE","focus_code":"EXACT_STABLE_KEY_FROM_PACKAGE","runs":10,"reason":"observed evidence or labeled inference","expected_evidence":"what passing evidence should show"}]}. Return 3 to 6 tests, keep each item short enough to read on a phone, and return no markdown or additional keys.';
+        $reviewResult=self::completeReview('INKY_FOCUSED_TESTS',$system.self::actionableReviewRules(),$audit,static fn(array$input)=>self::validatedFocusedTests($input,$audit['stable_keys']??[]));$response=$reviewResult['response'];$tests=$reviewResult['data'];return['action'=>'focused_tests','display_name'=>$displayName,'model'=>$response['model'],'focused_tests'=>$tests,'automated_findings'=>['errors'=>count($audit['errors']),'warnings'=>count($audit['warnings'])]];
     }
 
     private static function normalizeCharacterSuggestionLocation(array $input,array $locations): array
@@ -183,100 +209,114 @@ final class InkyCowriterService
         $character=is_array($input['character']??null)?$input['character']:$input;$text=static function(mixed $value,int $max,bool $required=true): string{$value=trim((string)$value);$value=function_exists('mb_substr')?mb_substr($value,0,$max):substr($value,0,$max);if($required&&$value==='')throw new RuntimeException('Inky’s character suggestion was incomplete.');return$value;};$name=$text($character['name']??'',120);$roleCode=self::stableCode((string)($character['role_code']??$name));if($roleCode==='')throw new RuntimeException('Inky’s character suggestion did not include a stable role code.');$roleType=strtoupper(trim((string)($character['role_type']??'')));$roleType=['AI CHARACTER'=>'NPC','AI'=>'NPC','HUMAN'=>'PLAYER'][$roleType]??$roleType;if(!in_array($roleType,$available,true))$roleType=$available[0]??throw new RuntimeException('No Story Framework character type is available.');$locationLabels=[];$locationCodes=[];foreach($locationNames as$location){if(is_array($location)){$label=$text($location['label_text']??'',190);$locationLabels[]=$label;$locationCodes[strtoupper((string)($location['location_code']??''))]=$label;}else{$locationLabels[]=$text($location,190);}}$startingLocation=$text($character['starting_location']??$character['location']??'',190);$startingLocation=$locationCodes[strtoupper($startingLocation)]??$startingLocation;$matches=array_values(array_filter($locationLabels,static fn($label)=>strcasecmp($label,$startingLocation)===0));if($matches)$startingLocation=$matches[0];if(!in_array($startingLocation,$locationLabels,true))throw new RuntimeException('Inky suggested a starting location that is not active in Story Framework.');foreach($existing as$row)if(strcasecmp($roleCode,(string)$row['role_code'])===0||strcasecmp($name,(string)$row['name'])===0)throw new RuntimeException('Inky suggested an existing character instead of a new one.');$fieldValues=['public_description'=>$text($character['public_description']??$character['description']??'',1000),'private_knowledge'=>$text($character['private_knowledge']??$character['private']??'',1000,false),'goal_text'=>$text($character['goal_text']??$character['goal']??'',500,false),'fear_text'=>$text($character['fear_text']??$character['fear']??'',500,false)];foreach($existing as$row)foreach($fieldValues as$field=>$candidateValue){$candidate=mb_strtolower(trim($candidateValue));$previous=mb_strtolower(trim((string)($row[$field]??'')));if($candidate!==''&&$previous!==''&&$candidate===$previous)throw new RuntimeException('Inky reused an existing character profile. Please request the character again.');}$pronoun=strtoupper(trim((string)($character['pronoun_set']??$character['pronouns']??'IT')));if(!in_array($pronoun,['HE','SHE','IT'],true))$pronoun='IT';$summary=$text($input['summary']??'A new character that fits the current story package.',300);return['summary'=>$summary,'character'=>['role_code'=>$roleCode,'role_type'=>$roleType,'mystery_character'=>!empty($character['mystery_character']),'name'=>$name,'public_description'=>$fieldValues['public_description'],'private_knowledge'=>$fieldValues['private_knowledge'],'starting_location'=>$startingLocation,'goal_text'=>$fieldValues['goal_text'],'fear_text'=>$fieldValues['fear_text'],'pronoun_set'=>$pronoun]];
     }
 
-    private static function validatedReview(array $input): array
+    private static function validatedReview(array $input,array $allowedKeys=[]): array
     {
         $summary=trim((string)($input['summary']??''));if($summary==='')throw new RuntimeException('Inky’s review did not include a summary.');
-        $observed=self::items($input['observed_evidence']??null,'finding',false);$inferences=self::items($input['inferences']??null,'inference',false);$recommendations=self::items($input['recommendations']??null,'recommendation',true);
+        $observed=self::items($input['observed_evidence']??null,'finding',false,$allowedKeys);$inferences=self::items($input['inferences']??null,'inference',false,$allowedKeys);$recommendations=self::items($input['recommendations']??null,'recommendation',true,$allowedKeys);self::requireReviewItems($input['recommendations']??null,$recommendations,'Inky’s review recommendations did not cite usable stable keys.');
         return['summary'=>$summary,'observed_evidence'=>$observed,'inferences'=>$inferences,'recommendations'=>$recommendations];
     }
 
-    private static function validatedNextSteps(array $input): array
+    private static function validatedNextSteps(array $input,array $allowedKeys=[]): array
     {
         $summary=trim((string)($input['summary']??''));if($summary==='')throw new RuntimeException('Inky’s next-step guidance did not include a summary.');
-        $steps=self::nextStepItems($input['steps']??null);
+        $steps=self::nextStepItems($input['steps']??null,$allowedKeys);self::requireReviewItems($input['steps']??null,$steps,'Inky’s next steps did not cite usable stable keys.');
         return['summary'=>$summary,'steps'=>$steps];
     }
 
-    private static function validatedQualityCheck(array $input): array
+    private static function validatedQualityCheck(array $input,array $allowedKeys=[]): array
     {
         $summary=trim((string)($input['summary']??''));if($summary==='')throw new RuntimeException('Inky’s quality check did not include a summary.');
-        $checks=self::qualityCheckItems($input['checks']??null);
+        $checks=self::qualityCheckItems($input['checks']??null,$allowedKeys);self::requireReviewItems($input['checks']??null,$checks,'Inky’s quality checks did not cite usable stable keys.');
         return['summary'=>$summary,'checks'=>$checks];
     }
 
-    private static function validatedDependencyCheck(array $input): array
+    private static function validatedDependencyCheck(array $input,array $allowedKeys=[]): array
     {
         $summary=trim((string)($input['summary']??''));if($summary==='')throw new RuntimeException('Inky’s dependency check did not include a summary.');
-        $problems=self::dependencyItems($input['problems']??null);
+        $problems=self::dependencyItems($input['problems']??null,$allowedKeys);self::requireReviewItems($input['problems']??null,$problems,'Inky’s dependency problems did not cite usable stable keys.');
         return['summary'=>$summary,'problems'=>$problems];
     }
 
-    private static function validatedCharacterKnowledge(array $input): array
+    private static function validatedCharacterKnowledge(array $input,array $allowedKeys=[],array $allowedRoles=[]): array
     {
         $summary=trim((string)($input['summary']??''));if($summary==='')throw new RuntimeException('Inky’s character-knowledge check did not include a summary.');
-        $issues=self::characterKnowledgeItems($input['issues']??null);
+        $issues=self::characterKnowledgeItems($input['issues']??null,$allowedKeys,$allowedRoles);self::requireReviewItems($input['issues']??null,$issues,'Inky’s character issues did not cite usable stable keys and role codes.');
         return['summary'=>$summary,'issues'=>$issues];
     }
 
-    private static function validatedStoryValues(array $input): array
+    private static function validatedStoryValues(array $input,array $allowedKeys=[]): array
     {
         $summary=trim((string)($input['summary']??''));if($summary==='')throw new RuntimeException('Inky’s story-value suggestions did not include a summary.');
-        $suggestions=self::storyValueItems($input['suggestions']??null);
+        $suggestions=self::storyValueItems($input['suggestions']??null,$allowedKeys);self::requireReviewItems($input['suggestions']??null,$suggestions,'Inky’s Story Value suggestions did not cite usable stable keys.');
         return['summary'=>$summary,'suggestions'=>$suggestions];
     }
 
-    private static function validatedOpportunityReview(array $input): array
+    private static function validatedOpportunityReview(array $input,array $allowedKeys=[],array $allowedOpportunities=[]): array
     {
         $summary=trim((string)($input['summary']??''));if($summary==='')throw new RuntimeException('Inky’s opportunity review did not include a summary.');
-        $opportunities=self::opportunityItems($input['opportunities']??null);
+        $opportunities=self::opportunityItems($input['opportunities']??null,$allowedKeys,$allowedOpportunities);self::requireReviewItems($input['opportunities']??null,$opportunities,'Inky’s opportunity review did not cite usable stable keys and opportunity codes.');
         return['summary'=>$summary,'opportunities'=>$opportunities];
     }
 
-    private static function validatedFocusedTests(array $input): array
+    private static function validatedFocusedTests(array $input,array $allowedKeys=[]): array
     {
         $summary=trim((string)($input['summary']??''));if($summary==='')throw new RuntimeException('Inky’s focused-test plan did not include a summary.');
-        $tests=self::focusedTestItems($input['tests']??null);
+        $tests=self::focusedTestItems($input['tests']??null,$allowedKeys);self::requireReviewItems($input['tests']??null,$tests,'Inky’s focused tests did not cite usable stable keys.');
         return['summary'=>$summary,'tests'=>$tests];
     }
 
-    private static function items(mixed $rows,string $textKey,bool $recommendation): array
+    private static function requireReviewItems(mixed $raw,array $items,string $message): void
     {
-        if(!is_array($rows))return[];$out=[];foreach(array_slice($rows,0,10)as$row){if(!is_array($row))continue;$key=trim((string)($row['stable_key']??''));$text=trim((string)($row[$textKey]??''));if($key===''||$text==='')continue;$item=['stable_key'=>$key,$textKey=>$text];if($recommendation){$item['category']=trim((string)($row['category']??'Story quality'));$item['manual_structural_review']=!empty($row['manual_structural_review']);}$out[]=$item;}return$out;
+        if(is_array($raw)&&$raw!==[]&&$items===[])throw new RuntimeException($message);
     }
 
-    private static function nextStepItems(mixed $rows): array
+    private static function items(mixed $rows,string $textKey,bool $recommendation,array $allowedKeys=[]): array
     {
-        if(!is_array($rows))return[];$priorities=['BLOCKER','HIGH','MEDIUM','LOW'];$out=[];foreach($rows as$row){if(!is_array($row))continue;$key=trim((string)($row['stable_key']??''));$action=trim((string)($row['action']??''));$reason=trim((string)($row['reason']??''));if($key===''||$action===''||$reason==='')continue;$priority=strtoupper(trim((string)($row['priority']??'MEDIUM')));if(!in_array($priority,$priorities,true))$priority='MEDIUM';$out[]=['stable_key'=>$key,'priority'=>$priority,'action'=>$action,'reason'=>$reason,'manual_structural_review'=>!empty($row['manual_structural_review'])];if(count($out)>=6)break;}return$out;
+        if(!is_array($rows))return[];$out=[];$severities=['BLOCKER','HIGH','MEDIUM','LOW'];
+        foreach(array_slice($rows,0,10)as$row){
+            if(!is_array($row))continue;$key=self::stableCode((string)($row['stable_key']??''));$text=trim((string)($row[$textKey]??''));
+            if($key===''||$text===''||($allowedKeys&&!in_array($key,$allowedKeys,true)))continue;
+            $item=['stable_key'=>$key,$textKey=>$text];
+            if($recommendation){$severity=strtoupper(trim((string)($row['severity']??'MEDIUM')));if(!in_array($severity,$severities,true))$severity='MEDIUM';$item['severity']=$severity;$item['category']=trim((string)($row['category']??'Story quality'));$item['manual_structural_review']=!empty($row['manual_structural_review']);}
+            $out[]=$item;
+        }
+        if($recommendation){$rank=['BLOCKER'=>0,'HIGH'=>1,'MEDIUM'=>2,'LOW'=>3];usort($out,static fn(array$a,array$b)=>($rank[$a['severity']]??2)<=>($rank[$b['severity']]??2));}
+        return$out;
     }
 
-    private static function qualityCheckItems(mixed $rows): array
+    private static function nextStepItems(mixed $rows,array $allowedKeys=[]): array
     {
-        if(!is_array($rows))return[];$allowed=['immersion','viewpoint_continuity','character_agency','branch_causality','dependency_coverage','pacing','replayability','mobile_readability'];$out=[];foreach($rows as$row){if(!is_array($row))continue;$category=strtolower(trim((string)($row['category']??'')));$key=trim((string)($row['stable_key']??''));$note=trim((string)($row['note']??''));$improvement=trim((string)($row['improvement']??''));if(!in_array($category,$allowed,true)||$key===''||$note===''||$improvement==='')continue;$score=max(1,min(5,(int)($row['score']??3)));$out[]=['category'=>$category,'score'=>$score,'stable_key'=>$key,'note'=>$note,'improvement'=>$improvement,'manual_structural_review'=>!empty($row['manual_structural_review'])];if(count($out)>=8)break;}return$out;
+        if(!is_array($rows))return[];$priorities=['BLOCKER','HIGH','MEDIUM','LOW'];$out=[];foreach($rows as$row){if(!is_array($row))continue;$key=self::stableCode((string)($row['stable_key']??''));$action=trim((string)($row['action']??''));$reason=trim((string)($row['reason']??''));if($key===''||$action===''||$reason===''||($allowedKeys&&!in_array($key,$allowedKeys,true)))continue;$priority=strtoupper(trim((string)($row['priority']??'MEDIUM')));if(!in_array($priority,$priorities,true))$priority='MEDIUM';$out[]=['stable_key'=>$key,'priority'=>$priority,'action'=>$action,'reason'=>$reason,'manual_structural_review'=>!empty($row['manual_structural_review'])];if(count($out)>=6)break;}return$out;
     }
 
-    private static function dependencyItems(mixed $rows): array
+    private static function qualityCheckItems(mixed $rows,array $allowedKeys=[]): array
     {
-        if(!is_array($rows))return[];$severities=['BLOCKER','HIGH','MEDIUM','LOW'];$out=[];foreach($rows as$row){if(!is_array($row))continue;$key=trim((string)($row['stable_key']??''));$problem=trim((string)($row['problem']??''));$evidence=trim((string)($row['evidence']??''));$fix=trim((string)($row['fix']??''));if($key===''||$problem===''||$evidence===''||$fix==='')continue;$severity=strtoupper(trim((string)($row['severity']??'MEDIUM')));if(!in_array($severity,$severities,true))$severity='MEDIUM';$out[]=['stable_key'=>$key,'severity'=>$severity,'problem'=>$problem,'evidence'=>$evidence,'fix'=>$fix,'manual_structural_review'=>!empty($row['manual_structural_review'])];if(count($out)>=8)break;}return$out;
+        if(!is_array($rows))return[];$allowed=['immersion','viewpoint_continuity','character_agency','branch_causality','dependency_coverage','pacing','replayability','mobile_readability'];$out=[];foreach($rows as$row){if(!is_array($row))continue;$category=strtolower(trim((string)($row['category']??'')));$key=self::stableCode((string)($row['stable_key']??''));$note=trim((string)($row['note']??''));$improvement=trim((string)($row['improvement']??''));if(!in_array($category,$allowed,true)||$key===''||$note===''||$improvement===''||($allowedKeys&&!in_array($key,$allowedKeys,true)))continue;$score=max(1,min(5,(int)($row['score']??3)));$out[]=['category'=>$category,'score'=>$score,'stable_key'=>$key,'note'=>$note,'improvement'=>$improvement,'manual_structural_review'=>!empty($row['manual_structural_review'])];if(count($out)>=8)break;}return$out;
     }
 
-    private static function characterKnowledgeItems(mixed $rows): array
+    private static function dependencyItems(mixed $rows,array $allowedKeys=[]): array
     {
-        if(!is_array($rows))return[];$severities=['BLOCKER','HIGH','MEDIUM','LOW'];$out=[];foreach($rows as$row){if(!is_array($row))continue;$role=self::stableCode((string)($row['role_code']??''));$key=trim((string)($row['stable_key']??''));$issue=trim((string)($row['issue']??''));$evidence=trim((string)($row['evidence']??''));$fix=trim((string)($row['fix']??''));if($role===''||$key===''||$issue===''||$evidence===''||$fix==='')continue;$severity=strtoupper(trim((string)($row['severity']??'MEDIUM')));if(!in_array($severity,$severities,true))$severity='MEDIUM';$out[]=['role_code'=>$role,'stable_key'=>$key,'severity'=>$severity,'issue'=>$issue,'evidence'=>$evidence,'fix'=>$fix];if(count($out)>=8)break;}return$out;
+        if(!is_array($rows))return[];$severities=['BLOCKER','HIGH','MEDIUM','LOW'];$out=[];foreach($rows as$row){if(!is_array($row))continue;$key=self::stableCode((string)($row['stable_key']??''));$problem=trim((string)($row['problem']??''));$evidence=trim((string)($row['evidence']??''));$fix=trim((string)($row['fix']??''));if($key===''||$problem===''||$evidence===''||$fix===''||($allowedKeys&&!in_array($key,$allowedKeys,true)))continue;$severity=strtoupper(trim((string)($row['severity']??'MEDIUM')));if(!in_array($severity,$severities,true))$severity='MEDIUM';$out[]=['stable_key'=>$key,'severity'=>$severity,'problem'=>$problem,'evidence'=>$evidence,'fix'=>$fix,'manual_structural_review'=>!empty($row['manual_structural_review'])];if(count($out)>=8)break;}return$out;
     }
 
-    private static function storyValueItems(mixed $rows): array
+    private static function characterKnowledgeItems(mixed $rows,array $allowedKeys=[],array $allowedRoles=[]): array
     {
-        if(!is_array($rows))return[];$scopes=['FACTOR','STAT','LOCATION','KNOWLEDGE','RELATIONSHIP','WORLD_STATE','GOAL','FEAR'];$types=['NUMERIC','PRESET','TEXT'];$out=[];foreach($rows as$row){if(!is_array($row))continue;$key=trim((string)($row['stable_key']??''));$scope=strtoupper(trim((string)($row['scope']??'WORLD_STATE')));$code=self::stableCode((string)($row['target_code']??''));$label=trim((string)($row['label']??''));$type=strtoupper(trim((string)($row['value_type']??'TEXT')));$reason=trim((string)($row['reason']??''));$example=trim((string)($row['example_use']??''));if(!in_array($scope,$scopes,true))$scope='WORLD_STATE';if(!in_array($type,$types,true))$type='TEXT';if($key===''||$code===''||$label===''||$reason===''||$example==='')continue;$allowed=[];foreach((array)($row['allowed_values']??[])as$value){$value=trim((string)$value);if($value!==''&&!in_array($value,$allowed,true))$allowed[]=$value;if(count($allowed)>=8)break;}if($type==='PRESET'&&!$allowed)continue;$out[]=['stable_key'=>$key,'scope'=>$scope,'target_code'=>$code,'label'=>$label,'value_type'=>$type,'allowed_values'=>$type==='PRESET'?$allowed:[],'reason'=>$reason,'example_use'=>$example];if(count($out)>=8)break;}return$out;
+        if(!is_array($rows))return[];$severities=['BLOCKER','HIGH','MEDIUM','LOW'];$out=[];foreach($rows as$row){if(!is_array($row))continue;$role=self::stableCode((string)($row['role_code']??''));$key=self::stableCode((string)($row['stable_key']??''));$issue=trim((string)($row['issue']??''));$evidence=trim((string)($row['evidence']??''));$fix=trim((string)($row['fix']??''));if($role===''||$key===''||$issue===''||$evidence===''||$fix===''||($allowedKeys&&!in_array($key,$allowedKeys,true))||($allowedRoles&&!in_array($role,$allowedRoles,true)))continue;$severity=strtoupper(trim((string)($row['severity']??'MEDIUM')));if(!in_array($severity,$severities,true))$severity='MEDIUM';$out[]=['role_code'=>$role,'stable_key'=>$key,'severity'=>$severity,'issue'=>$issue,'evidence'=>$evidence,'fix'=>$fix];if(count($out)>=8)break;}return$out;
     }
 
-    private static function opportunityItems(mixed $rows): array
+    private static function storyValueItems(mixed $rows,array $allowedKeys=[]): array
     {
-        if(!is_array($rows))return[];$severities=['BLOCKER','HIGH','MEDIUM','LOW'];$out=[];foreach($rows as$row){if(!is_array($row))continue;$opportunity=self::stableCode((string)($row['opportunity_code']??''));$key=trim((string)($row['stable_key']??''));$finding=trim((string)($row['finding']??''));$recommendation=trim((string)($row['recommendation']??''));if($opportunity===''||$key===''||$finding===''||$recommendation==='')continue;$severity=strtoupper(trim((string)($row['severity']??'MEDIUM')));if(!in_array($severity,$severities,true))$severity='MEDIUM';$out[]=['opportunity_code'=>$opportunity,'stable_key'=>$key,'severity'=>$severity,'finding'=>$finding,'recommendation'=>$recommendation,'focused_test'=>trim((string)($row['focused_test']??''))];if(count($out)>=8)break;}return$out;
+        if(!is_array($rows))return[];$scopes=['FACTOR','STAT','LOCATION','KNOWLEDGE','RELATIONSHIP','WORLD_STATE','GOAL','FEAR'];$types=['NUMERIC','PRESET','TEXT'];$out=[];foreach($rows as$row){if(!is_array($row))continue;$key=self::stableCode((string)($row['stable_key']??''));$scope=strtoupper(trim((string)($row['scope']??'WORLD_STATE')));$code=self::stableCode((string)($row['target_code']??''));$label=trim((string)($row['label']??''));$type=strtoupper(trim((string)($row['value_type']??'TEXT')));$reason=trim((string)($row['reason']??''));$example=trim((string)($row['example_use']??''));if(!in_array($scope,$scopes,true))$scope='WORLD_STATE';if(!in_array($type,$types,true))$type='TEXT';if($key===''||$code===''||$label===''||$reason===''||$example===''||($allowedKeys&&!in_array($key,$allowedKeys,true)))continue;$allowed=[];foreach((array)($row['allowed_values']??[])as$value){$value=trim((string)$value);if($value!==''&&!in_array($value,$allowed,true))$allowed[]=$value;if(count($allowed)>=8)break;}if($type==='PRESET'&&!$allowed)continue;$out[]=['stable_key'=>$key,'scope'=>$scope,'target_code'=>$code,'label'=>$label,'value_type'=>$type,'allowed_values'=>$type==='PRESET'?$allowed:[],'reason'=>$reason,'example_use'=>$example];if(count($out)>=8)break;}return$out;
     }
 
-    private static function focusedTestItems(mixed $rows): array
+    private static function opportunityItems(mixed $rows,array $allowedKeys=[],array $allowedOpportunities=[]): array
     {
-        if(!is_array($rows))return[];$types=['VALIDATION','FOCUSED_OPPORTUNITY','BROAD_SIMULATION','MANUAL_SMOKE'];$out=[];foreach($rows as$row){if(!is_array($row))continue;$key=trim((string)($row['stable_key']??''));$type=strtoupper(trim((string)($row['test_type']??'VALIDATION')));$focus=self::stableCode((string)($row['focus_code']??''));$reason=trim((string)($row['reason']??''));$expected=trim((string)($row['expected_evidence']??''));if(!in_array($type,$types,true))$type='VALIDATION';if($key===''||$focus===''||$reason===''||$expected==='')continue;$runs=max(1,min(50,(int)($row['runs']??10)));if($type==='VALIDATION'||$type==='MANUAL_SMOKE')$runs=1;elseif($type==='BROAD_SIMULATION')$runs=max(10,min(250,(int)($row['runs']??50)));$out[]=['stable_key'=>$key,'test_type'=>$type,'focus_code'=>$focus,'runs'=>$runs,'reason'=>$reason,'expected_evidence'=>$expected];if(count($out)>=6)break;}return$out;
+        if(!is_array($rows))return[];$severities=['BLOCKER','HIGH','MEDIUM','LOW'];$out=[];foreach($rows as$row){if(!is_array($row))continue;$opportunity=self::stableCode((string)($row['opportunity_code']??''));$key=self::stableCode((string)($row['stable_key']??''));$finding=trim((string)($row['finding']??''));$recommendation=trim((string)($row['recommendation']??''));if($opportunity===''||$key===''||$finding===''||$recommendation===''||($allowedKeys&&!in_array($key,$allowedKeys,true))||($allowedOpportunities&&!in_array($opportunity,$allowedOpportunities,true)))continue;$severity=strtoupper(trim((string)($row['severity']??'MEDIUM')));if(!in_array($severity,$severities,true))$severity='MEDIUM';$out[]=['opportunity_code'=>$opportunity,'stable_key'=>$key,'severity'=>$severity,'finding'=>$finding,'recommendation'=>$recommendation,'focused_test'=>trim((string)($row['focused_test']??''))];if(count($out)>=8)break;}return$out;
+    }
+
+    private static function focusedTestItems(mixed $rows,array $allowedKeys=[]): array
+    {
+        if(!is_array($rows))return[];$types=['VALIDATION','FOCUSED_OPPORTUNITY','BROAD_SIMULATION','MANUAL_SMOKE'];$out=[];foreach($rows as$row){if(!is_array($row))continue;$key=self::stableCode((string)($row['stable_key']??''));$type=strtoupper(trim((string)($row['test_type']??'VALIDATION')));$focus=self::stableCode((string)($row['focus_code']??''));$reason=trim((string)($row['reason']??''));$expected=trim((string)($row['expected_evidence']??''));if(!in_array($type,$types,true))$type='VALIDATION';if($key===''||$focus===''||$reason===''||$expected===''||($allowedKeys&&!in_array($key,$allowedKeys,true))||($allowedKeys&&!in_array($focus,$allowedKeys,true)))continue;$runs=max(1,min(50,(int)($row['runs']??10)));if($type==='VALIDATION'||$type==='MANUAL_SMOKE')$runs=1;elseif($type==='BROAD_SIMULATION')$runs=max(10,min(250,(int)($row['runs']??50)));$out[]=['stable_key'=>$key,'test_type'=>$type,'focus_code'=>$focus,'runs'=>$runs,'reason'=>$reason,'expected_evidence'=>$expected];if(count($out)>=6)break;}return$out;
     }
 
     private static function targetFocus(array $context): array

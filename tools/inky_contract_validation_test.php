@@ -38,6 +38,21 @@ $characterSuggestionMethod->setAccessible(true);
 
 $emptyReview=$reviewMethod->invoke(null,['summary'=>'The completed story has no specific review findings.','observed_evidence'=>[],'inferences'=>[],'recommendations'=>[]]);
 if($emptyReview['summary']===''||$emptyReview['observed_evidence']!==[]||$emptyReview['recommendations']!==[])throw new RuntimeException('Completed-story review did not accept a valid no-findings response.');
+$groundedReview=$reviewMethod->invoke(null,[
+    'summary'=>'Only grounded recommendations should survive.',
+    'observed_evidence'=>[],
+    'inferences'=>[],
+    'recommendations'=>[
+        ['stable_key'=>'opening scene','severity'=>'high','category'=>'immersion','recommendation'=>'Add one sensory detail to the opening scene.'],
+        ['stable_key'=>'scenario_text','severity'=>'blocker','category'=>'immersion','recommendation'=>'Ignored generic field citation.'],
+    ],
+],['OPENING_SCENE']);
+if(count($groundedReview['recommendations'])!==1||$groundedReview['recommendations'][0]['stable_key']!=='OPENING_SCENE')throw new RuntimeException('Review validator did not filter recommendations outside the stable-key catalog.');
+if($groundedReview['recommendations'][0]['severity']!=='HIGH')throw new RuntimeException('Review recommendation severity was not normalized.');
+$failed=false;
+try{$reviewMethod->invoke(null,['summary'=>'Retry this response.','recommendations'=>[['stable_key'=>'scenario_text','recommendation'=>'Generic citation.']]],['OPENING_SCENE']);}
+catch(RuntimeException $e){$failed=str_contains($e->getMessage(),'usable stable keys');}
+if(!$failed)throw new RuntimeException('Review validator accepted a response with no grounded recommendations.');
 $emptyContracts=[
     [$method,['summary'=>'No next-step gaps were identified.','steps'=>[]]],
     [$qualityMethod,['summary'=>'No quality concerns were identified.','checks'=>[]]],
@@ -227,6 +242,14 @@ if($focused['tests'][1]['runs']!==250)throw new RuntimeException('Broad simulati
 if($focused['tests'][2]['runs']!==1)throw new RuntimeException('Manual smoke run count was not forced to one.');
 if($focused['tests'][3]['test_type']!=='VALIDATION')throw new RuntimeException('Unknown focused-test type was not defaulted.');
 if($focused['tests'][3]['runs']!==1)throw new RuntimeException('Validation run count was not forced to one.');
+$groundedFocused=$focusedMethod->invoke(null,[
+    'summary'=>'Only executable authored targets should survive.',
+    'tests'=>[
+        ['stable_key'=>'OPENING_EVENT','test_type'=>'validation','focus_code'=>'opening event','runs'=>1,'reason'=>'Observed evidence: the opening event is a branch entry point.','expected_evidence'=>'Validation reports the authored event and its references.'],
+        ['stable_key'=>'OPPORTUNITY_REVEAL','test_type'=>'focused_opportunity','focus_code'=>'OPPORTUNITY_OR_AREA','runs'=>10,'reason'=>'Generic placeholder.','expected_evidence'=>'Ignored.'],
+    ],
+],['OPENING_EVENT','OPPORTUNITY_REVEAL']);
+if(count($groundedFocused['tests'])!==1||$groundedFocused['tests'][0]['focus_code']!=='OPENING_EVENT')throw new RuntimeException('Focused-test validation did not reject placeholder or unlisted focus codes.');
 
 $failed=false;
 try{$focusedMethod->invoke(null,['summary'=>'','tests'=>[]]);}

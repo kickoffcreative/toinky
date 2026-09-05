@@ -375,6 +375,20 @@ All current action headers, prerequisites, bounded-context rules, result
 formats, cancellation behavior, and explicit save boundaries are maintained in
 [docs/INKY_ACTION_RULES.md](INKY_ACTION_RULES.md).
 
+### Review suggestion quality
+
+Improve Story reviews are grounded in an action-specific checklist and an
+exact stable-key catalog built from the current story package. Suggestions must
+name the authored field, record, dependency, or test target they address,
+distinguish observed evidence from inference, explain the impact, and provide
+a concrete change or validation step. Generic field names and placeholders are
+rejected. The server filters invalid stable keys, character role codes,
+opportunity codes, and focused-test targets, then makes one catalog-backed
+correction request when a non-empty AI response contains no usable items.
+Plot recommendations also carry a normalized severity so important work can
+be triaged. A summary with no findings remains valid when the story supports no
+actionable issue.
+
 Each contract must define:
 
 - the exact story entities and fields it may read;
