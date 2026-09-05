@@ -1,0 +1,33 @@
+.writer-content .writer-tab-panel { min-width:0; text-align:left; }
+.writer-content .writer-tab-panel > h2 { margin:0 0 16px; }
+.writer-content .subtabs { margin:0 0 16px; flex-wrap:wrap; gap:5px; width:100%; box-sizing:border-box; border-radius:8px; }
+.writer-content .subtab { max-width:100%; white-space:normal; overflow-wrap:anywhere; letter-spacing:0; }
+.writer-content .tabs { flex-wrap:wrap; }
+.writer-content .tab { white-space:normal; max-width:100%; overflow-wrap:anywhere; }
+.writer-content .writer-subpanel { min-width:0; padding:0; margin:0; border:0; background:none; box-shadow:none; }
+.writer-content .writer-subpanel > h3 { margin:0 0 12px; }
+.writer-content .quick-definition { width:100%; margin:0 0 14px; box-sizing:border-box; border-radius:8px; }
+.writer-content .record-toolbar { margin:0 0 16px; padding:0; border:0; background:none; border-radius:0; align-items:flex-end; flex-wrap:wrap; }
+.writer-content .record-toolbar label { display:grid; gap:6px; min-width:0; font-size:12px; font-weight:700; }
+.writer-content .record-toolbar input { box-sizing:border-box; font-weight:400; font-size:14px; min-width:0; }
+.writer-content .record-toolbar button { min-height:36px; }
+.writer-content .writer-tab-panel > .record,
+.writer-content .writer-subpanel > .record,
+.writer-content .writer-subpanel > .mapnode,
+.writer-content .writer-tab-panel > form > .record { margin-left:0; margin-right:0; }
+.writer-content .overview-manager.framework-fixed { margin:0; padding:0; border:0; background:none; box-shadow:none; }
+.writer-content .overview-manager.framework-fixed > summary { display:none; }
+.writer-content .framework-grid { padding:0; gap:12px; }
+.writer-content .guided-answer-framework { margin:0; padding:0; }
+.writer-content .guided-answer-framework .wide { grid-column:1/-1; }
+.writer-content .artwork-library { min-width:0; padding:0 0 0 16px; border:0; border-left:1px solid #d8d1c5; border-radius:0; background:none; box-shadow:none; }
+.writer-content .artwork-library h2 { margin-top:0; }
+.writer-content .artwork-workspace { margin-top:16px; }
+.writer-content [hidden] { display:none!important; }
+@media(max-width:800px) {
+    .writer-content .framework-grid,.writer-content .artwork-workspace { grid-template-columns:minmax(0,1fr); }
+    .writer-content .artwork-library { position:static; max-height:none; padding:16px 0 0; border-left:0; border-top:1px solid #d8d1c5; }
+    .writer-content .record-toolbar label { flex-basis:100%; }
+    .writer-content .artwork-assignment-table { display:block; overflow-x:auto; }
+    .writer-content .artwork-edit-form { min-width:0; width:100%; box-sizing:border-box; }
+}
