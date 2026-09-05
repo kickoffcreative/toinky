@@ -341,7 +341,8 @@ final class InkyCowriterService
     private static function validatedCharacterKnowledge(array $input,array $allowedKeys=[],array $allowedRoles=[]): array
     {
         $summary=trim((string)($input['summary']??''));if($summary==='')throw new RuntimeException('Inky’s character-knowledge check did not include a summary.');
-        $issues=self::characterKnowledgeItems($input['issues']??null,$allowedKeys,$allowedRoles);
+        $rawIssues=$input['issues']??null;$hasNonStructural=false;if(is_array($rawIssues))foreach($rawIssues as$row){if(!is_array($row))continue;$combined=trim((string)($row['issue']??'').' '.(string)($row['evidence']??'').' '.(string)($row['fix']??''));if($combined!==''&&!self::isStructuralDiagnostic($combined)){$hasNonStructural=true;break;}}
+        $issues=self::characterKnowledgeItems($rawIssues,$allowedKeys,$allowedRoles);if($issues===[]&&$hasNonStructural)throw new RuntimeException('Inky’s character issues did not include a usable role code and stable key for a qualitative issue.');if($issues===[]&&is_array($rawIssues)&&$rawIssues!==[]&&!$hasNonStructural)$summary='No separate character-knowledge issue was identified; structural validation findings belong in Story Consistency or Dependency Problems.';
         return['summary'=>$summary,'issues'=>$issues];
     }
 
@@ -373,7 +374,7 @@ final class InkyCowriterService
 
     private static function isStructuralDiagnostic(string $text): bool
     {
-        return preg_match('/(?:invalid|undefined|not allowed|only available|unavailable).*(?:world[_ ]state|world[_ ]?s|story value|preset value|condition|effect|reference|operator)|(?:world[_ ]state|world[_ ]?s|story value|preset value|condition|effect|reference|operator).*(?:invalid|undefined|not allowed|only available|unavailable)/i',$text)===1;
+        return preg_match('/(?:invalid|undefined|not allowed|only available|unavailable|missing|lacks?|no active|inactive|unreachable).*(?:world[_ ]state|world[_ ]?s|story value|preset value|condition|effect|reference|operator|active (?:decision|choice|option|opportunit)|managed story value|dependency|ending)|(?:world[_ ]state|world[_ ]?s|story value|preset value|condition|effect|reference|operator|active (?:decision|choice|option|opportunit)|managed story value|dependency|ending).*(?:invalid|undefined|not allowed|only available|unavailable|missing|lacks?|no active|inactive|unreachable)/i',$text)===1;
     }
 
     private static function items(mixed $rows,string $textKey,bool $recommendation,array $allowedKeys=[]): array

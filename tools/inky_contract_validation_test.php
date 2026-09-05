@@ -174,6 +174,22 @@ if(count($knowledge['issues'])!==2)throw new RuntimeException('Character-knowled
 if($knowledge['issues'][0]['role_code']!=='FARAH_VALE')throw new RuntimeException('Character-knowledge role code was not normalized.');
 if($knowledge['issues'][1]['severity']!=='MEDIUM')throw new RuntimeException('Character-knowledge unknown severity was not normalized.');
 
+$structuralKnowledge=$knowledgeMethod->invoke(null,[
+    'summary'=>'The response contains invalid condition references and private knowledge issues.',
+    'issues'=>[
+        ['role_code'=>'WREN','stable_key'=>'WREN_RESCUE_GAP','severity'=>'BLOCKER','issue'=>'Invalid WORLD_STATE condition','evidence'=>'GUEST_HELPERS uses an unsupported operator.','fix'=>'Correct the authored condition.'],
+    ],
+],['WREN_RESCUE_GAP'],['WREN']);
+if($structuralKnowledge['issues']!==[]||!str_starts_with($structuralKnowledge['summary'],'No separate character-knowledge'))throw new RuntimeException('Character review did not separate structural findings from qualitative issues.');
+$failed=false;
+try{$knowledgeMethod->invoke(null,[
+    'summary'=>'A qualitative issue was reported.',
+    'issues'=>[
+        ['role_code'=>'UNKNOWN_ROLE','stable_key'=>'WREN_RESCUE_GAP','severity'=>'MEDIUM','issue'=>'The character lacks enough context for a meaningful choice.','evidence'=>'Observed evidence: the prompt does not explain the immediate goal.','fix'=>'Add player-facing context to the prompt.'],
+    ],
+],['WREN_RESCUE_GAP'],['WREN']);}catch(RuntimeException $e){$failed=str_contains($e->getMessage(),'usable role code');}
+if(!$failed)throw new RuntimeException('Character review silently discarded a malformed qualitative issue.');
+
 $failed=false;
 try{$knowledgeMethod->invoke(null,['summary'=>'','issues'=>[]]);}
 catch(RuntimeException $e){$failed=str_contains($e->getMessage(),'summary');}
