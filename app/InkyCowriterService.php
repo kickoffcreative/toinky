@@ -68,7 +68,40 @@ final class InkyCowriterService
 
     private static function reviewStableKeys(array $plot,array $workspace): array
     {
-        $keys=[];$add=static function(mixed$value)use(&$keys):void{$value=trim((string)$value);if($value!=='')$keys[]=self::stableCode($value);};$add($plot['code']??'');foreach(['locations'=>['location_code','label_text'],'state_definitions'=>['target_code'],'characters'=>['role_code'],'events'=>['event_code'],'decisions'=>['event_code','role_code'],'options'=>['option_code'],'effects'=>['option_code','target_code'],'opportunities'=>['opportunity_code'],'dynamic_conditions'=>['opportunity_code','source_key'],'dynamic_options'=>['option_code'],'dynamic_effects'=>['option_code','target_code'],'story_sections'=>['section_code'],'resolutions'=>['section_code'],'resolution_conditions'=>['section_code','state_key']]as$section=>$fields)foreach($workspace[$section]??[]as$row)foreach($fields as$field)$add($row[$field]??'');foreach($workspace['decisions']??[]as$row)$add(($row['event_code']??'').'_'.$($row['role_code']??''));foreach($workspace['options']??[]as$row)$add(($row['event_code']??'').'_'.$($row['role_code']??'').'_'.$($row['option_code']??''));return array_values(array_unique($keys));
+        $keys=[];
+        $add=static function (mixed $value) use (&$keys): void {
+            $value=trim((string)$value);
+            if($value!=='')$keys[]=self::stableCode($value);
+        };
+        $add($plot['code']??'');
+        $fieldsBySection=[
+            'locations'=>['location_code','label_text'],
+            'state_definitions'=>['target_code'],
+            'characters'=>['role_code'],
+            'events'=>['event_code'],
+            'decisions'=>['event_code','role_code'],
+            'options'=>['option_code'],
+            'effects'=>['option_code','target_code'],
+            'opportunities'=>['opportunity_code'],
+            'dynamic_conditions'=>['opportunity_code','source_key'],
+            'dynamic_options'=>['option_code'],
+            'dynamic_effects'=>['option_code','target_code'],
+            'story_sections'=>['section_code'],
+            'resolutions'=>['section_code'],
+            'resolution_conditions'=>['section_code','state_key'],
+        ];
+        foreach($fieldsBySection as $section=>$fields){
+            foreach($workspace[$section]??[] as $row){
+                foreach($fields as $field)$add($row[$field]??'');
+            }
+        }
+        foreach($workspace['decisions']??[] as $row){
+            $add((string)($row['event_code']??'').'_' . (string)($row['role_code']??''));
+        }
+        foreach($workspace['options']??[] as $row){
+            $add((string)($row['event_code']??'').'_' . (string)($row['role_code']??'').'_' . (string)($row['option_code']??''));
+        }
+        return array_values(array_unique($keys));
     }
 
     private static function reviewRoleCodes(array $workspace): array
