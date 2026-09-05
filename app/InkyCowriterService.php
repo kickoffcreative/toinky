@@ -19,7 +19,7 @@ final class InkyCowriterService
 
     private static function previousCharacterSuggestions(array $context): array
     {
-        $items=$context['previous_characters']??[];if(!is_array($items))return[];$out=[];foreach(array_slice($items,0,8)as$item){if(!is_array($item))continue;$out[]=['role_code'=>(string)($item['role_code']??''),'name'=>(string)($item['name']??''),'role_type'=>(string)($item['role_type']??''),'active'=>1,'public_description'=>(string)($item['public_description']??''),'private_knowledge'=>(string)($item['private_knowledge']??''),'goal_text'=>(string)($item['goal_text']??''),'fear_text'=>(string)($item['fear_text']??'')];}return$out;
+        $items=$context['previous_characters']??($context['suggestion_context']['previous_characters']??[]);if(!is_array($items))return[];$out=[];foreach(array_slice($items,0,8)as$item){if(!is_array($item))continue;$out[]=['role_code'=>(string)($item['role_code']??''),'name'=>(string)($item['name']??''),'role_type'=>(string)($item['role_type']??''),'active'=>1,'public_description'=>(string)($item['public_description']??''),'private_knowledge'=>(string)($item['private_knowledge']??''),'goal_text'=>(string)($item['goal_text']??''),'fear_text'=>(string)($item['fear_text']??'')];}return$out;
     }
 
     private static function characterIdentities(array $rows): array
