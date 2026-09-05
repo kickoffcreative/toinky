@@ -69,6 +69,20 @@ Implementation locations:
   character-context isolation.
 - `tools/inky_source_test.php`: regression markers for the handoff contract.
 
+## Milestone 4 - Documentation authority and Story Writer standardization
+
+**Completed 2026-09-04. Source commit: `9cf1af7`.** The shared Google
+Handoff is the primary project continuity source and the shared Story Writer's
+Guide is the primary writer-facing source. Repository documentation is their
+synchronized implementation mirror.
+
+This milestone records the standardized Story Writer navigation and layout,
+Draft with Inky proposal rules, What can I do for you? action rules, Media and
+Artwork organization, lifecycle safeguards, PHP 8.4/cPanel deployment checks,
+validation requirements, and recovery expectations. Future changes update the
+shared Google documents first, then synchronize the repository mirrors and
+record implementation/deployment state separately from authored story data.
+
 ## Latest authoring safeguard
 
 Story Writer now supports the following lifecycle:

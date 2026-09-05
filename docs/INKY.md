@@ -23,6 +23,12 @@ for editing, copying, review, and explicit approval. The proposal is saved
 through the generic authoring service only after approval, and Suggest Another
 uses the writer's live edited fields instead of an older accepted character.
 
+**Milestone 4 completed 2026-09-04: documentation authority and Story Writer
+standardization.** The shared Google Handoff and Story Writer's Guide are the
+primary sources. Their current sections record the standardized Story Writer
+navigation/layout and Inky action behavior; this repository contains the
+synchronized implementation mirrors.
+
 Completed:
 
 - Per-user settings, Disable Inky, companion naming, character selection, size,
