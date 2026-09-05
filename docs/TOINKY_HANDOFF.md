@@ -36,6 +36,9 @@ Inky v1 is active in Story Writer:
 - The current Draft with Inky and What can I do for you? action rules are
   maintained in `docs/INKY_ACTION_RULES.md`. Keep that file synchronized with
   the frontend handlers and Inky services when adding or changing actions.
+- Story Writer navigation and layout standards are maintained in
+  `docs/STORY_WRITER_UI_STANDARDS.md`, with regression coverage in
+  `tools/writer_navigation_test.php`.
 
 ## Milestone 3 — Guided Inky character authoring
 

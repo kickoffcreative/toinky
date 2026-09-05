@@ -19,14 +19,19 @@ Every new account begins with the ability to host a game and participate in one.
 
 The Story Writer workspace is intentionally ordered by dependency:
 
-1. **Overview** — premise, setting, genre, player capacity, and shared scenario.
+1. **Story Framework** — premise, setting, genre, player capacity, shared scenario, guided answers, locations, and reusable story values.
 2. **Characters** — public identity, private stakes, pronouns, starting location, and initial goal.
-3. **Timeline** — fixed world events in chronological order.
+3. **Events** — fixed world events in chronological order.
 4. **Decisions** — the character prompted by each event, legal options, narrative results, and ordered state/factor/location/knowledge effects.
-5. **Story Map** — a readable event → decision → option → effect graph, plus state-driven opportunities, their AND conditions, choices, and effects.
+5. **Map, Dependencies, Opportunities** — a readable event → decision → option → effect graph, plus state-driven opportunities, their AND conditions, choices, and effects.
 6. **Endings** — ordered resolution fragments and the state conditions that select them.
-7. **Artwork** — optional writer-uploaded images aligned to characters, openings, scenes, turning points, outcomes, and endings.
+7. **Media** — the Media Library and Artwork sub-tabs for optional writer-uploaded images aligned to characters, openings, scenes, turning points, outcomes, and endings.
 8. **Administrator validation** — only administrators can open **Validate & Submit**, run blocking structural checks, generate the reviewer-ready package, and freeze a numbered revision for review.
+
+The detailed navigation and layout standard is in
+[docs/STORY_WRITER_UI_STANDARDS.md](STORY_WRITER_UI_STANDARDS.md). It defines
+the common sub-tab, Quick Add / Edit Story Values, filter, record, responsive,
+and accessibility behavior for every Story Writer view.
 
 When the draft is ready, the writer asks an administrator to validate it. The administrator runs **Validate & Submit**, resolves any blocking findings with the writer, and creates an immutable numbered revision. An administrator reviews that exact snapshot, then requests changes, approves, publishes, or archives it. Later edits do not silently alter the submitted revision.
 

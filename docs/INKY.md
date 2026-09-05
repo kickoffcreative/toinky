@@ -76,6 +76,10 @@ the What can I do for you? assistant menu are in
 [docs/INKY_ACTION_RULES.md](INKY_ACTION_RULES.md). Keep that document aligned
 with the frontend handlers and server contracts.
 
+The Story Writer navigation, shared Quick Add / Edit and filter controls,
+record layout, Media sub-tabs, and responsive standards are maintained in
+[docs/STORY_WRITER_UI_STANDARDS.md](STORY_WRITER_UI_STANDARDS.md).
+
 ## Product principles
 
 - Inky is optional. Every authenticated user can enable or disable it from My
