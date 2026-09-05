@@ -147,9 +147,10 @@ keys and excludes pending, rejected, and accepted items so a declined result
 is not repeated until the available range is exhausted.
 
 Improve Story reviews are read-only for both draft and published stories. The
-review service uses the readable current package and compacts oversized audit
-history before sending it to the AI. A review response never mutates authored
-data. A completed or healthy story may return a summary with no actionable
+review service uses the readable current package and builds an action-specific
+bounded checklist package before sending it to the AI; the serialized package
+is capped at 14,000 characters. A review response never mutates authored data.
+A completed or healthy story may return a summary with no actionable
 items; the server accepts those empty result arrays and the UI reports that no
 specific items were identified. Missing summaries, malformed JSON, and invalid
 item data remain incomplete-response errors.

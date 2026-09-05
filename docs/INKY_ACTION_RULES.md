@@ -166,8 +166,11 @@ This is the primary Inky assistant menu. Its current Story Writer actions are:
   request, and a full range reports exhaustion instead of repeating the same
   record. All proposal buttons remain disabled while an AI request is active.
 - Published-story Improve Story reviews remain read-only. They use the
-  readable current story package and a bounded audit package, so review size
-  cannot prevent feedback when a published story has a large history.
+  readable current story package and an action-specific bounded review package,
+  so each request receives the fields and checklist needed for that review
+  instead of the entire authored data package. The serialized package is
+  capped at 14,000 characters; if needed, the server reduces optional row
+  counts and prose while retaining the request checklist and stable-key fields.
 - A completed or otherwise healthy story may legitimately have no actionable
   findings. In that case the AI must still return a summary, the server keeps
   the relevant result arrays empty, and the UI states that no specific items
