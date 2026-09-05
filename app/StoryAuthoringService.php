@@ -334,6 +334,11 @@ final class StoryAuthoringService
         $activeCharacters=array_values(array_filter($workspace['characters'],static fn($x)=>(int)($x['active']??1)===1));$activeDecisions=array_values(array_filter($workspace['decisions'],static fn($x)=>(int)($x['active']??1)===1));
         if(!$activeCharacters)$errors[]='Add at least one active playable character.';
         foreach($activeCharacters as$c){$missing=[];foreach(['name','public_description','starting_location','goal_text','pronoun_set']as$f)if(trim((string)($c[$f]??''))==='')$missing[]=$f;if($missing)$errors[]=$c['role_code'].' is missing '.implode(', ',$missing).'.';}
+        $endsWithComma=static fn(mixed$value): bool=>preg_match('/,\s*$/u',trim((string)$value))===1;
+        foreach($workspace['locations']as$location)if((int)($location['active']??1)===1&&$endsWithComma($location['description']??''))$warnings[]=$location['location_code'].' description appears truncated at a comma.';
+        foreach($workspace['events']as$event)if((int)($event['active']??1)===1&&$endsWithComma($event['event_text']??''))$warnings[]=$event['event_code'].' event_text appears truncated at a comma.';
+        foreach($workspace['options']as$option)if((int)($option['active']??1)===1&&$endsWithComma($option['result_text']??''))$warnings[]=$option['option_code'].' result_text appears truncated at a comma.';
+        foreach($workspace['resolutions']as$resolution)if((int)($resolution['active']??1)===1&&$endsWithComma($resolution['fragment_text']??''))$warnings[]=$resolution['section_code'].' fragment_text appears truncated at a comma.';
         if(!$workspace['events'])$errors[]='Add a chronological world-event schedule.';
         if(!$activeDecisions)$errors[]='Add at least one active decision opportunity.';
         foreach($activeDecisions as$d)if((int)$d['option_count']<2)$errors[]=$d['event_code'].' / '.$d['role_code'].' needs at least two active options.';
