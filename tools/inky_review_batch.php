@@ -60,7 +60,10 @@ $countItems=static function(array$result): int{
         if(!isset($result[$key])||!is_array($result[$key]))continue;
         foreach(['steps','recommendations','issues','opportunities','problems','checks','tests']as$list)if(isset($result[$key][$list])&&is_array($result[$key][$list]))return count($result[$key][$list]);
     }
-    if(isset($result['scenario_map']['combination_count'])&&$result['scenario_map']['combination_count']!==null)return(int)$result['scenario_map']['combination_count'];
+    if(isset($result['scenario_map'])){
+        if((int)($result['scenario_map']['decision_count']??0)===0)return 0;
+        return(int)($result['scenario_map']['combination_count']??$result['scenario_map']['decision_count']);
+    }
     return 0;
 };
 $summaryText=static function(array$result): string{
