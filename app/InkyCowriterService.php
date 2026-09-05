@@ -341,7 +341,7 @@ final class InkyCowriterService
     private static function validatedCharacterKnowledge(array $input,array $allowedKeys=[],array $allowedRoles=[]): array
     {
         $summary=trim((string)($input['summary']??''));if($summary==='')throw new RuntimeException('Inky’s character-knowledge check did not include a summary.');
-        $rawIssues=$input['issues']??null;$hasNonStructural=false;if(is_array($rawIssues))foreach($rawIssues as$row){if(!is_array($row))continue;$combined=trim((string)($row['issue']??'').' '.(string)($row['evidence']??'').' '.(string)($row['fix']??''));if($combined!==''&&!self::isStructuralDiagnostic($combined)){$hasNonStructural=true;break;}}
+        $rawIssues=$input['issues']??null;$hasNonStructural=false;if(is_array($rawIssues))foreach($rawIssues as$row){if(!is_array($row))continue;$combined=trim((string)($row['issue']??'').' '.(string)($row['evidence']??'').' '.(string)($row['fix']??''));if($combined!==''&&!self::isStructuralDiagnostic($combined)&&!self::isPresentationDiagnostic($combined)){$hasNonStructural=true;break;}}
         $issues=self::characterKnowledgeItems($rawIssues,$allowedKeys,$allowedRoles);if($issues===[]&&$hasNonStructural)throw new RuntimeException('Inky’s character issues did not include a usable role code and stable key for a qualitative issue.');if($issues===[]&&is_array($rawIssues)&&$rawIssues!==[]&&!$hasNonStructural)$summary='No separate character-knowledge issue was identified; structural validation findings belong in Story Consistency or Dependency Problems.';if(self::isStructuralDiagnostic($summary))$summary=$issues!==[]?'The character review identified separate knowledge and viewpoint improvements after structural validation was excluded.':'No separate character-knowledge issue was identified; structural validation findings belong in Story Consistency or Dependency Problems.';
         return['summary'=>$summary,'issues'=>$issues];
     }
@@ -375,6 +375,11 @@ final class InkyCowriterService
     private static function isStructuralDiagnostic(string $text): bool
     {
         return preg_match('/(?:structural|invalid|undefined|not allowed|only available|unavailable|missing|lacks?|no active|inactive|unreachable|incomplete|underdeveloped).*(?:validation|world[_ ]state|world[_ ]?s|story value|preset value|condition|effect|reference|operator|active (?:decision|choice|option|opportunit)|managed story value|dependency|ending|section|story package|word count)|(?:validation|world[_ ]state|world[_ ]?s|story value|preset value|condition|effect|reference|operator|active (?:decision|choice|option|opportunit)|managed story value|dependency|ending|section|story package|word count).*(?:structural|invalid|undefined|not allowed|only available|unavailable|missing|lacks?|no active|inactive|unreachable|incomplete|underdeveloped)/i',$text)===1;
+    }
+
+    private static function isPresentationDiagnostic(string $text): bool
+    {
+        return preg_match('/artwork|story image|active image .*alternative text|alternative text|media asset/i',$text)===1;
     }
 
     private static function items(mixed $rows,string $textKey,bool $recommendation,array $allowedKeys=[]): array
@@ -423,7 +428,7 @@ final class InkyCowriterService
 
     private static function characterKnowledgeItems(mixed $rows,array $allowedKeys=[],array $allowedRoles=[]): array
     {
-        if(!is_array($rows))return[];$severities=['BLOCKER','HIGH','MEDIUM','LOW'];$out=[];foreach($rows as$row){if(!is_array($row))continue;$role=self::stableCode((string)($row['role_code']??''));$key=self::stableCode((string)($row['stable_key']??''));$issue=trim((string)($row['issue']??''));$evidence=trim((string)($row['evidence']??''));$fix=trim((string)($row['fix']??''));if($role===''||$key===''||$issue===''||$evidence===''||$fix===''||($allowedKeys&&!in_array($key,$allowedKeys,true))||($allowedRoles&&!in_array($role,$allowedRoles,true)))continue;$combined=$issue.' '.$evidence.' '.$fix;if(preg_match('/world_state|story value|preset value|invalid .*condition|undefined .*value|compare_value|operator/i',$combined)===1)continue;$severity=strtoupper(trim((string)($row['severity']??'MEDIUM')));if(!in_array($severity,$severities,true))$severity='MEDIUM';$out[]=['role_code'=>$role,'stable_key'=>$key,'severity'=>$severity,'issue'=>$issue,'evidence'=>$evidence,'fix'=>$fix];if(count($out)>=8)break;}return$out;
+        if(!is_array($rows))return[];$severities=['BLOCKER','HIGH','MEDIUM','LOW'];$out=[];foreach($rows as$row){if(!is_array($row))continue;$role=self::stableCode((string)($row['role_code']??''));$key=self::stableCode((string)($row['stable_key']??''));$issue=trim((string)($row['issue']??''));$evidence=trim((string)($row['evidence']??''));$fix=trim((string)($row['fix']??''));if($role===''||$key===''||$issue===''||$evidence===''||$fix===''||($allowedKeys&&!in_array($key,$allowedKeys,true))||($allowedRoles&&!in_array($role,$allowedRoles,true)))continue;$combined=$issue.' '.$evidence.' '.$fix;if(self::isStructuralDiagnostic($combined)||self::isPresentationDiagnostic($combined))continue;$severity=strtoupper(trim((string)($row['severity']??'MEDIUM')));if(!in_array($severity,$severities,true))$severity='MEDIUM';$out[]=['role_code'=>$role,'stable_key'=>$key,'severity'=>$severity,'issue'=>$issue,'evidence'=>$evidence,'fix'=>$fix];if(count($out)>=8)break;}return$out;
     }
 
     private static function storyValueItems(mixed $rows,array $allowedKeys=[]): array

@@ -178,8 +178,9 @@ $structuralKnowledge=$knowledgeMethod->invoke(null,[
     'summary'=>'The response contains invalid condition references and private knowledge issues.',
     'issues'=>[
         ['role_code'=>'WREN','stable_key'=>'WREN_RESCUE_GAP','severity'=>'BLOCKER','issue'=>'Invalid WORLD_STATE condition','evidence'=>'GUEST_HELPERS uses an unsupported operator.','fix'=>'Correct the authored condition.'],
+        ['role_code'=>'GENERAL','stable_key'=>'WALL_SHIFT','severity'=>'LOW','issue'=>'Missing story artwork','evidence'=>'No story artwork has been uploaded.','fix'=>'Upload the story artwork.'],
     ],
-],['WREN_RESCUE_GAP'],['WREN']);
+],['WREN_RESCUE_GAP','WALL_SHIFT'],['WREN','GENERAL']);
 if($structuralKnowledge['issues']!==[]||!str_starts_with($structuralKnowledge['summary'],'No separate character-knowledge'))throw new RuntimeException('Character review did not separate structural findings from qualitative issues.');
 $structuralOpportunity=$opportunityMethod->invoke(null,[
     'summary'=>'The review identifies several structural issues with conditions and effects in the opportunities.',
