@@ -149,7 +149,10 @@ is not repeated until the available range is exhausted.
 Improve Story reviews are read-only for both draft and published stories. The
 review service uses the readable current package and compacts oversized audit
 history before sending it to the AI. A review response never mutates authored
-data, and a bounded or incomplete response cannot be saved.
+data. A completed or healthy story may return a summary with no actionable
+items; the server accepts those empty result arrays and the UI reports that no
+specific items were identified. Missing summaries, malformed JSON, and invalid
+item data remain incomplete-response errors.
 
 ### Character proposal handoff
 

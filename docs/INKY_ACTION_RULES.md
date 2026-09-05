@@ -168,6 +168,11 @@ This is the primary Inky assistant menu. Its current Story Writer actions are:
 - Published-story Improve Story reviews remain read-only. They use the
   readable current story package and a bounded audit package, so review size
   cannot prevent feedback when a published story has a large history.
+- A completed or otherwise healthy story may legitimately have no actionable
+  findings. In that case the AI must still return a summary, the server keeps
+  the relevant result arrays empty, and the UI states that no specific items
+  were identified. Empty findings are not treated as an incomplete response;
+  missing summaries, malformed JSON, and invalid item data remain errors.
 
 ## Change rule
 

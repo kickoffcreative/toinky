@@ -138,56 +138,56 @@ final class InkyCowriterService
     private static function validatedReview(array $input): array
     {
         $summary=trim((string)($input['summary']??''));if($summary==='')throw new RuntimeException('Inky’s review did not include a summary.');
-        $observed=self::items($input['observed_evidence']??null,'finding',false);$inferences=self::items($input['inferences']??null,'inference',false);$recommendations=self::items($input['recommendations']??null,'recommendation',true);if(!$observed||!$recommendations)throw new RuntimeException('Inky’s review did not include the required evidence and recommendations.');
+        $observed=self::items($input['observed_evidence']??null,'finding',false);$inferences=self::items($input['inferences']??null,'inference',false);$recommendations=self::items($input['recommendations']??null,'recommendation',true);
         return['summary'=>$summary,'observed_evidence'=>$observed,'inferences'=>$inferences,'recommendations'=>$recommendations];
     }
 
     private static function validatedNextSteps(array $input): array
     {
         $summary=trim((string)($input['summary']??''));if($summary==='')throw new RuntimeException('Inky’s next-step guidance did not include a summary.');
-        $steps=self::nextStepItems($input['steps']??null);if(!$steps)throw new RuntimeException('Inky’s next-step guidance did not include usable steps.');
+        $steps=self::nextStepItems($input['steps']??null);
         return['summary'=>$summary,'steps'=>$steps];
     }
 
     private static function validatedQualityCheck(array $input): array
     {
         $summary=trim((string)($input['summary']??''));if($summary==='')throw new RuntimeException('Inky’s quality check did not include a summary.');
-        $checks=self::qualityCheckItems($input['checks']??null);if(!$checks)throw new RuntimeException('Inky’s quality check did not include usable checks.');
+        $checks=self::qualityCheckItems($input['checks']??null);
         return['summary'=>$summary,'checks'=>$checks];
     }
 
     private static function validatedDependencyCheck(array $input): array
     {
         $summary=trim((string)($input['summary']??''));if($summary==='')throw new RuntimeException('Inky’s dependency check did not include a summary.');
-        $problems=self::dependencyItems($input['problems']??null);if(!$problems)throw new RuntimeException('Inky’s dependency check did not include usable problems.');
+        $problems=self::dependencyItems($input['problems']??null);
         return['summary'=>$summary,'problems'=>$problems];
     }
 
     private static function validatedCharacterKnowledge(array $input): array
     {
         $summary=trim((string)($input['summary']??''));if($summary==='')throw new RuntimeException('Inky’s character-knowledge check did not include a summary.');
-        $issues=self::characterKnowledgeItems($input['issues']??null);if(!$issues)throw new RuntimeException('Inky’s character-knowledge check did not include usable issues.');
+        $issues=self::characterKnowledgeItems($input['issues']??null);
         return['summary'=>$summary,'issues'=>$issues];
     }
 
     private static function validatedStoryValues(array $input): array
     {
         $summary=trim((string)($input['summary']??''));if($summary==='')throw new RuntimeException('Inky’s story-value suggestions did not include a summary.');
-        $suggestions=self::storyValueItems($input['suggestions']??null);if(!$suggestions)throw new RuntimeException('Inky’s story-value suggestions did not include usable suggestions.');
+        $suggestions=self::storyValueItems($input['suggestions']??null);
         return['summary'=>$summary,'suggestions'=>$suggestions];
     }
 
     private static function validatedOpportunityReview(array $input): array
     {
         $summary=trim((string)($input['summary']??''));if($summary==='')throw new RuntimeException('Inky’s opportunity review did not include a summary.');
-        $opportunities=self::opportunityItems($input['opportunities']??null);if(!$opportunities)throw new RuntimeException('Inky’s opportunity review did not include usable items.');
+        $opportunities=self::opportunityItems($input['opportunities']??null);
         return['summary'=>$summary,'opportunities'=>$opportunities];
     }
 
     private static function validatedFocusedTests(array $input): array
     {
         $summary=trim((string)($input['summary']??''));if($summary==='')throw new RuntimeException('Inky’s focused-test plan did not include a summary.');
-        $tests=self::focusedTestItems($input['tests']??null);if(!$tests)throw new RuntimeException('Inky’s focused-test plan did not include usable tests.');
+        $tests=self::focusedTestItems($input['tests']??null);
         return['summary'=>$summary,'tests'=>$tests];
     }
 

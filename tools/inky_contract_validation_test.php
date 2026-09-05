@@ -17,6 +17,8 @@ if($decoded['summary']!=='Block content')throw new RuntimeException('AI structur
 
 $method=new ReflectionMethod(InkyCowriterService::class,'validatedNextSteps');
 $method->setAccessible(true);
+$reviewMethod=new ReflectionMethod(InkyCowriterService::class,'validatedReview');
+$reviewMethod->setAccessible(true);
 $qualityMethod=new ReflectionMethod(InkyCowriterService::class,'validatedQualityCheck');
 $qualityMethod->setAccessible(true);
 $dependencyMethod=new ReflectionMethod(InkyCowriterService::class,'validatedDependencyCheck');
@@ -33,6 +35,19 @@ $focusedMethod=new ReflectionMethod(InkyCowriterService::class,'validatedFocused
 $focusedMethod->setAccessible(true);
 $characterSuggestionMethod=new ReflectionMethod(InkyCowriterService::class,'validatedCharacterSuggestion');
 $characterSuggestionMethod->setAccessible(true);
+
+$emptyReview=$reviewMethod->invoke(null,['summary'=>'The completed story has no specific review findings.','observed_evidence'=>[],'inferences'=>[],'recommendations'=>[]]);
+if($emptyReview['summary']===''||$emptyReview['observed_evidence']!==[]||$emptyReview['recommendations']!==[])throw new RuntimeException('Completed-story review did not accept a valid no-findings response.');
+$emptyContracts=[
+    [$method,['summary'=>'No next-step gaps were identified.','steps'=>[]]],
+    [$qualityMethod,['summary'=>'No quality concerns were identified.','checks'=>[]]],
+    [$dependencyMethod,['summary'=>'No dependency problems were identified.','problems'=>[]]],
+    [$knowledgeMethod,['summary'=>'No character knowledge issues were identified.','issues'=>[]]],
+    [$valueMethod,['summary'=>'No additional Story Framework values were identified.','suggestions'=>[]]],
+    [$opportunityMethod,['summary'=>'No opportunity issues were identified.','opportunities'=>[]]],
+    [$focusedMethod,['summary'=>'No focused tests were identified.','tests'=>[]]],
+];
+foreach($emptyContracts as[$validator,$payload]){$empty=$validator->invoke(null,$payload);if(trim((string)$empty['summary'])==='')throw new RuntimeException('A completed-story empty review lost its summary.');}
 
 $characterSuggestion=$characterSuggestionMethod->invoke(null,[
     'summary'=>'A cautious cartographer can join the expedition.',
