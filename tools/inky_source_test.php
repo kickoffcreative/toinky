@@ -65,6 +65,7 @@ foreach([
     "'quality_check'=>['label'=>'Quality Check','implemented'=>true]",
     "'dependencies'=>['label'=>'Find Dependency Problems','implemented'=>true]",
     'data-inky-next-actions',
+    'data-inky-action="review_consistency"',
     'data-inky-action="review_plot"',
     'data-inky-action="review_characters"',
     'data-inky-action="review_opportunities"',
@@ -94,6 +95,8 @@ foreach([
     'nextToggle',
     "action==='guide_story'",
     "action==='quality_check'",
+    "action==='review_consistency'",
+    "renderReview(data,'Story Consistency Review')",
     "renderQualityCheck",
     "action==='dependencies'",
     "renderDependencyCheck",
@@ -104,6 +107,8 @@ foreach([
     "action==='focused_tests'",
     "renderFocusedTests",
 ]as$required)if(!str_contains($script,$required))throw new RuntimeException('Inky browser behavior is missing '.$required.'.');
+foreach(['review_consistency','review_plot','review_characters','review_opportunities','dependencies','quality_check','focused_tests']as$action){if(strpos($component,'data-inky-action="'.$action.'"')===false)throw new RuntimeException('Inky review action is missing '.$action.'.');}
+$reviewOrder=['review_consistency','review_plot','review_characters','review_opportunities','dependencies','quality_check','focused_tests'];$positions=[];foreach($reviewOrder as$action)$positions[]=strpos($component,'data-inky-action="'.$action.'"');for($i=1;$i<count($positions);$i++)if($positions[$i]<$positions[$i-1])throw new RuntimeException('Inky review actions are out of order.');
  foreach(['Next Suggestion','Suggest A Character','Suggest a Story Value','requestCharacterSuggestion','requestStoryValueSuggestion','action:\'suggest_character\'','character_suggestion','toinkyCancelRequest','data-inky-cancel','inky-guide-proposal-tools','MutationObserver']as$required)if(!str_contains($script.$component,$required))throw new RuntimeException('Inky guided continuation behavior is missing '.$required.'.');
 foreach(['grid-template-columns:minmax(0,1fr) minmax(260px,340px)','position:static!important','inky-side-right.has-character-suggestion','@media(max-width:700px)']as$required)if(!str_contains($characterLayoutStyle,$required))throw new RuntimeException('Inky character suggestion layout is missing '.$required.'.');
 if(str_contains($script,'Open Characters to review and save'))throw new RuntimeException('The character suggestion must use the Continue Story approval flow.');
