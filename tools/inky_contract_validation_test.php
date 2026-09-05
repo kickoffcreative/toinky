@@ -181,6 +181,20 @@ $structuralKnowledge=$knowledgeMethod->invoke(null,[
     ],
 ],['WREN_RESCUE_GAP'],['WREN']);
 if($structuralKnowledge['issues']!==[]||!str_starts_with($structuralKnowledge['summary'],'No separate character-knowledge'))throw new RuntimeException('Character review did not separate structural findings from qualitative issues.');
+$structuralOpportunity=$opportunityMethod->invoke(null,[
+    'summary'=>'The review identifies several structural issues with conditions and effects in the opportunities.',
+    'opportunities'=>[
+        ['opportunity_code'=>'WREN_RESCUE_GAP','stable_key'=>'WREN_RESCUE_GAP','severity'=>'BLOCKER','finding'=>'Invalid WORLD_STATE reference.','recommendation'=>'Correct the condition reference.'],
+    ],
+],['WREN_RESCUE_GAP'],['WREN_RESCUE_GAP']);
+if($structuralOpportunity['opportunities']!==[]||!str_starts_with($structuralOpportunity['summary'],'No separate opportunity-quality'))throw new RuntimeException('Opportunity review did not separate structural findings from qualitative issues.');
+$structuralQuality=$qualityMethod->invoke(null,[
+    'summary'=>'The quality review found structural validation issues with the story package.',
+    'checks'=>[
+        ['category'=>'dependency_coverage','score'=>2,'stable_key'=>'WREN_RESCUE_GAP','note'=>'Invalid WORLD_STATE condition.','improvement'=>'Fix the authored condition.'],
+    ],
+],['WREN_RESCUE_GAP']);
+if($structuralQuality['checks']!==[]||!str_starts_with($structuralQuality['summary'],'No separate qualitative quality'))throw new RuntimeException('Quality review did not separate structural findings from qualitative issues.');
 $failed=false;
 try{$knowledgeMethod->invoke(null,[
     'summary'=>'A qualitative issue was reported.',
