@@ -150,6 +150,25 @@ This is the primary Inky assistant menu. Its current Story Writer actions are:
   stable keys. A malformed, incomplete, timed-out, or cancelled response is
   shown as an error and cannot mutate authored data.
 
+## Current draft-context update
+
+- Continue Draft with Inky renders active Story Framework values together with
+  accepted guided additions, so values authored directly in Story Writer are
+  not hidden from the draft composer.
+- The Continue Draft controls include **Suggest a Location**, **Suggest an
+  Event**, and **Suggest a Decision**. These controls use the live bounded
+  draft package, including active values, locations, characters, events, and
+  decisions. A new location or event is saved only after **Accept and Save**;
+  a new decision binds to an existing event and character and saves its two
+  options as one reviewed proposal.
+- Entity proposal keys advance from the existing records and the current
+  browser cycle. A pending or rejected suggestion is excluded from the next
+  request, and a full range reports exhaustion instead of repeating the same
+  record. All proposal buttons remain disabled while an AI request is active.
+- Published-story Improve Story reviews remain read-only. They use the
+  readable current story package and a bounded audit package, so review size
+  cannot prevent feedback when a published story has a large history.
+
 ## Change rule
 
 Any future Draft proposal or assistant-menu action must define its trigger,

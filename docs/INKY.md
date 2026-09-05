@@ -134,6 +134,23 @@ context, one understandable question or task at a time, a structured result,
 visible review, explicit approval, server validation, and existing generic
 authoring services for persistence.
 
+### Current draft-context and published-review rules
+
+Continue Draft with Inky groups all active Story Framework values, including
+values added directly from Story Writer, alongside accepted guided entries.
+Its proposal controls also include Suggest a Location, Suggest an Event, and
+Suggest a Decision. Each request receives a bounded live package of the active
+values, locations, characters, events, and decisions. New locations and events
+are proposals until explicit acceptance; decisions bind to an existing event
+and character and save both options together. The browser advances proposal
+keys and excludes pending, rejected, and accepted items so a declined result
+is not repeated until the available range is exhausted.
+
+Improve Story reviews are read-only for both draft and published stories. The
+review service uses the readable current package and compacts oversized audit
+history before sending it to the AI. A review response never mutates authored
+data, and a bounded or incomplete response cannot be saved.
+
 ### Character proposal handoff
 
 The character suggestion workflow has one save boundary. Inky may suggest a

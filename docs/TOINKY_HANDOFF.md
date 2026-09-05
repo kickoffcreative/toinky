@@ -38,6 +38,16 @@ Inky v1 is active in Story Writer:
 - The current Draft with Inky and What can I do for you? action rules are
   maintained in `docs/INKY_ACTION_RULES.md`. Keep that file synchronized with
   the frontend handlers and Inky services when adding or changing actions.
+- Continue Draft now sends a bounded live package containing direct Story
+  Framework values, locations, characters, events, and decisions, and displays
+  those values in a grouped Story Framework Values section.
+- Suggest a Location, Suggest an Event, and Suggest a Decision use advancing
+  proposal keys, exclude declined or accepted repeats, and save only through
+  explicit approval and generic authoring validation. Decisions attach to an
+  existing event and character and include both options.
+- Improve Story reviews remain advice-only for published stories. Oversized
+  audit history is compacted before the AI request so readable published
+  packages still receive feedback.
 - Story Writer navigation and layout standards are maintained in
   `docs/STORY_WRITER_UI_STANDARDS.md`, with regression coverage in
   `tools/writer_navigation_test.php`.
