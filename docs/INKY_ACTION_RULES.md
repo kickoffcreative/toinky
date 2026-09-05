@@ -102,13 +102,16 @@ This is the primary Inky assistant menu. Its current Story Writer actions are:
 - **Continue "[Story Title]" Draft with [companion name]** opens saved guide
   progress for the current story and exposes the three Draft proposal controls
   above.
-- **Improve Story** contains the read-only review actions: Review Plot, Review
-  Characters, Review Opportunities, Find Dependency Problems, Quality Check,
-  and Prepare Focus Tests.
+- **Improve Story** contains the read-only review actions: Review Story
+  Consistency, Show Scenario Map, Review Plot, Review Characters, Review
+  Opportunities, Find Dependency Problems, Quality Check, and Prepare Focus
+  Tests.
 
 ### Menu availability
 
-- Every action requires an implemented contract and a healthy Inky connection.
+- Every action requires an implemented contract and an accessible story. AI
+  actions additionally require a healthy Inky connection. Show Scenario Map is
+  deterministic and remains available even when the AI connection is offline.
 - Review Plot requires a story package. Review Characters requires authored
   characters. Review Opportunities requires authored opportunities.
 - Find Dependency Problems, Quality Check, and Prepare Focus Tests do not need
@@ -146,6 +149,13 @@ This is the primary Inky assistant menu. Its current Story Writer actions are:
   - **Focused Tests** returns an advice-only validation plan using existing
     validation and Simulation Lab workflows. A seeded focused test proves a
     local branch from a manufactured state, not organic reachability.
+  - **Show Scenario Map** is a deterministic, read-only authoring view. It does
+    not call AI, run simulations, or save data. It lists active decisions in
+    event order, every authored option and effect, conditional opportunity
+    triggers and choices, ending conditions, and authored combinations of
+    active decision options. The combination list is capped at 256 paths and
+    the rendered map at 48,000 characters. When a story exceeds either limit,
+    the decision nodes remain visible and the omitted portion is labeled.
 - Structured output must distinguish observed evidence from inference and cite
   stable keys. A malformed, incomplete, timed-out, or cancelled response is
   shown as an error and cannot mutate authored data.

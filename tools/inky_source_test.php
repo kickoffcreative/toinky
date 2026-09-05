@@ -67,6 +67,7 @@ foreach([
     "'dependencies'=>['label'=>'Find Dependency Problems','implemented'=>true]",
     'data-inky-next-actions',
     'data-inky-action="review_consistency"',
+    'data-inky-action="scenario_map"',
     'data-inky-action="review_plot"',
     'data-inky-action="review_characters"',
     'data-inky-action="review_opportunities"',
@@ -100,6 +101,8 @@ foreach([
     "action==='guide_story'",
     "action==='quality_check'",
     "action==='review_consistency'",
+    "action==='scenario_map'",
+    "renderScenarioMap",
     "renderReview(data,'Story Consistency Review')",
     "renderQualityCheck",
     "action==='dependencies'",
@@ -111,8 +114,8 @@ foreach([
     "action==='focused_tests'",
     "renderFocusedTests",
 ]as$required)if(!str_contains($script,$required))throw new RuntimeException('Inky browser behavior is missing '.$required.'.');
-foreach(['review_consistency','review_plot','review_characters','review_opportunities','dependencies','quality_check','focused_tests']as$action){if(strpos($component,'data-inky-action="'.$action.'"')===false)throw new RuntimeException('Inky review action is missing '.$action.'.');}
-$reviewOrder=['review_consistency','review_plot','review_characters','review_opportunities','dependencies','quality_check','focused_tests'];$positions=[];foreach($reviewOrder as$action)$positions[]=strpos($component,'data-inky-action="'.$action.'"');for($i=1;$i<count($positions);$i++)if($positions[$i]<$positions[$i-1])throw new RuntimeException('Inky review actions are out of order.');
+foreach(['review_consistency','scenario_map','review_plot','review_characters','review_opportunities','dependencies','quality_check','focused_tests']as$action){if(strpos($component,'data-inky-action="'.$action.'"')===false)throw new RuntimeException('Inky review action is missing '.$action.'.');}
+$reviewOrder=['review_consistency','scenario_map','review_plot','review_characters','review_opportunities','dependencies','quality_check','focused_tests'];$positions=[];foreach($reviewOrder as$action)$positions[]=strpos($component,'data-inky-action="'.$action.'"');for($i=1;$i<count($positions);$i++)if($positions[$i]<$positions[$i-1])throw new RuntimeException('Inky review actions are out of order.');
  foreach(['Next Suggestion','Suggest A Character','Suggest a Story Value','requestCharacterSuggestion','requestStoryValueSuggestion',"actionPost('suggest_character')",'character_suggestion','toinkyCancelRequest','data-inky-cancel','inky-guide-proposal-tools','MutationObserver']as$required)if(!str_contains($script.$component.$guideScript,$required))throw new RuntimeException('Inky guided continuation behavior is missing '.$required.'.');
 foreach(['grid-template-columns:minmax(0,1fr) minmax(260px,340px)','position:static!important','inky-side-right.has-character-suggestion','@media(max-width:700px)']as$required)if(!str_contains($characterLayoutStyle,$required))throw new RuntimeException('Inky character suggestion layout is missing '.$required.'.');
 if(str_contains($script,'Open Characters to review and save'))throw new RuntimeException('The character suggestion must use the Continue Story approval flow.');
@@ -143,6 +146,7 @@ foreach(['INKY_CHARACTER_KNOWLEDGE','validatedCharacterKnowledge','non-privilege
 foreach(['INKY_STORY_VALUES','validatedStoryValues','database-authored story values','allowed_values']as$required)if(!str_contains($cowriter,$required))throw new RuntimeException('Story Values contract is missing '.$required.'.');
 foreach(['INKY_OPPORTUNITY_REVIEW','validatedOpportunityReview','AI rationale guidance','condition/effect fit','targetFocus']as$required)if(!str_contains($cowriter,$required))throw new RuntimeException('Opportunity Review contract is missing '.$required.'.');
 foreach(['INKY_FOCUSED_TESTS','validatedFocusedTests','Game2 Simulation Lab workflows','seeded focused opportunity test','EXACT_STABLE_KEY_FROM_PACKAGE']as$required)if(!str_contains($cowriter,$required))throw new RuntimeException('Focused Tests contract is missing '.$required.'.');
+foreach(['scenario_map','MAX_SCENARIO_PATHS','MAX_SCENARIO_MAP_CHARS','scenarioMap','SCENARIO POSSIBILITY MAP','AUTHORED DECISION COMBINATIONS']as$required)if(!str_contains($cowriter.$component.$script.$batchTool.$docs,$required))throw new RuntimeException('Scenario map support is missing '.$required.'.');
  foreach(['INKY_SUGGEST_CHARACTER','suggestCharacter','validatedCharacterSuggestion','characterSuggestionContext','guideDraftState','explicitCharacterCandidates','FULL DRAFT CONTEXT','EXPLICITLY IDENTIFIED CHARACTER CANDIDATES','accepted_guided_proposals','full_review_package','preferredNames','available Story Framework slots','EXISTING CHARACTER IDENTITIES (DO NOT COPY THEIR PROSE)','PREVIOUSLY SUGGESTED CHARACTER NAMES AND CODES (FORBIDDEN','reused an existing character profile','starting_location']as$required)if(!str_contains($cowriter,$required))throw new RuntimeException('Suggest Character contract is missing '.$required.'.');
 foreach(["`What's Next?` is the second implemented vertical slice",'Every step must cite a stable key','MANUAL STRUCTURAL REVIEW','`Quality Check My Work` is the third implemented vertical slice','scored checks for','`Find Dependency Problems` is the fourth implemented vertical slice','recommend an authored-data fix','`Check Character Knowledge` is the fifth implemented vertical slice','cite a character role code','`Suggest Story Values` is the sixth implemented vertical slice','does not change schema or PHP','`Review This Opportunity` is the seventh implemented vertical slice','prompt clarity, player agency','stable focus code','`Prepare Focused Tests` is the eighth implemented vertical slice','not proof of organic reachability','companion name, model','passive nudge','does not auto-open the panel','auto-run AI actions','Only When Clicked','Octopus is the default selectable','default floating artwork should read as the Octopus','moves the saved anchor to that side','open navigation drawer instead of hiding behind it','must remain transparent','Lantern preserves','Squid preserves','Catalog labels should describe character types']as$required)if(!str_contains($docs,$required))throw new RuntimeException('Inky documentation is missing '.$required.'.');
 foreach(['AuthService::requireWriter','AuthService::requireCsrf','InkyCowriterService::run']as$required)if(!str_contains($actionEndpoint,$required))throw new RuntimeException('Inky action endpoint is missing '.$required.'.');

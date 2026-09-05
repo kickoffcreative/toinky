@@ -8,6 +8,7 @@ require_once $root.'/app/InkyCowriterService.php';
 $actions=[
     'whats_next',
     'review_consistency',
+    'scenario_map',
     'review_plot',
     'review_characters',
     'review_opportunities',
@@ -18,6 +19,7 @@ $actions=[
 $purposes=[
     'whats_next'=>'INKY_WHATS_NEXT',
     'review_consistency'=>'INKY_STORY_CONSISTENCY',
+    'scenario_map'=>null,
     'review_plot'=>'INKY_REVIEW_PLOT',
     'review_characters'=>'INKY_CHARACTER_KNOWLEDGE',
     'review_opportunities'=>'INKY_OPPORTUNITY_REVIEW',
@@ -58,10 +60,11 @@ $countItems=static function(array$result): int{
         if(!isset($result[$key])||!is_array($result[$key]))continue;
         foreach(['steps','recommendations','issues','opportunities','problems','checks','tests']as$list)if(isset($result[$key][$list])&&is_array($result[$key][$list]))return count($result[$key][$list]);
     }
+    if(isset($result['scenario_map']['combination_count'])&&$result['scenario_map']['combination_count']!==null)return(int)$result['scenario_map']['combination_count'];
     return 0;
 };
 $summaryText=static function(array$result): string{
-    foreach(['next_steps','review','character_knowledge','opportunity_review','dependency_check','quality_check','focused_tests']as$key)if(isset($result[$key]['summary']))return trim((string)$result[$key]['summary']);
+    foreach(['next_steps','review','character_knowledge','opportunity_review','dependency_check','quality_check','focused_tests','scenario_map']as$key)if(isset($result[$key]['summary']))return trim((string)$result[$key]['summary']);
     return '';
 };
 $latestInteraction=static function(PDO$pdo,string$purpose,int$afterId): ?int{
@@ -77,10 +80,10 @@ foreach($stories as$story){
         try{
             $result=InkyCowriterService::run($writer,$plotId,$action);
             $passed++;
-            echo json_encode(['plot_id'=>$plotId,'code'=>$story['code'],'title'=>$story['title'],'action'=>$action,'success'=>true,'interaction_id'=>$latestInteraction($pdo,$purposes[$action],$beforeId),'items'=>$countItems($result),'summary'=>$summaryText($result),'elapsed_ms'=>round((hrtime(true)-$started)/1e6,2)],JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES).PHP_EOL;
+            echo json_encode(['plot_id'=>$plotId,'code'=>$story['code'],'title'=>$story['title'],'action'=>$action,'success'=>true,'interaction_id'=>$purposes[$action]!==null?$latestInteraction($pdo,$purposes[$action],$beforeId):null,'items'=>$countItems($result),'summary'=>$summaryText($result),'elapsed_ms'=>round((hrtime(true)-$started)/1e6,2)],JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES).PHP_EOL;
         }catch(Throwable$e){
             $failed++;
-            echo json_encode(['plot_id'=>$plotId,'code'=>$story['code'],'title'=>$story['title'],'action'=>$action,'success'=>false,'interaction_id'=>$latestInteraction($pdo,$purposes[$action],$beforeId),'error'=>$e->getMessage(),'elapsed_ms'=>round((hrtime(true)-$started)/1e6,2)],JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES).PHP_EOL;
+            echo json_encode(['plot_id'=>$plotId,'code'=>$story['code'],'title'=>$story['title'],'action'=>$action,'success'=>false,'interaction_id'=>$purposes[$action]!==null?$latestInteraction($pdo,$purposes[$action],$beforeId):null,'error'=>$e->getMessage(),'elapsed_ms'=>round((hrtime(true)-$started)/1e6,2)],JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES).PHP_EOL;
         }
     }
 }

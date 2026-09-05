@@ -40,8 +40,9 @@ Completed:
 - Squid as a catalog-backed future character type from direction G.
 - Optimized frontend image sets for both Octopus and Lantern. The original
   full-resolution files remain available for future editing and new exports.
-- Eight bounded Inky co-writer interaction contracts and the associated
-  privacy, authored-data, and validation rules.
+- Eight bounded Inky co-writer interaction contracts plus the deterministic
+  Scenario Map, with the associated privacy, authored-data, and validation
+  rules.
 - **Create With Inky**, a five-step conversation that helps an amateur writer
   shape an idea into a story brief without creating story records or a
   pre-built structure.
@@ -281,15 +282,18 @@ The current Story Writer menu uses these labels:
 1. Write New Story with [Inky name]
 2. Continue "[Story Title]" Draft with [Inky name]
 3. Improve Story
-4. Review Plot
-5. Review Characters
-6. Review Opportunities
-7. Find Dependency Problems
-8. Quality Check
-9. Prepare Focus Tests
+4. Review Story Consistency
+5. Show Scenario Map
+6. Review Plot
+7. Review Characters
+8. Review Opportunities
+9. Find Dependency Problems
+10. Quality Check
+11. Prepare Focus Tests
 
 The first two items are guided authoring surfaces. **Improve Story** contains
-the six read-only review actions. Draft proposals are handled by
+the read-only review actions, including the deterministic **Show Scenario Map**
+view. Draft proposals are handled by
 [docs/INKY_ACTION_RULES.md](INKY_ACTION_RULES.md): Next Suggestion advances
 unused guided items, Suggest A Character respects remaining Story Framework
 slots and full-draft candidate rules, and Suggest a Story Value uses the next
@@ -358,6 +362,14 @@ When the author is editing an existing decision or conditional opportunity,
 Story Writer sends that stable focus code so Inky can prioritize the selected
 record while still using only the bounded story package.
 
+`Show Scenario Map` is a deterministic authoring view rather than an AI
+vertical slice. It reads the active story workspace directly and displays the
+chronological decision map, every option and authored effect, conditional
+opportunity triggers and choices, ending conditions, and enumerated combinations
+of active decision options. It does not call the AI provider, run simulations,
+or save story data. The combination list is capped at 256 paths and the text
+map at 48,000 characters; the UI labels any capped output explicitly.
+
 `Prepare Focused Tests` is the eighth implemented vertical slice. It is now
 labelled **Prepare Focus Tests** and sends the
 same authenticated, bounded review package and returns an advice-only validation
@@ -409,7 +421,7 @@ $PHP tools/inky_review_batch.php <plot_id|story_code|all>
 ```
 
 Optional action names can follow the story target to run only selected reviews:
-`whats_next`, `review_consistency`, `review_plot`, `review_characters`,
+  `whats_next`, `review_consistency`, `scenario_map`, `review_plot`, `review_characters`,
 `review_opportunities`, `dependencies`, `quality_check`, and `focused_tests`.
 The runner uses the same authenticated service and AI logger as the web action,
 executes one request at a time to avoid overloading the model, and prints a
