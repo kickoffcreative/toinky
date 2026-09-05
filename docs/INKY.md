@@ -398,6 +398,25 @@ Each contract must define:
 - whether the result is advice-only or eligible for a later reviewed import;
 - timeout, error, and offline behavior.
 
+### Terminal review batch
+
+For deployment smoke testing, an administrator can run the same Improve Story
+actions sequentially without opening each story in the browser:
+
+```bash
+PHP=/opt/cpanel/ea-php84/root/usr/bin/php
+$PHP tools/inky_review_batch.php <plot_id|story_code|all>
+```
+
+Optional action names can follow the story target to run only selected reviews:
+`whats_next`, `review_consistency`, `review_plot`, `review_characters`,
+`review_opportunities`, `dependencies`, `quality_check`, and `focused_tests`.
+The runner uses the same authenticated service and AI logger as the web action,
+executes one request at a time to avoid overloading the model, and prints a
+compact pass/fail line for each action. It records diagnostics in
+`ai_reasoner_interactions`, but does not save or preload browser review cards;
+the web panel remains an on-demand, read-only result surface.
+
 ## Delivery sequence
 
 1. [x] Persistent user preferences, companion identity, character catalog, and profile controls.
