@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 $root=dirname(__DIR__);
 require_once $root.'/app/StoryAuthoringService.php';
+require_once $root.'/app/InkyCowriterService.php';
 
 $method=new ReflectionMethod(StoryAuthoringService::class,'auditManagedReferences');
 $method->setAccessible(true);
@@ -35,4 +36,11 @@ foreach([
     'Ending condition PEOPLE has an invalid WORLD_STATE|GUEST_SECOND_HELPER condition',
 ]as$expected)if(!str_contains($errors,$expected))throw new RuntimeException('Integrity audit missed '.$expected.'.');
 if(count($result[0])!==4)throw new RuntimeException('Integrity audit emitted an unexpected number of findings.');
-echo "PASS: managed Story Value integrity audit catches invalid condition types and values.\n";
+$knowledgeMethod=new ReflectionMethod(InkyCowriterService::class,'characterKnowledgeItems');
+$knowledgeMethod->setAccessible(true);
+$knowledge=$knowledgeMethod->invoke(null,[
+    ['role_code'=>'WREN','stable_key'=>'CHARACTER_KEY','severity'=>'HIGH','issue'=>'Invalid WORLD_STATE condition','evidence'=>'GUEST_HELPERS uses GTE with a Preset Story Value.','fix'=>'Change the operator.'],
+    ['role_code'=>'WREN','stable_key'=>'CHARACTER_KEY','severity'=>'MEDIUM','issue'=>'Private knowledge is too broad','evidence'=>'The character knows a fact without a player-facing explanation.','fix'=>'Clarify the private_knowledge field.'],
+],['CHARACTER_KEY'],['WREN']);
+if(count($knowledge)!==1||$knowledge[0]['issue']!=='Private knowledge is too broad')throw new RuntimeException('Character review guardrail did not remove structural Story Value findings.');
+echo "PASS: managed Story Value integrity and review-scope guardrails are enforced.\n";
