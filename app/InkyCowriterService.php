@@ -64,7 +64,7 @@ final class InkyCowriterService
 
     private static function reviewRow(array $row,array $fields,int $limit=400): array
     {
-        $out=[];foreach($fields as$field)if(array_key_exists($field,$row)){$value=$row[$field];if(is_string($value))$value=function_exists('mb_substr')?mb_substr($value,0,$limit):substr($value,0,$limit);$out[$field]=$value;}return$out;
+        $out=[];foreach($fields as$field)if(array_key_exists($field,$row)){$value=$row[$field];if(is_string($value)){if(function_exists('mb_strlen')?mb_strlen($value)>$limit:strlen($value)>$limit)$value=(function_exists('mb_substr')?mb_substr($value,0,$limit):substr($value,0,$limit)).' [PACKAGE_TRUNCATED]';}$out[$field]=$value;}return$out;
     }
 
     private static function reviewStableKeys(array $plot,array $workspace): array
@@ -123,7 +123,7 @@ final class InkyCowriterService
 
     private static function actionableReviewRules(): string
     {
-        return' Actionability rules: cite exact stable keys from the supplied catalog; name the exact authored field, record, or dependency; explain why it matters; and give a concrete change, replacement wording, or test target. Do not use generic citations such as scenario_text, chronology, events, media, OPPORTUNITY_OR_AREA, or other placeholders. If the supplied evidence does not support an actionable item, return an empty array and explain that in the summary.';
+        return' Actionability rules: cite exact stable keys from the supplied catalog; name the exact authored field, record, or dependency; explain why it matters; and give a concrete change, replacement wording, or test target. Do not use generic citations such as scenario_text, chronology, events, media, OPPORTUNITY_OR_AREA, or other placeholders. Treat [PACKAGE_TRUNCATED] as a review-package boundary, not an authored text defect; do not recommend completing text solely because that marker appears. If the supplied evidence does not support an actionable item, return an empty array and explain that in the summary.';
     }
 
     private static function compactReviewTree(mixed $value,int $maxRows,int $limit): mixed
