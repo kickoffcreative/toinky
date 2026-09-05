@@ -2,6 +2,14 @@
 
 The recommended workflow combines authoring rules, structural validation, repeatable simulations, external qualitative review, and a final human decision. A language-model review by itself is not sufficient evidence that a story is playable or structurally sound.
 
+Story Writer authors can use Inky's **Improve Story** menu for bounded,
+advice-only reviews before validation. The current actions are **Review Plot**,
+**Review Characters**, **Review Opportunities**, **Find Dependency Problems**,
+**Quality Check**, and **Prepare Focus Tests**. They read the current authored
+story package, keep an action-specific result header, cite stable keys, and do
+not save changes. Their prerequisites, busy/cancel behavior, and result rules
+are defined in [docs/INKY_ACTION_RULES.md](INKY_ACTION_RULES.md).
+
 ## Recommended sequence
 
 1. Define locations, story values, allowed preset values, and ending sections in **Story Writer → Overview**.
@@ -9,7 +17,7 @@ The recommended workflow combines authoring rules, structural validation, repeat
 3. Run **Validate & Submit** to catch blocking references and freeze a numbered revision.
 4. In **Admin → Story Reviews**, run **Focused Opportunity (Seeded)** for branches that need local verification, then queue broad batches for **All Human (Random)**, **All Human (Biased)**, and **All AI**.
 5. Compare focused choice coverage first, then compare broad outcome families, warning frequency, timed-out choices, choice frequency, and options not observed in the sample.
-6. Copy the generated reviewer package into a capable external reviewer. Require evidence tied to stable keys.
+6. Use Inky's Improve Story reviews or copy the generated reviewer package into a capable external reviewer. Require evidence tied to stable keys.
 7. Import only the safe correction file. Treat chronology, ordering, activation, cast, dependencies, and stable-key changes as manual structural advisories.
 8. Run validation and simulations again, then approve or publish the numbered revision only after human review.
 

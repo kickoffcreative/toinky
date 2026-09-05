@@ -33,6 +33,9 @@ Inky v1 is active in Story Writer:
 - **Write New Story with [Inky name]** is a guided five-question conversation.
   It produces a reviewed brief and does not create a pre-built story
   structure until the writer explicitly creates the draft.
+- The current Draft with Inky and What can I do for you? action rules are
+  maintained in `docs/INKY_ACTION_RULES.md`. Keep that file synchronized with
+  the frontend handlers and Inky services when adding or changing actions.
 
 ## Milestone 3 — Guided Inky character authoring
 

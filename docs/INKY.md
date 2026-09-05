@@ -71,6 +71,11 @@ The project status is intentionally separate from story content. Character
 artwork, mood behavior, and frontend asset loading belong to the generic Inky
 surface; story-specific behavior remains authored data and shared engine code.
 
+The authoritative rules for the current Draft with Inky proposal controls and
+the What can I do for you? assistant menu are in
+[docs/INKY_ACTION_RULES.md](INKY_ACTION_RULES.md). Keep that document aligned
+with the frontend handlers and server contracts.
+
 ## Product principles
 
 - Inky is optional. Every authenticated user can enable or disable it from My
@@ -236,31 +241,47 @@ or its credentials.
   and automated story-package error/warning counts so authors can keep AI advice
   separate from deterministic validation evidence.
 
-## Initial interaction contracts
+## Current Inky action contracts
 
-The guided actions are:
+The current Story Writer menu uses these labels:
 
-1. Review Plot
-2. What's Next?
-3. Quality Check My Work
-4. Find Dependency Problems
-5. Check Character Knowledge
-6. Suggest Story Values
-7. Review This Opportunity
-8. Prepare Focused Tests
+1. Write New Story with [Inky name]
+2. Continue "[Story Title]" Draft with [Inky name]
+3. Improve Story
+4. Review Plot
+5. Review Characters
+6. Review Opportunities
+7. Find Dependency Problems
+8. Quality Check
+9. Prepare Focus Tests
+
+The first two items are guided authoring surfaces. **Improve Story** contains
+the six read-only review actions. Draft proposals are handled by
+[docs/INKY_ACTION_RULES.md](INKY_ACTION_RULES.md): Next Suggestion advances
+unused guided items, Suggest A Character respects remaining Story Framework
+slots and full-draft candidate rules, and Suggest a Story Value uses the next
+unused managed value slot. All proposal and review actions are disabled while
+AI is working and require explicit writer approval before persistence.
+
+The older contract names below remain in this document as implementation
+history and compatibility terminology. The current UI labels above are the
+writer-facing source of truth.
 
 `Review Plot` is the first implemented vertical slice. It sends the authenticated
 writer's current authored review package to Qwen and requires compact JSON with
 separate observed evidence, inference, and stable-key recommendations.
 
-`What's Next?` is the second implemented vertical slice. It sends the same
-authenticated, bounded review package and requires a short prioritized task list
-for the author. Every step must cite a stable key, include a priority, explain
-whether its reason is observed evidence or inference, remain advice-only, and
-mark chronology-sensitive or structural-order changes as **MANUAL STRUCTURAL
-REVIEW**.
+`What's Next?` is the second implemented vertical slice. It is retained as
+historical contract terminology; the current writer-facing replacement is the
+**Improve Story** menu and the old general What's Next? button is no longer
+shown. It sends the same authenticated, bounded review package and requires a
+short prioritized task list for the author. Every step must cite a stable key,
+include a priority, explain whether its reason is observed evidence or
+inference, remain advice-only, and mark chronology-sensitive or
+structural-order changes as **MANUAL STRUCTURAL REVIEW**.
 
-`Quality Check My Work` is the third implemented vertical slice. It sends the
+`Quality Check My Work` is the third implemented vertical slice. It is now
+labelled **Quality Check** and sends the
 same authenticated, bounded review package and returns scored checks for
 immersion, viewpoint continuity, character agency, branch causality, dependency
 coverage, pacing, replayability, and mobile readability. Each check must cite a
@@ -275,7 +296,8 @@ unreachable endings, and player-visible engine leakage. Every problem must cite
 a stable key, include severity, distinguish observed evidence from inference,
 recommend an authored-data fix, and remain advice-only.
 
-`Check Character Knowledge` is the fifth implemented vertical slice. It sends
+`Check Character Knowledge` is the fifth implemented vertical slice. It is now
+labelled **Review Characters** and sends
 the same authenticated, bounded review package and checks whether characters
 have enough non-privileged information for meaningful choices, whether prompts
 or results expose private knowledge, whether private knowledge is authored
@@ -291,7 +313,8 @@ goals, and fears. Every suggestion must cite a stable key, include scope, stable
 target code, label, value type, optional preset values, reason, and example use.
 It remains advice-only and does not change schema or PHP.
 
-`Review This Opportunity` is the seventh implemented vertical slice. It sends
+`Review This Opportunity` is the seventh implemented vertical slice. It is now
+labelled **Review Opportunities** and sends
 the same authenticated, bounded review package and reviews authored decision
 opportunities for prompt clarity, player agency, option contrast, visible
 consequences, AI rationale guidance, condition/effect fit, character knowledge,
@@ -302,7 +325,8 @@ When the author is editing an existing decision or conditional opportunity,
 Story Writer sends that stable focus code so Inky can prioritize the selected
 record while still using only the bounded story package.
 
-`Prepare Focused Tests` is the eighth implemented vertical slice. It sends the
+`Prepare Focused Tests` is the eighth implemented vertical slice. It is now
+labelled **Prepare Focus Tests** and sends the
 same authenticated, bounded review package and returns an advice-only validation
 plan using existing Toinky validation and Game2 Simulation Lab workflows. Each
 test must cite a stable key, name a validation, focused opportunity, broad
@@ -313,6 +337,10 @@ reachability from story start.
 
 Future guided-action buttons stay visibly marked as forthcoming and disabled
 until their individual contracts are implemented.
+
+All current action headers, prerequisites, bounded-context rules, result
+formats, cancellation behavior, and explicit save boundaries are maintained in
+[docs/INKY_ACTION_RULES.md](INKY_ACTION_RULES.md).
 
 Each contract must define:
 
