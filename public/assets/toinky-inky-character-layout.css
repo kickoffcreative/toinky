@@ -2,7 +2,7 @@
 .inky-shell.has-inky-result .inky-assistant-layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(260px,340px);gap:18px;align-items:start}
 .inky-shell.has-inky-result .inky-assistant-main{grid-column:1;grid-row:1;min-width:0}
 .inky-shell.has-inky-result .inky-result{grid-column:2;grid-row:1;min-width:0;max-height:min(580px,calc(100vh - 80px));overflow:auto;margin:0;padding:14px;border:1px solid #c8b896;border-radius:10px;background:#fffaf0;color:#1C242B;box-shadow:0 12px 28px rgba(28,36,43,.16)}
-.inky-shell.has-inky-result .inky-assistant-layout>.inky-cancel{grid-column:2;grid-row:2;justify-self:start;margin:10px 0 0}.inky-shell.inky-side-right.has-inky-result .inky-assistant-layout>.inky-cancel{grid-column:1}
+.inky-status-row{display:flex;align-items:center;gap:10px;min-height:30px}.inky-status-row .inky-status{flex:1;min-width:0}.inky-status-row .inky-cancel{flex:0 0 auto;margin:0}
 .inky-shell.inky-side-right.has-inky-result .inky-assistant-main{grid-column:2}
 .inky-shell.inky-side-right.has-inky-result .inky-result{grid-column:1}
 .inky-shell.has-inky-result .inky-result h3{margin-top:0;font:700 17px/1.15 Georgia,serif;color:#6B2938}
