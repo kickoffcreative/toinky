@@ -133,7 +133,7 @@ final class InkyCowriterService
 
     private static function characterSuggestionResponse(string $system,string $prompt): array
     {
-        try{return AiConnectionService::completeJson('INKY_SUGGEST_CHARACTER',$system,$prompt);}catch(RuntimeException $first){$message=strtolower($first->getMessage());if(!str_contains($message,'structured response')&&!str_contains($message,'json'))throw $first;$repairSystem=$system.' The previous response was not valid JSON. Return only the exact requested character JSON.';$repairPrompt=$prompt."\nThe previous response was not valid JSON. Return the corrected character JSON now.";return AiConnectionService::completeJson('INKY_SUGGEST_CHARACTER',$repairSystem,$repairPrompt);}
+        try{return AiConnectionService::completeJson('INKY_SUGGEST_CHARACTER',$system,$prompt);}catch(Throwable $first){$message=strtolower($first->getMessage());$malformed=$first instanceof JsonException||str_contains($message,'structured response')||str_contains($message,'json')||str_contains($message,'syntax error');if(!$malformed)throw $first;$repairSystem=$system.' The previous response was not valid JSON. Return only the exact requested character JSON.';$repairPrompt=$prompt."\nThe previous response was not valid JSON. Return the corrected character JSON now.";return AiConnectionService::completeJson('INKY_SUGGEST_CHARACTER',$repairSystem,$repairPrompt);}
     }
 
     private static function completeReview(string $purpose,string $system,array $audit,callable $validator): array

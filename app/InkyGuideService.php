@@ -119,7 +119,7 @@ final class InkyGuideService
 
     private static function completeJsonWithRepair(string$purpose,string$system,string$prompt): array
     {
-        try{return AiConnectionService::completeJson($purpose,$system,$prompt);}catch(RuntimeException$first){$message=strtolower($first->getMessage());if(!str_contains($message,'structured response')&&!str_contains($message,'json'))throw$first;$repairSystem=$system.' The previous response was not valid JSON. Return only the exact requested JSON envelope.';$repairPrompt=$prompt."\nThe previous response was not valid JSON. Return the corrected JSON now.";return AiConnectionService::completeJson($purpose,$repairSystem,$repairPrompt);}
+        try{return AiConnectionService::completeJson($purpose,$system,$prompt);}catch(Throwable$first){$message=strtolower($first->getMessage());$malformed=$first instanceof JsonException||str_contains($message,'structured response')||str_contains($message,'json')||str_contains($message,'syntax error');if(!$malformed)throw$first;$repairSystem=$system.' The previous response was not valid JSON. Return only the exact requested JSON envelope.';$repairPrompt=$prompt."\nThe previous response was not valid JSON. Return the corrected JSON now.";return AiConnectionService::completeJson($purpose,$repairSystem,$repairPrompt);}
     }
 
     private static function normalizeProposalInput(array$input,string$type,array$activeCharacters=[]): array
