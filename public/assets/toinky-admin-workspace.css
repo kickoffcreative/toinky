@@ -1,0 +1,480 @@
+:root {
+  --admin-control-text: 12px;
+  --admin-label-text: 11px;
+  --admin-help-text: 11px;
+  --admin-panel-gap: 12px;
+}
+
+.admin-app {
+  min-height: 100vh;
+  color: var(--ink);
+  background: var(--paper);
+  font-family: "Instrument Sans", Arial, sans-serif;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.admin-app .main,
+.admin-app .workspace-main {
+  min-width: 0;
+  padding: 18px !important;
+  max-width: 1500px;
+}
+
+.admin-app .workspace-page-header {
+  padding: 18px !important;
+}
+
+.admin-app .workspace-page-header h1 {
+  margin: 0;
+  font-size: 1.65rem;
+  line-height: 1.05;
+}
+
+.admin-app .workspace-page-header p {
+  margin: 4px 0 0;
+  font-size: var(--admin-help-text);
+}
+
+.admin-app .top {
+  min-height: 44px;
+  padding: 0 0 8px;
+  border-bottom: 1px solid var(--line);
+}
+
+.admin-app .top h1 {
+  margin: 0;
+  font-size: 1.65rem;
+  line-height: 1.05;
+}
+
+.admin-app .top p,
+.admin-app .top .muted {
+  margin: 4px 0 0;
+  font-size: var(--admin-help-text);
+  line-height: 1.3;
+}
+
+.admin-app .cards {
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.admin-app .metric,
+.admin-app .panel {
+  padding: 12px !important;
+  border-radius: 6px !important;
+}
+
+.admin-app .metric b {
+  font-size: 24px;
+  line-height: 1;
+}
+
+.admin-app .panel {
+  margin-top: var(--admin-panel-gap);
+  overflow-x: auto;
+}
+
+.admin-app .panel > h2 {
+  margin: 0 0 9px;
+  font-size: 1.25rem;
+  line-height: 1.1;
+}
+
+.admin-app .panel > h3,
+.admin-app .panel h3 {
+  font-size: 1rem;
+  line-height: 1.2;
+}
+
+.admin-app .panel > p:not(.muted),
+.admin-app .panel > .muted {
+  line-height: 1.4;
+}
+
+.admin-app .field,
+.admin-app label.field {
+  margin: 7px 0;
+  color: var(--ink-muted);
+  font-size: var(--admin-label-text);
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.admin-app .field input,
+.admin-app .field select,
+.admin-app .field textarea,
+.admin-app input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]),
+.admin-app select,
+.admin-app textarea {
+  min-height: 31px;
+  margin-top: 4px;
+  padding: 7px 8px !important;
+  font-size: var(--admin-control-text) !important;
+  line-height: 1.25;
+}
+
+.admin-app .field textarea,
+.admin-app textarea {
+  min-height: 74px;
+}
+
+.admin-app .field input[type="file"] {
+  padding: 5px 7px !important;
+}
+
+.admin-app .btn,
+.admin-app button,
+.admin-app input[type="submit"] {
+  min-height: 30px;
+  padding: 6px 9px !important;
+  font-size: 10px !important;
+  line-height: 1.15;
+  letter-spacing: .04em;
+}
+
+.admin-app .notice,
+.admin-app .error,
+.admin-app .url {
+  margin: 9px 0;
+  padding: 9px 10px;
+  border-radius: 5px;
+  font-size: var(--admin-help-text);
+  line-height: 1.4;
+}
+
+.admin-app .table {
+  font-size: 11px;
+}
+
+.admin-app .table th,
+.admin-app .table td {
+  padding: 7px 6px;
+  line-height: 1.35;
+}
+
+.admin-app .table th {
+  font-size: 10px;
+  letter-spacing: .04em;
+}
+
+.admin-app code,
+.admin-app pre,
+.admin-app .audit,
+.admin-app .review-output {
+  font-size: 11px;
+}
+
+.admin-app .audit,
+.admin-app .review-output {
+  padding: 11px;
+  line-height: 1.45;
+}
+
+.admin-app .theme-tabs,
+.admin-app .folder-tabs,
+.admin-app .page-tabs {
+  gap: 12px;
+  margin: 8px 0 12px;
+  padding: 2px 0 0;
+}
+
+.admin-app .theme-tab,
+.admin-app .folder-tab {
+  padding: 7px 2px 8px !important;
+  font-size: 11px;
+  line-height: 1.2;
+}
+
+.admin-app .admin-shell-side {
+  padding: 16px 12px !important;
+}
+
+.admin-app .admin-shell-side .toinky-brand-group {
+  margin: 0 8px 18px !important;
+}
+
+.admin-app .admin-shell-side .toinky-brand,
+.admin-app .admin-shell-side .toinky-logo-mark {
+  width: 145px !important;
+}
+
+.admin-app .admin-shell-side .brand-context {
+  margin-top: 10px !important;
+  padding-left: 10px !important;
+  font-size: 10px !important;
+}
+
+.admin-app .sidebar-section {
+  margin-top: 12px;
+}
+
+.admin-app .sidebar-section-toggle {
+  padding: 5px 8px;
+  font-size: 10px;
+}
+
+.admin-app .sidebar-section-toggle span {
+  font-size: 14px;
+}
+
+.admin-app .sidebar-section-links > a {
+  padding: 7px 8px !important;
+  font-size: 12px !important;
+  line-height: 1.25 !important;
+}
+
+.admin-app .sidebar-dashboard {
+  margin-bottom: 6px !important;
+  padding: 8px !important;
+  font-size: 12px !important;
+}
+
+.admin-app .sidebar-logout {
+  margin: 16px 8px 8px;
+}
+
+.admin-app .sidebar-logout button {
+  width: 100%;
+  padding: 8px !important;
+  font-size: 11px !important;
+}
+
+.admin-app .font-grid,
+.admin-app .page-media-grid {
+  gap: 9px;
+}
+
+.admin-app .font-card,
+.admin-app .page-media-card,
+.admin-app .parallax-card,
+.admin-app .theme-media-panel,
+.admin-app .revision-group {
+  border-radius: 6px;
+}
+
+.admin-app .font-card-body,
+.admin-app .theme-media-body,
+.admin-app .management-panel-body {
+  font-size: var(--admin-help-text);
+}
+
+.admin-app .font-card > summary,
+.admin-app .management-panel > summary,
+.admin-app .theme-media-panel > summary,
+.admin-app .page-section-summary {
+  padding: 9px 11px;
+  font-size: 12px;
+  line-height: 1.25;
+}
+
+.admin-app .font-card-body,
+.admin-app .management-panel-body,
+.admin-app .theme-media-body,
+.admin-app .page-section-body {
+  padding: 0 11px 11px;
+}
+
+.admin-app .font-role-preview {
+  min-height: 56px;
+  margin: 6px 0 9px;
+  padding: 9px 10px;
+}
+
+.admin-app .parallax-list {
+  gap: 9px;
+  margin: 11px 0;
+}
+
+.admin-app .parallax-card {
+  grid-template-columns: 24px 130px minmax(220px, 1fr);
+  gap: 10px;
+  padding: 10px;
+}
+
+.admin-app .parallax-thumb {
+  width: 130px;
+}
+
+.admin-app .parallax-fields {
+  gap: 6px;
+}
+
+.admin-app .parallax-meta,
+.admin-app .source-dimensions,
+.admin-app .worker-note,
+.admin-app .worker-disabled-note {
+  font-size: 10px;
+}
+
+.admin-app .parallax-actions,
+.admin-app .hero-button-actions,
+.admin-app .starter-preview-actions,
+.admin-app .guide-actions {
+  gap: 5px;
+  margin-top: 7px;
+}
+
+.admin-app .simulation-batch-form {
+  gap: 8px;
+}
+
+.admin-app .revision-group-heading,
+.admin-app .revision-pagination {
+  padding: 8px 10px;
+}
+
+.admin-app .setup,
+.admin-app .lab-head {
+  border-radius: 6px;
+  padding: 12px;
+}
+
+.admin-app .setup {
+  margin: 18px auto;
+  max-width: 760px;
+}
+
+.admin-app .setup h1,
+.admin-app .lab-head h1 {
+  font-size: 1.35rem;
+  line-height: 1.1;
+}
+
+.admin-app .setup select {
+  min-width: 0;
+}
+
+.admin-app .controller-list {
+  gap: 6px;
+  margin: 11px 0;
+}
+
+.admin-app .controller-row {
+  gap: 10px;
+  padding: 8px 9px;
+  border-radius: 6px;
+  font-size: 12px;
+}
+
+.admin-app .controller-row select {
+  min-width: 110px;
+}
+
+.admin-app .story-note,
+.admin-app .entry,
+.admin-app .meta {
+  font-size: 11px;
+}
+
+.admin-app .lab-head {
+  margin: 0 18px 12px;
+}
+
+.admin-app .lab-head .header-sub {
+  font-size: 11px;
+}
+
+.admin-app .simbar {
+  gap: 9px;
+  margin-top: 9px;
+  padding-top: 9px;
+}
+
+.admin-app .controls {
+  gap: 5px;
+}
+
+.admin-app .wrap {
+  margin: 0 18px;
+}
+
+.admin-app .col {
+  border-radius: 6px;
+}
+
+.admin-app .col h2 {
+  padding: 9px 10px 7px;
+  font-size: 13px;
+}
+
+.admin-app .entry {
+  padding: 8px 10px;
+  line-height: 1.35;
+}
+
+.admin-app .decision,
+.admin-app .final-state {
+  margin: 8px;
+  border-radius: 6px;
+  padding: 8px;
+  font-size: 11px;
+}
+
+.admin-app .decision h3,
+.admin-app .final-state h3 {
+  font-size: 12px;
+}
+
+@media (max-width: 900px) {
+  .admin-app .parallax-card {
+    grid-template-columns: 24px 110px minmax(180px, 1fr);
+  }
+
+  .admin-app .parallax-thumb {
+    width: 110px;
+  }
+}
+
+@media (max-width: 760px) {
+  .admin-app .main {
+    padding: 12px !important;
+  }
+
+  .admin-app .workspace-main {
+    padding: 12px !important;
+  }
+
+  .admin-app .top {
+    min-height: 38px;
+  }
+
+  .admin-app .top h1 {
+    font-size: 1.45rem;
+  }
+
+  .admin-app .workspace-page-header {
+    padding: 12px !important;
+  }
+
+  .admin-app .metric,
+  .admin-app .panel {
+    padding: 10px !important;
+  }
+
+  .admin-app .font-grid,
+  .admin-app .page-media-grid {
+    grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  }
+
+  .admin-app .parallax-card {
+    grid-template-columns: 22px 1fr;
+  }
+
+  .admin-app .parallax-thumb,
+  .admin-app .parallax-fields {
+    grid-column: 2;
+    width: 100%;
+  }
+
+  .admin-app .lab-head,
+  .admin-app .wrap {
+    margin-left: 12px;
+    margin-right: 12px;
+  }
+}
+
+.admin-app.lab-app .workspace-main {
+  padding: 0 !important;
+}
