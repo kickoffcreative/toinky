@@ -1,4 +1,5 @@
 const workspaceMobile=window.matchMedia('(max-width: 800px)');
+if(document.querySelector('.ai-settings-intro'))document.body.classList.add('workspace-floating');
 document.querySelectorAll('[data-sidebar-section]').forEach(section=>{
  const button=section.querySelector('.sidebar-section-toggle');
  if(!button)return;
