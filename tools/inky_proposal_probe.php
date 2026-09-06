@@ -1,6 +1,13 @@
 <?php
 declare(strict_types=1);
 
+ini_set('display_errors','1');
+error_reporting(E_ALL);
+set_exception_handler(static function(Throwable$e): void {
+    fwrite(STDERR,'Probe failed: '.get_class($e).': '.$e->getMessage().PHP_EOL);
+    exit(1);
+});
+
 $root=dirname(__DIR__);
 require_once $root.'/app/bootstrap.php';
 require_once $root.'/app/InkyGuideService.php';
