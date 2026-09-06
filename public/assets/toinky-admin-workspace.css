@@ -527,25 +527,26 @@ body:has(.writer-app) .workspace-menu-close {
 .admin-app .page-tabs,
 .admin-app .theme-tabs,
 .admin-app .folder-tabs,
-.writer-app .tabs,
-.writer-app .subtabs {
+.writer-app .tabs {
   display: flex;
+  flex-wrap: wrap;
   gap: 18px;
   margin: 8px 0 12px;
   padding: 2px 0 0;
   border-bottom: 1px solid #d8d3ca;
   background: transparent !important;
-  overflow-x: auto;
+  overflow: visible;
   position: static !important;
+  min-width: 0;
 }
 
 .admin-app .page-tabs .folder-tab,
 .admin-app .theme-tabs .theme-tab,
 .admin-app .folder-tabs .folder-tab,
-.writer-app .tabs .tab,
-.writer-app .subtabs .subtab {
+.writer-app .tabs .tab {
   flex: 0 0 auto;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
   border: 0 !important;
   border-bottom: 2px solid transparent !important;
   border-radius: 0 !important;
@@ -563,8 +564,7 @@ body:has(.writer-app) .workspace-menu-close {
 .admin-app .page-tabs .folder-tab:hover,
 .admin-app .theme-tabs .theme-tab:hover,
 .admin-app .folder-tabs .folder-tab:hover,
-.writer-app .tabs .tab:hover,
-.writer-app .subtabs .subtab:hover {
+.writer-app .tabs .tab:hover {
   color: var(--tension) !important;
   background: transparent !important;
 }
@@ -572,8 +572,7 @@ body:has(.writer-app) .workspace-menu-close {
 .admin-app .page-tabs .folder-tab.active,
 .admin-app .theme-tabs .theme-tab.active,
 .admin-app .folder-tabs .folder-tab.active,
-.writer-app .tabs .tab.active,
-.writer-app .subtabs .subtab.active {
+.writer-app .tabs .tab.active {
   color: var(--tension) !important;
   border-bottom-color: var(--tension) !important;
   background: transparent !important;
@@ -608,6 +607,95 @@ body:has(.writer-app) .workspace-menu-close {
 
 .writer-app .story-hero .tabs {
   margin: 10px 0 0;
+}
+
+/* Keep Writer's nested Story Map tabs in their original framed treatment. */
+.writer-app .subtabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin: 0 0 13px;
+  padding: 5px;
+  border: 1px solid #d9d0c0;
+  border-radius: 9px;
+  background: #eee8dc !important;
+  overflow: visible;
+  position: static !important;
+}
+
+.writer-app .subtabs .subtab {
+  flex: 0 0 auto;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  padding: 7px 11px !important;
+  border: 1px solid transparent !important;
+  border-radius: 6px !important;
+  background: transparent !important;
+  color: #46525a !important;
+  font-size: 11px !important;
+  font-weight: 800 !important;
+  line-height: 1.2;
+  letter-spacing: 0;
+  text-transform: none;
+  box-shadow: none !important;
+}
+
+.writer-app .subtabs .subtab:hover {
+  background: #fff !important;
+  color: #46525a !important;
+}
+
+.writer-app .subtabs .subtab.active {
+  background: #1C242B !important;
+  border-color: #1C242B !important;
+  color: #fff !important;
+}
+
+/* Shared compact editor controls used by Pages and Hero button settings. */
+.admin-app .editor-toolbar {
+  gap: 3px;
+  padding: 4px;
+}
+
+.admin-app .editor-toolbar button {
+  min-height: 25px;
+  padding: 4px 6px !important;
+  font-size: 10px !important;
+  line-height: 1.1;
+}
+
+.admin-app .rich-editor {
+  min-height: 112px;
+  padding: 8px;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.admin-app .color-control {
+  grid-template-columns: 32px minmax(86px, 1fr);
+  gap: 4px 6px;
+  margin: 6px 0;
+  padding: 6px;
+}
+
+.admin-app .color-control input[type="color"] {
+  width: 32px;
+  height: 26px;
+}
+
+.admin-app .color-control input[type="text"] {
+  min-width: 0;
+  padding: 5px !important;
+  font-size: 10px !important;
+}
+
+.admin-app .color-alpha {
+  gap: 4px;
+}
+
+.admin-app .color-alpha output,
+.admin-app .color-control small {
+  font-size: 10px;
 }
 
 body:has(.profile-head) .workspace-menu-toggle,

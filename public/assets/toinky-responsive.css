@@ -20,3 +20,17 @@
  .site-header .barin{display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;align-items:center!important;min-height:72px!important;position:relative}.site-header .toinky-brand{width:130px!important}.public-menu-toggle{display:flex;align-items:center;gap:7px;border:1px solid rgba(244,238,226,.75);border-radius:6px;background:rgba(28,36,43,.7);color:#F4EEE2;padding:10px 12px;font:800 12px/1 Instrument Sans,Inter,sans-serif;text-transform:uppercase;letter-spacing:.05em;backdrop-filter:blur(8px)}.site-header .nav{display:none!important;position:absolute;z-index:101;top:100%;left:0;right:0;padding:12px!important;border-radius:8px;background:rgba(28,36,43,.96);box-shadow:0 12px 28px #1c242b45;overflow:visible!important;flex-direction:column!important;align-items:stretch!important;gap:0!important}.site-header .nav.open{display:flex!important}.site-header .nav a{display:block;width:100%;padding:12px 10px!important;border-bottom:1px solid rgba(244,238,226,.16);text-align:left}.site-header .nav form,.site-header .nav form .btn{width:100%}.site-header .nav .btn{margin-top:8px;text-align:center}
 }
 .workspace-floating .sidebar-logout button{border-color:#8D3749!important;background:#8D3749!important;color:#fff!important}.workspace-floating .sidebar-logout button:hover{border-color:#A9445B!important;background:#A9445B!important}
+
+/* Keep every workspace sidebar and menu trigger at the same compact size. */
+.admin-shell-side{padding:16px 12px!important}
+.admin-shell-side .toinky-brand-group{margin:0 8px 18px!important}
+.admin-shell-side .toinky-brand{width:145px!important;max-width:145px!important}
+.admin-shell-side .brand-context{margin:10px 8px 0!important;padding-left:10px;font-size:10px!important;line-height:1.25!important}
+.admin-shell-side .sidebar-section{margin-top:12px!important}
+.admin-shell-side .sidebar-section-toggle{padding:5px 8px!important;font-size:10px!important;line-height:1.15!important}
+.admin-shell-side .sidebar-section-toggle span{font-size:14px!important}
+.admin-shell-side .sidebar-section-links>a{padding:7px 8px!important;font-size:12px!important;line-height:1.25!important}
+.admin-shell-side .sidebar-dashboard{margin-bottom:6px!important;padding:8px!important;font-size:12px!important;line-height:1.2!important}
+.admin-shell-side .sidebar-logout{margin:16px 8px 8px!important}
+.admin-shell-side .sidebar-logout button{padding:8px!important;font-size:10px!important;line-height:1.15!important}
+.workspace-floating .workspace-menu-toggle,.workspace-menu-toggle{gap:6px!important;padding:9px 12px!important;border-radius:5px!important;font:800 11px/1 "Instrument Sans",Arial,sans-serif!important;letter-spacing:.04em}
