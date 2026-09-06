@@ -11,6 +11,7 @@ $css=file_get_contents(__DIR__.'/../public/assets/toinky-home.css');
 if($css===false||!str_contains($css,'.public-home .hero-actions .hero-button')||!str_contains($css,'background: var(--hero-button-background')||!str_contains($css,'!important'))throw new RuntimeException('Home Hero button styles do not override global theme button rules.');
 $admin=file_get_contents(__DIR__.'/../public/admin.php');
 if($admin===false||!str_contains($admin,'admin_color_control($label,$name($field)')||!str_contains($admin,'function initColorControl')||!str_contains($admin,"list.querySelectorAll('[data-color-control]').forEach(initColorControl)"))throw new RuntimeException('Home Hero buttons do not expose full color controls for all button panels.');
+if(!str_contains($admin,'class="panel pages-panel"')||!str_contains($admin,'.pages-panel .field input')||!str_contains($admin,'.pages-panel .hero-button-grid'))throw new RuntimeException('Website Pages compact controls are missing.');
 $empty=PageContentService::buttons(['buttons_json'=>'[]']);
 if($empty!==[])throw new RuntimeException('An explicitly empty Hero button list must remain empty.');
 echo "PASS: Home Hero buttons normalize, style, and preserve empty configurations.\n";
