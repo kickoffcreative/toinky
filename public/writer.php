@@ -571,7 +571,7 @@ s · <?=e($ev['headline'])?>
 <?php endif;?>
 
 
-<?php endif;?></div>
+</div>
 <?php else:?>
 <section class="card"><h1>Create Your First Story</h1><p>Use “New Story” to begin. The studio will guide you through every required dependency.</p></section>
 <?php endif;?>
