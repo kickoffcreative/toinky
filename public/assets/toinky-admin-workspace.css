@@ -595,17 +595,40 @@ body:has(.writer-app) .workspace-menu-close {
 
 .writer-app .story-list,
 .writer-app .draft-picker,
-.writer-app .story-hero,
 .writer-app .writer-tab-panel {
   border-top: 3px solid var(--wash) !important;
   background: rgba(251, 248, 241, .94) !important;
 }
 
-.writer-app .story-hero {
-  padding: 12px !important;
+.writer-app .writer-workspace-card {
+  margin-bottom: 16px;
+  border: 1px solid var(--line);
+  border-top: 3px solid var(--wash);
+  border-radius: 6px;
+  background: rgba(251, 248, 241, .94);
+  box-shadow: var(--shadow);
+  overflow: hidden;
 }
 
-.writer-app .story-hero .tabs {
+.writer-app .writer-workspace-card .story-hero {
+  margin: 0 !important;
+  padding: 12px !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.writer-app .writer-workspace-card .writer-tab-panel {
+  margin: 0 !important;
+  border: 0 !important;
+  border-top: 1px solid var(--line) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.writer-app .writer-workspace-card .tabs {
   margin: 10px 0 0;
 }
 
