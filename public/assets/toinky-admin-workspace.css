@@ -533,11 +533,14 @@ body:has(.writer-app) .workspace-menu-close {
   gap: 18px;
   margin: 8px 0 12px;
   padding: 2px 0 0;
-  border-bottom: 1px solid #d8d3ca;
+  border: 0 !important;
+  border-bottom: 1px solid #d8d3ca !important;
+  border-radius: 0 !important;
   background: transparent !important;
   overflow: visible;
   position: static !important;
   min-width: 0;
+  box-shadow: none !important;
 }
 
 .admin-app .page-tabs .folder-tab,
