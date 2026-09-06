@@ -152,7 +152,7 @@ function writer_definition_picker(array$definitions,array$usage=[]):string{$html
 <?php if($plot):?>
 <section class="card story-hero"><span class="badge" style="float:right"><?=e($plot['workflow_status'])?>
 </span><small>Guided Story Workspace</small><h1><?=e($plot['title'])?>
-</h1><p class="muted">Build the shared premise first, then connect each character’s choices to reusable story values. Validate and simulate before submitting a fixed revision for review.</p></section><nav class="tabs">
+</h1><p class="muted">Build the shared premise first, then connect each character’s choices to reusable story values. Validate and simulate before submitting a fixed revision for review.</p><nav class="tabs">
 <?php $writerTabs=writer_tabs($isAdmin);foreach($writerTabs as$k=>$v):?>
 <a class="tab <?=$tab===$k?'active':''?>
 " href="?plot=<?=$plotId?>
@@ -160,7 +160,7 @@ function writer_definition_picker(array$definitions,array$usage=[]):string{$html
 "><?=e($v)?>
 </a>
 <?php endforeach;?>
-</nav>
+</nav></section>
 
 
 <?php if($tab==='how_it_works'):?>
