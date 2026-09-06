@@ -509,18 +509,7 @@ function admin_hero_button_editor(array $button,string $index,bool $template=fal
 <h3>Palette</h3>
 <div class="theme-colors">
 <?php foreach(['primary_color'=>'Primary','secondary_color'=>'Secondary','accent_color'=>'Accent','surface_color'=>'Surface','background_color'=>'Background']as$key=>$label):?>
-<label class="color-control" data-color-control>
-<span>
-<?=$label?>
-</span>
-<input type="color" data-color-picker value="<?=e(theme_rgb($t[$key]))?>" aria-label="<?=$label?> color picker">
-<input type="text" name="<?=$key?>" data-color-hex value="<?=e(strtoupper($t[$key]))?>" pattern="^#[0-9A-Fa-f]{6}([0-9A-Fa-f]{2})?$" maxlength="9" required aria-label="<?=$label?> hexadecimal color">
-<span class="color-alpha">
-<input type="range" data-color-alpha min="0" max="100" value="<?=theme_opacity($t[$key])?>" aria-label="<?=$label?> opacity">
-<output>
-<?=theme_opacity($t[$key])?>%</output>
-</span>
-</label>
+<?=admin_color_control($label,$key,(string)$t[$key])?>
 <?php endforeach;?>
 </div>
 <h3>Typography</h3>
@@ -538,16 +527,7 @@ function admin_hero_button_editor(array $button,string $index,bool $template=fal
 <?php endforeach;?>
 </select>
 </label>
-<label class="field">Font Color<span class="font-color" data-color-control>
-<input type="color" data-color-picker value="<?=e(theme_rgb($t[$fields['color']]))?>">
-<input type="text" name="<?=e($fields['color'])?>" data-color-hex value="<?=e(strtoupper($t[$fields['color']]))?>" pattern="^#[0-9A-Fa-f]{6}([0-9A-Fa-f]{2})?$" maxlength="9" required>
-<span class="color-alpha">
-<input type="range" data-color-alpha min="0" max="100" value="<?=theme_opacity($t[$fields['color']])?>">
-<output>
-<?=theme_opacity($t[$fields['color']])?>%</output>
-</span>
-</span>
-</label>
+<?=admin_color_control('Font Color',(string)$fields['color'],(string)$t[$fields['color']])?>
 <label class="field">Font Size<input name="<?=e($fields['size'])?>" value="<?=e($t[$fields['size']])?>" pattern="^(?:0\.[1-9][0-9]?|[1-9][0-9]{0,2})(?:px|rem|em|%)$" required>
 </label>
 <label class="field">Font Weight<select name="<?=e($fields['weight'])?>">
@@ -638,21 +618,8 @@ function admin_hero_button_editor(array $button,string $index,bool $template=fal
 <?php endforeach;?>
 </select>
 </label>
-<label class="field">Default Color<span class="font-color" data-color-control>
-<input type="color" data-color-picker value="<?=e(theme_rgb($role['color']))?>">
-<input type="text" name="brand_<?=e($key)?>_color" data-color-hex value="<?=e(strtoupper($role['color']))?>" pattern="^#[0-9A-Fa-f]{6}([0-9A-Fa-f]{2})?$" maxlength="9" required>
-<span class="color-alpha">
-<input type="range" data-color-alpha min="0" max="100" value="<?=theme_opacity($role['color'])?>">
-<output>
-<?=theme_opacity($role['color'])?>%</output>
-</span>
-</span>
-</label>
-<label class="field">Dark Surface Color<span class="font-color" data-color-control>
-<input type="color" data-color-picker value="<?=e(theme_rgb($role['dark_color']))?>">
-<input type="text" name="brand_<?=e($key)?>_dark_color" data-color-hex value="<?=e(strtoupper($role['dark_color']))?>" pattern="^#[0-9A-Fa-f]{6}([0-9A-Fa-f]{2})?$" maxlength="9" required>
-<span class="color-alpha"><input type="range" data-color-alpha min="0" max="100" value="<?=theme_opacity($role['dark_color'])?>"><output><?=theme_opacity($role['dark_color'])?>%</output></span>
-</span></label>
+<?=admin_color_control('Default Color','brand_'.(string)$key.'_color',(string)$role['color'])?>
+<?=admin_color_control('Dark Surface Color','brand_'.(string)$key.'_dark_color',(string)$role['dark_color'])?>
 <label class="field">Font Size<input name="brand_<?=e($key)?>_size" value="<?=e($role['size'])?>" required>
 </label>
 <label class="field">Font Weight<select name="brand_<?=e($key)?>_weight">
