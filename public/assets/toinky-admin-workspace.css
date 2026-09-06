@@ -33,6 +33,7 @@
 
 .admin-app .workspace-page-header p {
   margin: 4px 0 0;
+  color: var(--ink-muted);
   font-size: var(--admin-help-text);
 }
 
@@ -477,4 +478,48 @@
 
 .admin-app.lab-app .workspace-main {
   padding: 0 !important;
+}
+
+.admin-app .workspace-page-header,
+.writer-app .workspace-page-header {
+  border-bottom: 1px solid var(--line);
+}
+
+.writer-app .workspace-page-header {
+  padding: 18px !important;
+}
+
+.writer-app .workspace-page-header h1 {
+  margin: 0;
+  font-size: 1.65rem;
+  line-height: 1.05;
+}
+
+.writer-app .workspace-page-header p {
+  margin: 4px 0 0;
+  color: var(--ink-muted);
+  font-size: var(--admin-help-text);
+  line-height: 1.3;
+}
+
+body:has(.admin-app) .workspace-menu-toggle,
+body:has(.writer-app) .workspace-menu-toggle {
+  gap: 6px;
+  padding: 9px 12px !important;
+  border-radius: 5px;
+  font-size: 11px !important;
+  line-height: 1 !important;
+}
+
+body:has(.admin-app) .workspace-menu-close,
+body:has(.writer-app) .workspace-menu-close {
+  width: 30px;
+  height: 30px;
+  font-size: 21px;
+}
+
+@media (max-width: 800px) {
+  .writer-app .workspace-page-header {
+    padding: 12px !important;
+  }
 }

@@ -116,8 +116,9 @@ function writer_definition_picker(array$definitions,array$usage=[]):string{$html
 .inky-guide-edit textarea,.inky-guide-edit input{box-sizing:border-box;max-width:100%;font-size:11px}
 </style>
 <link rel="stylesheet" href="assets/toinky-writer-navigation.css?v=<?=filemtime(__DIR__.'/assets/toinky-writer-navigation.css')?>">
+<link rel="stylesheet" href="assets/toinky-admin-workspace.css">
 </head>
-<body><div class="workspace-layout"><?php require __DIR__.'/_workspace_sidebar.php';render_workspace_sidebar($writer,'writer',true);?><main class="workspace-main"><header class="workspace-page-header"><div><h1>Story Writer</h1><p>Signed in as <?=e($writer['display_name'])?></p></div></header>
+<body><div class="workspace-layout writer-app"><?php require __DIR__.'/_workspace_sidebar.php';render_workspace_sidebar($writer,'writer',true);?><main class="workspace-main"><header class="workspace-page-header"><div><h1>Story Writer</h1><p>Signed in as <?=e($writer['display_name'])?></p></div></header>
 <main class="shell framework-subtab-<?=e($subtab)?>">
 <?php if($error):?>
 <p class="error"><?=e($error)?>
