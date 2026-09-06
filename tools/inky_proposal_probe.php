@@ -5,7 +5,10 @@ $root=dirname(__DIR__);
 require_once $root.'/app/bootstrap.php';
 require_once $root.'/app/InkyGuideService.php';
 
+// Usage: php tools/inky_proposal_probe.php [plot_id] [proposal_key] [--show-response]
 $plotId=(int)($argv[1]??0);
+$requestedKey=trim((string)($argv[2]??''));
+$showResponse=in_array('--show-response',$argv,true);
 if($plotId<1){
     $latest=db()->query('SELECT d.plot_id FROM inky_story_guide_drafts d JOIN plots p ON p.plot_id=d.plot_id WHERE p.workflow_status="DRAFT" ORDER BY d.updated_at_utc DESC LIMIT 1')->fetchColumn();
     $plotId=(int)$latest;
@@ -26,8 +29,8 @@ if(!is_array($state))throw new RuntimeException('The saved Inky guide state is i
 
 $keys=['title','archetype','setting_name','scenario_text','location_1_name','location_1_description','location_2_name','location_2_description','story_value_1','story_value_2','character_1','event_1','decision_1','opportunity_1','ending_section_1','ending_1','max_players','max_npcs'];
 $accepted=(array)($state['accepted_proposals']??[]);
-$nextKey='';
-foreach($keys as $key){if(!array_key_exists($key,$accepted)){$nextKey=$key;break;}}
+$nextKey=$requestedKey;
+if($nextKey==='')foreach($keys as $key){if(!array_key_exists($key,$accepted)){$nextKey=$key;break;}}
 if($nextKey==='')throw new RuntimeException('This guide draft has no remaining proposal to request.');
 
 $brief=(array)(($state['metadata']??[])?:($state['brief']??[]));
@@ -62,9 +65,10 @@ try{
     $exitCode=1;
 }
 
-$interactionQuery=db()->query("SELECT ai_interaction_id,purpose,success,http_status,latency_ms,prompt_chars,response_chars,error_text,request_started_at_utc,request_completed_at_utc FROM ai_reasoner_interactions WHERE purpose='INKY_STORY_PROPOSAL' ORDER BY ai_interaction_id DESC LIMIT 1");
+$interactionQuery=db()->query("SELECT ai_interaction_id,purpose,success,http_status,latency_ms,prompt_chars,response_chars,error_text,parsed_response_json,request_started_at_utc,request_completed_at_utc FROM ai_reasoner_interactions WHERE purpose='INKY_STORY_PROPOSAL' ORDER BY ai_interaction_id DESC LIMIT 1");
 $interaction=$interactionQuery->fetch();
 if($interaction){
+    if(!$showResponse)unset($interaction['parsed_response_json']);
     echo 'Latest proposal interaction: '.json_encode($interaction,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES).PHP_EOL;
 }
 
