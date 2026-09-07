@@ -311,6 +311,7 @@ $PHP tools/inky_draft_dependency_test.php 5
 ```
 
 Check `entry_count`, `manual_writer_count`, and `decisions_with_options`.
-Confirm that manual entries are labeled as already in Story Writer and that a
-decision has its option previews and Writer link. The endpoint is read-only;
+Confirm that manual entries appear inside their matching stage group with the
+`Direct Entry` label, and that a decision has its option previews and Writer
+link. The endpoint is read-only;
 it must not insert or update story records.

@@ -44,48 +44,57 @@
         const list=root.querySelector('[data-inky-accepted]');
         if(!list)return;
         const manual=draftEntries.filter(entry=>entry&&entry.source==='writer');
-        const existing=list.querySelector('[data-inky-writer-scan]');
-        if(!manual.length){existing?.remove();return;}
+        if(!manual.length){delete root.dataset.inkyWriterScanVersion;return;}
         const version=JSON.stringify(manual);
-        if(existing?.dataset.version===version)return;
-        existing?.remove();
-        const disclosure=document.createElement('details');
-        disclosure.className='inky-guide-accepted-group inky-guide-writer-scan-group';
-        disclosure.dataset.inkyWriterScan='';
-        disclosure.dataset.version=version;
-        const summary=document.createElement('summary');
-        summary.textContent='Story Writer Entries · '+manual.length;
-        const body=document.createElement('div');
-        body.className='inky-guide-accepted-group-items';
-        const groups=new Map();
+        if(root.dataset.inkyWriterScanVersion===version&&list.querySelector('[data-inky-writer-entry]'))return;
+        list.querySelectorAll('[data-inky-writer-entry]').forEach(item=>item.remove());
+        root.dataset.inkyWriterScanVersion=version;
+        const groups=new Map([...list.querySelectorAll('.inky-guide-accepted-group')].map(group=>{
+            const summary=group.querySelector(':scope > summary');
+            const stage=(summary?.textContent||'').replace(/\s+·\s+\d+\s*$/,'').trim();
+            return [stage,group.querySelector(':scope > .inky-guide-accepted-group-items')];
+        }).filter(([,body])=>body));
+        const manualByStage=new Map();
         manual.forEach(entry=>{
             const stage=entry.stage||'Story Writer';
-            if(!groups.has(stage))groups.set(stage,[]);
-            groups.get(stage).push(entry);
+            if(!manualByStage.has(stage))manualByStage.set(stage,[]);
+            manualByStage.get(stage).push(entry);
         });
-        groups.forEach((entries,stage)=>{
-            const heading=document.createElement('h5');
-            heading.className='inky-guide-writer-scan-heading';
-            heading.textContent=stage;
-            body.append(heading);
+        manualByStage.forEach((entries,stage)=>{
+            let body=groups.get(stage);
+            if(!body){
+                const disclosure=document.createElement('details');
+                disclosure.className='inky-guide-accepted-group';
+                const summary=document.createElement('summary');
+                summary.textContent=stage+' · '+entries.length;
+                body=document.createElement('div');
+                body.className='inky-guide-accepted-group-items';
+                disclosure.append(summary,body);
+                list.append(disclosure);
+                groups.set(stage,body);
+            }
             entries.forEach(entry=>{
                 const row=document.createElement('div');
                 row.className='inky-guide-accepted-item inky-guide-writer-entry';
+                row.dataset.inkyWriterEntry='';
                 const label=document.createElement('span');
                 label.textContent=entry.display||entry.match||'Story Writer entry';
                 row.append(label);
                 const source=document.createElement('small');
                 source.className='inky-guide-writer-entry-source';
-                source.textContent='Already in Story Writer';
+                source.textContent='Direct Entry';
                 row.append(source);
                 const link=writerLink(entry);
                 if(link)row.append(link);
                 renderChildren(row,entry.children);
                 body.append(row);
             });
+            const summary=body.parentElement?.querySelector(':scope > summary');
+            if(summary){
+                const count=body.querySelectorAll(':scope > .inky-guide-accepted-item').length;
+                summary.textContent=stage+' · '+count;
+            }
         });
-        disclosure.append(summary,body);
-        list.append(disclosure);
     };
     const refresh=async plotId=>{
         if(!plotId)return;
