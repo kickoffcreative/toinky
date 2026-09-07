@@ -34,15 +34,10 @@
             const nameEntry=dependencies[nameKey]||{};
             const descriptionEntry=dependencies[descriptionKey]||{};
             const label=row.querySelector(':scope > span');
-            const descriptionEdit=descriptionRow.querySelector('.inky-guide-history-edit');
             if(label){
                 const name=nameEntry.preview||'';
                 const description=descriptionEntry.preview||'';
                 label.textContent='Location '+match[1]+(name?' · '+name:' · Name')+(description?' · Description: '+description:'');
-            }
-            if(descriptionEdit){
-                descriptionEdit.title='Edit the location description.';
-                row.append(descriptionEdit);
             }
             row.dataset.inkyDraftPair=descriptionKey;
             descriptionRow.remove();
