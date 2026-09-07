@@ -384,7 +384,7 @@ final class StoryAuthoringService
             if((int)($row['active']??1)!==1)continue;
             $id=(int)$row['dynamic_opportunity_id'];
             $code=trim((string)($row['opportunity_code']??'Opportunity'));
-            $addManual('writer_opportunity_'.$id,'Conditional Opportunities','Conditional Opportunity · '.$code,'Conditional Opportunity · '.$code,'opportunity',$id);
+            $addManual('writer_opportunity_'.$id,'Opportunities','Opportunity · '.$code,'Opportunity · '.$code,'opportunity',$id);
         }
         foreach($w['story_sections']as$row){
             if((int)($row['active']??1)!==1)continue;
@@ -396,7 +396,7 @@ final class StoryAuthoringService
             if((int)($row['active']??1)!==1)continue;
             $id=(int)$row['resolution_fragment_id'];
             $preview=self::inkyDraftText((string)($row['fragment_text']??''));
-            $addManual('writer_resolution_'.$id,'Endings','Ending · '.$id,'Ending · '.$id.($preview!==''?' · '.$preview:''),'resolution',$id);
+            $addManual('writer_resolution_'.$id,'Ending Fragments','Ending Fragment · '.$id,'Ending Fragment · '.$id.($preview!==''?' · '.$preview:''),'resolution',$id);
         }
         return$entries;
     }
@@ -421,9 +421,9 @@ final class StoryAuthoringService
         if(preg_match('/^character_/', $key)===1)return'Characters';
         if(preg_match('/^event_/', $key)===1)return'World Events';
         if(preg_match('/^decision_/', $key)===1)return'Decisions';
-        if(preg_match('/^opportunity_/', $key)===1)return'Conditional Opportunities';
+        if(preg_match('/^opportunity_/', $key)===1)return'Opportunities';
         if(preg_match('/^ending_section_/', $key)===1)return'Ending Sections';
-        if(preg_match('/^ending_/', $key)===1)return'Endings';
+        if(preg_match('/^ending_/', $key)===1)return'Ending Fragments';
         return'Story Overview';
     }
 

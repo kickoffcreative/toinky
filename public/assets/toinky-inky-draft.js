@@ -70,10 +70,16 @@
     const renderWriterEntries=()=>{
         const list=root.querySelector('[data-inky-accepted]');
         if(!list)return;
+        const order=['Story Overview','Locations','Characters','Story Values','World Events','Decisions','Opportunities','Ending Fragments','Ending Sections'];
+        const reorderGroups=()=>{
+            const rank=stage=>{const index=order.indexOf(stage);return index<0?order.length:index;};
+            const stageName=group=>(group.querySelector(':scope > summary')?.textContent||'').replace(/\s+·\s+\d+\s*$/,'').trim();
+            [...list.querySelectorAll(':scope > .inky-guide-accepted-group')].sort((left,right)=>rank(stageName(left))-rank(stageName(right))).forEach(group=>list.append(group));
+        };
         const manual=draftEntries.filter(entry=>entry&&entry.source==='writer');
-        if(!manual.length){delete root.dataset.inkyWriterScanVersion;return;}
+        if(!manual.length){delete root.dataset.inkyWriterScanVersion;reorderGroups();return;}
         const version=JSON.stringify(manual);
-        if(root.dataset.inkyWriterScanVersion===version&&list.querySelector('[data-inky-writer-entry]'))return;
+        if(root.dataset.inkyWriterScanVersion===version&&list.querySelector('[data-inky-writer-entry]')){reorderGroups();return;}
         list.querySelectorAll('[data-inky-writer-entry]').forEach(item=>item.remove());
         root.dataset.inkyWriterScanVersion=version;
         const groups=new Map([...list.querySelectorAll('.inky-guide-accepted-group')].map(group=>{
@@ -122,6 +128,7 @@
                 summary.textContent=stage+' · '+count;
             }
         });
+        reorderGroups();
     };
     const refresh=async plotId=>{
         if(!plotId)return;
