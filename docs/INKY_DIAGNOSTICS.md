@@ -59,6 +59,14 @@ Replace `5` and `decision_2` with the target story and proposal key. A
 successful AI interaction with a rejected proposal means the next place to
 inspect is response normalization or schema validation, not connectivity.
 
+When the recorded interaction has `success=1`, `http_status=200`, and the
+batch shape reports `top_level_keys:["proposal"]`, the AI returned the
+requested item inside a proposal wrapper. The service must normalize that
+wrapper before validation. When a response instead contains a full package,
+the requested key must be selected exactly; if it is absent, retry with an
+exact-key repair request and keep the proposal rejected rather than borrowing
+a sibling record.
+
 To exercise every Continue with Inky button in one terminal run, use the
 batch probe. It tests Next Suggestion, Story Value, Location, Event, Decision,
 and Character using the saved draft and reports each returned shape plus its

@@ -63,7 +63,8 @@ foreach([
     "inky-pen",
     "if(!(int)\$preferences['enabled'])return",
     "'guide_story'",
-    "'whats_next']=['label'=>'Improve Story','implemented'=>true]",
+    "'guide_story']=['label'=>'InkyCowriter · '",
+    "'whats_next']=['label'=>'InkyEditor · Improve Story','implemented'=>true]",
     "'quality_check'=>['label'=>'Quality Check','implemented'=>true]",
     "'dependencies'=>['label'=>'Find Dependency Problems','implemented'=>true]",
     'data-inky-next-actions',
@@ -153,6 +154,7 @@ foreach(["`What's Next?` is the second implemented vertical slice",'Every step m
 foreach(['AuthService::requireWriter','AuthService::requireCsrf','InkyCowriterService::run']as$required)if(!str_contains($actionEndpoint,$required))throw new RuntimeException('Inky action endpoint is missing '.$required.'.');
 foreach(['Usage: php tools/inky_review_batch.php','Runs actions sequentially','InkyCowriterService::run','interaction_id','summary','whats_next','review_consistency','focused_tests']as$required)if(!str_contains($batchTool,$required))throw new RuntimeException('Inky batch runner is missing '.$required.'.');
 foreach(['proposal_key','--show-response','Probe failed:','Latest proposal interaction']as$required)if(!str_contains($proposalProbe,$required))throw new RuntimeException('Inky proposal probe is missing '.$required.'.');
+foreach(['inky_continue_batch.php','ai_response_shape','interaction_created','Running 6 Continue']as$required)if(!str_contains($batchTool,$required))throw new RuntimeException('Inky Continue batch runner is missing '.$required.'.');
 if(str_contains($actionEndpoint,"'message'=>\$e->getMessage()"))throw new RuntimeException('Inky action errors may expose private connection details to the browser.');
 foreach(['INKY_STORY_GUIDE','INKY_STORY_GUIDE_CONTENT','INKY_STORY_GUIDE_EDITS','suggestContent','suggestEdits','AiConnectionService::completeJson','completeJsonWithRepair','JsonException','syntax error','validatedResponse','STEP_COUNT','guidedDrafts','loadProgress','saveProgress','variation','editable_fields','proposalFields','mergeProposalFields','normalizeProposalInput','activeCharacters','draftContextSource','character is required','prompt_text','decision_prompt','target_key','preset_values','allowed_values','What will you do next?','Return a corrected response','not valid JSON','Only revise','edit target','edit replacement','genuinely different','no usable targeted edit suggestions']as$required)if(!str_contains($guideService,$required))throw new RuntimeException('Inky guided conversation service is missing '.$required.'.');
 if(str_contains($guideService,'StoryAuthoringService'))throw new RuntimeException('Inky guide must not create story records during the conversation.');

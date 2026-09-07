@@ -47,6 +47,9 @@ $packagedEvent=$normalizeMethod->invoke(null,[
 ], 'event', [], 'event_1');
 $eventFromPackage=$validateMethod->invoke(null,$packagedEvent['value'],'event');
 if($eventFromPackage['headline']!=='The Bell Rings')throw new RuntimeException('Package-shaped event responses did not select the requested event.');
+$wrappedEvent=$normalizeMethod->invoke(null,['proposal'=>['event_code'=>'OPENING_SCENE','headline'=>'The Bell Returns','text'=>'The warning sounds again.']], 'event', [], 'event_2');
+$eventFromEnvelope=$validateMethod->invoke(null,$wrappedEvent['value'],'event');
+if($eventFromEnvelope['headline']!=='The Bell Returns')throw new RuntimeException('Proposal-wrapped event responses were not normalized.');
 $unrelatedPackage=$normalizeMethod->invoke(null,['story_value_1'=>['label'=>'Sibling value'],'event_1'=>['headline'=>'Sibling event','text'=>'Sibling text.']], 'decision', [], 'decision_2');
 if(array_key_exists('value',$unrelatedPackage))throw new RuntimeException('Unrelated package data was treated as the requested proposal.');
 $locationInput=$normalizeMethod->invoke(null,[
@@ -73,6 +76,9 @@ $decisionInput=$normalizeMethod->invoke(null,[
 ],'decision');
 $decision=$validateMethod->invoke(null,$decisionInput['value'],'decision');
 if(count($decision['options'])!==2||$decision['options'][0]['label']!=='Enter the cave'||$decision['options'][1]['result']!=='Her friends stay safe.')throw new RuntimeException('Decision proposal aliases were not normalized.');
+$wrappedDecision=$normalizeMethod->invoke(null,['proposal'=>['event_code'=>'DECISION_2','character'=>'BRIANNA','prompt'=>'Which path will Brianna choose?','options'=>[['label'=>'Enter the cave','result'=>'She finds a clue.'],['label'=>'Return to the group','result'=>'Her friends stay safe.']]]], 'decision', [], 'decision_2');
+$decisionFromEnvelope=$validateMethod->invoke(null,$wrappedDecision['value'],'decision');
+if(count($decisionFromEnvelope['options'])!==2)throw new RuntimeException('Proposal-wrapped decision responses were not normalized.');
 
 $failed=false;
 try{$method->invoke(null,['reply'=>'Try again.','question'=>'','complete'=>false,'brief'=>null],0);}

@@ -283,8 +283,8 @@ or its credentials.
 The current Story Writer menu uses these labels:
 
 1. Write New Story with [Inky name]
-2. Continue "[Story Title]" Draft with [Inky name]
-3. Improve Story
+2. InkyCowriter · Continue "[Story Title]" Draft with [Inky name]
+3. InkyEditor · Improve Story
 4. Review Story Consistency
 5. Show Scenario Map
 6. Review Plot
@@ -294,7 +294,10 @@ The current Story Writer menu uses these labels:
 10. Quality Check
 11. Prepare Focus Tests
 
-The first two items are guided authoring surfaces. **Improve Story** contains
+The first two items are guided authoring surfaces. **InkyCowriter** is the
+writer-facing name for Continue Draft and its proposal controls. **InkyEditor**
+is the writer-facing name for the read-only **Improve Story** review menu.
+Internal action keys remain unchanged for compatibility. **Improve Story** contains
 the read-only review actions, including the deterministic **Show Scenario Map**
 view. Draft proposals are handled by
 [docs/INKY_ACTION_RULES.md](INKY_ACTION_RULES.md): Next Suggestion advances

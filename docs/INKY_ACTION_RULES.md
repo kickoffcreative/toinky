@@ -35,6 +35,15 @@ The Continue Draft composer is a resumable, proposal-based workflow. The
 writer edits and accepts each proposal; opening the composer or receiving an AI
 response never adds story content by itself.
 
+### Product names
+
+- **InkyCowriter** is the user-facing name for Continue Draft and its guided
+  proposal controls.
+- **InkyEditor** is the user-facing name for the read-only Improve Story review
+  menu.
+- Internal action keys such as guide_story and whats_next remain unchanged so
+  saved links and endpoint contracts continue to work.
+
 ### Draft state
 
 - Continue Draft is for an existing draft. Its guided answers, current brief,
