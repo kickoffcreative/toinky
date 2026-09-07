@@ -293,7 +293,7 @@ final class StoryAuthoringService
     public static function inkyDraftDependencyMap(int $plotId,array $accepted): array
     {
         if($plotId<1||!$accepted)return[];$w=self::workspace($plotId);$details=self::dependencyDetails($plotId,$w);$usage=self::stableCodeUsageMap($plotId,$w);$out=[];
-        foreach($accepted as$key=>$value){$base=self::inkyDraftEntryLabel((string)$key);$preview=self::inkyDraftEntryPreview((string)$key,$value);$reference=self::inkyProposalReference($key,$value,$w);if(!$reference){$out[(string)$key]=['match'=>$base,'display'=>$base.($preview!==''?' · '.$preview:''),'blocked'=>false,'dependencies'=>[],'usage'=>[]];continue;}[$entity,$id]=$reference;$items=array_values(array_unique((array)($details[$entity][$id]??[])));$active=(array)($usage[$entity][$id]??[]);$entry=['match'=>$base,'display'=>$base.($preview!==''?' · '.$preview:''),'blocked'=>(bool)$active,'dependencies'=>$items,'usage'=>$active,'entity'=>$entity,'entity_id'=>$id,'writer_url'=>self::inkyDraftWriterUrl($plotId,$entity,$id)];if($entity==='decision')$entry['children']=self::inkyDecisionChildren($plotId,$id,$w);$out[(string)$key]=$entry;}
+        foreach($accepted as$key=>$value){$base=self::inkyDraftEntryLabel((string)$key);$preview=self::inkyDraftEntryPreview((string)$key,$value);$reference=self::inkyProposalReference($key,$value,$w);if(!$reference){$out[(string)$key]=['match'=>$base,'display'=>$base.($preview!==''?' · '.$preview:''),'preview'=>$preview,'blocked'=>false,'dependencies'=>[],'usage'=>[]];continue;}[$entity,$id]=$reference;$items=array_values(array_unique((array)($details[$entity][$id]??[])));$active=(array)($usage[$entity][$id]??[]);$entry=['match'=>$base,'display'=>$base.($preview!==''?' · '.$preview:''),'preview'=>$preview,'blocked'=>(bool)$active,'dependencies'=>$items,'usage'=>$active,'entity'=>$entity,'entity_id'=>$id,'writer_url'=>self::inkyDraftWriterUrl($plotId,$entity,$id)];if($entity==='decision')$entry['children']=self::inkyDecisionChildren($plotId,$id,$w);$out[(string)$key]=$entry;}
         return$out;
     }
 
@@ -330,6 +330,7 @@ final class StoryAuthoringService
                 'manual'=>true,
                 'match'=>$match,
                 'display'=>$display,
+                'preview'=>'',
                 'blocked'=>(bool)($usage[$entity][$id]??[]),
                 'dependencies'=>$dependencies,
                 'usage'=>(array)($usage[$entity][$id]??[]),
@@ -420,8 +421,16 @@ final class StoryAuthoringService
             'location','state_definition'=>'overview',
             default=>'overview'
         };
+        $subtab=match($entity){
+            'location'=>'locations',
+            'state_definition'=>'values',
+            'opportunity'=>'opportunities',
+            'story_section'=>'sections',
+            'resolution'=>'fragments',
+            default=>''
+        };
         $anchor=$entity==='decision'?'#decision-'.$id.'-options':'';
-        return'writer.php?plot='.$plotId.'&tab='.$tab.$anchor;
+        return'writer.php?plot='.$plotId.'&tab='.$tab.($subtab!==''?'&subtab='.$subtab:'').$anchor;
     }
 
     private static function inkyDecisionChildren(int$plotId,int$decisionId,array$workspace): array

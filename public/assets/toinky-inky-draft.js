@@ -16,8 +16,40 @@
         link.className='inky-guide-draft-writer-link';
         link.dataset.inkyWriterLink='';
         link.href=entry.writer_url;
-        link.textContent=entry.entity==='decision'?'Edit Options and Effects':'Open in Story Writer';
+        link.textContent=entry.source==='writer'?'Open in Story Writer':(entry.entity==='decision'?'Edit Options and Effects':'Open in Story Writer');
         return link;
+    };
+    const mergeLocationFields=()=>{
+        const group=[...root.querySelectorAll('[data-inky-accepted] .inky-guide-accepted-group')].find(item=>(item.querySelector(':scope > summary')?.textContent||'').startsWith('Locations'));
+        if(!group)return;
+        const rows=[...group.querySelectorAll(':scope > .inky-guide-accepted-group-items > .inky-guide-accepted-item:not(.inky-guide-writer-entry)')];
+        const byKey=new Map(rows.map(row=>[row.dataset.inkyDraftKey,row]));
+        rows.forEach(row=>{
+            const nameKey=row.dataset.inkyDraftKey||'';
+            const match=nameKey.match(/^location_(\d+)_name$/);
+            if(!match||row.dataset.inkyDraftPair)return;
+            const descriptionKey='location_'+match[1]+'_description';
+            const descriptionRow=byKey.get(descriptionKey);
+            if(!descriptionRow)return;
+            const nameEntry=dependencies[nameKey]||{};
+            const descriptionEntry=dependencies[descriptionKey]||{};
+            const label=row.querySelector(':scope > span');
+            const descriptionEdit=descriptionRow.querySelector('.inky-guide-history-edit');
+            if(label){
+                const name=nameEntry.preview||'';
+                const description=descriptionEntry.preview||'';
+                label.textContent='Location '+match[1]+(name?' · '+name:' · Name')+(description?' · Description: '+description:'');
+            }
+            if(descriptionEdit){
+                descriptionEdit.title='Edit the location description.';
+                row.append(descriptionEdit);
+            }
+            row.dataset.inkyDraftPair=descriptionKey;
+            descriptionRow.remove();
+        });
+        const summary=group.querySelector(':scope > summary');
+        const body=group.querySelector(':scope > .inky-guide-accepted-group-items');
+        if(summary&&body)summary.textContent='Locations · '+body.querySelectorAll(':scope > .inky-guide-accepted-item').length;
     };
     const renderChildren=(item,children)=>{
         item.querySelector('[data-inky-draft-children]')?.remove();
@@ -132,6 +164,7 @@
             if(link)item.append(link);
             renderChildren(item,entry.children);
         });
+        mergeLocationFields();
         renderWriterEntries();
     };
     const observer=new MutationObserver(decorate);
