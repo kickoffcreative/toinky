@@ -23,7 +23,8 @@ try{
     $plotId=(int)($_POST['plot_id']??0);
     $progress=InkyGuideService::loadProgress($writer,$plotId);
     $accepted=(array)($progress['accepted_proposals']??[]);
-    echo json_encode(['ok'=>true,'draft_dependencies'=>StoryAuthoringService::inkyDraftDependencyMap($plotId,$accepted),'draft_entries'=>StoryAuthoringService::inkyDraftEntries($plotId,$accepted)],JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES|JSON_INVALID_UTF8_SUBSTITUTE);
+    $draftSnapshot=StoryAuthoringService::inkyDraftSnapshot($plotId,$accepted);
+    echo json_encode(['ok'=>true,'draft_dependencies'=>$draftSnapshot['dependencies'],'draft_entries'=>$draftSnapshot['entries']],JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES|JSON_INVALID_UTF8_SUBSTITUTE);
 }catch(Throwable$e){
     error_log('Inky draft dependency refresh failed ['.get_class($e).']: '.$e->getMessage());
     http_response_code(422);

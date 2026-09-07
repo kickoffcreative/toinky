@@ -290,9 +290,13 @@ final class StoryAuthoringService
         return$out;
     }
 
-    public static function inkyDraftDependencyMap(int $plotId,array $accepted): array
+    public static function inkyDraftDependencyMap(int $plotId,array $accepted,?array $workspace=null,?array $details=null,?array $usage=null): array
     {
-        if($plotId<1||!$accepted)return[];$w=self::workspace($plotId);$details=self::dependencyDetails($plotId,$w);$usage=self::stableCodeUsageMap($plotId,$w);$out=[];
+        if($plotId<1||!$accepted)return[];
+        $w=$workspace??self::workspace($plotId);
+        $details=$details??self::dependencyDetails($plotId,$w);
+        $usage=$usage??self::stableCodeUsageMap($plotId,$w);
+        $out=[];
         foreach($accepted as$key=>$value){$base=self::inkyDraftEntryLabel((string)$key);$preview=self::inkyDraftEntryPreview((string)$key,$value);$reference=self::inkyProposalReference($key,$value,$w,$accepted);if(!$reference){$out[(string)$key]=['match'=>$base,'display'=>$base.($preview!==''?' · '.$preview:''),'preview'=>$preview,'blocked'=>false,'dependencies'=>[],'usage'=>[]];continue;}[$entity,$id]=$reference;$items=array_values(array_unique((array)($details[$entity][$id]??[])));$active=(array)($usage[$entity][$id]??[]);$entry=['match'=>$base,'display'=>$base.($preview!==''?' · '.$preview:''),'preview'=>$preview,'blocked'=>(bool)$active,'dependencies'=>$items,'usage'=>$active,'entity'=>$entity,'entity_id'=>$id,'writer_url'=>self::inkyDraftWriterUrl($plotId,$entity,$id)];if($entity==='decision')$entry['children']=self::inkyDecisionChildren($plotId,$id,$w);$out[(string)$key]=$entry;}
         return$out;
     }
@@ -301,9 +305,9 @@ final class StoryAuthoringService
     {
         if($plotId<1)return[];
         $w=self::workspace($plotId);
-        $mapped=self::inkyDraftDependencyMap($plotId,$accepted);
         $details=self::dependencyDetails($plotId,$w);
         $usage=self::stableCodeUsageMap($plotId,$w);
+        $mapped=self::inkyDraftDependencyMap($plotId,$accepted,$w,$details,$usage);
         $entries=[];
         $represented=[];
         foreach($accepted as$key=>$value){
@@ -395,6 +399,19 @@ final class StoryAuthoringService
             $addManual('writer_resolution_'.$id,'Endings','Ending · '.$id,'Ending · '.$id.($preview!==''?' · '.$preview:''),'resolution',$id);
         }
         return$entries;
+    }
+
+    public static function inkyDraftSnapshot(int $plotId,array $accepted): array
+    {
+        $entries=self::inkyDraftEntries($plotId,$accepted);
+        $dependencies=[];
+        foreach($entries as$entry){
+            if(($entry['source']??'')!=='cowriter'||!isset($entry['key']))continue;
+            $key=(string)$entry['key'];
+            unset($entry['key'],$entry['stage'],$entry['source']);
+            $dependencies[$key]=$entry;
+        }
+        return['dependencies'=>$dependencies,'entries'=>$entries];
     }
 
     private static function inkyDraftStage(string$key): string

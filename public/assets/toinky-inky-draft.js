@@ -167,8 +167,20 @@
         mergeLocationFields();
         renderWriterEntries();
     };
-    const observer=new MutationObserver(decorate);
+    let observedAcceptedList=null;
+    const observeAcceptedList=()=>{
+        const list=root.querySelector('[data-inky-accepted]');
+        if(!list||observedAcceptedList===list)return;
+        observer.disconnect();
+        observer.observe(list,{childList:true,subtree:true});
+        observedAcceptedList=list;
+    };
+    const observer=new MutationObserver(()=>{
+        observeAcceptedList();
+        decorate();
+    });
     observer.observe(root,{childList:true,subtree:true});
+    observeAcceptedList();
     decorate();
     const request=window.toinkyRequest;
     if(request)window.toinkyRequest=async(url,options={})=>{
