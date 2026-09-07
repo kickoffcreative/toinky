@@ -65,7 +65,9 @@ requested item inside a proposal wrapper. The service must normalize that
 wrapper before validation. When a response instead contains a full package,
 the requested key must be selected exactly; if it is absent, retry with an
 exact-key repair request and keep the proposal rejected rather than borrowing
-a sibling record.
+a sibling record. The batch probe also reports the selected requested key,
+whether a decision has a character and prompt, and the number of returned
+options, so decision failures can be classified without a second browser run.
 
 To exercise every Continue with Inky button in one terminal run, use the
 batch probe. It tests Next Suggestion, Story Value, Location, Event, Decision,
