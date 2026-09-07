@@ -307,7 +307,7 @@ final class StoryAuthoringService
         if(preg_match('/^decision_\d+$/',$key)===1&&is_array($value)){$event=$code($value['event_code']??'');$character=$code($value['character']??'');$row=$find($w['decisions'],static fn($x)=>($event===''||$code($x['event_code']??'')===$event)&&($character===''||$code($x['role_code']??'')===$character||$code($x['role_name']??'')===$character));if(!$row&&$key==='decision_1')$row=$find($w['decisions'],static fn($x)=>true);return$row?['decision',(int)$row['template_id']]:null;}
         if($key==='opportunity_1'&&is_array($value)){$event=$code($value['opportunity_code']??$value['prompt']??'');$character=$code($value['character']??'');$row=$find($w['opportunities'],static fn($x)=>($event===''||$code($x['opportunity_code']??'')===$event)&&($character===''||$code($x['role_code']??'')===$character));return$row?['opportunity',(int)$row['dynamic_opportunity_id']]:null;}
         if($key==='ending_section_1'&&is_array($value)){$wanted=$code($value['section_code']??$value['label']??'');$row=$find($w['story_sections'],static fn($x)=>$wanted!==''&&($code($x['section_code']??'')===$wanted||$code($x['label_text']??'')===$wanted));return$row?['story_section',(int)$row['plot_story_section_id']]:null;}
-        if($key==='ending_1'&&is_array($value)){$wanted=$code($value['section']??'');$row=$find($w['resolutions'],static fn($x)=>$wanted===''||$code($x['section_code']??'')===$wanted);return$row?['resolution',(int)$row['resolution_fragment_id']:null;}
+        if($key==='ending_1'&&is_array($value)){$wanted=$code($value['section']??'');$row=$find($w['resolutions'],static fn($x)=>$wanted===''||$code($x['section_code']??'')===$wanted);return$row?['resolution',(int)$row['resolution_fragment_id']]:null;}
         return null;
     }
 
