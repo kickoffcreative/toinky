@@ -120,6 +120,11 @@ Implementation locations:
 
 ## Validation and deployment
 
+The terminal-first Inky diagnostic process and incident record are maintained
+in [docs/INKY_DIAGNOSTICS.md](INKY_DIAGNOSTICS.md). Diagnose the endpoint and
+latest recorded interaction before changing application behavior; temporary
+request tracing must be removed after reproduction.
+
 The local workspace does not include PHP, so PHP lint and database tests must
 run on the cPanel host after deployment:
 

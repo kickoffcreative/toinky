@@ -131,6 +131,8 @@ final class InkyGuideService
     {
         if(!array_key_exists('value',$input)){$aliases=['location'=>['location','location_proposal'],'character'=>['character','character_proposal'],'event'=>['event','event_proposal'],'decision'=>['decision','decision_proposal'],'opportunity'=>['opportunity','opportunity_proposal'],'ending_section'=>['ending_section','section'],'ending'=>['ending','ending_proposal'],'value'=>['story_value','story_value_proposal'],'text'=>['text','content','suggestion'],'long'=>['text','content','suggestion'],'number'=>['number','count','value']];foreach($aliases[$type]??[]as$alias)if(array_key_exists($alias,$input)){$input['value']=$input[$alias];break;}}
         if(!array_key_exists('value',$input)&&in_array($type,['location','character','event','decision','opportunity','ending_section','ending','value'],true)){$candidate=$input;foreach(['key','label','reason','summary']as$field)unset($candidate[$field]);if($candidate!==[])$input['value']=$candidate;}
+        if(in_array($type,['text','long'],true)&&is_array($input['value']??null)){$scalar=self::proposalScalar($input['value'],['text','content','suggestion','answer','label_text','location_name','name','title','headline','description']);if($scalar!==null)$input['value']=$scalar;}
+        if(is_array($input['value']??null))$input['value']=self::normalizeProposalValue($input['value'],$type);
         if(in_array($type,['decision','opportunity'],true)&&is_array($input['value']??null)){$character=$input['value']['character']??$input['value']['role_code']??$input['value']['role']??$input['value']['actor']??'';if(is_array($character))$character=$character['role_code']??$character['name']??'';if(trim((string)$character)===''&&$activeCharacters)$character=$activeCharacters[0];if(trim((string)$character)!=='')$input['value']['character']=trim((string)$character);$prompt=$input['value']['prompt']??$input['value']['prompt_text']??$input['value']['decision_prompt']??$input['value']['question']??'';if(trim((string)$prompt)!=='')$input['value']['prompt']=trim((string)$prompt);elseif($type==='decision')$input['value']['prompt']='What will you do next?';}
         if($type==='value'&&is_array($input['value']??null)){$value=$input['value'];$value['scope']=$value['scope']??$value['effect_scope']??'WORLD_STATE';$value['target_code']=$value['target_code']??$value['target_key']??$value['code']??$value['label']??'STORY_VALUE';$value['label']=$value['label']??$value['label_text']??$value['name']??$value['target_code']??'Story Value';$value['value_type']=$value['value_type']??$value['type']??'TEXT';$allowed=$value['allowed_values']??$value['allowed']??$value['preset_values']??[];if(is_string($allowed))$allowed=preg_split('/[\r\n,]+/', $allowed,-1,PREG_SPLIT_NO_EMPTY);$value['allowed_values']=is_array($allowed)?array_values($allowed):[];if($value['value_type']==='PRESET'&&!$value['allowed_values'])$value['value_type']='TEXT';$value['description']=$value['description']??$value['details']??'';$input['value']=$value;}
         return$input;
@@ -196,6 +198,7 @@ final class InkyGuideService
     private static function validateProposalObject(mixed$value,string$type): array
     {
         if(!is_array($value))throw new RuntimeException('Inky returned an invalid '.$type.' proposal.');
+        $value=self::normalizeProposalValue($value,$type);
         if($type==='location')return['location_code'=>self::code((string)($value['location_code']??$value['label_text']??'')),'label_text'=>self::text($value['label_text']??'','location name',190),'description'=>self::text($value['description']??'','location description',1200,false)];
         if($type==='character')return['name'=>self::text($value['name']??'','character name',120),'role_code'=>self::code((string)($value['role_code']??$value['name']??'')),'role_type'=>in_array(($value['role_type']??''),['PLAYER','NPC'],true)?$value['role_type']:'NPC','mystery_character'=>(int)!empty($value['mystery_character']),'public_description'=>self::text($value['public_description']??'','character description',1000),'private_knowledge'=>self::text($value['private_knowledge']??'','private knowledge',1000,false),'starting_location'=>self::text($value['starting_location']??'','starting location',190,false),'goal_text'=>self::text($value['goal_text']??'','character goal',500,false),'fear_text'=>self::text($value['fear_text']??'','character fear',500,false),'pronoun_set'=>in_array(($value['pronoun_set']??''),['HE','SHE','IT'],true)?$value['pronoun_set']:'IT'];
         if($type==='event')return['event_code'=>self::code((string)($value['event_code']??$value['headline']??'')),'phase'=>in_array(($value['phase']??''),['EXPOSITION','INCITING_INCIDENT','RISING_ACTION','CLIMAX','RESOLUTION'],true)?$value['phase']:'EXPOSITION','headline'=>self::text($value['headline']??'','event headline',190),'text'=>self::text($value['text']??'','event text',1600)];
@@ -207,7 +210,47 @@ final class InkyGuideService
 
     private static function proposalOptions(mixed$value): array
     {
-        if(!is_array($value))throw new RuntimeException('Inky returned invalid decision options.');$options=[];foreach(array_slice($value,0,2)as$option)$options[]=['label'=>self::text($option['label']??'','option label',190),'result'=>self::text($option['result']??'','option result',800)];if(count($options)!==2)throw new RuntimeException('Inky must return two contrasting options.');return$options;
+        if(!is_array($value))throw new RuntimeException('Inky returned invalid decision options.');
+        if(!array_is_list($value)){$known=[];foreach(['option_1','option_2','choice_1','choice_2','first','second']as$key)if(array_key_exists($key,$value))$known[]=$value[$key];if($known)$value=$known;else$value=array_values($value);}
+        $options=[];foreach(array_slice($value,0,2)as$option){if(!is_array($option))continue;$option=self::normalizeProposalOption($option);$options[]=['label'=>self::text($option['label']??'','option label',190),'result'=>self::text($option['result']??'','option result',800)];}if(count($options)!==2)throw new RuntimeException('Inky must return two contrasting options.');return$options;
+    }
+
+    private static function normalizeProposalValue(array$value,string$type): array
+    {
+        if($type==='location'){
+            self::copyProposalAlias($value,'location_code',['code','location_key','key']);
+            self::copyProposalAlias($value,'label_text',['location_name','name','title','label','location_label']);
+            self::copyProposalAlias($value,'description',['location_description','details','text','body','content']);
+        }elseif($type==='event'){
+            self::copyProposalAlias($value,'event_code',['code','event_key','key']);
+            self::copyProposalAlias($value,'headline',['event_headline','headline_text','title','name']);
+            self::copyProposalAlias($value,'text',['event_text','body','content','description']);
+        }elseif(in_array($type,['decision','opportunity'],true)){
+            self::copyProposalAlias($value,'event_code',['code','event_key','key']);
+            self::copyProposalAlias($value,'prompt',['prompt_text','decision_prompt','question']);
+            self::copyProposalAlias($value,'options',['choices','outcomes','branches','choice_list']);
+            if(isset($value['options'])&&is_array($value['options'])){$options=[];foreach($value['options']as$option){if(is_array($option))$options[]=self::normalizeProposalOption($option);else$options[]=$option;}$value['options']=$options;}
+        }
+        return$value;
+    }
+
+    private static function normalizeProposalOption(array$value): array
+    {
+        self::copyProposalAlias($value,'label',['text','choice','action','option','title','name','label_text']);
+        self::copyProposalAlias($value,'result',['consequence','outcome','result_text','effect','description','response']);
+        return$value;
+    }
+
+    private static function copyProposalAlias(array&$value,string$canonical,array$aliases): void
+    {
+        if(array_key_exists($canonical,$value)&&self::proposalScalar($value,[$canonical])!==null)return;
+        $alias=self::proposalScalar($value,$aliases);if($alias!==null)$value[$canonical]=$alias;
+    }
+
+    private static function proposalScalar(array$value,array$keys): ?string
+    {
+        foreach($keys as$key){if(!array_key_exists($key,$value)||!is_scalar($value[$key]))continue;$candidate=trim((string)$value[$key]);if($candidate!=='')return$candidate;}
+        return null;
     }
 
     private static function objectFields(mixed$value,array$fields,string$label): array

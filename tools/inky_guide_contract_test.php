@@ -30,6 +30,40 @@ $final=$method->invoke(null,[
 if($final['complete']!==true)throw new RuntimeException('The guide did not complete on the fifth answer.');
 if($final['brief']['title']!=='The Signal')throw new RuntimeException('The final brief title was not preserved.');
 
+$normalizeMethod=new ReflectionMethod(InkyGuideService::class,'normalizeProposalInput');
+$normalizeMethod->setAccessible(true);
+$validateMethod=new ReflectionMethod(InkyGuideService::class,'validateProposalObject');
+$validateMethod->setAccessible(true);
+$eventInput=$normalizeMethod->invoke(null,[
+    'key'=>'event_1',
+    'value'=>['code'=>'OPENING_SCENE','title'=>'The Storm Arrives','description'=>'Rain reaches the harbor.'],
+    'reason'=>'Sets the story in motion.',
+],'event');
+$event=$validateMethod->invoke(null,$eventInput['value'],'event');
+if($event['headline']!=='The Storm Arrives'||$event['text']!=='Rain reaches the harbor.')throw new RuntimeException('Event proposal aliases were not normalized.');
+$locationInput=$normalizeMethod->invoke(null,[
+    'key'=>'location_2',
+    'value'=>['name'=>'The Old Jetty','text'=>'A broken pier above the tide.'],
+    'reason'=>'Adds a contrasting location.',
+],'location');
+$location=$validateMethod->invoke(null,$locationInput['value'],'location');
+if($location['label_text']!=='The Old Jetty'||$location['description']!=='A broken pier above the tide.')throw new RuntimeException('Location proposal aliases were not normalized.');
+$decisionInput=$normalizeMethod->invoke(null,[
+    'key'=>'decision_1',
+    'value'=>[
+        'event_key'=>'OPENING_SCENE',
+        'character'=>'BRIANNA',
+        'question'=>'Which risk will Brianna take?',
+        'choices'=>[
+            ['text'=>'Enter the cave','consequence'=>'She finds a clue.'],
+            ['action'=>'Return to the group','outcome'=>'Her friends stay safe.'],
+        ],
+    ],
+    'reason'=>'Creates a meaningful choice.',
+],'decision');
+$decision=$validateMethod->invoke(null,$decisionInput['value'],'decision');
+if(count($decision['options'])!==2||$decision['options'][0]['label']!=='Enter the cave'||$decision['options'][1]['result']!=='Her friends stay safe.')throw new RuntimeException('Decision proposal aliases were not normalized.');
+
 $failed=false;
 try{$method->invoke(null,['reply'=>'Try again.','question'=>'','complete'=>false,'brief'=>null],0);}
 catch(RuntimeException $e){$failed=str_contains($e->getMessage(),'next question');}

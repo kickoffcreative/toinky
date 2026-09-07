@@ -84,6 +84,9 @@ the current Draft with Inky proposal controls and the What can I do for you?
 assistant menu. The synchronized repository mirror is
 [docs/INKY_ACTION_RULES.md](INKY_ACTION_RULES.md).
 
+The terminal-first diagnostic process, confirmed incident causes, and change
+gate are maintained in [docs/INKY_DIAGNOSTICS.md](INKY_DIAGNOSTICS.md).
+
 The Story Writer navigation, shared Quick Add / Edit and filter controls,
 record layout, Media sub-tabs, and responsive standards are maintained in
 the shared Google documents and mirrored in
