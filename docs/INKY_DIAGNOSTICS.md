@@ -139,7 +139,12 @@ proposal types worked.
 `headline`, `label_text`, `text`, and `options`. The recorded AI response must
 be inspected with `inky_proposal_probe.php --show-response` before declaring
 the exact alias. Common equivalent keys are now normalized at the boundary,
-but missing content is still rejected and two options are still required.
+but missing content is still rejected and two options are still required. A
+later probe also captured a full story package returned in place of the
+requested proposal. The requested key is now selected from that package when
+present; unrelated package data is never guessed into the requested item. If
+the requested key is absent, validation fails and the normal correction retry
+is used instead of silently borrowing a sibling record.
 
 **Solution:** Normalize documented response aliases such as `title` or
 `event_headline` to `headline`, `name` or `location_name` to `label_text`, and

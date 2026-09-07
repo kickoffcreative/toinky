@@ -41,6 +41,14 @@ $eventInput=$normalizeMethod->invoke(null,[
 ],'event');
 $event=$validateMethod->invoke(null,$eventInput['value'],'event');
 if($event['headline']!=='The Storm Arrives'||$event['text']!=='Rain reaches the harbor.')throw new RuntimeException('Event proposal aliases were not normalized.');
+$packagedEvent=$normalizeMethod->invoke(null,[
+    'story_value_1'=>['scope'=>'GOAL','target_code'=>'HERO_GOAL','label'=>'Hero Goal','value_type'=>'TEXT','allowed_values'=>[],'description'=>'A package item.'],
+    'event_1'=>['event_code'=>'OPENING_SCENE','headline'=>'The Bell Rings','text'=>'A warning sounds across the harbor.'],
+], 'event', [], 'event_1');
+$eventFromPackage=$validateMethod->invoke(null,$packagedEvent['value'],'event');
+if($eventFromPackage['headline']!=='The Bell Rings')throw new RuntimeException('Package-shaped event responses did not select the requested event.');
+$unrelatedPackage=$normalizeMethod->invoke(null,['story_value_1'=>['label'=>'Sibling value'],'event_1'=>['headline'=>'Sibling event','text'=>'Sibling text.']], 'decision', [], 'decision_2');
+if(array_key_exists('value',$unrelatedPackage))throw new RuntimeException('Unrelated package data was treated as the requested proposal.');
 $locationInput=$normalizeMethod->invoke(null,[
     'key'=>'location_2',
     'value'=>['name'=>'The Old Jetty','text'=>'A broken pier above the tide.'],
@@ -48,6 +56,8 @@ $locationInput=$normalizeMethod->invoke(null,[
 ],'location');
 $location=$validateMethod->invoke(null,$locationInput['value'],'location');
 if($location['label_text']!=='The Old Jetty'||$location['description']!=='A broken pier above the tide.')throw new RuntimeException('Location proposal aliases were not normalized.');
+$packagedLocation=$normalizeMethod->invoke(null,['location_2_name'=>'The Old Jetty'],'text',[],'location_2_name');
+if($packagedLocation['value']!=='The Old Jetty')throw new RuntimeException('Package-shaped location responses did not select the requested location.');
 $decisionInput=$normalizeMethod->invoke(null,[
     'key'=>'decision_1',
     'value'=>[
