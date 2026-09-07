@@ -293,8 +293,167 @@ final class StoryAuthoringService
     public static function inkyDraftDependencyMap(int $plotId,array $accepted): array
     {
         if($plotId<1||!$accepted)return[];$w=self::workspace($plotId);$details=self::dependencyDetails($plotId,$w);$usage=self::stableCodeUsageMap($plotId,$w);$out=[];
-        foreach($accepted as$key=>$value){$reference=self::inkyProposalReference($key,$value,$w);if(!$reference)continue;[$entity,$id]=$reference;$items=array_values(array_unique((array)($details[$entity][$id]??[])));$active=(array)($usage[$entity][$id]??[]);$base=self::inkyDraftEntryLabel((string)$key);$preview=self::inkyDraftEntryPreview((string)$key,$value);$out[(string)$key]=['match'=>$base,'display'=>$base.($preview!==''?' · '.$preview:''),'blocked'=>(bool)$active,'dependencies'=>$items,'usage'=>$active];}
+        foreach($accepted as$key=>$value){$reference=self::inkyProposalReference($key,$value,$w);if(!$reference)continue;[$entity,$id]=$reference;$items=array_values(array_unique((array)($details[$entity][$id]??[])));$active=(array)($usage[$entity][$id]??[]);$base=self::inkyDraftEntryLabel((string)$key);$preview=self::inkyDraftEntryPreview((string)$key,$value);$entry=['match'=>$base,'display'=>$base.($preview!==''?' · '.$preview:''),'blocked'=>(bool)$active,'dependencies'=>$items,'usage'=>$active,'entity'=>$entity,'entity_id'=>$id,'writer_url'=>self::inkyDraftWriterUrl($plotId,$entity,$id)];if($entity==='decision')$entry['children']=self::inkyDecisionChildren($plotId,$id,$w);$out[(string)$key]=$entry;}
         return$out;
+    }
+
+    public static function inkyDraftEntries(int $plotId,array $accepted): array
+    {
+        if($plotId<1)return[];
+        $w=self::workspace($plotId);
+        $mapped=self::inkyDraftDependencyMap($plotId,$accepted);
+        $details=self::dependencyDetails($plotId,$w);
+        $usage=self::stableCodeUsageMap($plotId,$w);
+        $entries=[];
+        $represented=[];
+        foreach($accepted as$key=>$value){
+            $entry=$mapped[(string)$key]??[
+                'match'=>self::inkyDraftEntryLabel((string)$key),
+                'display'=>self::inkyDraftEntryLabel((string)$key).(($preview=self::inkyDraftEntryPreview((string)$key,$value))!==''?' · '.$preview:''),
+                'blocked'=>false,
+                'dependencies'=>[],
+                'usage'=>[]
+            ];
+            if(isset($entry['entity'],$entry['entity_id']))$represented[$entry['entity'].':'.$entry['entity_id']]=true;
+            $entry['key']=(string)$key;
+            $entry['stage']=self::inkyDraftStage((string)$key);
+            $entry['source']='cowriter';
+            $entries[]=$entry;
+        }
+        $addManual=function(string$key,string$stage,string$match,string$display,string$entity,int$id)use(&$entries,$represented,$details,$usage,$plotId,$w):void{
+            if(isset($represented[$entity.':'.$id]))return;
+            $dependencies=array_values(array_unique((array)($details[$entity][$id]??[])));
+            $entry=[
+                'key'=>$key,
+                'stage'=>$stage,
+                'source'=>'writer',
+                'manual'=>true,
+                'match'=>$match,
+                'display'=>$display,
+                'blocked'=>(bool)($usage[$entity][$id]??[]),
+                'dependencies'=>$dependencies,
+                'usage'=>(array)($usage[$entity][$id]??[]),
+                'entity'=>$entity,
+                'entity_id'=>$id,
+                'writer_url'=>self::inkyDraftWriterUrl($plotId,$entity,$id)
+            ];
+            if($entity==='decision')$entry['children']=self::inkyDecisionChildren($plotId,$id,$w);
+            $entries[]=$entry;
+        };
+        foreach($w['locations']as$row){
+            if((int)($row['active']??1)!==1)continue;
+            $id=(int)$row['plot_location_id'];
+            $label=trim((string)($row['label_text']??$row['location_code']??'Location'));
+            $addManual('writer_location_'.$id,'Locations','Location · '.$label,'Location · '.$label,'location',$id);
+        }
+        foreach($w['state_definitions']as$row){
+            if((int)($row['active']??1)!==1)continue;
+            $id=(int)$row['plot_state_definition_id'];
+            $label=trim((string)($row['label_text']??$row['target_code']??'Story Value'));
+            $addManual('writer_state_definition_'.$id,'Story Values','Story Value · '.$label,'Story Value · '.$label,'state_definition',$id);
+        }
+        foreach($w['characters']as$row){
+            if((int)($row['active']??1)!==1)continue;
+            $id=(int)$row['plot_role_id'];
+            $slot=(int)($row['slot_no']??0);
+            $prefix=$slot>0?'Character '.$slot:'Character';
+            $name=trim((string)($row['name']??$row['role_code']??'Unnamed'));
+            $addManual('writer_character_'.$id,'Characters',$prefix,$prefix.' · '.$name,'character',$id);
+        }
+        foreach($w['events']as$row){
+            if((int)($row['active']??1)!==1)continue;
+            $id=(int)$row['plot_world_event_id'];
+            $headline=trim((string)($row['headline']??$row['event_code']??'Event'));
+            $prefix=(int)($row['event_second']??0)===0?'Opening Event':'Event';
+            $addManual('writer_event_'.$id,'World Events',$prefix,$prefix.' · '.$headline,'event',$id);
+        }
+        foreach($w['decisions']as$row){
+            if((int)($row['active']??1)!==1)continue;
+            $id=(int)$row['template_id'];
+            $role=trim((string)($row['role_code']??'Character'));
+            $prompt=self::inkyDraftText((string)($row['prompt_text']??''));
+            $display='Decision · '.$role.($prompt!==''?' · '.$prompt:'');
+            $addManual('writer_decision_'.$id,'Decisions','Decision · '.$role,$display,'decision',$id);
+        }
+        foreach($w['opportunities']as$row){
+            if((int)($row['active']??1)!==1)continue;
+            $id=(int)$row['dynamic_opportunity_id'];
+            $code=trim((string)($row['opportunity_code']??'Opportunity'));
+            $addManual('writer_opportunity_'.$id,'Conditional Opportunities','Conditional Opportunity · '.$code,'Conditional Opportunity · '.$code,'opportunity',$id);
+        }
+        foreach($w['story_sections']as$row){
+            if((int)($row['active']??1)!==1)continue;
+            $id=(int)$row['plot_story_section_id'];
+            $label=trim((string)($row['label_text']??$row['section_code']??'Ending Section'));
+            $addManual('writer_story_section_'.$id,'Ending Sections','Ending Section · '.$label,'Ending Section · '.$label,'story_section',$id);
+        }
+        foreach($w['resolutions']as$row){
+            if((int)($row['active']??1)!==1)continue;
+            $id=(int)$row['resolution_fragment_id'];
+            $preview=self::inkyDraftText((string)($row['fragment_text']??''));
+            $addManual('writer_resolution_'.$id,'Endings','Ending · '.$id,'Ending · '.$id.($preview!==''?' · '.$preview:''),'resolution',$id);
+        }
+        return$entries;
+    }
+
+    private static function inkyDraftStage(string$key): string
+    {
+        if(preg_match('/^location_/', $key)===1)return'Locations';
+        if(preg_match('/^story_value_/', $key)===1)return'Story Values';
+        if(preg_match('/^character_/', $key)===1)return'Characters';
+        if(preg_match('/^event_/', $key)===1)return'World Events';
+        if(preg_match('/^decision_/', $key)===1)return'Decisions';
+        if(preg_match('/^opportunity_/', $key)===1)return'Conditional Opportunities';
+        if(preg_match('/^ending_section_/', $key)===1)return'Ending Sections';
+        if(preg_match('/^ending_/', $key)===1)return'Endings';
+        return'Story Overview';
+    }
+
+    private static function inkyDraftWriterUrl(int$plotId,string$entity,int$id): string
+    {
+        $tab=match($entity){
+            'character'=>'characters',
+            'event'=>'timeline',
+            'decision'=>'decisions',
+            'opportunity'=>'map',
+            'story_section','resolution'=>'endings',
+            'location','state_definition'=>'overview',
+            default=>'overview'
+        };
+        $anchor=$entity==='decision'?'#decision-'.$id.'-options':'';
+        return'writer.php?plot='.$plotId.'&tab='.$tab.$anchor;
+    }
+
+    private static function inkyDecisionChildren(int$plotId,int$decisionId,array$workspace): array
+    {
+        $children=[];
+        $index=0;
+        foreach($workspace['options']as$option){
+            if((int)($option['template_id']??0)!==$decisionId)continue;
+            $index++;
+            $label=self::inkyDraftText((string)($option['label']??$option['option_code']??'Option '.$index));
+            $result=self::inkyDraftText((string)($option['result_text']??''));
+            $effects=[];
+            foreach($workspace['effects']as$effect){
+                if((int)($effect['template_option_id']??0)!==(int)$option['template_option_id'])continue;
+                $effectText=(string)($effect['effect_scope']??'').' · '.(string)($effect['target_code']??'');
+                $effects[]='Effect · '.trim($effectText);
+            }
+            $children[]=[
+                'label'=>'Option '.$index,
+                'display'=>'Option '.$index.' · '.$label.($result!==''?' · '.$result:''),
+                'preview'=>$result,
+                'effects'=>$effects,
+                'writer_url'=>self::inkyDraftWriterUrl($plotId,'decision',$decisionId)
+            ];
+        }
+        return$children;
+    }
+
+    private static function inkyDraftText(string$text): string
+    {
+        $text=trim(preg_replace('/\s+/',' ',strip_tags($text)));
+        return mb_strlen($text)>96?mb_substr($text,0,96).'...':$text;
     }
 
     public static function assertInkyDraftEditAllowed(int $plotId,string$key,mixed$previous,mixed$next): void

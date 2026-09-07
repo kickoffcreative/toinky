@@ -282,3 +282,35 @@ Use the latest saved draft by omitting the plot ID. Confirm the `locked_count`
 and each `dependencies` list against Story Writer before changing a record.
 Deactivate or remove the linked active records first; do not bypass the lock
 by editing the draft JSON directly.
+
+### InkyCowriter to Story Writer handoff
+
+InkyCowriter accepted proposals remain proposal history, while Story Writer
+records remain the canonical editable story data. The draft refresh compares
+those accepted proposal references with the active Story Writer workspace and
+adds unmatched Writer records to the Cowriter display as read-only context.
+This prevents duplicate records and makes manual Writer edits visible without
+silently changing the accepted proposal history.
+
+Decision entries include their current options and a short result preview. The
+`Edit Options and Effects` link opens the matching Story Writer decision and
+expands it at the existing options area. Accepting a Cowriter proposal is the
+explicit handoff that writes it into Story Writer; later edits should be made
+there so dependencies and stable-code locks continue to apply.
+
+Verify the comparison and decision children from the terminal:
+
+```bash
+cd /home/toinkyadmin/public_html
+PHP=/opt/cpanel/ea-php84/root/usr/bin/php
+$PHP -n -l app/StoryAuthoringService.php
+$PHP -n -l public/inky-starter.php
+$PHP -n -l public/inky-draft-dependencies.php
+$PHP -n -l public/writer.php
+$PHP tools/inky_draft_dependency_test.php 5
+```
+
+Check `entry_count`, `manual_writer_count`, and `decisions_with_options`.
+Confirm that manual entries are labeled as already in Story Writer and that a
+decision has its option previews and Writer link. The endpoint is read-only;
+it must not insert or update story records.
