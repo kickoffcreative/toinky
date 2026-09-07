@@ -25,6 +25,9 @@ those contracts change, then synchronize this file.
 - AI results are suggestions or review advice. The deterministic engine,
   database-authored story data, permissions, and server validation remain
   authoritative.
+- Clicking the visible Inky character toggles the companion window: it opens
+  when closed and closes when already open. Dragging on desktop still moves
+  the companion without changing its open state.
 
 ## Draft with Inky
 
