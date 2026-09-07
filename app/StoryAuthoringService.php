@@ -283,6 +283,44 @@ final class StoryAuthoringService
         return$out;
     }
 
+    public static function inkyDraftDependencyMap(int $plotId,array $accepted): array
+    {
+        if($plotId<1||!$accepted)return[];$w=self::workspace($plotId);$details=self::dependencyDetails($plotId,$w);$usage=self::stableCodeUsageMap($plotId,$w);$out=[];
+        foreach($accepted as$key=>$value){$reference=self::inkyProposalReference($key,$value,$w);if(!$reference)continue;[$entity,$id]=$reference;$items=array_values(array_unique((array)($details[$entity][$id]??[])));$active=(array)($usage[$entity][$id]??[]);$base=self::inkyDraftEntryLabel((string)$key);$preview=self::inkyDraftEntryPreview((string)$key,$value);$out[(string)$key]=['match'=>$base,'display'=>$base.($preview!==''?' · '.$preview:''),'blocked'=>(bool)$active,'dependencies'=>$items,'usage'=>$active];}
+        return$out;
+    }
+
+    public static function assertInkyDraftEditAllowed(int $plotId,string$key,mixed$previous,mixed$next): void
+    {
+        if($plotId<1||$previous===$next)return;$entry=self::inkyDraftDependencyMap($plotId,[$key=>$previous])[$key]??null;if(!$entry||empty($entry['blocked']))return;$items=[];foreach((array)($entry['dependencies']??[])as$item)$items[]=$item;foreach((array)($entry['usage']??[])as$label=>$count)$items[]=$label.' '.(int)$count;$items=array_values(array_unique($items));throw new RuntimeException('Cannot edit this accepted entry while it has active linked records: '.implode(' · ',$items).'. Deactivate or remove those records first.');
+    }
+
+    private static function inkyProposalReference(string$key,mixed$value,array$w): ?array
+    {
+        $active=static fn(array$row):bool=>(int)($row['active']??1)===1;$number=static function(string$key):?int{if(preg_match('/_(\d+)(?:_|$)/',$key,$m)!==1)return null;return(int)$m[1];};$code=static fn($value):string=>self::code((string)$value);$find=static function(array$rows,callable$test)use($active):?array{foreach($rows as$row)if($active($row)&&$test($row))return$row;return null;};$n=$number($key);
+        if(preg_match('/^location_([12])_(?:name|description)$/',$key,$m)===1){$row=$find($w['locations'],static fn($x)=>(int)($x['sort_order']??0)===(int)$m[1]*10);return$row?['location',(int)$row['plot_location_id']]:null;}
+        if(preg_match('/^location_\d+$/',$key)===1&&is_array($value)){$wanted=$code($value['location_code']??$value['label_text']??'');$row=$find($w['locations'],static fn($x)=>$wanted!==''&&($code($x['location_code']??'')===$wanted||$code($x['label_text']??'')===$wanted));return$row?['location',(int)$row['plot_location_id']]:null;}
+        if($key==='event_1'){$row=$find($w['events'],static fn($x)=>true);return$row?['event',(int)$row['plot_world_event_id']]:null;}
+        if(preg_match('/^event_\d+$/',$key)===1&&is_array($value)){$wanted=$code($value['event_code']??$value['headline']??'');$row=$find($w['events'],static fn($x)=>$wanted!==''&&($code($x['event_code']??'')===$wanted||$code($x['headline']??'')===$wanted));return$row?['event',(int)$row['plot_world_event_id']]:null;}
+        if(preg_match('/^character_\d+$/',$key)===1&&is_array($value)){$wanted=$code($value['role_code']??$value['name']??'');$row=$find($w['characters'],static fn($x)=>($wanted!==''&&($code($x['role_code']??'')===$wanted||$code($x['name']??'')===$wanted))||($n!==null&&(int)($x['slot_no']??0)===$n));return$row?['character',(int)$row['plot_role_id']]:null;}
+        if(preg_match('/^story_value_\d+$/',$key)===1&&is_array($value)){$wanted=$code($value['target_code']??$value['label']??'');$scope=strtoupper(trim((string)($value['scope']??'')));$row=$find($w['state_definitions'],static fn($x)=>$wanted!==''&&$code($x['target_code']??'')===$wanted&&($scope===''||strtoupper((string)($x['effect_scope']??''))===$scope));return$row?['state_definition',(int)$row['plot_state_definition_id']]:null;}
+        if(preg_match('/^decision_\d+$/',$key)===1&&is_array($value)){$event=$code($value['event_code']??'');$character=$code($value['character']??'');$row=$find($w['decisions'],static fn($x)=>($event===''||$code($x['event_code']??'')===$event)&&($character===''||$code($x['role_code']??'')===$character||$code($x['role_name']??'')===$character));if(!$row&&$key==='decision_1')$row=$find($w['decisions'],static fn($x)=>true);return$row?['decision',(int)$row['template_id']]:null;}
+        if($key==='opportunity_1'&&is_array($value)){$event=$code($value['opportunity_code']??$value['prompt']??'');$character=$code($value['character']??'');$row=$find($w['opportunities'],static fn($x)=>($event===''||$code($x['opportunity_code']??'')===$event)&&($character===''||$code($x['role_code']??'')===$character));return$row?['opportunity',(int)$row['dynamic_opportunity_id']]:null;}
+        if($key==='ending_section_1'&&is_array($value)){$wanted=$code($value['section_code']??$value['label']??'');$row=$find($w['story_sections'],static fn($x)=>$wanted!==''&&($code($x['section_code']??'')===$wanted||$code($x['label_text']??'')===$wanted));return$row?['story_section',(int)$row['plot_story_section_id']]:null;}
+        if($key==='ending_1'&&is_array($value)){$wanted=$code($value['section']??'');$row=$find($w['resolutions'],static fn($x)=>$wanted===''||$code($x['section_code']??'')===$wanted);return$row?['resolution',(int)$row['resolution_fragment_id']:null;}
+        return null;
+    }
+
+    private static function inkyDraftEntryLabel(string$key): string
+    {
+        if(preg_match('/^location_(\d+)_name$/',$key,$m)===1)return'Location '.$m[1].' · Name';if(preg_match('/^location_(\d+)_description$/',$key,$m)===1)return'Location '.$m[1].' · Description';if(preg_match('/^location_(\d+)$/',$key,$m)===1)return'Location '.$m[1];if(preg_match('/^character_(\d+)$/',$key,$m)===1)return'Character '.$m[1];if($key==='event_1')return'Opening Event';if(preg_match('/^event_(\d+)$/',$key,$m)===1)return'Event '.$m[1];if(preg_match('/^decision_(\d+)$/',$key,$m)===1)return'Decision '.$m[1];if($key==='opportunity_1')return'Conditional Opportunity 1';if(preg_match('/^story_value_(\d+)$/',$key,$m)===1)return'Story Value '.$m[1];if($key==='ending_section_1')return'Ending Section 1';if($key==='ending_1')return'Ending 1';return ucwords(str_replace('_',' ',$key));
+    }
+
+    private static function inkyDraftEntryPreview(string$key,mixed$value): string
+    {
+        if(is_array($value)){$field=preg_match('/^character_/',$key)===1?'name':(preg_match('/^location_/',$key)===1?'label_text':(preg_match('/^event_/',$key)===1?'headline':(preg_match('/^decision_/',$key)===1?'prompt':(preg_match('/^story_value_/',$key)===1?'label':(preg_match('/^ending/',$key)===1?'headline':'')))));$value=$field!==''?($value[$field]??''):(reset($value)?:'');} $text=trim(preg_replace('/\s+/',' ',strip_tags((string)$value)));if($text==='')return'';return mb_strlen($text)>72?mb_substr($text,0,72).'...':$text;
+    }
+
     public static function deleteEntity(array $user,int $plotId,string $entity,int $id): void
     {
         self::guard($user,$plotId);$entity=trim($entity);$id=(int)$id;

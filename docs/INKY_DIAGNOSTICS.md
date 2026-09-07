@@ -258,3 +258,27 @@ Before pushing an Inky fix:
    method in this document.
 
 Generic UI messages are not sufficient evidence for a code correction.
+
+### Draft dependency inspection
+
+The Story Writer draft list is backed by the same active dependency graph as
+the authoring workspace. It maps accepted Inky keys to their stored records,
+shows a short entry preview, and locks edits while active linked records use
+that entry. The lock is enforced by `inky-starter.php`; the browser decoration
+is presentation only.
+
+Read the current map without using the browser:
+
+```bash
+cd /home/toinkyadmin/public_html
+PHP=/opt/cpanel/ea-php84/root/usr/bin/php
+$PHP -n -l app/StoryAuthoringService.php
+$PHP -n -l public/inky-starter.php
+$PHP -n -l public/inky-draft-dependencies.php
+$PHP tools/inky_draft_dependency_test.php 5
+```
+
+Use the latest saved draft by omitting the plot ID. Confirm the `locked_count`
+and each `dependencies` list against Story Writer before changing a record.
+Deactivate or remove the linked active records first; do not bypass the lock
+by editing the draft JSON directly.
