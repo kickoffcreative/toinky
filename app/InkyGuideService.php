@@ -122,6 +122,11 @@ final class InkyGuideService
         try{return AiConnectionService::completeJson($purpose,$system,$prompt);}catch(Throwable$first){$message=strtolower($first->getMessage());$malformed=$first instanceof JsonException||str_contains($message,'structured response')||str_contains($message,'json')||str_contains($message,'syntax error');if(!$malformed)throw$first;$repairSystem=$system.' The previous response was not valid JSON. Return only the exact requested JSON envelope.';$repairPrompt=$prompt."\nThe previous response was not valid JSON. Return the corrected JSON now.";return AiConnectionService::completeJson($purpose,$repairSystem,$repairPrompt);}
     }
 
+    private static function proposalResponse(string$system,string$prompt): array
+    {
+        return self::completeJsonWithRepair('INKY_STORY_PROPOSAL',$system,$prompt);
+    }
+
     private static function normalizeProposalInput(array$input,string$type,array$activeCharacters=[]): array
     {
         if(!array_key_exists('value',$input)){$aliases=['location'=>['location','location_proposal'],'character'=>['character','character_proposal'],'event'=>['event','event_proposal'],'decision'=>['decision','decision_proposal'],'opportunity'=>['opportunity','opportunity_proposal'],'ending_section'=>['ending_section','section'],'ending'=>['ending','ending_proposal'],'value'=>['story_value','story_value_proposal'],'text'=>['text','content','suggestion'],'long'=>['text','content','suggestion'],'number'=>['number','count','value']];foreach($aliases[$type]??[]as$alias)if(array_key_exists($alias,$input)){$input['value']=$input[$alias];break;}}
