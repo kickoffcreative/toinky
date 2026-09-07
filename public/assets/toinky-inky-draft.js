@@ -8,7 +8,7 @@
         dependencies=nextDependencies&&typeof nextDependencies==='object'?nextDependencies:{};
         draftEntries=Array.isArray(nextEntries)?nextEntries:[];
         root.dataset.inkyDraftDependenciesVersion=String(Date.now());
-        decorate();
+        decorateSafely();
     };
     const writerLink=(entry)=>{
         if(!entry?.writer_url)return null;
@@ -168,6 +168,8 @@
         renderWriterEntries();
     };
     let observedAcceptedList=null;
+    let decorating=false;
+    let observer=null;
     const observeAcceptedList=()=>{
         const list=root.querySelector('[data-inky-accepted]');
         if(!list||observedAcceptedList===list)return;
@@ -175,13 +177,22 @@
         observer.observe(list,{childList:true,subtree:true});
         observedAcceptedList=list;
     };
-    const observer=new MutationObserver(()=>{
-        observeAcceptedList();
-        decorate();
+    const decorateSafely=()=>{
+        if(decorating)return;
+        decorating=true;
+        observer.disconnect();
+        try{decorate();}finally{
+            decorating=false;
+            observeAcceptedList();
+        }
+    };
+    observer=new MutationObserver(()=>{
+        if(decorating)return;
+        decorateSafely();
     });
     observer.observe(root,{childList:true,subtree:true});
     observeAcceptedList();
-    decorate();
+    decorateSafely();
     const request=window.toinkyRequest;
     if(request)window.toinkyRequest=async(url,options={})=>{
         const response=await request(url,options);
