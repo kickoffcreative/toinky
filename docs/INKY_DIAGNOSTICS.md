@@ -59,6 +59,19 @@ Replace `5` and `decision_2` with the target story and proposal key. A
 successful AI interaction with a rejected proposal means the next place to
 inspect is response normalization or schema validation, not connectivity.
 
+To exercise every Continue with Inky button in one terminal run, use the
+batch probe. It tests Next Suggestion, Story Value, Location, Event, Decision,
+and Character using the saved draft and reports each returned shape plus its
+latest recorded interaction:
+
+```bash
+$PHP tools/inky_continue_batch.php 5
+```
+
+Add `--show-response` only when the raw parsed AI responses are needed. The
+batch probe does not accept or save any proposal; it only exercises the same
+service paths used by the buttons.
+
 5. If no interaction row is created, use a temporary request trace. This is a
 diagnostic instrument only and must be removed after one reproduction:
 
