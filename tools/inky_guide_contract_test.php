@@ -76,6 +76,10 @@ $decisionInput=$normalizeMethod->invoke(null,[
 ],'decision');
 $decision=$validateMethod->invoke(null,$decisionInput['value'],'decision');
 if(count($decision['options'])!==2||$decision['options'][0]['label']!=='Enter the cave'||$decision['options'][1]['result']!=='Her friends stay safe.')throw new RuntimeException('Decision proposal aliases were not normalized.');
+$failed=false;
+try{$validateMethod->invoke(null,'Brianna chooses to enter the cave.','decision');}
+catch(Throwable$e){$failed=str_contains($e->getMessage(),'invalid decision proposal');}
+if(!$failed)throw new RuntimeException('Plain-string decision proposals must remain invalid.');
 $wrappedDecision=$normalizeMethod->invoke(null,['proposal'=>['event_code'=>'DECISION_2','character'=>'BRIANNA','prompt'=>'Which path will Brianna choose?','options'=>[['label'=>'Enter the cave','result'=>'She finds a clue.'],['label'=>'Return to the group','result'=>'Her friends stay safe.']]]], 'decision', [], 'decision_2');
 $decisionFromEnvelope=$validateMethod->invoke(null,$wrappedDecision['value'],'decision');
 if(count($decisionFromEnvelope['options'])!==2)throw new RuntimeException('Proposal-wrapped decision responses were not normalized.');

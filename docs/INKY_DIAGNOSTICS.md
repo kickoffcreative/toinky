@@ -175,6 +175,28 @@ is used instead of silently borrowing a sibling record.
 aliases. Validate only after normalization. The contract test covers these
 cases without spending an AI request.
 
+### Decision value collapsed to a sentence
+
+**Symptom:** The Continue batch reported an invalid decision proposal even
+though the AI interaction succeeded and the requested decision key existed.
+
+**Root cause:** The first response copied the full story package and omitted
+the requested decision. The validation retry then returned a keyed plain
+sentence such as {"decision_1":"Brianna decides to venture deeper..."}
+instead of the required decision object with character, prompt, and two option
+objects. The response was correctly rejected; converting that sentence into a
+choice would invent missing player-facing consequences.
+
+**Solution:** Add a decision-specific object example to both the initial and
+validation-repair prompts. Keep strict object validation and add a contract
+test proving plain-string decisions remain invalid.
+
+**How it was found:** The batch shape showed value_type=string. The interaction
+query for the initial and repair IDs showed the initial full package and the
+repair keyed sentence while both interactions had success=1 and HTTP 200.
+Direct probes that returned a complete object then validated successfully,
+confirming transport and parser health.
+
 ### Missing dynamic proposal length metadata
 
 **Symptom:** The batch probe reported `Undefined array key "max"` while
