@@ -85,8 +85,8 @@ error:{mouth:'small_o',fx:[['broken_halo',35,29,30,'jitter alert'],['sparks',8,3
 offline:{mouth:'small_o',fx:[['broken_halo',35,29,30,'rest dim']]}
 };
 const characterMoods=root.dataset.characterCode==='INKY_DIRECTION_D'?lanternMoods:moods;
-let mood='idle',resetTimer=0;
-const setMood=next=>{if(!characterMoods[next])return;mood=next;root.dataset.inkyMood=next;mouths.forEach(item=>item.classList.toggle('is-active',item.dataset.inkyMouth===characterMoods[next].mouth));effects.replaceChildren(...characterMoods[next].fx.map(([name,x,y,w,motion],index)=>{const image=document.createElement('img');image.src=assetRoot+name+'.png';image.alt='';image.className='inky-rig-fx is-visible '+motion;image.style.cssText='left:'+x+'%;top:'+y+'%;width:'+w+'%;animation-delay:'+(-index*.31)+'s';return image}))};
+let mood='',resetTimer=0;
+const setMood=next=>{if(!characterMoods[next]||mood===next)return;mood=next;root.dataset.inkyMood=next;mouths.forEach(item=>item.classList.toggle('is-active',item.dataset.inkyMouth===characterMoods[next].mouth));effects.replaceChildren(...characterMoods[next].fx.map(([name,x,y,w,motion],index)=>{const image=document.createElement('img');image.src=assetRoot+name+'.png';image.alt='';image.className='inky-rig-fx is-visible '+motion;image.style.cssText='left:'+x+'%;top:'+y+'%;width:'+w+'%;animation-delay:'+(-index*.31)+'s';return image}))};
 const settledMood=()=>root.classList.contains('is-offline')?'offline':root.classList.contains('is-open')?'opened':'idle';
 character.addEventListener('pointerenter',()=>{if(!root.classList.contains('is-open')&&!root.classList.contains('is-offline'))setMood('hover')});
 character.addEventListener('pointerleave',()=>{eyes.forEach(eye=>eye.style.transform='');if(mood==='hover')setMood(settledMood())});

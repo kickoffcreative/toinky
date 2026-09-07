@@ -167,31 +167,15 @@
         mergeLocationFields();
         renderWriterEntries();
     };
-    let observedAcceptedList=null;
     let decorating=false;
-    let observer=null;
-    const observeAcceptedList=()=>{
-        const list=root.querySelector('[data-inky-accepted]');
-        if(!list||observedAcceptedList===list)return;
-        observer.disconnect();
-        observer.observe(list,{childList:true,subtree:true});
-        observedAcceptedList=list;
-    };
     const decorateSafely=()=>{
         if(decorating)return;
         decorating=true;
-        observer.disconnect();
         try{decorate();}finally{
             decorating=false;
-            observeAcceptedList();
         }
     };
-    observer=new MutationObserver(()=>{
-        if(decorating)return;
-        decorateSafely();
-    });
-    observer.observe(root,{childList:true,subtree:true});
-    observeAcceptedList();
+    root.addEventListener('toinky-accepted-rendered',decorateSafely);
     decorateSafely();
     const request=window.toinkyRequest;
     if(request)window.toinkyRequest=async(url,options={})=>{
