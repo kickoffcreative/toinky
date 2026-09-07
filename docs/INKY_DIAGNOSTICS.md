@@ -165,6 +165,21 @@ is used instead of silently borrowing a sibling record.
 aliases. Validate only after normalization. The contract test covers these
 cases without spending an AI request.
 
+### Missing dynamic proposal length metadata
+
+**Symptom:** The batch probe reported `Undefined array key "max"` while
+testing a dynamically numbered proposal.
+
+**Root cause:** The generic proposal validator read the text-length limit from
+every definition, even though structured Story Value definitions do not carry
+that field. The warning was independent of the AI response and could obscure
+the actual validation result.
+
+**Solution:** Use the service-wide answer limit only as a defensive fallback
+when a text definition has no explicit `max`. Keep structured proposal
+validation on its own object path, and treat the warning as a code defect to
+fix rather than an AI connectivity failure.
+
 ### Session `gc_divisor` warning
 
 **Symptom:** cPanel error logs repeatedly reported `session.gc_divisor must
