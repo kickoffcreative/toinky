@@ -140,6 +140,44 @@ final class AuthService
     }
     private static function send(string $to,string $subject,string $body,string $type='ACCOUNT',?int $gameId=null,?int $senderId=null): bool
     {
-        $from=trim((string)getenv('GAME2_MAIL_FROM'));$fromName='Toinky';if($from===''){try{$q=db()->query('SELECT setting_key,setting_value FROM platform_settings WHERE setting_key IN("MAIL_FROM_ADDRESS","MAIL_FROM_NAME")');foreach($q->fetchAll()as$r){if($r['setting_key']==='MAIL_FROM_ADDRESS')$from=trim((string)$r['setting_value']);if($r['setting_key']==='MAIL_FROM_NAME')$fromName=trim((string)$r['setting_value']);}}catch(Throwable$ignored){}}if($from==='')$from='newsletter@sixpillarsmodel.com';$sent=@mail($to,$subject,$body,"From: ".$fromName." <".$from.">\r\nReply-To: ".$from."\r\nContent-Type: text/plain; charset=UTF-8");try{db()->prepare('INSERT INTO email_delivery_log(recipient_email,message_type,related_game_id,sent_by_user_id,delivery_status,error_text) VALUES(?,?,?,?,?,?)')->execute([$to,$type,$gameId,$senderId,$sent?'SENT':'FAILED',$sent?null:'PHP mail() returned false']);}catch(Throwable$ignored){}return$sent;
+        $from=trim((string)getenv('GAME2_MAIL_FROM'));$fromName='Toinky';if($from===''){try{$q=db()->query('SELECT setting_key,setting_value FROM platform_settings WHERE setting_key IN("MAIL_FROM_ADDRESS","MAIL_FROM_NAME")');foreach($q->fetchAll()as$r){if($r['setting_key']==='MAIL_FROM_ADDRESS')$from=trim((string)$r['setting_value']);if($r['setting_key']==='MAIL_FROM_NAME')$fromName=trim((string)$r['setting_value']);}}catch(Throwable$ignored){}}if($from==='')$from='accounts@toinky.com';
+        $error=null;$sent=false;
+        try{
+            if(trim((string)getenv('GAME2_SMTP_HOST'))!==''&&trim((string)getenv('GAME2_SMTP_USERNAME'))!==''&&trim((string)getenv('GAME2_SMTP_PASSWORD'))!=='')$sent=self::sendViaSmtp($to,$subject,$body,$from,$fromName);
+            else $sent=@mail($to,$subject,$body,self::mailHeaders($from,$fromName));
+        }catch(Throwable$e){$error=$e->getMessage();}
+        if(!$sent&&$error===null)$error='Mail sender returned false';
+        try{db()->prepare('INSERT INTO email_delivery_log(recipient_email,message_type,related_game_id,sent_by_user_id,delivery_status,error_text) VALUES(?,?,?,?,?,?)')->execute([$to,$type,$gameId,$senderId,$sent?'SENT':'FAILED',$sent?null:$error]);}catch(Throwable$ignored){}return$sent;
+    }
+    private static function mailHeaders(string $from,string $fromName): string
+    {
+        return "From: ".self::formatAddress($from,$fromName)."\r\nReply-To: ".$from."\r\nMIME-Version: 1.0\r\nContent-Type: text/plain; charset=UTF-8";
+    }
+    private static function formatAddress(string $email,string $name=''): string
+    {
+        $name=trim($name);$email=trim($email);if($name==='')return$email;return '"'.str_replace('"','\"',$name).'" <'.$email.'>';
+    }
+    private static function sendViaSmtp(string $to,string $subject,string $body,string $from,string $fromName): bool
+    {
+        $host=trim((string)getenv('GAME2_SMTP_HOST'));$port=(int)(getenv('GAME2_SMTP_PORT')?:465);$user=trim((string)getenv('GAME2_SMTP_USERNAME'));$pass=(string)getenv('GAME2_SMTP_PASSWORD');$timeout=15;
+        $remote=($port===465?'ssl://':'').$host.':'.$port;$socket=@stream_socket_client($remote,$errno,$errstr,$timeout,STREAM_CLIENT_CONNECT);if(!$socket)throw new RuntimeException('SMTP connection failed: '.$errstr);
+        stream_set_timeout($socket,$timeout);
+        $read=static function()use($socket):string{$response='';while(($line=fgets($socket,515))!==false){$response.=$line;if(strlen($line)>=4&&$line[3]===' ')break;}return$response;};
+        $expect=static function(array$codes,string$step)use($read):string{$response=$read();$code=substr($response,0,3);if(!in_array($code,$codes,true))throw new RuntimeException('SMTP '.$step.' failed: '.trim($response));return$response;};
+        $send=static function(string$command)use($socket):void{fwrite($socket,$command."\r\n");};
+        $expect(['220'],'greeting');$helo=(string)($_SERVER['SERVER_NAME']??'toinky.com');$send('EHLO '.$helo);$expect(['250'],'EHLO');
+        if($port===587){$send('STARTTLS');$expect(['220'],'STARTTLS');if(!stream_socket_enable_crypto($socket,true,STREAM_CRYPTO_METHOD_TLS_CLIENT))throw new RuntimeException('SMTP TLS negotiation failed.');$send('EHLO '.$helo);$expect(['250'],'EHLO after STARTTLS');}
+        $send('AUTH LOGIN');$expect(['334'],'AUTH LOGIN');$send(base64_encode($user));$expect(['334'],'SMTP username');$send(base64_encode($pass));$expect(['235'],'SMTP password');
+        $send('MAIL FROM:<'.$from.'>');$expect(['250'],'MAIL FROM');$send('RCPT TO:<'.$to.'>');$expect(['250','251'],'RCPT TO');$send('DATA');$expect(['354'],'DATA');
+        $headers=['From: '.self::formatAddress($from,$fromName),'Reply-To: '.$from,'To: '.$to,'Subject: '.self::encodeHeader($subject),'MIME-Version: 1.0','Content-Type: text/plain; charset=UTF-8','Content-Transfer-Encoding: 8bit'];
+        $message=implode("\r\n",$headers)."\r\n\r\n".self::smtpBody($body)."\r\n.";$send($message);$expect(['250'],'message body');$send('QUIT');fclose($socket);return true;
+    }
+    private static function encodeHeader(string $value): string
+    {
+        return preg_match('/[^\x20-\x7E]/',$value)?'=?UTF-8?B?'.base64_encode($value).'?=':$value;
+    }
+    private static function smtpBody(string $body): string
+    {
+        $body=str_replace(["\r\n","\r"],"\n",$body);$lines=explode("\n",$body);foreach($lines as&$line){if(str_starts_with($line,'.'))$line='.'.$line;}unset($line);return implode("\r\n",$lines);
     }
 }

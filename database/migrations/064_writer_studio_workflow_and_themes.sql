@@ -104,7 +104,7 @@ CREATE TABLE IF NOT EXISTS platform_settings (
   updated_at_utc DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   CONSTRAINT fk_platform_setting_user FOREIGN KEY(updated_by_user_id) REFERENCES users(user_id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-INSERT INTO platform_settings(setting_key,setting_value) VALUES('MAIL_FROM_ADDRESS','newsletter@sixpillarsmodel.com'),('MAIL_FROM_NAME','Toinky') ON DUPLICATE KEY UPDATE setting_key=VALUES(setting_key);
+INSERT INTO platform_settings(setting_key,setting_value) VALUES('MAIL_FROM_ADDRESS','accounts@toinky.com'),('MAIL_FROM_NAME','Toinky') ON DUPLICATE KEY UPDATE setting_key=VALUES(setting_key);
 
 CREATE TABLE IF NOT EXISTS email_delivery_log (
   email_delivery_id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,

@@ -59,8 +59,12 @@ The Story Engine Lab is then available at `public/lab.php`, and the admin panel 
 For correct email links, configure:
 
 ```bash
-GAME2_BASE_URL=https://game2.sixpillarsmodel.com/public
-GAME2_MAIL_FROM=no-reply@sixpillarsmodel.com
+GAME2_BASE_URL=https://toinky.com
+GAME2_MAIL_FROM=accounts@toinky.com
+GAME2_SMTP_HOST=toinky.com
+GAME2_SMTP_PORT=465
+GAME2_SMTP_USERNAME=accounts@toinky.com
+GAME2_SMTP_PASSWORD=the-email-account-password
 ```
 
 ## Validation

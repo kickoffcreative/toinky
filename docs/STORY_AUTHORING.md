@@ -80,7 +80,7 @@ The story genre selects a reusable database theme. Administrators configure its 
 
 ## Invitations
 
-Hosts can invite players by email from an open lobby. The message is sent as `newsletter@sixpillarsmodel.com` by default and includes both a registration link and the game code. Lobby capacity and invitation validity are rechecked when a new user accepts. The live lobby continues to reserve selected characters in real time, and any unclaimed character becomes autonomous when the host starts.
+Hosts can invite players by email from an open lobby. The message is sent from `accounts@toinky.com` by default and includes both a registration link and the game code. Lobby capacity and invitation validity are rechecked when a new user accepts. The live lobby continues to reserve selected characters in real time, and any unclaimed character becomes autonomous when the host starts.
 
 ## Decisions a writer must make
 
