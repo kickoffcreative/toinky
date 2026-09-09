@@ -199,6 +199,11 @@
             '<input type="'+type+'" data-field="'+escapeHtml(name)+'" value="'+
             escapeHtml(value??'')+'"></label>';
     };
+    const colorPart=(name,title,value)=>{
+        return '<label class="builder-color-edit">'+escapeHtml(title)+
+            '<input type="number" data-color-part="'+escapeHtml(name)+'" value="'+
+            escapeHtml(value)+'"></label>';
+    };
     const select=(name,title,value,options)=>{
         return '<label class="builder-field">'+escapeHtml(title)+
             '<select data-field="'+escapeHtml(name)+'">'+options.map(option=>
@@ -367,10 +372,10 @@
         const color=colorState.color;
         if(colorState.format==='rgb'){
             return '<div class="builder-color-fields">'+
-                field('r','R',Math.round(color.r),'number')+
-                field('g','G',Math.round(color.g),'number')+
-                field('b','B',Math.round(color.b),'number')+
-                field('a','A',number(color.a),'number')+'</div>';
+                colorPart('r','R',Math.round(color.r),'number')+
+                colorPart('g','G',Math.round(color.g),'number')+
+                colorPart('b','B',Math.round(color.b),'number')+
+                colorPart('a','A',number(color.a),'number')+'</div>';
         }
         if(colorState.format==='hsla'){
             const hsl=rgbToHsl(color);
