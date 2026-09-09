@@ -55,12 +55,13 @@ function builder_e(string $value): string{return htmlspecialchars($value,ENT_QUO
 <header class="page-builder-topbar">
 <a href="admin.php?view=pages" class="page-builder-back">Back to Pages</a>
 <strong>Page Builder</strong>
+<button type="button" id="sidebar-toggle" aria-controls="page-builder-sidebar" aria-expanded="true">Hide Properties</button>
 <label>Page <select id="page-select"><?php foreach($pages as $page):?><option value="<?=builder_e((string)$page['page_code'])?>" <?=$pageCode===$page['page_code']?'selected':''?>><?=builder_e((string)$page['label_text'])?></option><?php endforeach;?></select></label>
 <button type="button" id="preview-refresh">Refresh Preview</button>
 </header>
 <?php if($error):?><p class="page-builder-alert error"><?=builder_e($error)?></p><?php elseif($notice):?><p class="page-builder-alert notice"><?=builder_e($notice)?></p><?php endif;?>
 <main class="page-builder-shell">
-<aside class="page-builder-sidebar">
+<aside class="page-builder-sidebar" id="page-builder-sidebar">
 <nav class="page-builder-sections" aria-label="Page sections">
 <?php foreach($sections as $item):$hero=($item['section_code']??'')==='HERO';?>
 <a class="page-builder-section <?=$section&&$item['site_page_section_id']===$section['site_page_section_id']?'selected':''?>" href="?page=<?=rawurlencode($pageCode)?>&section=<?=(int)$item['site_page_section_id']?>">
