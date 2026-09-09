@@ -6,42 +6,33 @@
 - **Task/computer:** Current Codex task on Windows checkout
 - **Current request:** Extend Website Pages with new layouts, nested editable rows, visibility, reordering, deletion rules, and row-scoped editing.
 - **Branch:** main
-- **Commit:** Local follow-up commit pending after row typography verification.
+- **Local commit:** ecfa061 (Finish editable Home section migrations)
+- **Remote:** Published to GitHub main through sequential authenticated API commits; final remote head is the migration commit for `101_seed_home_paths_finale_rows.sql`.
 
 ## Completed
 
-- Added migration `098_flexible_page_rows.sql` with `rows_json` and protected `is_default` section metadata.
-- Added `TEXT_TOP`, `CARDS_ONLY`, and `TEXT_BULLETS` layout presets.
-- Added row normalization, fallback rendering support, section hide/show, default deletion protection, and section reorder services.
-- Added standard sub-row fields with add/remove controls to the admin section form.
-- Added row-aware public rendering and CSS for shared-background child rows.
-- Preserved legacy section images and three-column content when saved sections use fallback row data.
-- Added compact row-scoped background and text color controls with server-side validation.
-- Added `tools/page_builder_contract_test.php` and `docs/PAGE_BUILDER.md`.
+- Added flexible page rows, new layout presets, shared-background child rows, visibility, default deletion protection, and drag/drop section ordering.
+- Added compact row editors for text, bullets, images, cards, icons, buttons, links, colors, typography, and spacing.
+- Preserved legacy section images and three-column content during the row transition.
+- Added non-destructive Home migrations and renderer fallbacks for How Toinky Works, Perspectives, Paths, and Finale.
+- Kept Story Worlds dynamic from live story data rather than duplicating it into static row data.
+- Added `docs/PAGE_BUILDER.md` and `tools/page_builder_contract_test.php`.
 
 ## Verification
 
-- PHP 8.4 test runtime: `app/PageContentService.php`, `public/admin.php`, `public/index.php`, and the contract test pass lint.
+- PHP 8.4 lint passes for `app/PageContentService.php`, `public/admin.php`, and `public/index.php`.
 - `tools/page_builder_contract_test.php` passes.
 - `git diff --check` passes.
+- Normal local Git push was blocked by the Windows credential helper; authenticated GitHub API publication succeeded.
 
 ## Outstanding
 
-- Added draggable section cards, a Save Section Order form, and client-side order synchronization.
-- Added compact row-level card slots with validated media selection, card titles, and card content.
-- Added compact row-level buttons and links using the existing normalized button contract.
-- Added row image selection with server-side media validation and section-image fallback.
-- Added editable row-card icons with compact public rendering.
-- Added non-destructive migrations and renderer fallbacks for the Home “How Toinky Works” and “Different Perspectives” sections.
-- Added compact row typography and spacing controls with constrained server-side values.
-- Richer per-row formatting, hover styling, and button color controls still need to be expanded.
-- Story Worlds remains intentionally dynamic from live story data; Paths and Finale now have editable row-data fallbacks.
-- The current page-builder changes are committed locally; remote publication is being verified in this task.
+- Run the migrations and production checks on the server.
+- Verify drag/drop ordering, hide/show, deletion protection, and the Home row migrations against deployed data.
+- Expand row button hover styling and any remaining rich-text/editor affordances if required by the visual review.
 
 ## Next Steps
 
-1. Verify drag/drop section ordering UI and hide/delete controls against deployed data.
-2. Add row-scoped hover styling and richer formatting controls using the existing standard editor helpers.
-3. Seed Home defaults into editable rows and verify public output after migration.
-4. Commit and push only when requested.
-
+1. Deploy `main` migrations and application files to production.
+2. Run the documented terminal-first PHP checks and migration command.
+3. Review the page-builder UI at desktop and mobile widths.
