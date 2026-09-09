@@ -128,3 +128,11 @@
 - **Completed:** Commit 4a84ed7 passes media choices to the isolated builder. Commit e2d989e adds layout-specific content/column controls, Container background image selection, spacing controls, nested Container/content-row creation, and inactive-by-default empty content rows.
 - **Verification:** Expanded builder JavaScript passed Node syntax validation. PHP CLI remains unavailable in the Windows workspace; production must lint `public/page-builder.php`.
 - **Outstanding:** The replacement still needs server-side recursive normalization beyond the legacy depth-3 service cap, true drag-and-drop ordering, and an activation decision after production lint. The legacy editor remains available as fallback.
+
+
+## 2026-09-09 - fix Page Builder PHP lint error
+
+- **Incident:** Production lint reported `unexpected token "(string)"` on page-builder.php line 13.
+- **Root cause:** The arrow function used a return type but omitted the `=>` token.
+- **Resolution:** Changed it to `fn(array $page): string => (string)$page['page_code']` in commit c15532e.
+- **Next step:** Rerun PHP lint from `cd /home/toinkyadmin/public_html` before testing the builder UI.
