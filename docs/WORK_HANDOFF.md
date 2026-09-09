@@ -146,3 +146,11 @@
 - **Commit:** `cb5f9aa2339ba616979144bd31ded9b996ce8738`.
 - **Verification:** The wrapper content is PHP-only and follows the existing root entrypoint pattern. Production must pull/deploy this commit before the URL becomes available.
 - **Next step:** Deploy `cb5f9aa2339ba616979144bd31ded9b996ce8738`, then open `https://toinky.com/page-builder.php?page=HOME`. Do not use the blocked `/public/page-builder.php` URL.
+
+
+## 2026-09-09 - production document root is not a Git checkout
+
+- **Incident:** The production server still returned 404 after the root `page-builder.php` wrapper was pushed to GitHub.
+- **Diagnosis:** `cd /home/toinkyadmin/public_html && git pull origin main` returned `not a git repository`. The server has the deployed `public/page-builder.php`, but the root wrapper is not being synchronized from GitHub.
+- **Resolution path:** Create the three-line root wrapper directly in `/home/toinkyadmin/public_html/page-builder.php`, or deploy it through the hosting control panel. The GitHub source remains correct.
+- **Outstanding:** Production deployment is manual or controlled by a hosting deployment mechanism that is separate from Git in the document root.
