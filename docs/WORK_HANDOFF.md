@@ -104,6 +104,10 @@ contract, then synchronize repository mirrors in a separate documented change.
   `platform_settings` contains `MAIL_FROM_ADDRESS=accounts@toinky.com` and
   `MAIL_FROM_NAME=Toinky`. The PHP `mail()` fallback can now be tested without
   SMTP environment variables.
+- Live delivery verification reported on 2026-09-08: the latest
+  `email_delivery_log` record shows `delivery_status=SENT` to the test address
+  with `error_text=NULL`. PHP `mail()` delivery from the configured sender is
+  confirmed; direct SMTP configuration is unnecessary for the current host.
 - The production cPanel deployment state is not assumed from the GitHub push.
 - Production PHP lint and database tests must continue to run on cPanel; PHP
   is not installed in this local workspace.
