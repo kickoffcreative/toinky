@@ -275,3 +275,10 @@
 - **Verification:** Local checks passed: PHP lint for `app/PageBuilderService.php`, `app/PageContentService.php`, `public/page-builder.php`, `public/admin.php`, and `public/index.php`; `node --check public/assets/toinky-page-builder.js`; `tools/page_builder_contract_test.php`; `tools/page_builder_recursive_contract_test.php`; `git diff --check`.
 - **Outstanding:** Needs push and production deployment from the committed source, then browser testing of the Structure popup, row deletion, layout picker, Container shell styling, and explicit Story Cards row rendering.
 - **Next step for other task:** Avoid editing the old admin Pages UI for frontend content. Continue Page Builder work in the isolated builder route/assets unless the request is specifically for legacy compatibility.
+
+
+## 2026-09-09 - push instruction clarification
+
+- **Task/computer:** Windows Codex task.
+- **Instruction:** When the user says `push` for this repo, treat it as publishing the ready work to `main`, not only pushing a side branch, unless the user explicitly asks for branch-only publication.
+- **Current action:** The Page Builder structure work from branch `page-builder-structure-popover` is being fast-forwarded to `main` after this handoff update.
