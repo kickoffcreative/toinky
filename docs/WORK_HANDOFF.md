@@ -10,10 +10,9 @@ the same GitHub repository. Chat histories are not assumed to be shared.
 - **Current request:** Add branded, editable system email templates and sender
   controls under Website Settings → Brand → Email Settings.
 - **Branch:** `main`
-- **Current commit:** `bdd57a4` (`Record successful mail delivery test`) plus
-  uncommitted email-template changes in this checkout.
-- **Remote:** `origin/main` remains `bdd57a4`; GitHub fetch was attempted before
-  this work but the network was unavailable. No remote changes were pulled.
+- **Current commit:** `469fdce` (`Add branded email template settings`).
+- **Remote:** `origin/main` is `469fdce`; the feature commit was pushed after
+  implementation and local verification.
 
 ## Completed Work
 
@@ -124,9 +123,8 @@ contract, then synchronize repository mirrors in a separate documented change.
 - The production cPanel deployment state is not assumed from the GitHub push.
 - Production PHP lint and database tests must continue to run on cPanel; PHP
   is not installed in this local workspace.
-- This email-template feature is currently uncommitted and exists only in this
-  checkout. It has not been deployed to cPanel or verified against production
-  database data yet.
+- The feature is pushed to GitHub but has not been deployed to cPanel or
+  verified against production database data yet.
 - Do not assume the cPanel deployment has received a commit until deployment
   or a live verification is explicitly reported.
 
