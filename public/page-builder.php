@@ -26,9 +26,11 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         $action=(string)($_POST['action']??'');
         if($action==='add_section'){
             $label=trim((string)($_POST['section_label']??''));
-            $layout=strtoupper(trim((string)($_POST['section_layout']??'TEXT_CENTER')));
-            $newSectionId=PageContentService::addSection($admin,$pageCode,['label_text'=>$label,'layout_type'=>$layout]);
-            PageBuilderService::saveRows($admin,$newSectionId,[['layout_type'=>'CONTAINER','active'=>true,'children'=>[]]]);
+            $layout=strtoupper(trim((string)($_POST['section_layout']??'CONTAINER')));
+            if(!in_array($layout,PageContentService::LAYOUTS,true)||$layout==='HERO')$layout='CONTAINER';
+            $newSectionId=PageContentService::addSection($admin,$pageCode,['label_text'=>$label,'layout_type'=>'CONTAINER']);
+            $children=$layout==='CONTAINER'?[]:[['layout_type'=>$layout,'active'=>false,'label_text'=>'','title_text'=>'','content_html'=>'','bullets'=>[]]];
+            PageBuilderService::saveRows($admin,$newSectionId,[['layout_type'=>'CONTAINER','active'=>true,'children'=>$children]]);
             header('Location: page-builder.php?page='.rawurlencode($pageCode).'&section='.$newSectionId.'&saved=1');
             exit;
         }
@@ -47,8 +49,6 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         if(($sectionById['section_code']??'')==='HERO')throw new RuntimeException('Hero sections use their dedicated editor.');
         $rows=json_decode((string)($_POST['rows_payload']??'[]'),true,20,JSON_THROW_ON_ERROR);
         if(!is_array($rows))throw new RuntimeException('The builder tree is invalid.');
-        $input=array_merge($sectionById,['rows_present'=>1,'rows'=>$rows,'layout_type'=>$sectionById['layout_type']??'IMAGE_RIGHT','background_mode'=>$sectionById['background_mode']??'DEFAULT','background_color'=>$sectionById['background_color']??'#F4EEE2','background_fit'=>$sectionById['background_fit']??'COVER','background_opacity'=>$sectionById['background_opacity']??100,'overlay_mode'=>$sectionById['overlay_mode']??'NONE','overlay_color_start'=>$sectionById['overlay_color_start']??'#1C242B','overlay_color_end'=>$sectionById['overlay_color_end']??'#6B2938','overlay_opacity'=>$sectionById['overlay_opacity']??0]);
-        PageContentService::saveSection($admin,$sectionId,$input);
         PageBuilderService::saveRows($admin,$sectionId,$rows);
         header('Location: page-builder.php?page='.rawurlencode($pageCode).'&section='.$sectionId.'&saved=1');
         exit;
@@ -67,11 +67,11 @@ function builder_e(string $value): string{return htmlspecialchars($value,ENT_QUO
 <title>Page Builder</title>
 <link rel="stylesheet" href="assets/toinky-admin-shell.css">
 <link rel="stylesheet" href="assets/toinky-admin-workspace.css">
-<link rel="stylesheet" href="assets/toinky-page-builder.css?v=20260909-visible-layout">
+<link rel="stylesheet" href="assets/toinky-page-builder.css?v=20260909-structure-popup">
 </head>
 <body class="page-builder-app">
 <header class="page-builder-topbar">
-<a href="admin.php?view=pages" class="page-builder-back">Back to Pages</a>
+<a href="admin.php?view=overview" class="page-builder-back">Back to Dashboard</a>
 <strong>Page Builder</strong>
 <label>Page <select id="page-select"><?php foreach($pages as $page):?><option value="<?=builder_e((string)$page['page_code'])?>" <?=$pageCode===$page['page_code']?'selected':''?>><?=builder_e((string)$page['label_text'])?></option><?php endforeach;?></select></label>
 <button type="button" id="preview-refresh">Refresh Preview</button>
@@ -82,7 +82,7 @@ function builder_e(string $value): string{return htmlspecialchars($value,ENT_QUO
 <form method="post" id="section-add-form" class="section-add-form">
 <input type="hidden" name="csrf_token" value="<?=htmlspecialchars(AuthService::csrfToken(),ENT_QUOTES,'UTF-8')?>"><input type="hidden" name="action" value="add_section">
 <label>New section<input type="text" name="section_label" maxlength="120" placeholder="Section name" required></label>
-<label>Starting layout<select name="section_layout"><option value="TEXT_CENTER">Text Center</option><option value="IMAGE_RIGHT">Image On Right</option><option value="IMAGE_LEFT">Image On Left</option><option value="THREE_COLUMN">Three Columns</option><option value="FOUR_COLUMN">Four Columns</option><option value="CARDS_ONLY">Cards Only</option></select></label>
+<label>First content<select name="section_layout"><option value="CONTAINER">Empty Container</option><option value="TEXT_TOP">Top Text Only</option><option value="TEXT_CENTER">Text Center</option><option value="IMAGE_RIGHT">Image On Right</option><option value="IMAGE_LEFT">Image On Left</option><option value="THREE_COLUMN">Three Columns</option><option value="FOUR_COLUMN">Four Columns</option><option value="CARDS_ONLY">Cards Only</option><option value="TEXT_BULLETS">Text With Bulleted List</option><option value="STORY_CARDS">Story Cards</option><option value="SOCIALS">Social Buttons</option></select></label>
 <button type="submit">Add Section</button>
 </form>
 <form method="post" id="section-order-form" class="section-order-form">
@@ -100,6 +100,7 @@ function builder_e(string $value): string{return htmlspecialchars($value,ENT_QUO
 <form method="post" id="builder-form">
 <input type="hidden" name="csrf_token" value="<?=htmlspecialchars(AuthService::csrfToken(),ENT_QUOTES,'UTF-8')?>"><input type="hidden" name="action" value="save_page_builder"><input type="hidden" name="section_id" value="<?=(int)$section['site_page_section_id']?>"><input type="hidden" name="rows_payload" id="rows-payload">
 <div class="inspector-heading"><span>Editing</span><strong><?=builder_e((string)$section['label_text'])?></strong></div>
+<div class="builder-inspector-tools"><button type="button" id="structure-open" data-structure-open>Structure</button></div>
 <div class="inspector-tabs" role="tablist"><button type="button" class="active" data-inspector-tab="content">Content</button><button type="button" data-inspector-tab="style">Style</button><button type="button" data-inspector-tab="advanced">Advanced</button></div>
 <section class="inspector-panel active" data-inspector-panel="content"><div id="content-properties"><p class="builder-muted">Select a section or row.</p></div></section>
 <section class="inspector-panel" data-inspector-panel="style"><div id="style-properties"></div></section>
@@ -114,6 +115,6 @@ function builder_e(string $value): string{return htmlspecialchars($value,ENT_QUO
 <script>
 window.toinkyPageBuilder={page:<?=json_encode($pageCode)?>,rows:<?=json_encode($rows,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT)?>,media:<?=json_encode($pageMedia,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT)?>,hero:<?=json_encode(($section['section_code']??'')==='HERO')?>};
 </script>
-<script src="assets/toinky-page-builder.js?v=20260909-visible-layout" defer></script>
+<script src="assets/toinky-page-builder.js?v=20260909-structure-popup" defer></script>
 </body>
 </html>

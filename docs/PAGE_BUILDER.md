@@ -1,10 +1,22 @@
 # Page Builder
 
-The page builder stores a page as ordered parent sections. Each section may contain a `rows_json` collection of child rows that share the parent background and can use their own layout and content fields. Existing sections remain compatible: when `rows_json` is empty, the parent section is rendered as its fallback row.
+The Page Builder is the active editing surface for website page content. The old `admin.php?view=pages` route is no longer exposed from the sidebar; direct GET requests are redirected to `page-builder.php`.
 
-Supported presets are `Image On Right`, `Image On Left`, `Three Columns`, `Four Columns`, `Social Media Buttons`, `No Image, Centered Text`, `Top Text Only`, `Cards Only`, `Text With Bulleted List`, and `Container`. A Container row has no content of its own; it houses stacked child rows. The admin editor provides four compact child-row slots, and child rows are normalized to a maximum depth of three. Row formatting controls open in a popup customizer. The Story Worlds section remains live content sourced from current public stories and is not a static page-builder template.
+The builder stores each editable section as a root `CONTAINER` row in `rows_json`. A Container is a shell only: it has no title, rich text, buttons, cards, or section image content. Its editable properties are shell-level style controls such as background color/image and inside spacing. Content is added by placing child rows inside the Container.
 
-Default sections are marked `is_default=1`. They may be hidden or reordered, but deletion is rejected by `PageContentService::deleteSection()`. Migration 105 removes default-managed body sections while preserving `HERO` headers and all non-default sections. Story Worlds cards are fixed/live frontend content, not a default managed section. Non-default sections may be deleted. Reordering is performed with `PageContentService::reorderSections()` after the admin UI submits the ordered section IDs.
+Each Container can contain content rows and nested Containers. This allows structures such as Container -> Top Text Only + Image On Right, or Container -> nested Container -> Story Cards. Recursive row normalization is bounded to depth 12.
+
+The builder UI follows the Elementor-style split editor:
+
+- left sidebar: selected item properties, split into `Content`, `Style`, and `Advanced`;
+- right pane: live page preview in an iframe;
+- floating `Structure` popup: movable multi-level hierarchy list used to select, add, or delete content rows and nested Containers.
+
+Selecting an item in the Structure popup updates the left properties editor. Layout selection is handled by a movable popup, and color fields use compact popup controls with HEXA/RGB/HSLA modes and browser eye-dropper support where available.
+
+Supported content presets are `Image On Right`, `Image On Left`, `Three Columns`, `Four Columns`, `Social Media Buttons`, `No Image, Centered Text`, `Top Text Only`, `Cards Only`, `Text With Bulleted List`, and `Story Cards`. `Container` remains a shell preset and should not render direct text content. `Story Cards` renders current public stories as an explicitly added content row; the old automatic Stories-page card block remains hidden.
+
+Default sections are marked `is_default=1`. They may be hidden or reordered, but deletion is rejected by `PageContentService::deleteSection()`. Migration 105 removes default-managed body sections while preserving `HERO` headers and all non-default sections. Non-default sections may be deleted. Reordering is performed with `PageContentService::reorderSections()` after the builder submits ordered section IDs.
 
 ## Terminal-first checks
 
@@ -13,12 +25,14 @@ Run from production:
 ```sh
 cd /home/toinkyadmin/public_html
 PHP=/opt/cpanel/ea-php84/root/usr/bin/php
+$PHP -n -l app/PageBuilderService.php
 $PHP -n -l app/PageContentService.php
+$PHP -n -l public/page-builder.php
 $PHP -n -l public/admin.php
 $PHP -n -l public/index.php
 $PHP tools/page_builder_contract_test.php
+$PHP tools/page_builder_recursive_contract_test.php
 $PHP tools/migrate.php
 ```
 
-If a page remains blank or shows the old layout after migration, inspect the deployed `public/index.php` renderer and the section's `rows_json`. The service and migration alone do not prove that a renderer is consuming child rows.
-
+If a page remains blank or shows old content after deployment, confirm the deployed `page-builder.php` wrapper, `public/page-builder.php`, Page Builder assets, and `public/index.php` renderer are from the same commit before inspecting database content.

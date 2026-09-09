@@ -69,7 +69,8 @@ final class PageBuilderService
 
     private static function text(mixed$value,int$limit): string
     {
-        return mb_substr(trim((string)$value),0,$limit);
+        $value=trim((string)$value);
+        return function_exists('mb_substr')?mb_substr($value,0,$limit):substr($value,0,$limit);
     }
 
     private static function html(mixed$value): string
@@ -77,7 +78,7 @@ final class PageBuilderService
         $html=strip_tags((string)$value,'<p><br><strong><em><u><h2><h3><ul><ol><li><a>');
         $html=(string)preg_replace('/\s+on[a-z]+\s*=\s*(["\']).*?\1/isu','',$html);
         $html=(string)preg_replace('/\s+style\s*=\s*(["\']).*?\1/isu','',$html);
-        return mb_substr($html,0,20000);
+        return function_exists('mb_substr')?mb_substr($html,0,20000):substr($html,0,20000);
     }
 
     private static function listValues(mixed$value): array

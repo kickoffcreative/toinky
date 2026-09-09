@@ -114,7 +114,77 @@ final class PageContentService
     {return self::normalizeRow(['eyebrow_text'=>$section['eyebrow_text']??'','title_text'=>$section['title_text']??'','content_html'=>$section['content_html']??'','layout_type'=>$section['layout_type']??'IMAGE_RIGHT','columns'=>json_decode((string)($section['columns_json']??'[]'),true)?:[]],0);}
 
     private static function normalizeRow(array $row,int $index,?array $admin=null,int $depth=0): array
-{$layout=in_array(($row['layout_type']??''),self::LAYOUTS,true)?$row['layout_type']:'TEXT_TOP';$depth=min(3,max(0,$depth));$children=[];$childInput=$row['children']??[];if(isset($row['children_json'])){$decoded=json_decode((string)$row['children_json'],true);if(is_array($decoded))$childInput=$decoded;}if($depth<3&&($layout==='CONTAINER'||isset($row['children'])||isset($row['children_json']))){foreach(array_slice((array)$childInput,0,12)as$childIndex=>$child)if(is_array($child))$children[]=self::normalizeRow($child,$childIndex,$admin,$depth+1);}$columns=[];foreach(array_slice((array)($row['columns']??[]),0,6)as$column)if(is_array($column))$columns[]=['title'=>self::textSlice(trim((string)($column['title']??'')),0,190),'content'=>self::sanitizeHtml((string)($column['content']??'')),'icon_text'=>self::textSlice(trim((string)($column['icon_text']??'')),0,8),'image_media_id'=>($admin?self::mediaChoice($admin,$column['image_media_id']??''):((int)($column['image_media_id']??0)?:null)),'buttons'=>self::normalizeButtons(array_slice((array)($column['buttons']??[]),0,2),false)];$buttons=self::normalizeButtons(array_slice((array)($row['buttons']??[]),0,4),false);$bullets=[];$sourceBullets=$row['bullets']??(isset($row['bullets_text'])?preg_split('/\r?\n/',(string)$row['bullets_text']):[]);foreach(array_slice((array)$sourceBullets,0,20)as$bullet){$text=is_array($bullet)?trim((string)($bullet['text']??'')):trim((string)$bullet);if($text!=='')$bullets[]=self::textSlice($text,0,500);}return['label_text'=>self::textSlice(trim((string)($row['label_text']??'')),0,190),'eyebrow_text'=>self::textSlice(trim((string)($row['eyebrow_text']??'')),0,190),'title_text'=>self::textSlice(trim((string)($row['title_text']??'')),0,500),'content_html'=>self::sanitizeHtml((string)($row['content_html']??'')),'layout_type'=>$layout,'active'=>!isset($row['active'])||!empty($row['active']),'image_media_id'=>($admin&&isset($row['image_media_id'])?self::mediaChoice($admin,$row['image_media_id']):((int)($row['image_media_id']??0)?:null)),'background_color'=>(preg_match('/^#[0-9A-F]{6}([0-9A-F]{2})?$/i',trim((string)($row['background_color']??'')))?strtoupper(trim((string)$row['background_color'])):''),'text_color'=>(preg_match('/^#[0-9A-F]{6}([0-9A-F]{2})?$/i',trim((string)($row['text_color']??'')))?strtoupper(trim((string)$row['text_color'])):''),'text_align'=>in_array(($row['text_align']??''),['left','center','right'],true)?$row['text_align']:'left','font_size'=>(preg_match('/^(?:10|1[1-9]|2[0-9]|3[0-6])px$/',trim((string)($row['font_size']??'')))?trim((string)$row['font_size']):''),'font_weight'=>in_array((string)($row['font_weight']??''),['400','500','600','700','800'],true)?(string)$row['font_weight']:'','text_transform'=>in_array(($row['text_transform']??''),['none','uppercase','capitalize','lowercase'],true)?$row['text_transform']:'none','padding_top_px'=>max(0,min(120,(int)($row['padding_top_px']??0))),'padding_bottom_px'=>max(0,min(120,(int)($row['padding_bottom_px']??0))),'bullets'=>$bullets,'columns'=>$columns,'buttons'=>$buttons,'sort_order'=>$index,'children'=>$children];}
+    {
+        $layout=strtoupper(trim((string)($row['layout_type']??'TEXT_TOP')));
+        if(!in_array($layout,self::LAYOUTS,true)||$layout==='HERO')$layout='TEXT_TOP';
+        $depth=min(12,max(0,$depth));
+        $childInput=$row['children']??[];
+        if(isset($row['children_json'])){
+            $decoded=json_decode((string)$row['children_json'],true);
+            if(is_array($decoded))$childInput=$decoded;
+        }
+        $children=[];
+        if($depth<12&&($layout==='CONTAINER'||isset($row['children'])||isset($row['children_json']))){
+            foreach(array_slice((array)$childInput,0,12)as$childIndex=>$child){
+                if(is_array($child))$children[]=self::normalizeRow($child,$childIndex,$admin,$depth+1);
+            }
+        }
+        $media=static function($value)use($admin): ?int{
+            return $admin?self::mediaChoice($admin,$value):((int)$value?:null);
+        };
+        $hex=static function($value): string{
+            $value=strtoupper(trim((string)$value));
+            return preg_match('/^#[0-9A-F]{6}([0-9A-F]{2})?$/',$value)?$value:'';
+        };
+        $columns=[];
+        foreach(array_slice((array)($row['columns']??[]),0,6)as$column){
+            if(is_array($column))$columns[]=[
+                'title'=>self::textSlice(trim((string)($column['title']??'')),0,190),
+                'content'=>self::sanitizeHtml((string)($column['content']??'')),
+                'icon_text'=>self::textSlice(trim((string)($column['icon_text']??'')),0,120),
+                'image_media_id'=>$media($column['image_media_id']??''),
+                'buttons'=>self::normalizeButtons(array_slice((array)($column['buttons']??[]),0,2),false),
+            ];
+        }
+        $buttons=self::normalizeButtons(array_slice((array)($row['buttons']??[]),0,4),false);
+        $bullets=[];
+        $sourceBullets=$row['bullets']??(isset($row['bullets_text'])?preg_split('/\r?\n/',(string)$row['bullets_text']):[]);
+        foreach(array_slice((array)$sourceBullets,0,20)as$bullet){
+            $text=is_array($bullet)?trim((string)($bullet['text']??'')):trim((string)$bullet);
+            if($text!=='')$bullets[]=self::textSlice($text,0,500);
+        }
+        $textAlign=(string)($row['text_align']??'left');
+        $blendMode=(string)($row['blend_mode']??'normal');
+        $fontSize=trim((string)($row['font_size']??''));
+        $fontWeight=(string)($row['font_weight']??'');
+        $textTransform=(string)($row['text_transform']??'none');
+        return [
+            'label_text'=>self::textSlice(trim((string)($row['label_text']??'')),0,190),
+            'eyebrow_text'=>self::textSlice(trim((string)($row['eyebrow_text']??'')),0,190),
+            'title_text'=>self::textSlice(trim((string)($row['title_text']??'')),0,500),
+            'content_html'=>self::sanitizeHtml((string)($row['content_html']??'')),
+            'layout_type'=>$layout,
+            'active'=>!isset($row['active'])||!empty($row['active']),
+            'image_media_id'=>$media($row['image_media_id']??''),
+            'background_media_id'=>$media($row['background_media_id']??''),
+            'background_color'=>$hex($row['background_color']??''),
+            'text_color'=>$hex($row['text_color']??''),
+            'text_align'=>in_array($textAlign,['left','center','right'],true)?$textAlign:'left',
+            'blend_mode'=>in_array($blendMode,['normal','multiply','screen','overlay','darken','lighten','difference'],true)?$blendMode:'normal',
+            'font_size'=>preg_match('/^(?:10|1[1-9]|2[0-9]|3[0-6])px$/',$fontSize)?$fontSize:'',
+            'font_weight'=>in_array($fontWeight,['400','500','600','700','800'],true)?$fontWeight:'',
+            'text_transform'=>in_array($textTransform,['none','uppercase','capitalize','lowercase'],true)?$textTransform:'none',
+            'padding_top_px'=>max(0,min(2000,(int)($row['padding_top_px']??0))),
+            'padding_right_px'=>max(0,min(2000,(int)($row['padding_right_px']??0))),
+            'padding_bottom_px'=>max(0,min(2000,(int)($row['padding_bottom_px']??0))),
+            'padding_left_px'=>max(0,min(2000,(int)($row['padding_left_px']??0))),
+            'bullets'=>$bullets,
+            'columns'=>$columns,
+            'buttons'=>$buttons,
+            'sort_order'=>$index,
+            'children'=>$children,
+        ];
+    }
     private static function mediaChoice(array $admin,$value): ?int
     {
         $id=(int)$value;if($id<1)return null;MediaLibraryService::requireVisible($admin,$id);return$id;

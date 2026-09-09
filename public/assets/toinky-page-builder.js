@@ -90,7 +90,9 @@
     const layouts=[
         ['CONTAINER','Container'],
         ['TEXT_TOP','Top Text Only'],
+        ['TEXT_CENTER','Text Center'],
         ['CARDS_ONLY','Cards Only'],
+        ['STORY_CARDS','Story Cards'],
         ['TEXT_BULLETS','Text With Bulleted List'],
         ['IMAGE_RIGHT','Image On Right'],
         ['IMAGE_LEFT','Image On Left'],
@@ -113,6 +115,8 @@
     }[character]));
     const pathsEqual=(first,second)=>first.join('.')===second.join('.');
     const layoutTitle=code=>(layouts.find(item=>item[0]===code)||['','Text row'])[1];
+    const nodeTitle=node=>node.layout_type==='CONTAINER'?'Container':
+        (node.title_text||node.label_text||node.eyebrow_text||layoutTitle(node.layout_type));
     const mediaOptions=[['','No image'],...media.map(item=>[
         String(item.media_id),item.title_text||('Media '+item.media_id)
     ])];
@@ -224,26 +228,29 @@
             '</span><span aria-hidden="true">+</span></button></div>';
     };
 
-    const renderNode=(node,path)=>{
+    const renderStructureNode=(node,path,depth=0)=>{
         const deletable=path.length>1;
         const deleteButton=deletable?
             '<button type="button" class="builder-node-delete" data-delete="'+
             path.join('.')+'" aria-label="Delete '+escapeHtml(layoutTitle(node.layout_type))+
             '">x</button>':'';
-        return '<div class="builder-node '+(pathsEqual(path,selected)?'selected':'')+
-            '"><div class="builder-node-head"><button type="button" data-select="'+
-            path.join('.')+'">'+escapeHtml(node.layout_type==='CONTAINER'?
-            'Container':(node.title_text||node.label_text||layoutTitle(node.layout_type)))+
-            '</button><small>'+escapeHtml(layoutTitle(node.layout_type))+
-            '</small>'+(node.layout_type!=='CONTAINER'&&pathsEqual(path,selected)?
-            '<button type="button" class="builder-node-layout" data-layout-open>Layout</button>':'')+
-            deleteButton+'</div>'+
-            (node.layout_type==='CONTAINER'?
-            '<div class="builder-node-children">'+(node.children||[]).map((child,index)=>
-            renderNode(child,path.concat(index))).join('')+
-            '<div class="builder-actions"><button type="button" data-add="'+path.join('.')+
-            '">Add content row</button><button type="button" class="alt" data-add-container="'+
-            path.join('.')+'">Add Container</button></div></div>':'')+'</div>';
+        const container=node.layout_type==='CONTAINER';
+        const children=container?(node.children||[]):[];
+        const layoutButton=!container&&pathsEqual(path,selected)?
+            '<button type="button" class="builder-structure-layout-button" data-layout-open>Layout</button>':'';
+        return '<div class="builder-structure-row '+(pathsEqual(path,selected)?'selected':'')+
+            '" style="--depth:'+depth+'"><button type="button" data-select="'+
+            path.join('.')+'"><span class="builder-structure-caret" aria-hidden="true">'+
+            (container&&children.length?'>':'')+'</span><span class="builder-structure-icon" aria-hidden="true">'+
+            (container?'[]':'T')+'</span><span class="builder-structure-name">'+
+            escapeHtml(nodeTitle(node))+'</span><small>'+escapeHtml(layoutTitle(node.layout_type))+
+            '</small></button>'+layoutButton+deleteButton+'</div>'+
+            (container?children.map((child,index)=>
+            renderStructureNode(child,path.concat(index),depth+1)).join('')+
+            '<div class="builder-structure-actions" style="--depth:'+(depth+1)+'">'+
+            '<button type="button" data-add="'+path.join('.')+'">Add content row</button>'+
+            '<button type="button" class="alt" data-add-container="'+path.join('.')+
+            '">Add Container</button></div>':'');
     };
 
     const renderColumns=node=>{
@@ -261,17 +268,24 @@
             }).join('');
     };
 
+    const selectedSummary=node=>{
+        return '<div class="builder-selected-summary"><span>Selected</span><strong>'+
+            escapeHtml(nodeTitle(node))+'</strong><small>'+
+            escapeHtml(layoutTitle(node.layout_type))+
+            (node.active===false?' · Hidden':'')+'</small></div>';
+    };
+
     const props=()=>{
         const node=nodeAt(selected);
         if(!node)return;
         const container=node.layout_type==='CONTAINER';
         q('#content-properties').innerHTML=
-            '<div class="builder-tree">'+renderNode(rows[0],[0])+
-            '</div><div class="builder-actions"><button type="button" data-add-root-row>'+
-            'Add content row</button><button type="button" class="alt" data-add-root-container>'+
-            'Add Container</button></div>'+
-            (container?'<p class="builder-muted">Container is a shell. Add content rows or nested Containers.</p>'+
-            '<p class="builder-muted">Select a child row in the structure above to edit its content.</p>':
+            selectedSummary(node)+
+            (container?'<div class="builder-actions"><button type="button" data-add="'+selected.join('.')+
+            '">Add content row</button><button type="button" class="alt" data-add-container="'+
+            selected.join('.')+'">Add Container</button></div>'+
+            '<p class="builder-muted">Container is a shell. Add content rows or nested Containers.</p>'+
+            '<p class="builder-muted">Use Structure to select a child row and edit its content.</p>':
             layoutControl(node)+
             field('label_text','Label',node.label_text||node.eyebrow_text||'')+
             field('title_text','Title',node.title_text||'')+
@@ -288,6 +302,9 @@
             field('padding_left_px','Left padding',node.padding_left_px||0,'number'):
             select('image_media_id','Content image',node.image_media_id||'',mediaOptions);
         q('#advanced-properties').innerHTML=
+            select('active','Visibility',node.active===false?'0':'1',[
+                ['1','Visible'],['0','Hidden']
+            ])+
             field('text_color','Text color',node.text_color||'#1C242B','color')+
             select('text_align','Alignment',node.text_align||'left',[
                 ['left','Left'],['center','Center'],['right','Right']
@@ -298,6 +315,7 @@
                 ['difference','Difference']
             ]);
         sync();
+        refreshStructurePopup();
     };
 
     const closeFloating=()=>{
@@ -339,6 +357,37 @@
         const height=popup.offsetHeight;
         popup.style.left=clamp(rect.left,8,window.innerWidth-width-8)+'px';
         popup.style.top=clamp(rect.bottom+8,8,window.innerHeight-height-8)+'px';
+    };
+
+    const refreshStructurePopup=()=>{
+        const popup=q('#builder-structure-popup');
+        if(!popup)return;
+        const body=popup.querySelector('[data-structure-body]');
+        if(!body)return;
+        body.innerHTML='<div class="builder-structure-list">'+
+            renderStructureNode(rows[0],[0])+'</div>';
+    };
+
+    const openStructurePopup=anchor=>{
+        const existing=q('#builder-structure-popup');
+        if(existing){
+            refreshStructurePopup();
+            positionPopup(existing,anchor);
+            return;
+        }
+        closeFloating();
+        const popup=document.createElement('div');
+        popup.id='builder-structure-popup';
+        popup.className='builder-floating-popup builder-structure-popup';
+        popup.setAttribute('role','dialog');
+        popup.setAttribute('aria-label','Page structure');
+        popup.innerHTML='<div class="builder-popup-head" data-popup-drag>'+
+            '<strong>Structure</strong><button type="button" data-popup-close aria-label="Close">x</button></div>'+
+            '<div data-structure-body></div>';
+        document.body.appendChild(popup);
+        refreshStructurePopup();
+        positionPopup(popup,anchor);
+        makeDraggable(popup,popup.querySelector('[data-popup-drag]'));
     };
 
     const openLayoutPicker=anchor=>{
@@ -383,10 +432,10 @@
         if(colorState.format==='hsla'){
             const hsl=rgbToHsl(color);
             return '<div class="builder-color-fields">'+
-                field('h','H',number(hsl.h),'number')+
-                field('s','S %',number(hsl.s),'number')+
-                field('l','L %',number(hsl.l),'number')+
-                field('a','A',number(hsl.a),'number')+'</div>';
+                colorPart('h','H',number(hsl.h))+
+                colorPart('s','S %',number(hsl.s))+
+                colorPart('l','L %',number(hsl.l))+
+                colorPart('a','A',number(hsl.a))+'</div>';
         }
         return '<label class="builder-color-edit">HEX<input type="text" data-color-part="hex" value="'+
             escapeHtml(toHex(color))+'"></label>';
@@ -475,6 +524,11 @@
     };
 
     document.addEventListener('click',event=>{
+        const structureOpen=event.target.closest('[data-structure-open]');
+        if(structureOpen){
+            openStructurePopup(structureOpen);
+            return;
+        }
         const colorOpen=event.target.closest('[data-color-open]');
         if(colorOpen){
             openColorPicker(colorOpen.dataset.colorOpen,colorOpen);
@@ -523,7 +577,6 @@
         const selectButton=event.target.closest('[data-select]');
         if(selectButton){
             selected=selectButton.dataset.select.split('.').map(Number);
-            closeFloating();
             props();
             return;
         }
@@ -535,7 +588,6 @@
             if(!parent||!Array.isArray(parent.children))return;
             parent.children.splice(path[path.length-1],1);
             selected=path.slice(0,-1);
-            closeFloating();
             props();
             return;
         }
@@ -606,7 +658,8 @@
         if(!input)return;
         const node=nodeAt(selected);
         const name=input.dataset.field;
-        setValue(node,name,input.type==='number'?Number(input.value):input.value);
+        setValue(node,name,name==='active'?input.value==='1':
+            (input.type==='number'?Number(input.value):input.value));
         if(name==='bullets_text'){
             node.bullets=String(input.value).split(/\r?\n/).filter(Boolean);
         }

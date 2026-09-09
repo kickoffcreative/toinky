@@ -39,14 +39,14 @@
 @media(max-width:580px){.public-page-hero{padding:var(--section-mobile-pad-top,var(--section-pad-top,180px)) max(18px,var(--section-mobile-pad-right,var(--section-pad-right,24px))) var(--section-mobile-pad-bottom,var(--section-pad-bottom,58px)) max(18px,var(--section-mobile-pad-left,var(--section-pad-left,24px)))}.public-content-section{padding:var(--section-mobile-pad-top,var(--section-pad-top,44px)) max(18px,var(--section-mobile-pad-right,var(--section-pad-right,24px))) var(--section-mobile-pad-bottom,var(--section-pad-bottom,44px)) max(18px,var(--section-mobile-pad-left,var(--section-pad-left,24px)))}.public-story-detail>img,.public-story-detail>.story-art-placeholder{min-height:300px}.story-detail-actions{align-items:flex-start;flex-direction:column}.public-footer-nav{gap:14px 20px}}
 .public-content-row{display:grid;gap:28px;align-items:start}.layout-rows .public-content-row+.public-content-row{margin-top:52px;padding-top:38px;border-top:1px solid color-mix(in srgb,#1c242b 18%,transparent)}.public-content-row.layout-text-top,.public-content-row.layout-text-bullets{text-align:left}.public-content-row.layout-cards-only,.public-content-row.layout-three-column{display:block}.public-content-row.layout-cards-only .public-three-columns,.public-content-row.layout-three-column .public-three-columns{margin-top:20px}.public-content-row .feature-list{margin-top:22px}
 
-.public-content-row{background:var(--row-bg,transparent);color:var(--row-text,inherit)}.public-content-row .type-public-body{color:inherit}
+.public-content-row,.public-container-row{background-color:var(--row-bg,transparent);background-image:var(--row-bg-image,none);background-size:cover;background-position:center;color:var(--row-text,inherit);text-align:var(--row-align,inherit);font-size:var(--row-size,inherit);font-weight:var(--row-weight,inherit);text-transform:var(--row-transform,inherit);mix-blend-mode:var(--row-blend,normal);padding:var(--row-pad-top,0) var(--row-pad-right,0) var(--row-pad-bottom,0) var(--row-pad-left,0)}.public-content-row .type-public-body,.public-container-row .type-public-body{color:inherit}
 
 .row-cards{grid-column:1/-1}.row-cards>summary{cursor:pointer;font-weight:800}.row-cards fieldset{margin:8px 0;padding:8px;border:1px solid #ddd5c6}.row-cards select,.row-cards input,.row-cards textarea{max-width:100%}
 
 
 /* Additional row templates. */
 .public-four-columns{grid-template-columns:repeat(4,minmax(0,1fr))}
-.public-container-row{display:grid;gap:0;margin:-80px max(-8vw,-24px);padding:0}
+.public-container-row{display:grid;gap:0;margin:-80px max(-8vw,-24px)}
 .public-container-row>.public-content-section{width:100%;margin:0}
 @media(max-width:1100px){.public-four-columns{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:580px){.public-four-columns{grid-template-columns:1fr}.public-container-row{margin:-42px -24px}}
@@ -59,7 +59,7 @@
 .public-home .home-finale{display:none!important}
 
 /* Story cards are available as a page-builder row, not an automatic Stories page block. */
-.public-page .public-story-grid{display:none!important}
+.public-page main.shell>.public-story-grid{display:none!important}
 
 /* Empty child slots must not create visible public sections. */
-.public-container-row > .public-content-section:has(.public-content-row .type-public-body:empty):not(:has(.section-label,h2,h3,img,ul,.hero-actions,.public-three-columns)){display:none!important}
+.public-container-row > .public-content-row:has(.type-public-body:empty):not(:has(.section-label,h2,h3,img,ul,.hero-actions,.public-three-columns,.public-story-grid)){display:none!important}
