@@ -208,3 +208,6 @@
 - **Commits:** `7a40236` route/action, `132897b` styling, `8d93e30` behavior.
 - **Verification:** Exact remote JavaScript passed Node syntax validation and the route contains the reorder form and fixed-section markers.
 - **Next step:** Pull/deploy `main` from `/home/toinkyadmin/repositories/toinky`; deploy the updated route and Page Builder assets before testing drag ordering.
+
+
+- **Follow-up:** Section drag handlers now initialize before the Hero-specific inspector early return, so the navigator remains reorderable when Hero is selected; Hero itself remains non-draggable. Asset version query is now `v=20260909-reorder2`.
