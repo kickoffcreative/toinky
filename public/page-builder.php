@@ -5,6 +5,7 @@ $root=dirname(__DIR__);
 require_once $root.'/app/bootstrap.php';
 require_once $root.'/app/AuthService.php';
 require_once $root.'/app/PageContentService.php';
+require_once $root.'/app/PageBuilderService.php';
 AuthService::boot();
 $admin=AuthService::requireAdmin();
 
@@ -40,6 +41,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         if(!is_array($rows))throw new RuntimeException('The builder tree is invalid.');
         $input=array_merge($sectionById,['rows_present'=>1,'rows'=>$rows,'layout_type'=>$sectionById['layout_type']??'IMAGE_RIGHT','background_mode'=>$sectionById['background_mode']??'DEFAULT','background_color'=>$sectionById['background_color']??'#F4EEE2','background_fit'=>$sectionById['background_fit']??'COVER','background_opacity'=>$sectionById['background_opacity']??100,'overlay_mode'=>$sectionById['overlay_mode']??'NONE','overlay_color_start'=>$sectionById['overlay_color_start']??'#1C242B','overlay_color_end'=>$sectionById['overlay_color_end']??'#6B2938','overlay_opacity'=>$sectionById['overlay_opacity']??0]);
         PageContentService::saveSection($admin,$sectionId,$input);
+        PageBuilderService::saveRows($admin,$sectionId,$rows);
         header('Location: page-builder.php?page='.rawurlencode($pageCode).'&section='.$sectionId.'&saved=1');
         exit;
     }catch(Throwable $e){$error=$e->getMessage();}
@@ -57,7 +59,7 @@ function builder_e(string $value): string{return htmlspecialchars($value,ENT_QUO
 <title>Page Builder</title>
 <link rel="stylesheet" href="assets/toinky-admin-shell.css">
 <link rel="stylesheet" href="assets/toinky-admin-workspace.css">
-<link rel="stylesheet" href="assets/toinky-page-builder.css?v=20260909-reorder2">
+<link rel="stylesheet" href="assets/toinky-page-builder.css?v=20260909-recursive">
 </head>
 <body class="page-builder-app">
 <header class="page-builder-topbar">
@@ -98,6 +100,6 @@ function builder_e(string $value): string{return htmlspecialchars($value,ENT_QUO
 <script>
 window.toinkyPageBuilder={page:<?=json_encode($pageCode)?>,rows:<?=json_encode($rows,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT)?>,media:<?=json_encode($pageMedia,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT)?>,hero:<?=json_encode(($section['section_code']??'')==='HERO')?>};
 </script>
-<script src="assets/toinky-page-builder.js?v=20260909-reorder2" defer></script>
+<script src="assets/toinky-page-builder.js?v=20260909-recursive" defer></script>
 </body>
 </html>
