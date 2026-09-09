@@ -64,3 +64,11 @@
 - **Branch/commit:** main, commit aa55b29a77070005eb53a15eef8acef5c976db81.
 - **Verification:** Migration SQL was reviewed against the known PageContentService insert contract; production execution and PHP/database verification remain outstanding.
 - **Next step:** Run `cd /home/toinkyadmin/public_html`, set PHP to `/opt/cpanel/ea-php84/root/usr/bin/php`, then run `$PHP tools/migrate.php` and inspect `HOW_IT_WORKS` HERO rows.
+
+
+## 2026-09-09 - admin hero editor cleanup
+
+- **Request:** Hero Buttons should be minimized by default; default page heroes should not expose Rows.
+- **Completed:** Commit 30f7d5b removed the `open` attribute from Home Hero Buttons. Commit 51f0f94 added a dedicated admin workspace CSS rule hiding the Rows disclosure on the first/default page section, while normal content-section rows remain available.
+- **Verification:** Published through authenticated GitHub API. Production PHP lint and visual verification remain outstanding.
+- **Next step:** Deploy both commits, then run `cd /home/toinkyadmin/public_html` followed by PHP lint on `public/admin.php` and clear browser cache.
