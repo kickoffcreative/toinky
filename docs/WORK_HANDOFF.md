@@ -100,6 +100,10 @@ contract, then synchronize repository mirrors in a separate documented change.
 
 - No known implementation failure from the latest Cowriter dependency scan.
 - A live delivery test is not verifiable from this local workspace.
+- Production verification reported on 2026-09-08: migrations are current and
+  `platform_settings` contains `MAIL_FROM_ADDRESS=accounts@toinky.com` and
+  `MAIL_FROM_NAME=Toinky`. The PHP `mail()` fallback can now be tested without
+  SMTP environment variables.
 - The production cPanel deployment state is not assumed from the GitHub push.
 - Production PHP lint and database tests must continue to run on cPanel; PHP
   is not installed in this local workspace.
