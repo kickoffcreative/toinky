@@ -748,3 +748,12 @@ body.member-games .workspace-menu-toggle {
 
 /* Default page heroes are intentionally rowless; regular content sections keep their row editor. */
 .pages-panel .page-section-card:first-of-type .section-rows{display:none!important}
+
+/* Container rows are shells: retain layout, background/color, spacing, and child rows,
+   but remove the generic row content controls. */
+.pages-panel .page-builder-row:has(> .container-children-editor) > label:has(input[name$="[title_text]"]),
+.pages-panel .page-builder-row:has(> .container-children-editor) > label:has(textarea[name$="[content_html]"]),
+.pages-panel .page-builder-row:has(> .container-children-editor) > label:has(textarea[name$="[bullets_text]"]),
+.pages-panel .page-builder-row:has(> .container-children-editor) > .row-cards,
+.pages-panel .page-builder-row:has(> .container-children-editor) > .row-buttons,
+.pages-panel .page-builder-row:has(> .container-children-editor) > label:has(input[name$="[active]"]){display:none!important}
