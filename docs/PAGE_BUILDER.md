@@ -4,7 +4,7 @@ The page builder stores a page as ordered parent sections. Each section may cont
 
 Supported presets are `Image On Right`, `Image On Left`, `Three Columns`, `Four Columns`, `Social Media Buttons`, `No Image, Centered Text`, `Top Text Only`, `Cards Only`, `Text With Bulleted List`, and `Container`. A Container row has no content of its own; it houses stacked child rows. The admin editor provides four compact child-row slots, and child rows are normalized to a maximum depth of three. Row formatting controls open in a popup customizer. The Story Worlds section remains live content sourced from current public stories and is not a static page-builder template.
 
-Default sections are marked `is_default=1`. They may be hidden or reordered, but deletion is rejected by `PageContentService::deleteSection()`. Non-default sections may be deleted. Reordering is performed with `PageContentService::reorderSections()` after the admin UI submits the ordered section IDs.
+Default sections are marked `is_default=1`. They may be hidden or reordered, but deletion is rejected by `PageContentService::deleteSection()`. Migration 105 removes default-managed body sections while preserving `HERO` headers and all non-default sections. Story Worlds cards are fixed/live frontend content, not a default managed section. Non-default sections may be deleted. Reordering is performed with `PageContentService::reorderSections()` after the admin UI submits the ordered section IDs.
 
 ## Terminal-first checks
 
