@@ -154,3 +154,12 @@
 - **Diagnosis:** `cd /home/toinkyadmin/public_html && git pull origin main` returned `not a git repository`. The server has the deployed `public/page-builder.php`, but the root wrapper is not being synchronized from GitHub.
 - **Resolution path:** Create the three-line root wrapper directly in `/home/toinkyadmin/public_html/page-builder.php`, or deploy it through the hosting control panel. The GitHub source remains correct.
 - **Outstanding:** Production deployment is manual or controlled by a hosting deployment mechanism that is separate from Git in the document root.
+
+
+## 2026-09-09 - diagnose production Page Builder 500
+
+- **Incident:** `/page-builder.php` returned HTTP 500 after the root wrapper was created.
+- **Root cause:** The cPanel PHP log showed repeated failures in deployed `108_wrap_nonhero_rows_in_containers.sql`: production still had the MariaDB-incompatible `CAST(... AS JSON)` version. The source repository is `/home/toinkyadmin/repositories/toinky`; `public_html` is only the deployment target.
+- **Deployment gap:** `.cpanel.yml` did not copy the new root `page-builder.php` wrapper during deployment.
+- **Resolution:** Updated `.cpanel.yml` to copy and chmod `page-builder.php` alongside the other root wrappers. GitHub commit `68066ebc859e7821903cd75bf75e603bfe74d850`.
+- **Next step:** Pull `main` in `/home/toinkyadmin/repositories/toinky`, confirm migration 108 contains `JSON_EXTRACT` rather than `CAST(... AS JSON)`, then run the cPanel deployment tasks. After deployment, `$PHP tools/migrate.php` must complete successfully before testing Page Builder.
