@@ -50,3 +50,13 @@
 .public-container-row>.public-content-section{width:100%;margin:0}
 @media(max-width:1100px){.public-four-columns{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:580px){.public-four-columns{grid-template-columns:1fr}.public-container-row{margin:-42px -24px}}
+
+/* The public home currently keeps only its managed parallax hero. */
+.public-home .how-section,
+.public-home .perspective-section,
+.public-home .worlds-section,
+.public-home .paths-section,
+.public-home .home-finale{display:none!important}
+
+/* Story cards are available as a page-builder row, not an automatic Stories page block. */
+.public-page .public-story-grid{display:none!important}
