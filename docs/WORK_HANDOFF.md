@@ -196,3 +196,6 @@
 - **Commits:** `71a5648` markup, `4f1a26c` styling, `07f607f` behavior.
 - **Verification:** Exact remote JavaScript passed Node syntax validation and the compact toggle markup was confirmed in the route.
 - **Next step:** Pull/deploy `main` from `/home/toinkyadmin/repositories/toinky`; deploy the updated `public/page-builder.php` and Page Builder assets, then refresh the builder.
+
+
+- **Cache follow-up:** Updated Page Builder asset version query strings to `v=20260909-tab` in the route commit returned by the subsequent route update, ensuring the compact tab assets are fetched after deployment.
