@@ -97,3 +97,11 @@
 - **Completed:** Commit 57e0fc2 adds scoped admin workspace CSS that hides generic content controls only on rows containing the Container child editor. Child rows retain their layout/content controls; ordinary rows are unaffected.
 - **Enforcement:** Commit 5b4fe38 adds MariaDB triggers for insert/update so non-Hero `rows_json` is wrapped in one Container with `children` at the database boundary.
 - **Outstanding:** Replace the generic PHP row form with a semantically Container-specific form after local linting; CSS is the immediate safe UI correction. Production must run migrations 108 and 109.
+
+
+## 2026-09-09 - remove leftover Home sections
+
+- **Incident:** Production Home still showed two `What Is Toinky` sections. These were separate non-Hero sections, not Container rows, so Container-row styling could not affect them.
+- **Resolution:** Added migration 110 to delete every non-Hero section belonging to the HOME page, leaving only the parallax HERO. This covers both duplicate test sections and any remaining default Home sections.
+- **Commit:** `0ea7994`.
+- **Next step:** Run `cd /home/toinkyadmin/public_html`, then `$PHP tools/migrate.php`; Home should show only Hero in Website Pages. Container styling applies only after creating normal non-Hero content sections.
