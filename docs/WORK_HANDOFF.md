@@ -136,3 +136,13 @@
 - **Root cause:** The arrow function used a return type but omitted the `=>` token.
 - **Resolution:** Changed it to `fn(array $page): string => (string)$page['page_code']` in commit c15532e.
 - **Next step:** Rerun PHP lint from `cd /home/toinkyadmin/public_html` before testing the builder UI.
+
+
+## 2026-09-09 - expose Page Builder at the document root
+
+- **Incident:** The new Page Builder route returned 404 in production when opened as `/page-builder.php`.
+- **Root cause:** The implementation existed at `public/page-builder.php`, but the deployment uses root wrapper entrypoints and `.htaccess` intentionally blocks direct HTTP access to `/public/*`.
+- **Resolution:** Added root `page-builder.php`, matching the existing `admin.php` wrapper, which loads `app/runtime_check.php` and then `public/page-builder.php`.
+- **Commit:** `cb5f9aa2339ba616979144bd31ded9b996ce8738`.
+- **Verification:** The wrapper content is PHP-only and follows the existing root entrypoint pattern. Production must pull/deploy this commit before the URL becomes available.
+- **Next step:** Deploy `cb5f9aa2339ba616979144bd31ded9b996ce8738`, then open `https://toinky.com/page-builder.php?page=HOME`. Do not use the blocked `/public/page-builder.php` URL.
