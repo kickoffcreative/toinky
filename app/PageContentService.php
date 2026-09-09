@@ -3,7 +3,7 @@ require_once __DIR__.'/MediaLibraryService.php';
 
 final class PageContentService
 {
-    public const LAYOUTS=['IMAGE_RIGHT','IMAGE_LEFT','THREE_COLUMN','SOCIALS','TEXT_CENTER'];
+    public const LAYOUTS=['IMAGE_RIGHT','IMAGE_LEFT','THREE_COLUMN','SOCIALS','TEXT_CENTER','TEXT_TOP','CARDS_ONLY','TEXT_BULLETS'];
     public const BACKGROUND_FITS=['COVER','CONTAIN','TILE','STRETCH','CENTER'];
     public const TEXT_TRANSFORMS=['none','uppercase','capitalize','lowercase'];
     public const SOCIAL_PLATFORMS=['facebook'=>'Facebook','instagram'=>'Instagram','x'=>'X / Twitter','tiktok'=>'TikTok','youtube'=>'YouTube','linkedin'=>'LinkedIn','pinterest'=>'Pinterest','threads'=>'Threads','bluesky'=>'Bluesky','discord'=>'Discord'];
@@ -27,16 +27,34 @@ final class PageContentService
         $out=[];foreach(self::sections($pageCode)as$section)$out[$section['section_code']]=$section;return$out;
     }
 
+    public static function rows(array $section): array
+    {
+        $saved=json_decode((string)($section['rows_json']??''),true);
+        if(!is_array($saved)||!$saved)return [self::fallbackRow($section)];
+        $rows=[];foreach($saved as $index=>$row)if(is_array($row))$rows[]=self::normalizeRow($row,(int)$index);
+        return $rows?:[self::fallbackRow($section)];
+    }
+
+    public static function editorRows(array $section): array{return self::rows($section);}
+
+    public static function setSectionActive(array $admin,int $sectionId,bool $active): void
+    {if((int)($admin['is_admin']??0)!==1)throw new RuntimeException('Administrator access is required.');db()->prepare('UPDATE site_page_sections SET active=?,updated_by_user_id=? WHERE site_page_section_id=?')->execute([$active?1:0,$admin['user_id'],$sectionId]);}
+
+    public static function deleteSection(array $admin,int $sectionId): void
+    {if((int)($admin['is_admin']??0)!==1)throw new RuntimeException('Administrator access is required.');$q=db()->prepare('SELECT is_default FROM site_page_sections WHERE site_page_section_id=?');$q->execute([$sectionId]);if((int)$q->fetchColumn()===1)throw new RuntimeException('Default page sections cannot be deleted. Hide the section instead.');db()->prepare('DELETE FROM site_page_sections WHERE site_page_section_id=?')->execute([$sectionId]);}
+
+    public static function reorderSections(array $admin,string $pageCode,array $ids): void
+    {if((int)($admin['is_admin']??0)!==1)throw new RuntimeException('Administrator access is required.');$q=db()->prepare('SELECT s.site_page_section_id FROM site_page_sections s JOIN site_pages p ON p.site_page_id=s.site_page_id WHERE p.page_code=?');$q->execute([strtoupper($pageCode)]);$allowed=array_map('intval',$q->fetchAll(PDO::FETCH_COLUMN));$u=db()->prepare('UPDATE site_page_sections SET sort_order=?,updated_by_user_id=? WHERE site_page_section_id=?');$sort=10;foreach($ids as $id)if(in_array((int)$id,$allowed,true)){$u->execute([$sort,$admin['user_id'],(int)$id]);$sort+=10;}}
     public static function saveSection(array $admin,int $sectionId,array $input): void
     {
         if((int)($admin['is_admin']??0)!==1)throw new RuntimeException('Administrator access is required.');$q=db()->prepare('SELECT 1 FROM site_page_sections WHERE site_page_section_id=?');$q->execute([$sectionId]);if(!$q->fetchColumn())throw new RuntimeException('Page section not found.');
         $imageId=self::mediaChoice($admin,$input['image_media_id']??'');$layout=in_array(($input['layout_type']??''),self::LAYOUTS,true)?$input['layout_type']:'IMAGE_RIGHT';$mode=in_array(($input['background_mode']??''),['DEFAULT','COLOR','MEDIA'],true)?$input['background_mode']:'DEFAULT';$backgroundId=$mode==='MEDIA'?self::mediaChoice($admin,$input['background_media_id']??''):null;$color=self::color($input['background_color']??'#F4EEE2','background color');$fit=in_array(($input['background_fit']??''),self::BACKGROUND_FITS,true)?$input['background_fit']:'COVER';$backgroundOpacity=self::percent($input['background_opacity']??100);$overlayMode=in_array(($input['overlay_mode']??''),['NONE','COLOR','GRADIENT'],true)?$input['overlay_mode']:'NONE';$overlayStart=self::color($input['overlay_color_start']??'#1C242B','overlay color');$overlayEnd=self::color($input['overlay_color_end']??'#6B2938','gradient color');$overlayOpacity=self::percent($input['overlay_opacity']??0);
         $eyebrow=trim((string)($input['eyebrow_text']??''));$title=trim((string)($input['title_text']??''));if(mb_strlen($eyebrow)>190||mb_strlen($title)>500)throw new RuntimeException('A page title or label is too long.');$html=self::sanitizeHtml((string)($input['content_html']??''));
-        $current=db()->prepare('SELECT buttons_json FROM site_page_sections WHERE site_page_section_id=?');$current->execute([$sectionId]);$currentButtons=$current->fetchColumn();$buttonsJson=$currentButtons===false?null:$currentButtons;if(array_key_exists('hero_buttons_present',$input))$buttonsJson=json_encode(self::normalizeButtons(is_array($input['hero_buttons']??null)?$input['hero_buttons']:[],true),JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR);
+        $current=db()->prepare('SELECT buttons_json,rows_json FROM site_page_sections WHERE site_page_section_id=?');$current->execute([$sectionId]);$currentRow=$current->fetch(PDO::FETCH_ASSOC)?:[];$currentButtons=$currentRow['buttons_json']??null;$buttonsJson=$currentButtons;$rowsJson=$currentRow['rows_json']??null;if(array_key_exists('rows_present',$input))$rowsJson=json_encode(self::normalizeRows(is_array($input['rows']??null)?$input['rows']:[]),JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR);if(array_key_exists('hero_buttons_present',$input))$buttonsJson=json_encode(self::normalizeButtons(is_array($input['hero_buttons']??null)?$input['hero_buttons']:[],true),JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR);
         $columns=[];for($i=1;$i<=3;$i++)$columns[]=['title'=>mb_substr(trim((string)($input['column_'.$i.'_title']??'')),0,190),'content'=>self::sanitizeHtml((string)($input['column_'.$i.'_content']??'')),'image_media_id'=>self::mediaChoice($admin,$input['column_'.$i.'_image_media_id']??'')];
         $padding=[];foreach(['top','right','bottom','left']as$edge){$padding[$edge]=self::optionalPixels($input['padding_'.$edge.'_px']??null);$padding['mobile_'.$edge]=self::optionalPixels($input['mobile_padding_'.$edge.'_px']??null);}
         $type=[];foreach(['label','title','body']as$role){$type[$role.'_font_size']=self::optionalSize($input[$role.'_font_size']??null);$type[$role.'_color']=self::optionalColor($input[$role.'_color']??null,$role.' color');$type[$role.'_transform']=self::optionalTransform($input[$role.'_transform']??null);}
-        db()->prepare('UPDATE site_page_sections SET eyebrow_text=?,title_text=?,content_html=?,buttons_json=?,image_media_id=?,layout_type=?,columns_json=?,background_mode=?,background_color=?,background_media_id=?,background_fit=?,background_opacity=?,overlay_mode=?,overlay_color_start=?,overlay_color_end=?,overlay_opacity=?,padding_top_px=?,padding_right_px=?,padding_bottom_px=?,padding_left_px=?,mobile_padding_top_px=?,mobile_padding_right_px=?,mobile_padding_bottom_px=?,mobile_padding_left_px=?,label_font_size=?,label_color=?,label_transform=?,title_font_size=?,title_color=?,title_transform=?,body_font_size=?,body_color=?,body_transform=?,updated_by_user_id=? WHERE site_page_section_id=?')->execute([$eyebrow?:null,$title?:null,$html?:null,$buttonsJson,$imageId,$layout,json_encode($columns,JSON_UNESCAPED_SLASHES),$mode,$mode==='COLOR'?$color:null,$backgroundId,$fit,$backgroundOpacity,$overlayMode,$overlayStart,$overlayEnd,$overlayOpacity,$padding['top'],$padding['right'],$padding['bottom'],$padding['left'],$padding['mobile_top'],$padding['mobile_right'],$padding['mobile_bottom'],$padding['mobile_left'],$type['label_font_size'],$type['label_color'],$type['label_transform'],$type['title_font_size'],$type['title_color'],$type['title_transform'],$type['body_font_size'],$type['body_color'],$type['body_transform'],$admin['user_id'],$sectionId]);
+        db()->prepare('UPDATE site_page_sections SET eyebrow_text=?,title_text=?,content_html=?,buttons_json=?,rows_json=?,image_media_id=?,layout_type=?,columns_json=?,background_mode=?,background_color=?,background_media_id=?,background_fit=?,background_opacity=?,overlay_mode=?,overlay_color_start=?,overlay_color_end=?,overlay_opacity=?,padding_top_px=?,padding_right_px=?,padding_bottom_px=?,padding_left_px=?,mobile_padding_top_px=?,mobile_padding_right_px=?,mobile_padding_bottom_px=?,mobile_padding_left_px=?,label_font_size=?,label_color=?,label_transform=?,title_font_size=?,title_color=?,title_transform=?,body_font_size=?,body_color=?,body_transform=?,updated_by_user_id=? WHERE site_page_section_id=?')->execute([$eyebrow?:null,$title?:null,$html?:null,$buttonsJson,$rowsJson,$imageId,$layout,json_encode($columns,JSON_UNESCAPED_SLASHES),$mode,$mode==='COLOR'?$color:null,$backgroundId,$fit,$backgroundOpacity,$overlayMode,$overlayStart,$overlayEnd,$overlayOpacity,$padding['top'],$padding['right'],$padding['bottom'],$padding['left'],$padding['mobile_top'],$padding['mobile_right'],$padding['mobile_bottom'],$padding['mobile_left'],$type['label_font_size'],$type['label_color'],$type['label_transform'],$type['title_font_size'],$type['title_color'],$type['title_transform'],$type['body_font_size'],$type['body_color'],$type['body_transform'],$admin['user_id'],$sectionId]);
     }
 
     public static function addSection(array $admin,string $pageCode,array $input): int
@@ -86,6 +104,13 @@ final class PageContentService
         return$parts?implode(';',$parts).';':'';
     }
 
+    private static function normalizeRows(array $rows): array{$out=[];foreach(array_slice($rows,0,12)as$index=>$row)if(is_array($row))$out[]=self::normalizeRow($row,$index);return$out;}
+
+    private static function fallbackRow(array $section): array
+    {return self::normalizeRow(['eyebrow_text'=>$section['eyebrow_text']??'','title_text'=>$section['title_text']??'','content_html'=>$section['content_html']??'','layout_type'=>$section['layout_type']??'IMAGE_RIGHT'],0);}
+
+    private static function normalizeRow(array $row,int $index): array
+    {$layout=in_array(($row['layout_type']??''),self::LAYOUTS,true)?$row['layout_type']:'TEXT_TOP';$columns=[];foreach(array_slice((array)($row['columns']??[]),0,6)as$column)if(is_array($column))$columns[]=['title'=>self::textSlice(trim((string)($column['title']??'')),0,190),'content'=>self::sanitizeHtml((string)($column['content']??'')),'image_media_id'=>null];$bullets=[];$sourceBullets=$row['bullets']??(isset($row['bullets_text'])?preg_split('/\\r?\\n/',(string)$row['bullets_text']):[]);foreach(array_slice((array)$sourceBullets,0,20)as$bullet){$text=is_array($bullet)?trim((string)($bullet['text']??'')):trim((string)$bullet);if($text!=='')$bullets[]=self::textSlice($text,0,500);}return['label_text'=>self::textSlice(trim((string)($row['label_text']??'')),0,190),'eyebrow_text'=>self::textSlice(trim((string)($row['eyebrow_text']??'')),0,190),'title_text'=>self::textSlice(trim((string)($row['title_text']??'')),0,500),'content_html'=>self::sanitizeHtml((string)($row['content_html']??'')),'layout_type'=>$layout,'active'=>!isset($row['active'])||!empty($row['active']),'image_media_id'=>null,'bullets'=>$bullets,'columns'=>$columns,'sort_order'=>$index];}
     private static function mediaChoice(array $admin,$value): ?int
     {
         $id=(int)$value;if($id<1)return null;MediaLibraryService::requireVisible($admin,$id);return$id;
@@ -125,3 +150,4 @@ final class PageContentService
         $html=strip_tags($html,'<p><br><strong><b><em><i><u><h2><h3><h4><ul><ol><li><blockquote><a>');$html=preg_replace_callback('/<\/?([a-z0-9]+)(?:\s+[^>]*)?>/i',static function(array $match):string{$tag=strtolower($match[1]);$closing=str_starts_with($match[0],'</');if($closing)return'</'.$tag.'>';if($tag==='br')return'<br>';if($tag!=='a')return'<'.$tag.'>';$href='';if(preg_match('/\bhref\s*=\s*(["\'])(.*?)\1/i',$match[0],$found))$href=trim($found[2]);if($href!==''&&!preg_match('~^(?:https?://|mailto:|/|\?|#)~i',$href))$href='';return$href===''?'<a>':'<a href="'.htmlspecialchars($href,ENT_QUOTES|ENT_SUBSTITUTE,'UTF-8').'">';},$html);return trim((string)$html);
     }
 }
+
