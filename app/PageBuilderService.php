@@ -46,8 +46,10 @@ final class PageBuilderService
             $item['background_media_id']=self::mediaId($row['background_media_id']??null);
             $item['background_color']=self::color($row['background_color']??'#F4EEE2');
             $item['text_color']=self::color($row['text_color']??'#1C242B');
-            $item['text_align']=in_array(($row['text_align']??'left'),['left','center','right'],true)?$row['text_align']:'left';
-            $item['blend_mode']=in_array(($row['blend_mode']??'normal'),['normal','multiply','screen','overlay','darken','lighten','difference'],true)?$row['blend_mode']:'normal';
+            $textAlign=(string)($row['text_align']??'left');
+            $item['text_align']=in_array($textAlign,['left','center','right'],true)?$textAlign:'left';
+            $blendMode=(string)($row['blend_mode']??'normal');
+            $item['blend_mode']=in_array($blendMode,['normal','multiply','screen','overlay','darken','lighten','difference'],true)?$blendMode:'normal';
             foreach(['top','right','bottom','left']as$edge)$item['padding_'.$edge.'_px']=self::pixels($row['padding_'.$edge.'_px']??0);
             if(is_array($row['columns']??null)){
                 $item['columns']=[];
