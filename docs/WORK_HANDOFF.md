@@ -6,7 +6,7 @@
 - **Task/computer:** Current Codex task on Windows checkout
 - **Current request:** Extend Website Pages with new layouts, nested editable rows, visibility, reordering, deletion rules, and row-scoped editing.
 - **Branch:** main
-- **Commit:** Uncommitted local changes only. Do not assume production or GitHub has them.
+- **Commit:** 33407bf (Expand page builder row editing). Remote publication is being verified now.
 
 ## Completed
 
@@ -15,6 +15,8 @@
 - Added row normalization, fallback rendering support, section hide/show, default deletion protection, and section reorder services.
 - Added standard sub-row fields with add/remove controls to the admin section form.
 - Added row-aware public rendering and CSS for shared-background child rows.
+- Preserved legacy section images and three-column content when saved sections use fallback row data.
+- Added compact row-scoped background and text color controls with server-side validation.
 - Added `tools/page_builder_contract_test.php` and `docs/PAGE_BUILDER.md`.
 
 ## Verification
@@ -25,15 +27,16 @@
 
 ## Outstanding
 
-- The admin section cards still need visible drag handles and order-save controls wired to the reorder action.
-- Child card/image/button editing needs to be expanded beyond the current text and bullet fields.
+- Added draggable section cards, a Save Section Order form, and client-side order synchronization.
+- Added compact row-level card slots with validated media selection, card titles, and card content.
+- Row-level buttons, links, and richer per-row formatting still need to be expanded.
 - Existing specialized Home sections remain partly hardcoded; migrate their icons, buttons, and bullet content into row data before claiming every default element is editable.
-- The implementation was published to GitHub on main as sequential file commits; production deployment remains separate.
+- The current page-builder changes are committed locally; remote publication is being verified in this task.
 
 ## Next Steps
 
-1. Add explicit drag/drop section ordering UI and hide/delete controls.
-2. Add row-scoped card, image, button, link, and color controls using the existing standard editor helpers.
+1. Verify drag/drop section ordering UI and hide/delete controls against deployed data.
+2. Add row-scoped button, link, and richer formatting controls using the existing standard editor helpers.
 3. Seed Home defaults into editable rows and verify public output after migration.
 4. Commit and push only when requested.
 
