@@ -112,3 +112,12 @@
 - **Incident:** A saved Container with empty active child slots rendered blank placeholder sections publicly, producing the tiny black layout artifacts shown in the report. The admin Container also still exposed generic label/image controls.
 - **Resolution:** Commit 7af53f6 scopes the admin stylesheet to hide Container label/content-image controls. Commit 63cd8b9 suppresses empty Container child sections in the public renderer using content-presence selectors; regular content rows remain unaffected.
 - **Outstanding:** The clean architectural fix remains to make child-slot activity/content explicit in the PHP normalization and to add a true Container background-media property. These CSS mitigations address the observed output without replacing central PHP files.
+
+
+## 2026-09-09 - isolated recursive Page Builder foundation
+
+- **Request:** Replace the legacy bottom-of-form editor with an Elementor-style two-pane builder; Containers may contain nested Containers.
+- **Completed:** Added `public/page-builder.php`, `public/assets/toinky-page-builder.css`, and `public/assets/toinky-page-builder.js`. The new route has a section navigator, left Content/Style/Advanced inspector, recursive Container tree with Add content row/Add Container controls, save payload handling, and right live preview iframe. Added a Website Settings sidebar link.
+- **Commits:** `f31fda7` route, `5a43c1f` styles, `c8b42c1` builder behavior, `95102f5` sidebar link.
+- **Verification:** JavaScript parsed successfully with Node `new Function` syntax validation. PHP CLI is unavailable in the Windows workspace; production must run PHP lint before activation.
+- **Important limitation:** Existing `PageContentService` still caps normalized nesting at depth 3 and legacy admin remains unchanged. This foundation is not yet the complete replacement; next work must add a recursive service contract, section reorder rules, full widget controls, and a production-linted activation path.
