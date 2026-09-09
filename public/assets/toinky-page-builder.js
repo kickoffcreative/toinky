@@ -218,10 +218,10 @@
     };
 
     const layoutControl=node=>{
-        return '<div class="builder-layout-control"><span>Layout</span>'+
+        return '<div class="builder-layout-control"><span>Row layout</span>'+
             '<button type="button" data-layout-open>'+
-            escapeHtml(layoutTitle(node.layout_type||'TEXT_TOP'))+
-            '<span aria-hidden="true">+</span></button></div>';
+            '<span>Change: '+escapeHtml(layoutTitle(node.layout_type||'TEXT_TOP'))+
+            '</span><span aria-hidden="true">+</span></button></div>';
     };
 
     const renderNode=(node,path)=>{
@@ -235,7 +235,9 @@
             path.join('.')+'">'+escapeHtml(node.layout_type==='CONTAINER'?
             'Container':(node.title_text||node.label_text||layoutTitle(node.layout_type)))+
             '</button><small>'+escapeHtml(layoutTitle(node.layout_type))+
-            '</small>'+deleteButton+'</div>'+
+            '</small>'+(node.layout_type!=='CONTAINER'&&pathsEqual(path,selected)?
+            '<button type="button" class="builder-node-layout" data-layout-open>Layout</button>':'')+
+            deleteButton+'</div>'+
             (node.layout_type==='CONTAINER'?
             '<div class="builder-node-children">'+(node.children||[]).map((child,index)=>
             renderNode(child,path.concat(index))).join('')+
@@ -270,6 +272,7 @@
             'Add Container</button></div>'+
             (container?'<p class="builder-muted">Container is a shell. Add content rows or nested Containers.</p>'+
             '<p class="builder-muted">Select a child row in the structure above to edit its content.</p>':
+            layoutControl(node)+
             field('label_text','Label',node.label_text||node.eyebrow_text||'')+
             field('title_text','Title',node.title_text||'')+
             area('content_html','Content',node.content_html||'')+
@@ -283,7 +286,7 @@
             field('padding_right_px','Right padding',node.padding_right_px||0,'number')+
             field('padding_bottom_px','Bottom padding',node.padding_bottom_px||0,'number')+
             field('padding_left_px','Left padding',node.padding_left_px||0,'number'):
-            layoutControl(node)+select('image_media_id','Content image',node.image_media_id||'',mediaOptions);
+            select('image_media_id','Content image',node.image_media_id||'',mediaOptions);
         q('#advanced-properties').innerHTML=
             field('text_color','Text color',node.text_color||'#1C242B','color')+
             select('text_align','Alignment',node.text_align||'left',[
