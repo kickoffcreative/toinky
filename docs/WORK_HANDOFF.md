@@ -28,7 +28,7 @@
 - The admin section cards still need visible drag handles and order-save controls wired to the reorder action.
 - Child card/image/button editing needs to be expanded beyond the current text and bullet fields.
 - Existing specialized Home sections remain partly hardcoded; migrate their icons, buttons, and bullet content into row data before claiming every default element is editable.
-- The implementation is being committed and pushed in this task; production deployment remains separate.
+- The implementation was published to GitHub on main as sequential file commits; production deployment remains separate.
 
 ## Next Steps
 
