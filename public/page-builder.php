@@ -24,6 +24,14 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
     try{
         AuthService::requireCsrf();
         $action=(string)($_POST['action']??'');
+        if($action==='add_section'){
+            $label=trim((string)($_POST['section_label']??''));
+            $layout=strtoupper(trim((string)($_POST['section_layout']??'TEXT_CENTER')));
+            $newSectionId=PageContentService::addSection($admin,$pageCode,['label_text'=>$label,'layout_type'=>$layout]);
+            PageBuilderService::saveRows($admin,$newSectionId,[['layout_type'=>'CONTAINER','active'=>true,'children'=>[]]]);
+            header('Location: page-builder.php?page='.rawurlencode($pageCode).'&section='.$newSectionId.'&saved=1');
+            exit;
+        }
         if($action==='reorder_sections'){
             $order=json_decode((string)($_POST['section_order']??'[]'),true,10,JSON_THROW_ON_ERROR);
             if(!is_array($order))throw new RuntimeException('The section order is invalid.');
@@ -59,7 +67,7 @@ function builder_e(string $value): string{return htmlspecialchars($value,ENT_QUO
 <title>Page Builder</title>
 <link rel="stylesheet" href="assets/toinky-admin-shell.css">
 <link rel="stylesheet" href="assets/toinky-admin-workspace.css">
-<link rel="stylesheet" href="assets/toinky-page-builder.css?v=20260909-recursive">
+<link rel="stylesheet" href="assets/toinky-page-builder.css?v=20260909-add-section">
 </head>
 <body class="page-builder-app">
 <header class="page-builder-topbar">
@@ -71,6 +79,12 @@ function builder_e(string $value): string{return htmlspecialchars($value,ENT_QUO
 <?php if($error):?><p class="page-builder-alert error"><?=builder_e($error)?></p><?php elseif($notice):?><p class="page-builder-alert notice"><?=builder_e($notice)?></p><?php endif;?>
 <main class="page-builder-shell">
 <aside class="page-builder-sidebar" id="page-builder-sidebar">
+<form method="post" id="section-add-form" class="section-add-form">
+<input type="hidden" name="csrf_token" value="<?=htmlspecialchars(AuthService::csrfToken(),ENT_QUOTES,'UTF-8')?>"><input type="hidden" name="action" value="add_section">
+<label>New section<input type="text" name="section_label" maxlength="120" placeholder="Section name" required></label>
+<label>Starting layout<select name="section_layout"><option value="TEXT_CENTER">Text Center</option><option value="IMAGE_RIGHT">Image On Right</option><option value="IMAGE_LEFT">Image On Left</option><option value="THREE_COLUMN">Three Columns</option><option value="FOUR_COLUMN">Four Columns</option><option value="CARDS_ONLY">Cards Only</option></select></label>
+<button type="submit">Add Section</button>
+</form>
 <form method="post" id="section-order-form" class="section-order-form">
 <input type="hidden" name="csrf_token" value="<?=htmlspecialchars(AuthService::csrfToken(),ENT_QUOTES,'UTF-8')?>"><input type="hidden" name="action" value="reorder_sections"><input type="hidden" name="section_order" id="section-order">
 <p class="builder-muted">Drag sections to reorder them. Hero sections stay fixed.</p><button type="submit" id="section-order-save" disabled>Save Section Order</button>
@@ -100,6 +114,6 @@ function builder_e(string $value): string{return htmlspecialchars($value,ENT_QUO
 <script>
 window.toinkyPageBuilder={page:<?=json_encode($pageCode)?>,rows:<?=json_encode($rows,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT)?>,media:<?=json_encode($pageMedia,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT)?>,hero:<?=json_encode(($section['section_code']??'')==='HERO')?>};
 </script>
-<script src="assets/toinky-page-builder.js?v=20260909-recursive" defer></script>
+<script src="assets/toinky-page-builder.js?v=20260909-add-section" defer></script>
 </body>
 </html>
