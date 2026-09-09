@@ -105,3 +105,10 @@
 - **Resolution:** Added migration 110 to delete every non-Hero section belonging to the HOME page, leaving only the parallax HERO. This covers both duplicate test sections and any remaining default Home sections.
 - **Commit:** `0ea7994`.
 - **Next step:** Run `cd /home/toinkyadmin/public_html`, then `$PHP tools/migrate.php`; Home should show only Hero in Website Pages. Container styling applies only after creating normal non-Hero content sections.
+
+
+## 2026-09-09 - empty Container child layout fix
+
+- **Incident:** A saved Container with empty active child slots rendered blank placeholder sections publicly, producing the tiny black layout artifacts shown in the report. The admin Container also still exposed generic label/image controls.
+- **Resolution:** Commit 7af53f6 scopes the admin stylesheet to hide Container label/content-image controls. Commit 63cd8b9 suppresses empty Container child sections in the public renderer using content-presence selectors; regular content rows remain unaffected.
+- **Outstanding:** The clean architectural fix remains to make child-slot activity/content explicit in the PHP normalization and to add a true Container background-media property. These CSS mitigations address the observed output without replacing central PHP files.
