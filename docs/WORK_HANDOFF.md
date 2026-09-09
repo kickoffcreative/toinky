@@ -31,31 +31,29 @@ the same GitHub repository. Chat histories are not assumed to be shared.
 - The mail implementation uses `accounts@toinky.com` as the default sender,
   supports authenticated SMTP, and records delivery results in
   `email_delivery_log`.
+- The earlier production path used PHP `mail()` successfully; direct SMTP is
+  optional and should not be required unless the cPanel mail transport fails.
 
 ## Mail Configuration Audit
 
 The application-side settings and their locations are:
 
 - `GAME2_MAIL_FROM=accounts@toinky.com`
-- `GAME2_SMTP_HOST=toinky.com` (confirm the mailbox provider's exact SMTP host)
-- `GAME2_SMTP_PORT=465` for implicit TLS; port `587` is also supported with
-  STARTTLS.
-- `GAME2_SMTP_USERNAME=accounts@toinky.com`
-- `GAME2_SMTP_PASSWORD=<the real mailbox password>`; never commit this value.
 - `GAME2_BASE_URL=https://toinky.com` so invitation and reset links use the
   production domain.
 
-These `GAME2_*` values are read from the server process environment and are not
-created by `.cpanel.yml`. Set them through the hosting/PHP environment used by
-the web handler, not in Git-tracked source. Migration
+`GAME2_MAIL_FROM` and `GAME2_BASE_URL` are optional overrides; the sender also
+comes from the database setting. Migration
 `database/migrations/096_toinky_account_mail_sender.sql` changes an existing
 legacy `MAIL_FROM_ADDRESS` value, while migration 064 supplies the same sender
 for new installations. `MAIL_FROM_NAME` remains `Toinky`.
 
 The repository scan found no mail library, no committed SMTP credentials, and
-no separate mail configuration file. `app/AuthService.php` uses a small raw
-SMTP client when all three SMTP values are present, and falls back to PHP
-`mail()` when they are missing.
+no separate mail configuration file. `app/AuthService.php` uses PHP `mail()`
+when SMTP values are missing, and uses a small raw authenticated SMTP client
+only when the SMTP host, username, and password are all present. If direct SMTP
+is used, configure these outside Git: `GAME2_SMTP_HOST`, `GAME2_SMTP_PORT`,
+`GAME2_SMTP_USERNAME`, and `GAME2_SMTP_PASSWORD`.
 
 ## Verification
 
@@ -101,9 +99,7 @@ contract, then synchronize repository mirrors in a separate documented change.
 ## Outstanding Issues
 
 - No known implementation failure from the latest Cowriter dependency scan.
-- SMTP environment variables, the real mailbox password, the provider's exact
-  SMTP hostname, and a live delivery test are not verifiable from this local
-  workspace.
+- A live delivery test is not verifiable from this local workspace.
 - The production cPanel deployment state is not assumed from the GitHub push.
 - Production PHP lint and database tests must continue to run on cPanel; PHP
   is not installed in this local workspace.
@@ -122,7 +118,7 @@ contract, then synchronize repository mirrors in a separate documented change.
    outstanding issues, and exact branch/commit state.
 5. When switching computers, commit and push this handoff to the active branch;
    do not merge into `main` unless explicitly requested.
-6. For mail changes, run the migration on cPanel, configure the five mail
-   environment variables plus the production base URL, verify the web handler
-   sees them, and send a controlled test email. Do not expose the password in
-   shell output or handoff records.
+6. For mail changes, run the sender migration on cPanel, verify
+   `MAIL_FROM_ADDRESS`, and send a controlled test email through PHP `mail()`.
+   Configure direct SMTP only if that test fails; never expose an SMTP password
+   in shell output or handoff records.

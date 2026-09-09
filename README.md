@@ -61,6 +61,13 @@ For correct email links, configure:
 ```bash
 GAME2_BASE_URL=https://toinky.com
 GAME2_MAIL_FROM=accounts@toinky.com
+```
+
+Toinky uses the server's PHP `mail()` transport by default. Direct authenticated
+SMTP is optional; configure these only when the hosting mail transport is not
+available:
+
+```bash
 GAME2_SMTP_HOST=toinky.com
 GAME2_SMTP_PORT=465
 GAME2_SMTP_USERNAME=accounts@toinky.com
