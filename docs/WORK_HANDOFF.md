@@ -170,3 +170,12 @@
 - **Deployment:** Pulled `main` into `/home/toinkyadmin/repositories/toinky` and deployed the repository contents to `/home/toinkyadmin/public_html` using the cPanel task sequence.
 - **Verification:** Migration 108 contains `JSON_EXTRACT` and no MariaDB-incompatible JSON cast. `tools/migrate.php` reported `Migrations are current.` Root `page-builder.php` passed PHP lint. `curl https://toinky.com/page-builder.php?page=HOME` returned HTTP `302` to login rather than `500`, confirming the route is now reachable.
 - **Remaining:** Open the route while authenticated as an administrator to perform the visual builder check.
+
+
+## 2026-09-09 - collapsible Page Builder properties sidebar
+
+- **Request:** Make the left Page Builder properties editor collapsible.
+- **Completed:** Added a top-bar `Hide Properties`/`Show Properties` toggle with `aria-expanded` and `aria-controls`. Collapsing removes the sidebar column so the live preview expands to the available workspace; mobile layouts hide the sidebar cleanly. The choice persists in browser `localStorage` and does not alter page data.
+- **Commits:** `d0cb3e0` route markup, `af1b742` styles, `e621ee2` behavior.
+- **Verification:** Exact remote builder JavaScript passed Node syntax validation.
+- **Next step:** Pull/deploy `main` from `/home/toinkyadmin/repositories/toinky`, then refresh the Page Builder with a cache-busting reload if necessary.
