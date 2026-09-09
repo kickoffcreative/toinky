@@ -262,3 +262,16 @@
 - **Verification:** Source-level review confirms no direct optional-key read remains in those assignments. PHP lint and the production contract test remain to be run on the server.
 - **Deployment:** Pull `main` in `/home/toinkyadmin/repositories/toinky`, then copy `app/PageBuilderService.php` and `tools/page_builder_recursive_contract_test.php` into `/home/toinkyadmin/public_html`. No migration is required.
 - **Next step:** Run `$PHP -n -l app/PageBuilderService.php` and `$PHP tools/page_builder_recursive_contract_test.php`, then save the layered content again. The redirect should complete without warnings.
+
+
+## 2026-09-09 - Page Builder structure popup and old Pages retirement
+
+- **Task/computer:** Windows Codex task, branch `page-builder-structure-popover`.
+- **Current request:** Remove the old `Pages` menu path, make Page Builder its own editing surface, and replace the cramped nested box hierarchy with a movable multi-level Structure popup whose item selection drives the left properties sidebar.
+- **Completed:** Commit `fbfcd22d263bd1db4e4046a9fa96c6bd8a215e5c` removes the sidebar link to the old Pages editor, redirects direct `admin.php?view=pages` GET requests to Page Builder, stops Page Builder saves from calling the legacy section save path, and documents the new Page Builder contract.
+- **Builder UI:** Added a floating `Structure` popup with nested Container/content rows, add-content, add-Container, delete, and selected-row layout actions. The left inspector now shows only the selected item, with visibility, style, and advanced controls split by tab. The sidebar remains collapsible with the small divider tab.
+- **Content model:** Newly added sections are seeded as a root `CONTAINER`; optional first content is added as a child row. Containers remain shell-only and may nest to depth 12. The public renderer now renders Containers as wrapper rows with their own background, padding, typography, and blend-mode variables, rather than nested full page sections.
+- **Story cards:** `STORY_CARDS` now renders the best public stories when explicitly added as a content row. The old automatic Stories-page card block remains hidden so Stories can be rebuilt manually.
+- **Verification:** Local checks passed: PHP lint for `app/PageBuilderService.php`, `app/PageContentService.php`, `public/page-builder.php`, `public/admin.php`, and `public/index.php`; `node --check public/assets/toinky-page-builder.js`; `tools/page_builder_contract_test.php`; `tools/page_builder_recursive_contract_test.php`; `git diff --check`.
+- **Outstanding:** Needs push and production deployment from the committed source, then browser testing of the Structure popup, row deletion, layout picker, Container shell styling, and explicit Story Cards row rendering.
+- **Next step for other task:** Avoid editing the old admin Pages UI for frontend content. Continue Page Builder work in the isolated builder route/assets unless the request is specifically for legacy compatibility.
