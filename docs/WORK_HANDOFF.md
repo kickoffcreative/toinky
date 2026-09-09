@@ -223,3 +223,13 @@
 
 
 - **Production verification:** Pulled `main` through `510f291`, copied `public/page-builder.php` to the deployment target, and confirmed `$PHP -n -l public/page-builder.php` passes with no syntax errors.
+
+
+## 2026-09-09 - recursive Page Builder persistence boundary
+
+- **Request:** Continue the Elementor-style builder so a Container may contain another Container without data loss.
+- **Diagnosis:** Legacy `PageContentService::normalizeRow()` bounds nested rows at depth 3. The UI could represent deeper nesting, but the existing save path could truncate it.
+- **Resolution:** Added isolated `app/PageBuilderService.php` with bounded recursive normalization to depth 12. Containers retain only shell properties and recursively normalized children; content rows retain supported content/style fields. The Page Builder route now calls this service after the existing section save, preserving nested rows without changing the legacy service. Added `tools/page_builder_recursive_contract_test.php`.
+- **Commits:** `405d7d2` service, `b96fa86` route wiring, `f291127` contract test.
+- **Verification:** Source-level review completed; production PHP lint and contract test remain required after deployment.
+- **Next step:** Pull/deploy `main`, then run `$PHP -n -l app/PageBuilderService.php`, `$PHP -n -l public/page-builder.php`, and `$PHP tools/page_builder_recursive_contract_test.php` from `/home/toinkyadmin/public_html`.
