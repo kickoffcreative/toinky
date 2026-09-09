@@ -1030,7 +1030,7 @@ document.querySelectorAll('.page-section-card form').forEach(form=>{
   if(overlayEnd)overlayEnd.hidden=overlayMode.value!=='GRADIENT';
   if(overlayOpacity)overlayOpacity.hidden=!active;
  };
- layout?.addEventListener('change',syncLayout);backgroundMode?.addEventListener('change',syncBackground);overlayMode?.addEventListener('change',syncOverlay);
+ layout?.addEventListener('change',syncLayout);backgroundMode?.addEventListener('change',syncBackground);overlayMode?.addEventListener('change',syncOverlay);form.querySelectorAll('[data-builder-row]').forEach(row=>{const rowLayout=row.querySelector('select[name*="[layout_type]"]');const children=row.querySelector('[data-container-children]');const syncChildren=()=>{if(children)children.hidden=!rowLayout||rowLayout.value!=='CONTAINER';};rowLayout?.addEventListener('change',syncChildren);syncChildren();});
  spacingPreset?.addEventListener('change',()=>{
   const presets={inherit:['','','',''],compact:[40,24,40,24],standard:[72,48,72,48],spacious:[112,72,112,72]};
   if(!presets[spacingPreset.value]||!spacingFields)return;
