@@ -3,7 +3,7 @@ require_once __DIR__.'/MediaLibraryService.php';
 
 final class PageContentService
 {
-    public const LAYOUTS=['IMAGE_RIGHT','IMAGE_LEFT','THREE_COLUMN','FOUR_COLUMN','SOCIALS','TEXT_CENTER','TEXT_TOP','CARDS_ONLY','TEXT_BULLETS','CONTAINER'];
+    public const LAYOUTS=['IMAGE_RIGHT','IMAGE_LEFT','THREE_COLUMN','FOUR_COLUMN','SOCIALS','TEXT_CENTER','TEXT_TOP','CARDS_ONLY','TEXT_BULLETS','CONTAINER','STORY_CARDS'];
     public const BACKGROUND_FITS=['COVER','CONTAIN','TILE','STRETCH','CENTER'];
     public const TEXT_TRANSFORMS=['none','uppercase','capitalize','lowercase'];
     public const SOCIAL_PLATFORMS=['facebook'=>'Facebook','instagram'=>'Instagram','x'=>'X / Twitter','tiktok'=>'TikTok','youtube'=>'YouTube','linkedin'=>'LinkedIn','pinterest'=>'Pinterest','threads'=>'Threads','bluesky'=>'Bluesky','discord'=>'Discord'];
