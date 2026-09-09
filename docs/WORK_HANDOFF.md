@@ -10,9 +10,10 @@ the same GitHub repository. Chat histories are not assumed to be shared.
 - **Current request:** Apply the approved Toinky logo and icon across the
   website shell, browser/app identity, and branded email templates.
 - **Branch:** `main`
-- **Current commit:** `8f80f27` (`Apply Toinky brand logo and icon assets`).
-- **Remote:** `origin/main` was last verified at `7879857`; commit `8f80f27` is
-  ready to push after this handoff update.
+- **Implementation commit:** `9c2b180` (`Apply Toinky brand logo and icon
+  assets`).
+- **Remote:** `origin/main` was last verified at `7879857`; the implementation
+  and this handoff update are being pushed together.
 
 ## Completed Work
 
