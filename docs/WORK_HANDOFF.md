@@ -6,7 +6,7 @@
 - **Task/computer:** Current Codex task on Windows checkout
 - **Current request:** Extend Website Pages with new layouts, nested editable rows, visibility, reordering, deletion rules, and row-scoped editing.
 - **Branch:** main
-- **Commit:** 33407bf (Expand page builder row editing). Remote publication is being verified now.
+- **Commit:** Local follow-up commit pending after row typography verification.
 
 ## Completed
 
@@ -29,14 +29,19 @@
 
 - Added draggable section cards, a Save Section Order form, and client-side order synchronization.
 - Added compact row-level card slots with validated media selection, card titles, and card content.
-- Row-level buttons, links, and richer per-row formatting still need to be expanded.
-- Existing specialized Home sections remain partly hardcoded; migrate their icons, buttons, and bullet content into row data before claiming every default element is editable.
+- Added compact row-level buttons and links using the existing normalized button contract.
+- Added row image selection with server-side media validation and section-image fallback.
+- Added editable row-card icons with compact public rendering.
+- Added non-destructive migrations and renderer fallbacks for the Home “How Toinky Works” and “Different Perspectives” sections.
+- Added compact row typography and spacing controls with constrained server-side values.
+- Richer per-row formatting, hover styling, and button color controls still need to be expanded.
+- Story Worlds remains intentionally dynamic from live story data; Paths and Finale now have editable row-data fallbacks.
 - The current page-builder changes are committed locally; remote publication is being verified in this task.
 
 ## Next Steps
 
 1. Verify drag/drop section ordering UI and hide/delete controls against deployed data.
-2. Add row-scoped button, link, and richer formatting controls using the existing standard editor helpers.
+2. Add row-scoped hover styling and richer formatting controls using the existing standard editor helpers.
 3. Seed Home defaults into editable rows and verify public output after migration.
 4. Commit and push only when requested.
 
