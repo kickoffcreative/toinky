@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__.'/EmailTemplateService.php';
 final class AuthService
 {
     public static function boot(): void
@@ -58,7 +59,7 @@ final class AuthService
         }
         if($gameInviteToken){$q=$pdo->prepare('SELECT gi.game_invitation_id,gi.game_id,gi.email,g.status,p.max_players,(SELECT COUNT(*) FROM game_players gp WHERE gp.game_id=g.game_id) player_count FROM game_invitations gi JOIN games g ON g.game_id=gi.game_id JOIN simulations s ON s.simulation_id=g.simulation_id JOIN plots p ON p.plot_id=s.plot_id WHERE gi.token_hash=? AND gi.accepted_at_utc IS NULL AND gi.expires_at_utc>UTC_TIMESTAMP() AND g.deleted_at_utc IS NULL');$q->execute([hash('sha256',$gameInviteToken)]);$gameInvite=$q->fetch();if(!$gameInvite||strtolower((string)$gameInvite['email'])!==$email||$gameInvite['status']!=='LOBBY')throw new RuntimeException('The game invitation is invalid, expired, or belongs to another email.');if((int)$gameInvite['player_count']>=(int)$gameInvite['max_players'])throw new RuntimeException('That game lobby is already full.');}
         $pdo->beginTransaction();try{$pdo->prepare('INSERT INTO users(email,password_hash,display_name,email_verified_at_utc) VALUES(?,?,?,?)')->execute([$email,password_hash($password,PASSWORD_DEFAULT),$name,($invite||$gameInvite)?gmdate('Y-m-d H:i:s'):null]);$id=(int)$pdo->lastInsertId();if($invite)$pdo->prepare('UPDATE user_invitations SET accepted_at_utc=UTC_TIMESTAMP() WHERE invitation_id=?')->execute([$invite['invitation_id']]);$gameId=0;if($gameInvite){$gameId=(int)$gameInvite['game_id'];$pdo->prepare('INSERT INTO game_players(game_id,user_id) VALUES(?,?)')->execute([$gameId,$id]);$pdo->prepare('UPDATE game_invitations SET accepted_by_user_id=?,accepted_at_utc=UTC_TIMESTAMP() WHERE game_invitation_id=?')->execute([$id,$gameInvite['game_invitation_id']]);}$pdo->commit();}catch(Throwable$e){if($pdo->inTransaction())$pdo->rollBack();throw$e;}
-        self::loginUserId($id);$u=self::currentUser()??[];$u['_game_id']=$gameId;return$u;
+        self::loginUserId($id);$u=self::currentUser()??[];$u['_game_id']=$gameId;self::sendTemplatedMessage($email,'WELCOME',['recipient_name'=>$name,'action_url'=>self::baseUrl().'/?view=login','action_label'=>'Sign in to Toinky','message'=>'Your Toinky account is ready. Explore stories, host a game, and build shared worlds.'],null,$id);$u['_game_id']=$gameId;return$u;
     }
     public static function login(string $email,string $password): array
     {
@@ -87,13 +88,13 @@ final class AuthService
     {
         $email=strtolower(trim($email));if(!filter_var($email,FILTER_VALIDATE_EMAIL))throw new RuntimeException('Enter a valid email address.');
         $token=bin2hex(random_bytes(24));db()->prepare('INSERT INTO user_invitations(email,token_hash,invited_by_user_id,expires_at_utc) VALUES(?,?,?,DATE_ADD(UTC_TIMESTAMP(),INTERVAL 7 DAY))')->execute([$email,hash('sha256',$token),$adminId]);
-        $url=self::baseUrl().'/?view=register&invite='.rawurlencode($token);$sent=self::send($email,'You are invited to Toinky',"Create your account:\n\n".$url."\n\nThis link expires in 7 days.");return['url'=>$url,'sent'=>$sent];
+        $url=self::baseUrl().'/?view=register&invite='.rawurlencode($token);$sent=self::sendTemplatedMessage($email,'INVITATION',['recipient_name'=>'there','action_url'=>$url,'action_label'=>'Create your account','message'=>'An administrator invited you to create a Toinky account.','expiry_text'=>'This link expires in 7 days.'],null,$adminId);return['url'=>$url,'sent'=>$sent];
     }
     public static function createPasswordResetForEmail(string $email): ?array
     {
         $q=db()->prepare('SELECT user_id,email FROM users WHERE email=? AND status="ACTIVE"');$q->execute([strtolower(trim($email))]);$u=$q->fetch();if(!$u)return null;
         $token=bin2hex(random_bytes(24));db()->prepare('INSERT INTO password_reset_tokens(user_id,token_hash,expires_at_utc) VALUES(?,?,DATE_ADD(UTC_TIMESTAMP(),INTERVAL 2 HOUR))')->execute([$u['user_id'],hash('sha256',$token)]);
-        $url=self::baseUrl().'/?view=reset&token='.rawurlencode($token);$sent=self::send((string)$u['email'],'Reset your Toinky password',"Reset your password:\n\n".$url."\n\nThis link expires in 2 hours.");return['url'=>$url,'sent'=>$sent];
+        $url=self::baseUrl().'/?view=reset&token='.rawurlencode($token);$sent=self::sendTemplatedMessage((string)$u['email'],'PASSWORD_RESET',['recipient_name'=>'there','action_url'=>$url,'action_label'=>'Reset your password','message'=>'Use the button below to choose a new password.','expiry_text'=>'This link expires in 2 hours.']);return['url'=>$url,'sent'=>$sent];
     }
     public static function resetPassword(string $token,string $password): void
     {
@@ -126,7 +127,7 @@ final class AuthService
     }
     public static function createGameInvitation(string $email,int $gameId,int $senderUserId): array
     {
-        $email=strtolower(trim($email));if(!filter_var($email,FILTER_VALIDATE_EMAIL))throw new RuntimeException('Enter a valid email address.');$q=db()->prepare('SELECT g.join_code,g.status,p.title,p.max_players,u.display_name host_name,(SELECT COUNT(*) FROM game_players gp WHERE gp.game_id=g.game_id) player_count FROM games g JOIN simulations s ON s.simulation_id=g.simulation_id JOIN plots p ON p.plot_id=s.plot_id JOIN users u ON u.user_id=g.host_user_id WHERE g.game_id=? AND g.host_user_id=? AND g.deleted_at_utc IS NULL');$q->execute([$gameId,$senderUserId]);$game=$q->fetch();if(!$game||$game['status']!=='LOBBY')throw new RuntimeException('Only the host can invite players while the lobby is open.');if((int)$game['player_count']>=(int)$game['max_players'])throw new RuntimeException('The lobby is already full.');$token=bin2hex(random_bytes(24));db()->prepare('INSERT INTO game_invitations(game_id,email,token_hash,invited_by_user_id,expires_at_utc) VALUES(?,?,?,?,DATE_ADD(UTC_TIMESTAMP(),INTERVAL 7 DAY))')->execute([$gameId,$email,hash('sha256',$token),$senderUserId]);$url=self::baseUrl().'/?view=register&game_invite='.rawurlencode($token);$body=$game['host_name'].' invited you to play “'.$game['title'].'” on Toinky.'."\n\nJoin the lobby: ".$url."\nGame code: ".$game['join_code']."\n\nThis link expires in 7 days.";$sent=self::send($email,'You are invited to a Toinky story',$body,'GAME_INVITATION',$gameId,$senderUserId);return['url'=>$url,'sent'=>$sent];
+        $email=strtolower(trim($email));if(!filter_var($email,FILTER_VALIDATE_EMAIL))throw new RuntimeException('Enter a valid email address.');$q=db()->prepare('SELECT g.join_code,g.status,p.title,p.max_players,u.display_name host_name,(SELECT COUNT(*) FROM game_players gp WHERE gp.game_id=g.game_id) player_count FROM games g JOIN simulations s ON s.simulation_id=g.simulation_id JOIN plots p ON p.plot_id=s.plot_id JOIN users u ON u.user_id=g.host_user_id WHERE g.game_id=? AND g.host_user_id=? AND g.deleted_at_utc IS NULL');$q->execute([$gameId,$senderUserId]);$game=$q->fetch();if(!$game||$game['status']!=='LOBBY')throw new RuntimeException('Only the host can invite players while the lobby is open.');if((int)$game['player_count']>=(int)$game['max_players'])throw new RuntimeException('The lobby is already full.');$token=bin2hex(random_bytes(24));db()->prepare('INSERT INTO game_invitations(game_id,email,token_hash,invited_by_user_id,expires_at_utc) VALUES(?,?,?,?,DATE_ADD(UTC_TIMESTAMP(),INTERVAL 7 DAY))')->execute([$gameId,$email,hash('sha256',$token),$senderUserId]);$url=self::baseUrl().'/?view=register&game_invite='.rawurlencode($token);$sent=self::sendTemplatedMessage($email,'GAME_INVITATION',['recipient_name'=>'there','action_url'=>$url,'action_label'=>'Join the story','message'=>$game['host_name'].' invited you to play “'.$game['title'].'” on Toinky. Game code: '.$game['join_code'].'.','story_title'=>$game['title'],'game_code'=>$game['join_code'],'expiry_text'=>'This link expires in 7 days.'],$gameId,$senderUserId);return['url'=>$url,'sent'=>$sent];
     }
     public static function baseUrl(): string
     {
@@ -138,26 +139,31 @@ final class AuthService
     {
         return self::send($to,$subject,$body,$type,null,$senderId);
     }
-    private static function send(string $to,string $subject,string $body,string $type='ACCOUNT',?int $gameId=null,?int $senderId=null): bool
+    public static function sendTemplatedMessage(string $to,string $type,array $data=[],?int $gameId=null,?int $senderId=null): bool
     {
-        $from=trim((string)getenv('GAME2_MAIL_FROM'));$fromName='Toinky';if($from===''){try{$q=db()->query('SELECT setting_key,setting_value FROM platform_settings WHERE setting_key IN("MAIL_FROM_ADDRESS","MAIL_FROM_NAME")');foreach($q->fetchAll()as$r){if($r['setting_key']==='MAIL_FROM_ADDRESS')$from=trim((string)$r['setting_value']);if($r['setting_key']==='MAIL_FROM_NAME')$fromName=trim((string)$r['setting_value']);}}catch(Throwable$ignored){}}if($from==='')$from='accounts@toinky.com';
-        $error=null;$sent=false;
+        return self::send($to,'','',$type,$gameId,$senderId,$data);
+    }
+    private static function send(string $to,string $subject,string $body,string $type='ACCOUNT',?int $gameId=null,?int $senderId=null,array $templateData=[]): bool
+    {
+        $htmlBody='';$from=trim((string)getenv('GAME2_MAIL_FROM'));$fromName='Toinky';$error=null;$sent=false;
         try{
-            if(trim((string)getenv('GAME2_SMTP_HOST'))!==''&&trim((string)getenv('GAME2_SMTP_USERNAME'))!==''&&trim((string)getenv('GAME2_SMTP_PASSWORD'))!=='')$sent=self::sendViaSmtp($to,$subject,$body,$from,$fromName);
-            else $sent=@mail($to,$subject,$body,self::mailHeaders($from,$fromName));
+            if($templateData!==[]){$composed=EmailTemplateService::compose($type,$templateData);$subject=$composed['subject'];$body=$composed['text'];$htmlBody=$composed['html'];}
+            if($from===''){try{$q=db()->query('SELECT setting_key,setting_value FROM platform_settings WHERE setting_key IN("MAIL_FROM_ADDRESS","MAIL_FROM_NAME")');foreach($q->fetchAll()as$r){if($r['setting_key']==='MAIL_FROM_ADDRESS')$from=trim((string)$r['setting_value']);if($r['setting_key']==='MAIL_FROM_NAME')$fromName=trim((string)$r['setting_value']);}}catch(Throwable$ignored){}}if($from==='')$from='accounts@toinky.com';
+            if(trim((string)getenv('GAME2_SMTP_HOST'))!==''&&trim((string)getenv('GAME2_SMTP_USERNAME'))!==''&&trim((string)getenv('GAME2_SMTP_PASSWORD'))!=='')$sent=self::sendViaSmtp($to,$subject,$body,$from,$fromName,$htmlBody);
+            else{$boundary=$htmlBody===''?null:'toinky-'.bin2hex(random_bytes(8));$mailBody=$boundary===null?$body:self::multipartBody($body,$htmlBody,$boundary);$sent=@mail($to,$subject,$mailBody,self::mailHeaders($from,$fromName,$boundary));}
         }catch(Throwable$e){$error=$e->getMessage();}
         if(!$sent&&$error===null)$error='Mail sender returned false';
         try{db()->prepare('INSERT INTO email_delivery_log(recipient_email,message_type,related_game_id,sent_by_user_id,delivery_status,error_text) VALUES(?,?,?,?,?,?)')->execute([$to,$type,$gameId,$senderId,$sent?'SENT':'FAILED',$sent?null:$error]);}catch(Throwable$ignored){}return$sent;
     }
-    private static function mailHeaders(string $from,string $fromName): string
+    private static function mailHeaders(string $from,string $fromName,?string $boundary=null): string
     {
-        return "From: ".self::formatAddress($from,$fromName)."\r\nReply-To: ".$from."\r\nMIME-Version: 1.0\r\nContent-Type: text/plain; charset=UTF-8";
+        $content=$boundary===null?'text/plain; charset=UTF-8':'multipart/alternative; boundary="'.$boundary.'"';return "From: ".self::formatAddress($from,$fromName)."\r\nReply-To: ".$from."\r\nMIME-Version: 1.0\r\nContent-Type: ".$content;
     }
     private static function formatAddress(string $email,string $name=''): string
     {
-        $name=trim($name);$email=trim($email);if($name==='')return$email;return '"'.str_replace('"','\"',$name).'" <'.$email.'>';
+        $name=str_replace(["\r","\n"],'',trim($name));$email=str_replace(["\r","\n"],'',trim($email));if($name==='')return$email;return '"'.str_replace('"','\"',$name).'" <'.$email.'>';
     }
-    private static function sendViaSmtp(string $to,string $subject,string $body,string $from,string $fromName): bool
+    private static function sendViaSmtp(string $to,string $subject,string $body,string $from,string $fromName,string $htmlBody=''): bool
     {
         $host=trim((string)getenv('GAME2_SMTP_HOST'));$port=(int)(getenv('GAME2_SMTP_PORT')?:465);$user=trim((string)getenv('GAME2_SMTP_USERNAME'));$pass=(string)getenv('GAME2_SMTP_PASSWORD');$timeout=15;
         $remote=($port===465?'ssl://':'').$host.':'.$port;$socket=@stream_socket_client($remote,$errno,$errstr,$timeout,STREAM_CLIENT_CONNECT);if(!$socket)throw new RuntimeException('SMTP connection failed: '.$errstr);
@@ -169,9 +175,9 @@ final class AuthService
         if($port===587){$send('STARTTLS');$expect(['220'],'STARTTLS');if(!stream_socket_enable_crypto($socket,true,STREAM_CRYPTO_METHOD_TLS_CLIENT))throw new RuntimeException('SMTP TLS negotiation failed.');$send('EHLO '.$helo);$expect(['250'],'EHLO after STARTTLS');}
         $send('AUTH LOGIN');$expect(['334'],'AUTH LOGIN');$send(base64_encode($user));$expect(['334'],'SMTP username');$send(base64_encode($pass));$expect(['235'],'SMTP password');
         $send('MAIL FROM:<'.$from.'>');$expect(['250'],'MAIL FROM');$send('RCPT TO:<'.$to.'>');$expect(['250','251'],'RCPT TO');$send('DATA');$expect(['354'],'DATA');
-        $headers=['From: '.self::formatAddress($from,$fromName),'Reply-To: '.$from,'To: '.$to,'Subject: '.self::encodeHeader($subject),'MIME-Version: 1.0','Content-Type: text/plain; charset=UTF-8','Content-Transfer-Encoding: 8bit'];
-        $message=implode("\r\n",$headers)."\r\n\r\n".self::smtpBody($body)."\r\n.";$send($message);$expect(['250'],'message body');$send('QUIT');fclose($socket);return true;
+        $boundary='toinky-'.bin2hex(random_bytes(8));$headers=['From: '.self::formatAddress($from,$fromName),'Reply-To: '.$from,'To: '.$to,'Subject: '.self::encodeHeader($subject),'MIME-Version: 1.0'];if($htmlBody===''){$headers[]='Content-Type: text/plain; charset=UTF-8';$headers[]='Content-Transfer-Encoding: 8bit';$message=implode("\r\n",$headers)."\r\n\r\n".self::smtpBody($body);}else{$headers[]='Content-Type: multipart/alternative; boundary="'.$boundary.'"';$message=implode("\r\n",$headers)."\r\n\r\n".self::multipartBody($body,$htmlBody,$boundary);}$message.="\r\n.";$send($message);$expect(['250'],'message body');$send('QUIT');fclose($socket);return true;
     }
+    private static function multipartBody(string $text,string $html,string $boundary): string{return'--'.$boundary."\r\nContent-Type: text/plain; charset=UTF-8\r\nContent-Transfer-Encoding: 8bit\r\n\r\n".self::smtpBody($text)."\r\n--".$boundary."\r\nContent-Type: text/html; charset=UTF-8\r\nContent-Transfer-Encoding: 8bit\r\n\r\n".self::smtpBody($html)."\r\n--".$boundary.'--';}
     private static function encodeHeader(string $value): string
     {
         return preg_match('/[^\x20-\x7E]/',$value)?'=?UTF-8?B?'.base64_encode($value).'?=':$value;

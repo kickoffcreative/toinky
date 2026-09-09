@@ -20,7 +20,7 @@ final class UserProfileService
     {
         $newEmail=strtolower(trim($newEmail));if(!filter_var($newEmail,FILTER_VALIDATE_EMAIL))throw new RuntimeException('Enter a valid email address.');if($newEmail===strtolower((string)$user['email']))throw new RuntimeException('That is already your account email.');$q=db()->prepare('SELECT 1 FROM users WHERE email=? AND user_id<>?');$q->execute([$newEmail,$user['user_id']]);if($q->fetchColumn())throw new RuntimeException('That email address is already in use.');
         $token=bin2hex(random_bytes(24));db()->prepare('UPDATE user_email_change_tokens SET expires_at_utc=UTC_TIMESTAMP() WHERE user_id=? AND verified_at_utc IS NULL')->execute([$user['user_id']]);db()->prepare('INSERT INTO user_email_change_tokens(user_id,new_email,token_hash,expires_at_utc) VALUES(?,?,?,DATE_ADD(UTC_TIMESTAMP(),INTERVAL 2 HOUR))')->execute([$user['user_id'],$newEmail,hash('sha256',$token)]);
-        $url=AuthService::baseUrl().'/profile.php?verify_email='.rawurlencode($token);$sent=AuthService::sendAccountMessage($newEmail,'Verify your new Toinky email',"Confirm this email for your Toinky account:\n\n".$url."\n\nThis link expires in 2 hours.",'EMAIL_CHANGE',(int)$user['user_id']);return['url'=>$url,'sent'=>$sent];
+        $url=AuthService::baseUrl().'/profile.php?verify_email='.rawurlencode($token);$sent=AuthService::sendTemplatedMessage($newEmail,'EMAIL_CHANGE',['recipient_name'=>$user['display_name']??'there','action_url'=>$url,'action_label'=>'Verify email address','message'=>'Confirm this email address for your Toinky account.','expiry_text'=>'This link expires in 2 hours.'],null,(int)$user['user_id']);return['url'=>$url,'sent'=>$sent];
     }
 
     public static function confirmEmailChange(int $userId,string $token): void

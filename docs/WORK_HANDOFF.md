@@ -7,11 +7,13 @@ the same GitHub repository. Chat histories are not assumed to be shared.
 
 - **Date:** 2026-09-08
 - **Task/computer:** Current Codex task on the local `main` checkout
-- **Current request:** Audit and configure website mail delivery from
-  `accounts@toinky.com`.
+- **Current request:** Add branded, editable system email templates and sender
+  controls under Website Settings → Brand → Email Settings.
 - **Branch:** `main`
-- **Current commit:** `a8cafbc` (`Use Toinky account SMTP for mail`)
-- **Remote:** `origin/main` is also `a8cafbc`
+- **Current commit:** `bdd57a4` (`Record successful mail delivery test`) plus
+  uncommitted email-template changes in this checkout.
+- **Remote:** `origin/main` remains `bdd57a4`; GitHub fetch was attempted before
+  this work but the network was unavailable. No remote changes were pulled.
 
 ## Completed Work
 
@@ -108,9 +110,23 @@ contract, then synchronize repository mirrors in a separate documented change.
   `email_delivery_log` record shows `delivery_status=SENT` to the test address
   with `error_text=NULL`. PHP `mail()` delivery from the configured sender is
   confirmed; direct SMTP configuration is unnecessary for the current host.
+- Added `email_templates` storage, branded defaults, sender settings, HTML/CSS
+  sanitization, supported template keys, multipart HTML plus plain-text mail,
+  and the Brand → Email Settings editor. Welcome, account invitation, game
+  invitation, password reset, and email-change messages now use the template
+  renderer. The existing PHP `mail()` transport remains the fallback.
+- Added `docs/EMAIL_TEMPLATES.md` and `tools/email_template_test.php` for the
+  terminal-first template contract and deployment procedure.
+- Local verification for this uncommitted change: `git diff --check` passed and
+  the embedded `public/admin.php` JavaScript parsed with Node. PHP lint and the
+  database-backed email contract test are pending on cPanel because PHP and
+  the project database are not available in this checkout.
 - The production cPanel deployment state is not assumed from the GitHub push.
 - Production PHP lint and database tests must continue to run on cPanel; PHP
   is not installed in this local workspace.
+- This email-template feature is currently uncommitted and exists only in this
+  checkout. It has not been deployed to cPanel or verified against production
+  database data yet.
 - Do not assume the cPanel deployment has received a commit until deployment
   or a live verification is explicitly reported.
 
@@ -126,7 +142,8 @@ contract, then synchronize repository mirrors in a separate documented change.
    outstanding issues, and exact branch/commit state.
 5. When switching computers, commit and push this handoff to the active branch;
    do not merge into `main` unless explicitly requested.
-6. For mail changes, run the sender migration on cPanel, verify
-   `MAIL_FROM_ADDRESS`, and send a controlled test email through PHP `mail()`.
-   Configure direct SMTP only if that test fails; never expose an SMTP password
-   in shell output or handoff records.
+6. For mail changes, run the migrations and
+   `tools/email_template_test.php` on cPanel, then verify the sender settings
+   and send a controlled test email through PHP `mail()`. Configure direct SMTP
+   only if that test fails; never expose an SMTP password in shell output or
+   handoff records.
