@@ -744,3 +744,7 @@ body.member-games .workspace-menu-toggle {
   font-size: 11px !important;
   line-height: 1 !important;
 }
+
+
+/* Default page heroes are intentionally rowless; regular content sections keep their row editor. */
+.pages-panel .page-section-card:first-of-type .section-rows{display:none!important}
