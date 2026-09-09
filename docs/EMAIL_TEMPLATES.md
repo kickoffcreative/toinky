@@ -49,3 +49,11 @@ takes precedence over the Brand page sender address; otherwise the saved
 `MAIL_FROM_ADDRESS` and `MAIL_FROM_NAME` settings are used. The existing PHP
 `mail()` fallback remains the default transport when SMTP environment values
 are not configured.
+
+## Brand assets
+
+The shared website shell uses `public/assets/toinky-logo.svg` for the gold
+wordmark. Email templates use `public/assets/toinky-logo.png` because PNG has
+more predictable support in mail clients. `public/assets/toinky-icon.png` is
+used for browser and mobile app icons. Keep these files in sync with the
+approved Toinky brand assets when deploying.

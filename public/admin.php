@@ -131,6 +131,8 @@ function admin_hero_button_editor(array $button,string $index,bool $template=fal
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Toinky Admin</title>
+<link rel="icon" type="image/png" href="assets/toinky-icon.png">
+<link rel="apple-touch-icon" href="assets/toinky-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond&family=Instrument+Sans&family=Cinzel&family=Alegreya+Sans+SC&family=Fredoka&family=Baloo+2&family=DM+Sans&family=Manrope&family=Oswald&family=Roboto+Slab&family=Playfair+Display&family=Uncial+Antiqua&family=MedievalSharp&family=Libre+Baskerville&family=EB+Garamond&family=Creepster&family=Nosifer&family=Special+Elite&family=IM+Fell+English&family=Spectral&family=Crimson+Pro&family=Lora&family=Parisienne&family=Orbitron&family=Space+Grotesk&family=Rye&family=Grenze+Gotisch&family=Barlow+Condensed&family=Archivo+Narrow&family=Bebas+Neue&family=Saira+Condensed&family=Inter&family=Merriweather&display=swap" rel="stylesheet">

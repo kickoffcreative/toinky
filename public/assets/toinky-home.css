@@ -73,9 +73,7 @@ html { scroll-behavior: smooth; }
   width: min(330px, 62vw);
   aspect-ratio: 3 / 1;
   margin: 12px auto 2px;
-  background: var(--ink);
-  -webkit-mask: url("toinky-logo.svg") center / contain no-repeat;
-  mask: url("toinky-logo.svg") center / contain no-repeat;
+  background: url("toinky-logo.svg") center / contain no-repeat;
 }
 .hero-copy h1 { max-width: 590px; margin: 0 auto 16px; }
 .hero-copy p { max-width: 570px; margin: 0 auto; }

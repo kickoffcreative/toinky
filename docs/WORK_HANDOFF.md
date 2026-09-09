@@ -7,12 +7,12 @@ the same GitHub repository. Chat histories are not assumed to be shared.
 
 - **Date:** 2026-09-08
 - **Task/computer:** Current Codex task on the local `main` checkout
-- **Current request:** Add branded, editable system email templates and sender
-  controls under Website Settings → Brand → Email Settings.
+- **Current request:** Apply the approved Toinky logo and icon across the
+  website shell, browser/app identity, and branded email templates.
 - **Branch:** `main`
-- **Current commit:** `469fdce` (`Add branded email template settings`).
-- **Remote:** `origin/main` is `469fdce`; the feature commit was pushed after
-  implementation and local verification.
+- **Current commit:** `8f80f27` (`Apply Toinky brand logo and icon assets`).
+- **Remote:** `origin/main` was last verified at `7879857`; commit `8f80f27` is
+  ready to push after this handoff update.
 
 ## Completed Work
 
@@ -34,6 +34,22 @@ the same GitHub repository. Chat histories are not assumed to be shared.
   `email_delivery_log`.
 - The earlier production path used PHP `mail()` successfully; direct SMTP is
   optional and should not be required unless the cPanel mail transport fails.
+
+## Brand Asset Update
+
+- Copied the approved `Toinky Logo.svg`, `Toinky Logo.png`, and `Toinky Icon.png`
+  into `public/assets/toinky-logo.svg`, `public/assets/toinky-logo.png`, and
+  `public/assets/toinky-icon.png` respectively. Source and destination hashes
+  were verified during implementation.
+- Website shell, home hero, and public footer now render the SVG wordmark
+  directly so the approved gold fill is preserved. Email composition points
+  `{{logo_url}}` at the PNG wordmark for mail-client compatibility.
+- Workspace and signed headers expose the icon as the browser/mobile identity.
+- **Tests:** Source and destination SHA-256 checksums match for all three
+  assets; static reference checks passed; `git diff --check` passed. PHP lint
+  could not run because PHP is not installed in this Windows checkout.
+- **Outstanding:** Confirm the push and run the production PHP lint checks on
+  cPanel after deployment.
 
 ## Mail Configuration Audit
 
@@ -116,14 +132,14 @@ contract, then synchronize repository mirrors in a separate documented change.
   renderer. The existing PHP `mail()` transport remains the fallback.
 - Added `docs/EMAIL_TEMPLATES.md` and `tools/email_template_test.php` for the
   terminal-first template contract and deployment procedure.
-- Local verification for this uncommitted change: `git diff --check` passed and
+- Local verification for the email-template change: `git diff --check` passed and
   the embedded `public/admin.php` JavaScript parsed with Node. PHP lint and the
   database-backed email contract test are pending on cPanel because PHP and
   the project database are not available in this checkout.
 - The production cPanel deployment state is not assumed from the GitHub push.
 - Production PHP lint and database tests must continue to run on cPanel; PHP
   is not installed in this local workspace.
-- The feature is pushed to GitHub but has not been deployed to cPanel or
+- The email-template feature is pushed to GitHub but has not been deployed to cPanel or
   verified against production database data yet.
 - Do not assume the cPanel deployment has received a commit until deployment
   or a live verification is explicitly reported.
@@ -145,3 +161,5 @@ contract, then synchronize repository mirrors in a separate documented change.
    and send a controlled test email through PHP `mail()`. Configure direct SMTP
    only if that test fails; never expose an SMTP password in shell output or
    handoff records.
+7. For this brand update, deploy the three asset files and run the production
+   PHP lint checks before pushing or declaring the update live.

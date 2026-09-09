@@ -72,9 +72,7 @@ a:hover { color: var(--choice); }
   display: inline-block;
   width: clamp(112px, 14vw, 172px);
   aspect-ratio: 3 / 1;
-  background: var(--choice);
-  -webkit-mask: url("toinky-logo.svg") center / contain no-repeat;
-  mask: url("toinky-logo.svg") center / contain no-repeat;
+  background: url("toinky-logo.svg") center / contain no-repeat;
 }
 .brand-context {
   color: var(--paper);
