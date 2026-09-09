@@ -5,14 +5,13 @@ the same GitHub repository. Chat histories are not assumed to be shared.
 
 ## Current Handoff
 
-- **Date:** 2026-09-07
+- **Date:** 2026-09-08
 - **Task/computer:** Current Codex task on the local `main` checkout
-- **Current request:** Establish GitHub and `docs/WORK_HANDOFF.md` as the
-  shared coordination process; verify the latest Cowriter work before the next
-  task begins.
+- **Current request:** Audit and configure website mail delivery from
+  `accounts@toinky.com`.
 - **Branch:** `main`
-- **Current commit:** `b73a293` (`Standardize Cowriter entry groups`)
-- **Remote:** `origin/main` is also `b73a293`
+- **Current commit:** `a8cafbc` (`Use Toinky account SMTP for mail`)
+- **Remote:** `origin/main` is also `a8cafbc`
 
 ## Completed Work
 
@@ -27,6 +26,36 @@ the same GitHub repository. Chat histories are not assumed to be shared.
 - Preserved dependency locking, decision option previews, and the existing
   Story Writer handoff links.
 - Pushed the implementation to `origin/main` in commit `b73a293`.
+- Fast-forwarded this checkout to the other task's mail commit `a8cafbc` after
+  fetching GitHub.
+- The mail implementation uses `accounts@toinky.com` as the default sender,
+  supports authenticated SMTP, and records delivery results in
+  `email_delivery_log`.
+
+## Mail Configuration Audit
+
+The application-side settings and their locations are:
+
+- `GAME2_MAIL_FROM=accounts@toinky.com`
+- `GAME2_SMTP_HOST=toinky.com` (confirm the mailbox provider's exact SMTP host)
+- `GAME2_SMTP_PORT=465` for implicit TLS; port `587` is also supported with
+  STARTTLS.
+- `GAME2_SMTP_USERNAME=accounts@toinky.com`
+- `GAME2_SMTP_PASSWORD=<the real mailbox password>`; never commit this value.
+- `GAME2_BASE_URL=https://toinky.com` so invitation and reset links use the
+  production domain.
+
+These `GAME2_*` values are read from the server process environment and are not
+created by `.cpanel.yml`. Set them through the hosting/PHP environment used by
+the web handler, not in Git-tracked source. Migration
+`database/migrations/096_toinky_account_mail_sender.sql` changes an existing
+legacy `MAIL_FROM_ADDRESS` value, while migration 064 supplies the same sender
+for new installations. `MAIL_FROM_NAME` remains `Toinky`.
+
+The repository scan found no mail library, no committed SMTP credentials, and
+no separate mail configuration file. `app/AuthService.php` uses a small raw
+SMTP client when all three SMTP values are present, and falls back to PHP
+`mail()` when they are missing.
 
 ## Verification
 
@@ -50,7 +79,11 @@ Production verification reported by the user on 2026-09-07:
 ## Remote Review and Coordination
 
 - Fetched `origin` with pruning before starting this task.
-- `origin/main` had no commits newer than `b73a293`.
+- `origin/main` advanced from `a347bdc` to `a8cafbc` with the other task's mail
+  commit; this checkout was fast-forwarded safely because it had no local
+  changes.
+- The mail commit overlaps this request directly and was reviewed before any
+  further edits.
 - Recent main-history commits relevant to the Cowriter work were reviewed,
   including the dependency map, Writer scan, decision options, location merge,
   performance, and grouping changes.
@@ -68,6 +101,10 @@ contract, then synchronize repository mirrors in a separate documented change.
 ## Outstanding Issues
 
 - No known implementation failure from the latest Cowriter dependency scan.
+- SMTP environment variables, the real mailbox password, the provider's exact
+  SMTP hostname, and a live delivery test are not verifiable from this local
+  workspace.
+- The production cPanel deployment state is not assumed from the GitHub push.
 - Production PHP lint and database tests must continue to run on cPanel; PHP
   is not installed in this local workspace.
 - Do not assume the cPanel deployment has received a commit until deployment
@@ -85,3 +122,7 @@ contract, then synchronize repository mirrors in a separate documented change.
    outstanding issues, and exact branch/commit state.
 5. When switching computers, commit and push this handoff to the active branch;
    do not merge into `main` unless explicitly requested.
+6. For mail changes, run the migration on cPanel, configure the five mail
+   environment variables plus the production base URL, verify the web handler
+   sees them, and send a controlled test email. Do not expose the password in
+   shell output or handoff records.
