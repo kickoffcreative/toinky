@@ -22,7 +22,15 @@ $error=null;$notice=null;
 if($_SERVER['REQUEST_METHOD']==='POST'){
     try{
         AuthService::requireCsrf();
-        if((string)($_POST['action']??'')!=='save_page_builder')throw new RuntimeException('Unknown page builder action.');
+        $action=(string)($_POST['action']??'');
+        if($action==='reorder_sections'){
+            $order=json_decode((string)($_POST['section_order']??'[]'),true,10,JSON_THROW_ON_ERROR);
+            if(!is_array($order))throw new RuntimeException('The section order is invalid.');
+            PageContentService::reorderSections($admin,$pageCode,array_map('intval',$order));
+            header('Location: page-builder.php?page='.rawurlencode($pageCode).'&section='.$sectionId.'&saved=1');
+            exit;
+        }
+        if($action!=='save_page_builder')throw new RuntimeException('Unknown page builder action.');
         $sectionId=(int)($_POST['section_id']??0);
         $sectionById=null;
         foreach($sections as $candidate)if((int)$candidate['site_page_section_id']===$sectionId){$sectionById=$candidate;break;}
@@ -49,7 +57,7 @@ function builder_e(string $value): string{return htmlspecialchars($value,ENT_QUO
 <title>Page Builder</title>
 <link rel="stylesheet" href="assets/toinky-admin-shell.css">
 <link rel="stylesheet" href="assets/toinky-admin-workspace.css">
-<link rel="stylesheet" href="assets/toinky-page-builder.css?v=20260909-tab">
+<link rel="stylesheet" href="assets/toinky-page-builder.css?v=20260909-reorder">
 </head>
 <body class="page-builder-app">
 <header class="page-builder-topbar">
@@ -61,9 +69,13 @@ function builder_e(string $value): string{return htmlspecialchars($value,ENT_QUO
 <?php if($error):?><p class="page-builder-alert error"><?=builder_e($error)?></p><?php elseif($notice):?><p class="page-builder-alert notice"><?=builder_e($notice)?></p><?php endif;?>
 <main class="page-builder-shell">
 <aside class="page-builder-sidebar" id="page-builder-sidebar">
-<nav class="page-builder-sections" aria-label="Page sections">
+<form method="post" id="section-order-form" class="section-order-form">
+<?=csrf_field()?><input type="hidden" name="action" value="reorder_sections"><input type="hidden" name="section_order" id="section-order">
+<p class="builder-muted">Drag sections to reorder them. Hero sections stay fixed.</p><button type="submit" id="section-order-save" disabled>Save Section Order</button>
+</form>
+<nav class="page-builder-sections" id="page-builder-sections" aria-label="Page sections">
 <?php foreach($sections as $item):$hero=($item['section_code']??'')==='HERO';?>
-<a class="page-builder-section <?=$section&&$item['site_page_section_id']===$section['site_page_section_id']?'selected':''?>" href="?page=<?=rawurlencode($pageCode)?>&section=<?=(int)$item['site_page_section_id']?>">
+<a class="page-builder-section <?=$section&&$item['site_page_section_id']===$section['site_page_section_id']?'selected':''?>" href="?page=<?=rawurlencode($pageCode)?>&section=<?=(int)$item['site_page_section_id']?>" data-section-id="<?=(int)$item['site_page_section_id']?>" data-fixed="<?=$hero?'1':'0'?>" draggable="<?=$hero?'false':'true'?>">
 <span><?=builder_e((string)($item['label_text']??'Section'))?></span><small><?=$hero?'Hero':'Section'?></small>
 </a>
 <?php endforeach;?>
@@ -86,6 +98,6 @@ function builder_e(string $value): string{return htmlspecialchars($value,ENT_QUO
 <script>
 window.toinkyPageBuilder={page:<?=json_encode($pageCode)?>,rows:<?=json_encode($rows,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT)?>,media:<?=json_encode($pageMedia,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT)?>,hero:<?=json_encode(($section['section_code']??'')==='HERO')?>};
 </script>
-<script src="assets/toinky-page-builder.js?v=20260909-tab" defer></script>
+<script src="assets/toinky-page-builder.js?v=20260909-reorder" defer></script>
 </body>
 </html>
