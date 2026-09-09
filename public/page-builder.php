@@ -55,7 +55,6 @@ function builder_e(string $value): string{return htmlspecialchars($value,ENT_QUO
 <header class="page-builder-topbar">
 <a href="admin.php?view=pages" class="page-builder-back">Back to Pages</a>
 <strong>Page Builder</strong>
-<button type="button" id="sidebar-toggle" aria-controls="page-builder-sidebar" aria-expanded="true">Hide Properties</button>
 <label>Page <select id="page-select"><?php foreach($pages as $page):?><option value="<?=builder_e((string)$page['page_code'])?>" <?=$pageCode===$page['page_code']?'selected':''?>><?=builder_e((string)$page['label_text'])?></option><?php endforeach;?></select></label>
 <button type="button" id="preview-refresh">Refresh Preview</button>
 </header>
@@ -81,6 +80,7 @@ function builder_e(string $value): string{return htmlspecialchars($value,ENT_QUO
 </form>
 <?php else:?><p class="builder-muted">Hero sections keep their dedicated Hero editor. Select a content section to edit its Container tree.</p><?php endif;?>
 </aside>
+<button type="button" id="sidebar-toggle" aria-controls="page-builder-sidebar" aria-expanded="true" aria-label="Hide properties sidebar" title="Hide properties sidebar"><span aria-hidden="true">&lt;</span><span class="page-builder-toggle-label">Hide properties sidebar</span></button>
 <section class="page-builder-preview"><div class="preview-toolbar"><span>Live preview</span><button type="button" id="open-preview">Open page</button></div><iframe id="page-preview" title="Page preview" src="index.php?view=<?=$pageCode==='HOME'?'public':strtolower($pageCode)?>"></iframe></section>
 </main>
 <script>
