@@ -252,3 +252,13 @@
 - **Verification:** Remote JavaScript was reviewed for the Container option, nested add controls, and layout-change handling. Node syntax validation and production PHP lint remain to be run after deployment.
 - **Deployment:** Pull `main` in `/home/toinkyadmin/repositories/toinky`, then copy `public/page-builder.php` to `/home/toinkyadmin/public_html/public/page-builder.php` and both Page Builder assets to `/home/toinkyadmin/public_html/assets/`. No migration is required for this UI-only change.
 - **Next step:** In the builder, select a content section, choose or confirm the root `Container`, click `Add content row` for a layout row, or `Add Container` for a nested shell, then save. Confirm the preview after each save.
+
+
+## 2026-09-09 - fix missing optional layered-row styles
+
+- **Request:** Saving layered Page Builder content emitted undefined-key warnings for `text_align` and `blend_mode`, then broke the redirect with a headers-already-sent warning.
+- **Root cause:** The normalizer used null-coalescing only in the `in_array()` check, then directly read the missing array keys in the true branch of each ternary.
+- **Completed:** Commit `3a90642dcec7de9d91fe5276afb44b21e1d698c7` now normalizes each optional value into a local string before validation, defaulting to `left` and `normal`. Commit `3b6489fd28bfd7992b6fd90b74096af951272dd5` extends the recursive contract test to cover omitted style keys.
+- **Verification:** Source-level review confirms no direct optional-key read remains in those assignments. PHP lint and the production contract test remain to be run on the server.
+- **Deployment:** Pull `main` in `/home/toinkyadmin/repositories/toinky`, then copy `app/PageBuilderService.php` and `tools/page_builder_recursive_contract_test.php` into `/home/toinkyadmin/public_html`. No migration is required.
+- **Next step:** Run `$PHP -n -l app/PageBuilderService.php` and `$PHP tools/page_builder_recursive_contract_test.php`, then save the layered content again. The redirect should complete without warnings.
