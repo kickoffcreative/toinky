@@ -10,7 +10,7 @@ $admin=AuthService::requireAdmin();
 
 $pageCode=strtoupper(trim((string)($_GET['page']??'HOME')));
 $pages=PageContentService::pages();
-$pageCodes=array_map(static fn(array $page):(string)$page['page_code'],$pages);
+$pageCodes=array_map(static fn(array $page): string => (string)$page['page_code'],$pages);
 if(!in_array($pageCode,$pageCodes,true))$pageCode=$pageCodes[0]??'HOME';
 $sections=PageContentService::adminSections($pageCode);
 $sectionId=(int)($_GET['section']??0);
