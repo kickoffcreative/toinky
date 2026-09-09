@@ -89,3 +89,11 @@
 - **Commits:** `0c95480` removed the incompatible file; `73e1309` recreated the corrected migration.
 - **Verification:** SQL syntax was corrected from the production error; production execution remains required.
 - **Next step:** Run `cd /home/toinkyadmin/public_html`, then `$PHP tools/migrate.php`; verify the admin page loads and migration 108 is recorded.
+
+
+## 2026-09-09 - Container shell editor correction
+
+- **Clarification:** A Container is only a visual/layout shell. It must not expose generic title, body, bullets, buttons, or active content fields; its editable properties are layout/background/color/spacing plus ordered child content rows.
+- **Completed:** Commit 57e0fc2 adds scoped admin workspace CSS that hides generic content controls only on rows containing the Container child editor. Child rows retain their layout/content controls; ordinary rows are unaffected.
+- **Enforcement:** Commit 5b4fe38 adds MariaDB triggers for insert/update so non-Hero `rows_json` is wrapped in one Container with `children` at the database boundary.
+- **Outstanding:** Replace the generic PHP row form with a semantically Container-specific form after local linting; CSS is the immediate safe UI correction. Production must run migrations 108 and 109.
