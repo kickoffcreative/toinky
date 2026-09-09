@@ -70,7 +70,7 @@ function builder_e(string $value): string{return htmlspecialchars($value,ENT_QUO
 <main class="page-builder-shell">
 <aside class="page-builder-sidebar" id="page-builder-sidebar">
 <form method="post" id="section-order-form" class="section-order-form">
-<?=csrf_field()?><input type="hidden" name="action" value="reorder_sections"><input type="hidden" name="section_order" id="section-order">
+<input type="hidden" name="csrf_token" value="<?=htmlspecialchars(AuthService::csrfToken(),ENT_QUOTES,'UTF-8')?>"><input type="hidden" name="action" value="reorder_sections"><input type="hidden" name="section_order" id="section-order">
 <p class="builder-muted">Drag sections to reorder them. Hero sections stay fixed.</p><button type="submit" id="section-order-save" disabled>Save Section Order</button>
 </form>
 <nav class="page-builder-sections" id="page-builder-sections" aria-label="Page sections">
@@ -82,7 +82,7 @@ function builder_e(string $value): string{return htmlspecialchars($value,ENT_QUO
 </nav>
 <?php if($section&&($section['section_code']??'')!=='HERO'):?>
 <form method="post" id="builder-form">
-<?=csrf_field()?><input type="hidden" name="action" value="save_page_builder"><input type="hidden" name="section_id" value="<?=(int)$section['site_page_section_id']?>"><input type="hidden" name="rows_payload" id="rows-payload">
+<input type="hidden" name="csrf_token" value="<?=htmlspecialchars(AuthService::csrfToken(),ENT_QUOTES,'UTF-8')?>"><input type="hidden" name="action" value="save_page_builder"><input type="hidden" name="section_id" value="<?=(int)$section['site_page_section_id']?>"><input type="hidden" name="rows_payload" id="rows-payload">
 <div class="inspector-heading"><span>Editing</span><strong><?=builder_e((string)$section['label_text'])?></strong></div>
 <div class="inspector-tabs" role="tablist"><button type="button" class="active" data-inspector-tab="content">Content</button><button type="button" data-inspector-tab="style">Style</button><button type="button" data-inspector-tab="advanced">Advanced</button></div>
 <section class="inspector-panel active" data-inspector-panel="content"><div id="content-properties"><p class="builder-muted">Select a section or row.</p></div></section>
