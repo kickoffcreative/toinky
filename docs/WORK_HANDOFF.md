@@ -163,3 +163,10 @@
 - **Deployment gap:** `.cpanel.yml` did not copy the new root `page-builder.php` wrapper during deployment.
 - **Resolution:** Updated `.cpanel.yml` to copy and chmod `page-builder.php` alongside the other root wrappers. GitHub commit `68066ebc859e7821903cd75bf75e603bfe74d850`.
 - **Next step:** Pull `main` in `/home/toinkyadmin/repositories/toinky`, confirm migration 108 contains `JSON_EXTRACT` rather than `CAST(... AS JSON)`, then run the cPanel deployment tasks. After deployment, `$PHP tools/migrate.php` must complete successfully before testing Page Builder.
+
+
+## 2026-09-09 - production Page Builder 500 resolved
+
+- **Deployment:** Pulled `main` into `/home/toinkyadmin/repositories/toinky` and deployed the repository contents to `/home/toinkyadmin/public_html` using the cPanel task sequence.
+- **Verification:** Migration 108 contains `JSON_EXTRACT` and no MariaDB-incompatible JSON cast. `tools/migrate.php` reported `Migrations are current.` Root `page-builder.php` passed PHP lint. `curl https://toinky.com/page-builder.php?page=HOME` returned HTTP `302` to login rather than `500`, confirming the route is now reachable.
+- **Remaining:** Open the route while authenticated as an administrator to perform the visual builder check.
