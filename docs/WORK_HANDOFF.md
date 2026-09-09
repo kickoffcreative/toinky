@@ -28,7 +28,7 @@
 ## Outstanding
 
 - Deploy and run migrations through `104` on production.
-- Replace the remaining editor label/behavior for any legacy “Sub-Rows” references with Container child-row editing.
+- Container child rows now have a bounded JSON editor with layout-aware visibility; replace this interim JSON control with a field-scoped popup editor in the next UI pass.
 - Build the requested field-scoped popup customizer; current controls remain inline.
 - Review and remove only genuinely unused backend files/settings after dependency search, not by deletion guesswork.
 - Verify Four Columns and Container markup with production PHP lint and the page-builder contract test.
@@ -38,4 +38,4 @@
 1. Deploy GitHub main and run `$PHP tools/migrate.php`.
 2. Run PHP lint and `$PHP tools/page_builder_contract_test.php` from the production document root.
 3. Rebuild Home content manually in the remaining Hero/Story Worlds foundation.
-4. Implement the popup customizer and Container child-row editor as the next focused UI pass.
+4. Implement the requested field-scoped popup customizer and replace the interim Container JSON control with a compact visual child-row editor.
