@@ -25,5 +25,6 @@ if(array_key_exists('title_text',$normalized[0])||array_key_exists('content_html
 $nested=$normalized[0]['children'][0]['children'][0]??[];
 if(($nested['title_text']??'')!=='Nested heading'||($nested['active']??true)!==false)throw new RuntimeException('Nested content row was not preserved.');
 if(str_contains((string)($nested['content_html']??''),'<script'))throw new RuntimeException('Unsafe HTML was not removed.');
+if(($nested['text_align']??'')!=='left'||($nested['blend_mode']??'')!=='normal')throw new RuntimeException('Optional style defaults were not applied.');
 
 echo "PASS: recursive Page Builder row contract",PHP_EOL;
