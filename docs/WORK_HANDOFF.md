@@ -19,8 +19,8 @@
 - Four-column row editors expose four card slots; public CSS supports responsive four-column layouts.
 - Reduced the page-section Show/Hide control size.
 - Existing templates remain available; Story Worlds remains live best/current story data rather than a static duplicated template.
-- Added `STORY_CARDS` as a reusable row layout backed by live stories; the Stories page no longer renders a separate hardcoded card grid.
-- Added a standard public-page header fallback when a managed header record is absent.
+- `STORY_CARDS` remains defined in the service/admin vocabulary, but its public renderer integration is deferred until it can be patched and lint-tested safely.
+- Standard public-page header fallback remains deferred; existing managed headers are preserved.
 - Container rows now hide content-specific controls and expose only shell/background plus child-row controls.
 
 ## Verification
@@ -35,7 +35,7 @@
 - Container child rows now have a bounded visual editor with four child-row slots and layout-aware visibility.
 - Popup row customizer now owns background, text, alignment, typography, and spacing controls. Its dialog is outside the save-form nesting model and closes without submitting.
 - Review and remove only genuinely unused backend files/settings after dependency search, not by deletion guesswork.
-- Verify Story Cards, Four Columns, Container markup, and restored public headers with production PHP lint and the page-builder contract test.
+- Verify Four Columns and Container markup with production PHP lint and the page-builder contract test. Reintroduce Story Cards/header fallback only after terminal lint passes.
 
 ## Next Steps
 
