@@ -211,3 +211,12 @@
 
 
 - **Follow-up:** Section drag handlers now initialize before the Hero-specific inspector early return, so the navigator remains reorderable when Hero is selected; Hero itself remains non-draggable. Asset version query is now `v=20260909-reorder2`.
+
+
+## 2026-09-09 - Page Builder CSRF helper fix
+
+- **Incident:** Page Builder failed with `Call to undefined function csrf_field()` after the section reorder form was added.
+- **Root cause:** The application has no global `csrf_field()` helper; CSRF is provided by `AuthService::csrfToken()` and validated by `AuthService::requireCsrf()`.
+- **Resolution:** Replaced both new form calls with escaped hidden inputs using `AuthService::csrfToken()`. Commit `c0ee03187098fcadfd08a1d6e4f6ec94c6269be7`.
+- **Verification:** Remote route contains no `csrf_field()` calls and uses the established token method. Production PHP lint remains required after deployment.
+- **Next step:** Pull/deploy `main`, then run `$PHP -n -l public/page-builder.php` from `/home/toinkyadmin/public_html` before opening the builder.
