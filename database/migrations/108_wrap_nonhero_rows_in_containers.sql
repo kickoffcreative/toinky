@@ -12,4 +12,4 @@ WHERE p.page_code IS NOT NULL
   AND s.section_code <> 'HERO'
   AND s.rows_json IS NOT NULL
   AND JSON_VALID(s.rows_json)
-  AND JSON_TYPE(JSON_EXTRACT(s.rows_json,'$[0].layout_type')) IS NULL;
+  AND COALESCE(JSON_UNQUOTE(JSON_EXTRACT(s.rows_json,'$[0].layout_type')),'') <> 'CONTAINER';
