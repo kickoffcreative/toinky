@@ -121,3 +121,10 @@
 - **Commits:** `f31fda7` route, `5a43c1f` styles, `c8b42c1` builder behavior, `95102f5` sidebar link.
 - **Verification:** JavaScript parsed successfully with Node `new Function` syntax validation. PHP CLI is unavailable in the Windows workspace; production must run PHP lint before activation.
 - **Important limitation:** Existing `PageContentService` still caps normalized nesting at depth 3 and legacy admin remains unchanged. This foundation is not yet the complete replacement; next work must add a recursive service contract, section reorder rules, full widget controls, and a production-linted activation path.
+
+
+## 2026-09-09 - Page Builder inspector expansion
+
+- **Completed:** Commit 4a84ed7 passes media choices to the isolated builder. Commit e2d989e adds layout-specific content/column controls, Container background image selection, spacing controls, nested Container/content-row creation, and inactive-by-default empty content rows.
+- **Verification:** Expanded builder JavaScript passed Node syntax validation. PHP CLI remains unavailable in the Windows workspace; production must lint `public/page-builder.php`.
+- **Outstanding:** The replacement still needs server-side recursive normalization beyond the legacy depth-3 service cap, true drag-and-drop ordering, and an activation decision after production lint. The legacy editor remains available as fallback.
