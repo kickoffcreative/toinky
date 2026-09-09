@@ -179,3 +179,11 @@
 - **Commits:** `d0cb3e0` route markup, `af1b742` styles, `e621ee2` behavior.
 - **Verification:** Exact remote builder JavaScript passed Node syntax validation.
 - **Next step:** Pull/deploy `main` from `/home/toinkyadmin/repositories/toinky`, then refresh the Page Builder with a cache-busting reload if necessary.
+
+
+## 2026-09-09 - Page Builder sidebar deployment/cache follow-up
+
+- **Incident:** The collapsible sidebar was not visible after the first implementation was reported deployed.
+- **Diagnosis:** Sidebar commits `d0cb3e0`, `af1b742`, and `e621ee2` were created after the previously pulled production source commit `f60743a`; deployment must pull again. Browser caching could also retain the previous builder assets.
+- **Resolution:** Added explicit version query strings to the Page Builder CSS and JavaScript assets in commit `9d5d2d3e314ad1ed8b61ad75ab7476e2f74f86c6`.
+- **Next step:** Pull `main` in `/home/toinkyadmin/repositories/toinky`, deploy `public/page-builder.php` and both Page Builder assets, then reload the builder. Verify the deployed files contain `sidebar-toggle` and `sidebar-collapsed` before testing the UI.
