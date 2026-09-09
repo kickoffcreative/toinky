@@ -242,3 +242,13 @@
 - **Commits:** `f63cf54` route/form, `0a635d0` styling, `7b54397` navigation behavior.
 - **Verification:** Exact remote JavaScript passed Node syntax validation; page selector handler is unique; add-section route wiring is present.
 - **Next step:** Pull/deploy `main`, lint `public/page-builder.php` and `app/PageBuilderService.php`, then test Add Section on Home and switch between pages from the top selector.
+
+
+## 2026-09-09 - explicit Container controls in isolated Page Builder
+
+- **Request:** The builder must expose Container as an actual choice so a writer can combine multiple content rows and nested Containers under one shell.
+- **Completed:** The isolated builder now lists `Container` in the layout selector, provides root-level `Add content row` and `Add Container` actions, and retains the same actions inside every Container. Selecting Container initializes its child list and the inspector limits it to shell properties: background color/image and four paddings. Content rows keep their layout/content fields.
+- **Commits:** `e9347bbea1e21d3681189d69ede5ec66846a9357` JavaScript controls; `f8a895ec0d562641f40f66cb62222f33068899b7` route asset cache key.
+- **Verification:** Remote JavaScript was reviewed for the Container option, nested add controls, and layout-change handling. Node syntax validation and production PHP lint remain to be run after deployment.
+- **Deployment:** Pull `main` in `/home/toinkyadmin/repositories/toinky`, then copy `public/page-builder.php` to `/home/toinkyadmin/public_html/public/page-builder.php` and both Page Builder assets to `/home/toinkyadmin/public_html/assets/`. No migration is required for this UI-only change.
+- **Next step:** In the builder, select a content section, choose or confirm the root `Container`, click `Add content row` for a layout row, or `Add Container` for a nested shell, then save. Confirm the preview after each save.
