@@ -43,3 +43,14 @@
 2. Run PHP lint and `$PHP tools/page_builder_contract_test.php` from the production document root.
 3. Rebuild Home content manually in the remaining Hero/Story Worlds foundation.
 4. Implement the requested field-scoped popup customizer and Verify the popup customizer and visual Container child editor in production; keep checking for invalid nested forms when extending the editor.
+
+
+## 2026-09-09 - current task: remove remaining default public content
+
+- **Computer/task:** Windows Codex task; authenticated GitHub API workflow.
+- **Request:** Home must keep only the parallax hero; restore a usable How It Works page header; remove automatic Stories page cards while retaining Story Cards as a builder row/template.
+- **Decision:** The symptom was partly renderer fallback, not only database state. Added narrowly scoped public CSS to hide legacy Home sections (How, Perspectives, Worlds, Paths, Finale) and the automatic Stories grid. This leaves the parallax hero and does not remove builder-managed rows.
+- **Branch/commit:** main, commit 279edbecfca2c43e6c8f25331cb36a45f4f5da88.
+- **Tests:** Not run locally in this Windows mirror; production terminal verification is required.
+- **Outstanding:** Confirm production serves the new CSS and run migrations through 106; verify How It Works header content in the database. If the header remains empty, repair its managed HERO section through a separate migration after inspecting the production row schema.
+- **Next steps:** From production, run cd /home/toinkyadmin/public_html, then PHP lint/contract tests and $PHP tools/migrate.php; clear any CDN/browser cache before checking the three pages.
