@@ -199,3 +199,12 @@
 
 
 - **Cache follow-up:** Updated Page Builder asset version query strings to `v=20260909-tab` in the route commit returned by the subsequent route update, ensuring the compact tab assets are fetched after deployment.
+
+
+## 2026-09-09 - Page Builder section drag ordering
+
+- **Request:** Continue the builder implementation with section ordering.
+- **Completed:** Added a section-order form and HTML drag/drop navigator. Non-Hero sections are draggable; Hero entries are marked fixed and cannot be dragged. Reordering is staged in the browser and committed only by `Save Section Order`, using the existing CSRF-protected `PageContentService::reorderSections` path.
+- **Commits:** `7a40236` route/action, `132897b` styling, `8d93e30` behavior.
+- **Verification:** Exact remote JavaScript passed Node syntax validation and the route contains the reorder form and fixed-section markers.
+- **Next step:** Pull/deploy `main` from `/home/toinkyadmin/repositories/toinky`; deploy the updated route and Page Builder assets before testing drag ordering.
