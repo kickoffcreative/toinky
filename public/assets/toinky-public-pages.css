@@ -60,3 +60,6 @@
 
 /* Story cards are available as a page-builder row, not an automatic Stories page block. */
 .public-page .public-story-grid{display:none!important}
+
+/* Empty child slots must not create visible public sections. */
+.public-container-row > .public-content-section:has(.public-content-row .type-public-body:empty):not(:has(.section-label,h2,h3,img,ul,.hero-actions,.public-three-columns)){display:none!important}
