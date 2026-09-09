@@ -29,7 +29,7 @@
 
 - Deploy and run migrations through `104` on production.
 - Container child rows now have a bounded visual editor with four child-row slots and layout-aware visibility.
-- Popup row customizer now owns background, text, alignment, typography, and spacing controls.
+- Popup row customizer now owns background, text, alignment, typography, and spacing controls. Its dialog is outside the save-form nesting model and closes without submitting.
 - Review and remove only genuinely unused backend files/settings after dependency search, not by deletion guesswork.
 - Verify Four Columns and Container markup with production PHP lint and the page-builder contract test.
 
@@ -38,4 +38,4 @@
 1. Deploy GitHub main and run `$PHP tools/migrate.php`.
 2. Run PHP lint and `$PHP tools/page_builder_contract_test.php` from the production document root.
 3. Rebuild Home content manually in the remaining Hero/Story Worlds foundation.
-4. Implement the requested field-scoped popup customizer and Verify the popup customizer and visual Container child editor in production.
+4. Implement the requested field-scoped popup customizer and Verify the popup customizer and visual Container child editor in production; keep checking for invalid nested forms when extending the editor.
