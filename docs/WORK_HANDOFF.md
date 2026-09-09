@@ -233,3 +233,12 @@
 - **Commits:** `405d7d2` service, `b96fa86` route wiring, `f291127` contract test.
 - **Verification:** Source-level review completed; production PHP lint and contract test remain required after deployment.
 - **Next step:** Pull/deploy `main`, then run `$PHP -n -l app/PageBuilderService.php`, `$PHP -n -l public/page-builder.php`, and `$PHP tools/page_builder_recursive_contract_test.php` from `/home/toinkyadmin/public_html`.
+
+
+## 2026-09-09 - Page Builder Home section creation and navigation fix
+
+- **Incident:** Home contained only the fixed Hero, so the builder showed no row controls; the page selector also failed when Hero was selected because the script returned before wiring common navigation handlers.
+- **Resolution:** Added a CSRF-protected `Add Section` form. It creates a section through `PageContentService::addSection()` and immediately seeds it with a Container through `PageBuilderService::saveRows()`. Moved page selection, preview refresh, and open-preview handlers before the Hero inspector early return.
+- **Commits:** `f63cf54` route/form, `0a635d0` styling, `7b54397` navigation behavior.
+- **Verification:** Exact remote JavaScript passed Node syntax validation; page selector handler is unique; add-section route wiring is present.
+- **Next step:** Pull/deploy `main`, lint `public/page-builder.php` and `app/PageBuilderService.php`, then test Add Section on Home and switch between pages from the top selector.
