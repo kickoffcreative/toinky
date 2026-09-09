@@ -19,6 +19,9 @@
 - Four-column row editors expose four card slots; public CSS supports responsive four-column layouts.
 - Reduced the page-section Show/Hide control size.
 - Existing templates remain available; Story Worlds remains live best/current story data rather than a static duplicated template.
+- Added `STORY_CARDS` as a reusable row layout backed by live stories; the Stories page no longer renders a separate hardcoded card grid.
+- Added a standard public-page header fallback when a managed header record is absent.
+- Container rows now hide content-specific controls and expose only shell/background plus child-row controls.
 
 ## Verification
 
@@ -28,15 +31,15 @@
 
 ## Outstanding
 
-- Deploy and run migrations through `105` on production.
+- Deploy and run migrations through `106` on production.
 - Container child rows now have a bounded visual editor with four child-row slots and layout-aware visibility.
 - Popup row customizer now owns background, text, alignment, typography, and spacing controls. Its dialog is outside the save-form nesting model and closes without submitting.
 - Review and remove only genuinely unused backend files/settings after dependency search, not by deletion guesswork.
-- Verify Four Columns and Container markup with production PHP lint and the page-builder contract test.
+- Verify Story Cards, Four Columns, Container markup, and restored public headers with production PHP lint and the page-builder contract test.
 
 ## Next Steps
 
-1. Deploy GitHub main and run `$PHP tools/migrate.php` (migration 105).
+1. Deploy GitHub main and run `$PHP tools/migrate.php` (migration 106).
 2. Run PHP lint and `$PHP tools/page_builder_contract_test.php` from the production document root.
 3. Rebuild Home content manually in the remaining Hero/Story Worlds foundation.
 4. Implement the requested field-scoped popup customizer and Verify the popup customizer and visual Container child editor in production; keep checking for invalid nested forms when extending the editor.
