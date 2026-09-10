@@ -302,3 +302,13 @@
 - **Completed:** Root Container styles now map to outer section-level `--container-*` variables and the renderer outputs the root Container's children directly inside that public section. Container and content rows no longer receive forced fallback background/text colors during Page Builder normalization, so child rows stay transparent unless explicitly styled. Public CSS now applies root Container background color/image/padding to `.layout-rows`. `theme-media.php` now allows active image media referenced from section row JSON.
 - **Tests:** `node --check public/assets/toinky-page-builder.js` passed. `git diff --check` passed. PHP lint could not be run in the Windows checkout because `php` is not installed on PATH.
 - **Outstanding:** Before deployment, run production PHP lint for `app/PageBuilderService.php`, `public/index.php`, and `public/theme-media.php`, plus `tools/page_builder_recursive_contract_test.php`. Then save a section with a root Container background color and image and refresh the preview.
+
+
+## 2026-09-09 - unsaved Page Builder live preview
+
+- **Task/computer:** Windows Codex task, branch `page-builder-structure-popover`.
+- **Current request:** Show Page Builder changes in the live preview without saving, because saving refreshes and resets the editing workspace.
+- **Completed:** Added a CSRF-protected `builder_preview` POST path in `public/index.php` that normalizes draft rows through `PageBuilderService` and injects them only into the selected preview section without writing to the database. Added a hidden form targeting the preview iframe in `public/page-builder.php`. The builder JavaScript now debounces draft preview renders after edits and uses the top preview button to render the current draft immediately instead of reloading saved content.
+- **Behavior:** Editing fields, colors, visibility, layout, adding rows, adding Containers, and deleting nodes updates the iframe preview from current in-memory data. The builder sidebar/workspace itself no longer needs to reload just to see visual changes.
+- **Tests:** `node --check public/assets/toinky-page-builder.js` passed. `git diff --check` passed. PHP lint could not be run in the Windows checkout because `php` is not installed on PATH.
+- **Outstanding:** Production should run `$PHP -n -l public/index.php`, `$PHP -n -l public/page-builder.php`, and `$PHP -n -l app/PageBuilderService.php` after deployment, then test unsaved typing/background changes in the preview iframe.

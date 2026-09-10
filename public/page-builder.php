@@ -79,14 +79,14 @@ function builder_e(string $value): string{return htmlspecialchars($value,ENT_QUO
 <title>Page Builder</title>
 <link rel="stylesheet" href="assets/toinky-admin-shell.css">
 <link rel="stylesheet" href="assets/toinky-admin-workspace.css">
-<link rel="stylesheet" href="assets/toinky-page-builder.css?v=20260909-section-tools">
+<link rel="stylesheet" href="assets/toinky-page-builder.css?v=20260909-live-preview">
 </head>
 <body class="page-builder-app">
 <header class="page-builder-topbar">
 <a href="admin.php?view=overview" class="page-builder-back">Back to Dashboard</a>
 <strong>Page Builder</strong>
 <label>Page <select id="page-select"><?php foreach($pages as $page):?><option value="<?=builder_e((string)$page['page_code'])?>" <?=$pageCode===$page['page_code']?'selected':''?>><?=builder_e((string)$page['label_text'])?></option><?php endforeach;?></select></label>
-<button type="button" id="preview-refresh">Refresh Preview</button>
+<button type="button" id="preview-refresh">Render Draft</button>
 </header>
 <?php if($error):?><p class="page-builder-alert error"><?=builder_e($error)?></p><?php elseif($notice):?><p class="page-builder-alert notice"><?=builder_e($notice)?></p><?php endif;?>
 <main class="page-builder-shell">
@@ -126,11 +126,11 @@ function builder_e(string $value): string{return htmlspecialchars($value,ENT_QUO
 <?php else:?><p class="builder-muted">Hero sections keep their dedicated Hero editor. Select a content section to edit its Container tree.</p><?php endif;?>
 </aside>
 <button type="button" id="sidebar-toggle" aria-controls="page-builder-sidebar" aria-expanded="true" aria-label="Hide properties sidebar" title="Hide properties sidebar"><span aria-hidden="true">&lt;</span><span class="page-builder-toggle-label">Hide properties sidebar</span></button>
-<section class="page-builder-preview"><div class="preview-toolbar"><span>Live preview</span><button type="button" id="open-preview">Open page</button></div><iframe id="page-preview" title="Page preview" src="index.php?view=<?=$pageCode==='HOME'?'public':strtolower($pageCode)?>"></iframe></section>
+<section class="page-builder-preview"><div class="preview-toolbar"><span>Live preview</span><button type="button" id="open-preview">Open page</button></div><iframe id="page-preview" name="page-preview" title="Page preview" src="index.php?view=<?=$pageCode==='HOME'?'public':strtolower($pageCode)?>"></iframe><form method="post" target="page-preview" id="preview-form" action="index.php?view=<?=$pageCode==='HOME'?'public':strtolower($pageCode)?>" hidden><input type="hidden" name="csrf_token" value="<?=htmlspecialchars(AuthService::csrfToken(),ENT_QUOTES,'UTF-8')?>"><input type="hidden" name="action" value="builder_preview"><input type="hidden" name="section_id" value="<?=(int)($section['site_page_section_id']??0)?>"><input type="hidden" name="rows_payload" id="preview-rows-payload"></form></section>
 </main>
 <script>
 window.toinkyPageBuilder={page:<?=json_encode($pageCode)?>,rows:<?=json_encode($rows,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT)?>,media:<?=json_encode($pageMedia,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT)?>,hero:<?=json_encode(($section['section_code']??'')==='HERO')?>};
 </script>
-<script src="assets/toinky-page-builder.js?v=20260909-section-tools" defer></script>
+<script src="assets/toinky-page-builder.js?v=20260909-live-preview" defer></script>
 </body>
 </html>

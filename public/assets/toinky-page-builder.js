@@ -70,10 +70,13 @@
         syncSectionOrder();
     }
 
+    let previewTimer=null;
+    let renderDraftPreview=()=>q('#page-preview').contentWindow.location.reload();
+
     q('#page-select').addEventListener('change',event=>{
         location.href='page-builder.php?page='+encodeURIComponent(event.target.value);
     });
-    q('#preview-refresh').addEventListener('click',()=>q('#page-preview').contentWindow.location.reload());
+    q('#preview-refresh').addEventListener('click',()=>renderDraftPreview(true));
     q('#open-preview').addEventListener('click',()=>window.open(q('#page-preview').src,'_blank','noopener'));
 
     if(app.hero)return;
@@ -186,7 +189,20 @@
     };
     const number=value=>String(Math.round(value*100)/100);
 
-    const sync=()=>{q('#rows-payload').value=JSON.stringify(rows)};
+    renderDraftPreview=(immediate=false)=>{
+        const form=q('#preview-form');
+        const payload=q('#preview-rows-payload');
+        if(!form||!payload)return;
+        const submit=()=>{
+            payload.value=JSON.stringify(rows);
+            if(form.requestSubmit)form.requestSubmit();
+            else form.submit();
+        };
+        if(previewTimer)clearTimeout(previewTimer);
+        if(immediate)submit();
+        else previewTimer=setTimeout(submit,350);
+    };
+    const sync=()=>{q('#rows-payload').value=JSON.stringify(rows);renderDraftPreview()};
 
     const field=(name,title,value,type='text')=>{
         if(type==='color'){
