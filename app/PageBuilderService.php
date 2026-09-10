@@ -74,11 +74,17 @@ final class PageBuilderService
                 $item['columns']=[];
                 foreach(array_slice($row['columns'],0,6)as$column){
                     if(!is_array($column))$column=[];
-                    $item['columns'][]=[
+                    $columnItem=[
                         'icon_text'=>self::text($column['icon_text']??'',120),
                         'title'=>self::text($column['title']??'',190),
                         'content'=>self::html($column['content']??''),
+                        'background_color'=>self::optionalColor($column['background_color']??''),
+                        'background_media_id'=>self::mediaId($column['background_media_id']??null),
+                        'background_fit'=>self::backgroundFit($column['background_fit']??'FILL'),
                     ];
+                    self::applySpacing($columnItem,$column,'margin',10);
+                    self::applySpacing($columnItem,$column,'padding');
+                    $item['columns'][]=$columnItem;
                 }
             }
             $out[]=$item;

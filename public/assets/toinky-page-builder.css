@@ -95,3 +95,5 @@
 .builder-choice-buttons button:last-child{border-right:0}
 .builder-choice-buttons button.active{background:#dfe3e7;color:#1c242b;font-weight:800}
 .builder-column{margin:8px 0 12px;padding:8px;border:1px solid #e1e5e8;background:#fafbfc}
+.builder-column-style{margin:8px 0 12px;padding:8px;border:1px solid #e1e5e8;background:#fafbfc}
+.builder-column-style .builder-subheading:first-child{margin-top:0}

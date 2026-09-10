@@ -139,13 +139,32 @@ final class PageContentService
             $value=strtoupper(trim((string)$value));
             return preg_match('/^#[0-9A-F]{6}([0-9A-F]{2})?$/',$value)?$value:'';
         };
+        $spacingMode=static fn($value): string=>strtoupper(trim((string)$value))==='SIDES'?'SIDES':'ALL';
+        $pixels=static fn($value): int=>max(0,min(2000,(int)$value));
         $columns=[];
         foreach(array_slice((array)($row['columns']??[]),0,6)as$column){
-            if(is_array($column))$columns[]=[
+            if(!is_array($column))continue;
+            $columnBackgroundFit=strtoupper(trim((string)($column['background_fit']??'FILL')));
+            $columns[]=[
                 'title'=>self::textSlice(trim((string)($column['title']??'')),0,190),
                 'content'=>self::sanitizeHtml((string)($column['content']??'')),
                 'icon_text'=>self::textSlice(trim((string)($column['icon_text']??'')),0,120),
                 'image_media_id'=>$media($column['image_media_id']??''),
+                'background_color'=>$hex($column['background_color']??''),
+                'background_media_id'=>$media($column['background_media_id']??''),
+                'background_fit'=>in_array($columnBackgroundFit,['FILL','FIT','TILE'],true)?$columnBackgroundFit:'FILL',
+                'margin_mode'=>$spacingMode($column['margin_mode']??'ALL'),
+                'margin_all_px'=>$pixels($column['margin_all_px']??10),
+                'margin_top_px'=>$pixels($column['margin_top_px']??10),
+                'margin_right_px'=>$pixels($column['margin_right_px']??10),
+                'margin_bottom_px'=>$pixels($column['margin_bottom_px']??10),
+                'margin_left_px'=>$pixels($column['margin_left_px']??10),
+                'padding_mode'=>$spacingMode($column['padding_mode']??'ALL'),
+                'padding_all_px'=>$pixels($column['padding_all_px']??0),
+                'padding_top_px'=>$pixels($column['padding_top_px']??0),
+                'padding_right_px'=>$pixels($column['padding_right_px']??0),
+                'padding_bottom_px'=>$pixels($column['padding_bottom_px']??0),
+                'padding_left_px'=>$pixels($column['padding_left_px']??0),
                 'buttons'=>self::normalizeButtons(array_slice((array)($column['buttons']??[]),0,2),false),
             ];
         }
@@ -167,8 +186,6 @@ final class PageContentService
         $itemsDirection=strtoupper(trim((string)($row['items_direction']??'COLUMN')));
         $alignItems=trim((string)($row['align_items']??'stretch'));
         $alignSelf=trim((string)($row['align_self']??'stretch'));
-        $spacingMode=static fn($value): string=>strtoupper(trim((string)$value))==='SIDES'?'SIDES':'ALL';
-        $pixels=static fn($value): int=>max(0,min(2000,(int)$value));
         $maxWidth=max(320,min(3840,(int)($row['max_width_px']??1980)?:1980));
         return [
             'label_text'=>self::textSlice(trim((string)($row['label_text']??'')),0,190),

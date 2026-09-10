@@ -279,6 +279,13 @@
             select(key('background_media_id'),'Background image',node[key('background_media_id')]||'',mediaOptions)+
             select(key('background_fit'),'Image fill',node[key('background_fit')]||'FILL',backgroundFitOptions);
     };
+    const columnBackgroundControls=(index,title,column)=>{
+        const base='columns.'+index+'.';
+        return subheading(title)+
+            field(base+'background_color','Background color',column.background_color||'','color')+
+            select(base+'background_media_id','Background image',column.background_media_id||'',mediaOptions)+
+            select(base+'background_fit','Image fill',column.background_fit||'FILL',backgroundFitOptions);
+    };
     const paddingControls=(title,prefix,node)=>{
         const base=prefix?prefix+'_padding':'padding';
         const modeKey=base+'_mode';
@@ -293,6 +300,28 @@
         const key=edge=>'margin_'+edge+'_px';
         const value=edge=>mode==='ALL'?(node.margin_all_px??0):(node[key(edge)]??0);
         return spacingControls(title,'margin_mode',mode,'margin_all_px',key,value);
+    };
+    const nestedSpacingControls=(title,fieldBase,node,keyBase,defaultAll=0)=>{
+        const mode=node[keyBase+'mode']||'ALL';
+        const allKey=fieldBase+'all_px';
+        const key=edge=>fieldBase+edge+'_px';
+        const value=edge=>mode==='ALL'?(node[keyBase+'all_px']??defaultAll):(node[keyBase+edge+'_px']??defaultAll);
+        return spacingControls(title,fieldBase+'mode',mode,allKey,key,value);
+    };
+    const renderColumnStyleControls=node=>{
+        if(!['CARDS_ONLY','TWO_COLUMN','THREE_COLUMN','FOUR_COLUMN'].includes(node.layout_type))return '';
+        const count=node.layout_type==='TWO_COLUMN'?2:(node.layout_type==='FOUR_COLUMN'?4:3);
+        node.columns=Array.isArray(node.columns)?node.columns:[];
+        return Array.from({length:count},(_,index)=>{
+            const column=node.columns[index]||{};
+            const base='columns.'+index+'.';
+            const title=(node.layout_type==='CARDS_ONLY'?'Card ':'Column ')+(index+1);
+            return '<div class="builder-column-style">'+
+                columnBackgroundControls(index,title,column)+
+                nestedSpacingControls('Margin',base+'margin_',column,'margin_',10)+
+                nestedSpacingControls('Padding',base+'padding_',column,'padding_',0)+
+                '</div>';
+        }).join('');
     };
     const spacingControls=(title,modeKey,mode,allKey,key,value)=>{
         const linked=mode==='ALL';
@@ -412,9 +441,11 @@
             paddingControls('Main box padding','',node)+
             choiceButtons('align_self','Align self',node.align_self||'stretch',alignSelfOptions)+
             (['CARDS_ONLY','TWO_COLUMN','THREE_COLUMN','FOUR_COLUMN'].includes(node.layout_type)?
+                subheading('Columns')+
                 backgroundControls('Column background','column',node)+
                 marginControls('Column margin',{...node,margin_mode:node.column_margin_mode||'ALL',margin_all_px:node.column_margin_all_px??10,margin_top_px:node.column_margin_top_px??10,margin_right_px:node.column_margin_right_px??10,margin_bottom_px:node.column_margin_bottom_px??10,margin_left_px:node.column_margin_left_px??10}).replaceAll('margin_','column_margin_')+
-                paddingControls('Column padding','column',node):'');
+                paddingControls('Column padding','column',node)+
+                renderColumnStyleControls(node):'');
         q('#advanced-properties').innerHTML=container?
             select('active','Visibility',node.active===false?'0':'1',[
                 ['1','Visible'],['0','Hidden']
@@ -604,9 +635,19 @@
         });
     };
 
+    const getValue=(node,path)=>{
+        const bits=path.split('.');
+        if(bits.length===1)return node?node[bits[0]]:undefined;
+        if(bits.length===3&&bits[0]==='columns'){
+            const index=Number(bits[1]);
+            return node&&Array.isArray(node.columns)&&node.columns[index]?node.columns[index][bits[2]]:undefined;
+        }
+        return undefined;
+    };
+
     const openColorPicker=(fieldName,anchor)=>{
         closeFloating(false);
-        const parsed=parseColor(nodeAt(selected)[fieldName])||{r:244,g:238,b:226,a:1};
+        const parsed=parseColor(getValue(nodeAt(selected),fieldName))||{r:244,g:238,b:226,a:1};
         colorState={field:fieldName,color:parsed,format:'hex'};
         const popup=document.createElement('div');
         popup.id='builder-color-popup';
@@ -824,7 +865,7 @@
         }
         if(name==='layout_type'&&node.layout_type==='CONTAINER')ensureChildren(node);
         if(name!=='active'&&node.layout_type!=='CONTAINER')node.active=true;
-        if(['content_width','padding_mode','margin_mode','column_padding_mode','wrap_items'].includes(name))props();
+        if(['content_width','padding_mode','margin_mode','column_padding_mode','column_margin_mode','wrap_items'].includes(name)||name.endsWith('.margin_mode')||name.endsWith('.padding_mode'))props();
         sync();
     });
 
