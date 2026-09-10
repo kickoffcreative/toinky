@@ -10,6 +10,12 @@ $rows=[[
     'background_fit'=>'TILE',
     'content_width'=>'MAX',
     'max_width_px'=>1980,
+    'min_height_px'=>320,
+    'items_direction'=>'ROW',
+    'align_items'=>'center',
+    'wrap_items'=>false,
+    'margin_mode'=>'ALL',
+    'margin_all_px'=>0,
     'padding_mode'=>'ALL',
     'padding_all_px'=>0,
     'title_text'=>'must be removed',
@@ -51,6 +57,9 @@ if(array_key_exists('title_text',$normalized[0])||array_key_exists('content_html
 if(($normalized[0]['background_color']??'')!=='#123456')throw new RuntimeException('Container background color was not preserved.');
 if(($normalized[0]['background_fit']??'')!=='TILE')throw new RuntimeException('Container background fit was not preserved.');
 if(($normalized[0]['content_width']??'')!=='MAX'||($normalized[0]['max_width_px']??0)!==1980)throw new RuntimeException('Container content width was not preserved.');
+if(($normalized[0]['min_height_px']??0)!==320)throw new RuntimeException('Container min-height was not preserved.');
+if(($normalized[0]['items_direction']??'')!=='ROW'||($normalized[0]['align_items']??'')!=='center'||($normalized[0]['wrap_items']??true)!==false)throw new RuntimeException('Container item layout settings were not preserved.');
+if(($normalized[0]['margin_mode']??'')!=='ALL'||($normalized[0]['margin_all_px']??-1)!==0)throw new RuntimeException('Container zero margin mode was not preserved.');
 if(($normalized[0]['padding_mode']??'')!=='ALL'||($normalized[0]['padding_all_px']??-1)!==0)throw new RuntimeException('Container zero padding mode was not preserved.');
 $nested=$normalized[0]['children'][0]['children'][0]??[];
 if(($nested['title_text']??'')!=='Nested heading'||($nested['active']??true)!==false)throw new RuntimeException('Nested content row was not preserved.');

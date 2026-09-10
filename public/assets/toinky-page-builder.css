@@ -63,3 +63,21 @@
 
 .builder-node-layout{flex:0 0 auto;border:1px solid var(--builder-border);background:#fff7e8;color:var(--builder-ink);padding:4px 7px;border-radius:3px;font-size:11px;font-weight:700;cursor:pointer}
 .builder-node-layout:hover{border-color:var(--builder-accent);background:#fff}
+
+/* Compact Elementor-style inspector controls. */
+.page-builder-sidebar{font-size:12px;padding:14px}
+.inspector-heading{padding:12px 0 8px;gap:2px}
+.inspector-heading span,.builder-muted{font-size:11px}
+.builder-inspector-tools{gap:6px;margin:0 0 10px}
+.builder-inspector-tools button{display:grid;place-items:center;width:36px;height:32px;padding:0;font-size:18px}
+.inspector-tabs{margin-bottom:10px}
+.inspector-tabs button{padding:8px 6px;font-size:12px}
+.builder-selected-summary{gap:2px;padding:8px 10px;margin:0 0 10px}
+.builder-selected-summary span,.builder-selected-summary small{font-size:11px}
+.builder-selected-summary strong{font-size:13px}
+.builder-field{display:grid;grid-template-columns:116px minmax(0,1fr);gap:7px;align-items:center;margin:7px 0;color:#4f5b66;font-size:12px}
+.builder-field input,.builder-field textarea,.builder-field select{min-height:32px;padding:7px;font-size:12px}
+.builder-field textarea{grid-column:1/-1;min-height:74px}
+.builder-subheading{margin:14px 0 7px;font-size:12px}
+.builder-actions{gap:5px;margin-top:8px}
+.builder-actions button{min-width:30px;height:30px;padding:0 8px;font-size:12px;font-weight:700}

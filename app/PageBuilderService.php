@@ -37,6 +37,12 @@ final class PageBuilderService
                 $item['background_fit']=self::backgroundFit($row['background_fit']??'FILL');
                 $item['content_width']=self::contentWidth($row['content_width']??'FULL');
                 $item['max_width_px']=self::maxWidth($row['max_width_px']??1980);
+                $item['min_height_px']=self::pixels($row['min_height_px']??0);
+                $item['items_direction']=self::itemsDirection($row['items_direction']??'COLUMN');
+                $item['align_items']=self::alignItems($row['align_items']??'stretch');
+                $item['wrap_items']=array_key_exists('wrap_items',$row)?(bool)$row['wrap_items']:true;
+                $blendMode=(string)($row['blend_mode']??'normal');
+                $item['blend_mode']=in_array($blendMode,['normal','multiply','screen','overlay','darken','lighten','difference'],true)?$blendMode:'normal';
                 self::applySpacing($item,$row,'margin');
                 self::applySpacing($item,$row,'padding');
                 $item['children']=self::normalizeRows(is_array($row['children']??null)?$row['children']:[],$depth+1);
@@ -107,7 +113,7 @@ final class PageBuilderService
 
     private static function applySpacing(array&$item,array$row,string$prefix): void
     {
-        $mode=strtoupper(trim((string)($row[$prefix.'_mode']??'SIDES')));
+        $mode=strtoupper(trim((string)($row[$prefix.'_mode']??'ALL')));
         $item[$prefix.'_mode']=$mode==='ALL'?'ALL':'SIDES';
         $item[$prefix.'_all_px']=self::pixels($row[$prefix.'_all_px']??0);
         foreach(['top','right','bottom','left']as$edge)$item[$prefix.'_'.$edge.'_px']=self::pixels($row[$prefix.'_'.$edge.'_px']??0);
@@ -140,6 +146,18 @@ final class PageBuilderService
     private static function maxWidth(mixed$value): int
     {
         return max(320,min(3840,(int)$value?:1980));
+    }
+
+    private static function itemsDirection(mixed$value): string
+    {
+        $value=strtoupper(trim((string)$value));
+        return $value==='ROW'?'ROW':'COLUMN';
+    }
+
+    private static function alignItems(mixed$value): string
+    {
+        $value=trim((string)$value);
+        return in_array($value,['flex-start','center','flex-end','stretch'],true)?$value:'stretch';
     }
 
     private static function mediaId(mixed$value): ?int

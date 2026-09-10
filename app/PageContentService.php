@@ -164,7 +164,9 @@ final class PageContentService
         $backgroundFit=strtoupper(trim((string)($row['background_fit']??'FILL')));
         $columnBackgroundFit=strtoupper(trim((string)($row['column_background_fit']??'FILL')));
         $contentWidth=strtoupper(trim((string)($row['content_width']??'FULL')));
-        $spacingMode=static fn($value): string=>strtoupper(trim((string)$value))==='ALL'?'ALL':'SIDES';
+        $itemsDirection=strtoupper(trim((string)($row['items_direction']??'COLUMN')));
+        $alignItems=trim((string)($row['align_items']??'stretch'));
+        $spacingMode=static fn($value): string=>strtoupper(trim((string)$value))==='SIDES'?'SIDES':'ALL';
         $pixels=static fn($value): int=>max(0,min(2000,(int)$value));
         $maxWidth=max(320,min(3840,(int)($row['max_width_px']??1980)?:1980));
         return [
@@ -180,19 +182,23 @@ final class PageContentService
             'background_fit'=>in_array($backgroundFit,['FILL','FIT','TILE'],true)?$backgroundFit:'FILL',
             'content_width'=>in_array($contentWidth,['FULL','MAX'],true)?$contentWidth:'FULL',
             'max_width_px'=>$maxWidth,
+            'min_height_px'=>$pixels($row['min_height_px']??0),
+            'items_direction'=>$itemsDirection==='ROW'?'ROW':'COLUMN',
+            'align_items'=>in_array($alignItems,['flex-start','center','flex-end','stretch'],true)?$alignItems:'stretch',
+            'wrap_items'=>array_key_exists('wrap_items',$row)?!empty($row['wrap_items']):true,
             'text_color'=>$hex($row['text_color']??''),
             'text_align'=>in_array($textAlign,['left','center','right'],true)?$textAlign:'left',
             'blend_mode'=>in_array($blendMode,['normal','multiply','screen','overlay','darken','lighten','difference'],true)?$blendMode:'normal',
             'font_size'=>preg_match('/^(?:10|1[1-9]|2[0-9]|3[0-6])px$/',$fontSize)?$fontSize:'',
             'font_weight'=>in_array($fontWeight,['400','500','600','700','800'],true)?$fontWeight:'',
             'text_transform'=>in_array($textTransform,['none','uppercase','capitalize','lowercase'],true)?$textTransform:'none',
-            'margin_mode'=>$spacingMode($row['margin_mode']??'SIDES'),
+            'margin_mode'=>$spacingMode($row['margin_mode']??'ALL'),
             'margin_all_px'=>$pixels($row['margin_all_px']??0),
             'margin_top_px'=>$pixels($row['margin_top_px']??0),
             'margin_right_px'=>$pixels($row['margin_right_px']??0),
             'margin_bottom_px'=>$pixels($row['margin_bottom_px']??0),
             'margin_left_px'=>$pixels($row['margin_left_px']??0),
-            'padding_mode'=>$spacingMode($row['padding_mode']??'SIDES'),
+            'padding_mode'=>$spacingMode($row['padding_mode']??'ALL'),
             'padding_all_px'=>$pixels($row['padding_all_px']??0),
             'padding_top_px'=>$pixels($row['padding_top_px']??0),
             'padding_right_px'=>$pixels($row['padding_right_px']??0),
@@ -201,7 +207,7 @@ final class PageContentService
             'column_background_color'=>$hex($row['column_background_color']??''),
             'column_background_media_id'=>$media($row['column_background_media_id']??''),
             'column_background_fit'=>in_array($columnBackgroundFit,['FILL','FIT','TILE'],true)?$columnBackgroundFit:'FILL',
-            'column_padding_mode'=>$spacingMode($row['column_padding_mode']??'SIDES'),
+            'column_padding_mode'=>$spacingMode($row['column_padding_mode']??'ALL'),
             'column_padding_all_px'=>$pixels($row['column_padding_all_px']??0),
             'column_padding_top_px'=>$pixels($row['column_padding_top_px']??0),
             'column_padding_right_px'=>$pixels($row['column_padding_right_px']??0),

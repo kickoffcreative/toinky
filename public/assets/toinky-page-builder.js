@@ -106,7 +106,11 @@
     ];
     const backgroundFitOptions=[['FILL','Fill'],['FIT','Fit'],['TILE','Tile']];
     const contentWidthOptions=[['FULL','Full Screen Width'],['MAX','Max Width']];
-    const spacingModeOptions=[['SIDES','Different each side'],['ALL','Same all sides']];
+    const spacingModeOptions=[['ALL','Same all sides'],['SIDES','Different each side']];
+    const directionOptions=[['COLUMN','Top to Bottom'],['ROW','Left to Right']];
+    const alignItemsOptions=[['stretch','Justify'],['flex-start','Align Left'],['center','Align Center'],['flex-end','Align Right']];
+    const wrapOptions=[['1','Wrap on'],['0','Wrap off']];
+    const structureKey='toinky-page-builder-structure-popup';
     const iconOptions=[
         ['','No icon'],['✦','Spark'],['◆','Diamond'],['◇','Open Diamond'],
         ['◐','Half Moon'],['○','Circle'],['●','Filled Circle'],['△','Triangle'],
@@ -279,7 +283,7 @@
         const modeKey=base+'_mode';
         const allKey=base+'_all_px';
         const key=edge=>base+'_'+edge+'_px';
-        const mode=node[modeKey]||'SIDES';
+        const mode=node[modeKey]||'ALL';
         return subheading(title)+
             select(modeKey,'Mode',mode,spacingModeOptions)+
             (mode==='ALL'?field(allKey,'All sides',node[allKey]||0,'number'):
@@ -289,7 +293,7 @@
                 field(key('left'),'Left',node[key('left')]||0,'number'));
     };
     const marginControls=(title,node)=>{
-        const mode=node.margin_mode||'SIDES';
+        const mode=node.margin_mode||'ALL';
         return subheading(title)+
             select('margin_mode','Mode',mode,spacingModeOptions)+
             (mode==='ALL'?field('margin_all_px','All sides',node.margin_all_px||0,'number'):
@@ -360,10 +364,18 @@
         q('#content-properties').innerHTML=
             selectedSummary(node)+
             (container?'<div class="builder-actions"><button type="button" data-add="'+selected.join('.')+
-            '">Add content row</button><button type="button" class="alt" data-add-container="'+
-            selected.join('.')+'">Add Container</button></div>'+
+            '" aria-label="Add content row" title="Add content row">+T</button><button type="button" class="alt" data-add-container="'+
+            selected.join('.')+'" aria-label="Add Container" title="Add Container">+[]</button></div>'+
             '<p class="builder-muted">Container is a shell. Add content rows or nested Containers.</p>'+
-            '<p class="builder-muted">Use Structure to select a child row and edit its content.</p>':
+            '<p class="builder-muted">Use Structure to select a child row and edit its content.</p>'+
+            subheading('Container')+
+            select('content_width','Content width',node.content_width||'FULL',contentWidthOptions)+
+            ((node.content_width||'FULL')==='MAX'?field('max_width_px','Width',node.max_width_px||1980,'number'):'')+
+            field('min_height_px','Min-height',node.min_height_px||0,'number')+
+            subheading('Items')+
+            select('items_direction','Direction',node.items_direction||'COLUMN',directionOptions)+
+            select('align_items','Align items',node.align_items||'stretch',alignItemsOptions)+
+            select('wrap_items','Wrap',(node.wrap_items===false||node.wrap_items==='0')?'0':'1',wrapOptions):
             layoutControl(node)+
             field('label_text','Label',node.label_text||node.eyebrow_text||'')+
             field('title_text','Title',node.title_text||'')+
@@ -372,8 +384,6 @@
                 area('bullets_text','Bullets, one per line',(node.bullets||[]).join('\n')):'')+
             renderColumns(node));
         q('#style-properties').innerHTML=container?
-            select('content_width','Content width',node.content_width||'FULL',contentWidthOptions)+
-            ((node.content_width||'FULL')==='MAX'?field('max_width_px','Max width (px)',node.max_width_px||1980,'number'):'')+
             backgroundControls('Container background','',node)+
             marginControls('Container margin',node)+
             paddingControls('Container padding','',node):
@@ -385,7 +395,15 @@
             (['CARDS_ONLY','TWO_COLUMN','THREE_COLUMN','FOUR_COLUMN'].includes(node.layout_type)?
                 backgroundControls('Column background','column',node)+
                 paddingControls('Column padding','column',node):'');
-        q('#advanced-properties').innerHTML=
+        q('#advanced-properties').innerHTML=container?
+            select('active','Visibility',node.active===false?'0':'1',[
+                ['1','Visible'],['0','Hidden']
+            ])+
+            select('blend_mode','Blend mode',node.blend_mode||'normal',[
+                ['normal','Normal'],['multiply','Multiply'],['screen','Screen'],
+                ['overlay','Overlay'],['darken','Darken'],['lighten','Lighten'],
+                ['difference','Difference']
+            ]):
             select('active','Visibility',node.active===false?'0':'1',[
                 ['1','Visible'],['0','Hidden']
             ])+
@@ -402,8 +420,27 @@
         refreshStructurePopup();
     };
 
-    const closeFloating=()=>{
-        document.querySelectorAll('.builder-floating-popup').forEach(popup=>popup.remove());
+    const saveStructurePopupState=open=>{
+        const popup=q('#builder-structure-popup');
+        try{
+            const rect=popup?popup.getBoundingClientRect():{left:130,top:70};
+            localStorage.setItem(structureKey,JSON.stringify({open,left:rect.left,top:rect.top}));
+        }catch(error){}
+    };
+
+    const readStructurePopupState=()=>{
+        try{
+            const saved=JSON.parse(localStorage.getItem(structureKey)||'{}');
+            return saved&&typeof saved==='object'?saved:{};
+        }catch(error){return{};}
+    };
+
+    const closeFloating=(includeStructure=false)=>{
+        document.querySelectorAll('.builder-floating-popup').forEach(popup=>{
+            if(!includeStructure&&popup.id==='builder-structure-popup')return;
+            if(popup.id==='builder-structure-popup')saveStructurePopupState(false);
+            popup.remove();
+        });
         colorState=null;
     };
 
@@ -419,6 +456,7 @@
         };
         const stop=()=>{
             dragging=false;
+            if(popup.id==='builder-structure-popup')saveStructurePopupState(true);
             document.removeEventListener('pointermove',move);
             document.removeEventListener('pointerup',stop);
         };
@@ -452,14 +490,13 @@
             renderStructureNode(rows[0],[0])+'</div>';
     };
 
-    const openStructurePopup=anchor=>{
+    const openStructurePopup=(anchor,position=null)=>{
         const existing=q('#builder-structure-popup');
         if(existing){
             refreshStructurePopup();
-            positionPopup(existing,anchor);
             return;
         }
-        closeFloating();
+        closeFloating(false);
         const popup=document.createElement('div');
         popup.id='builder-structure-popup';
         popup.className='builder-floating-popup builder-structure-popup';
@@ -470,12 +507,16 @@
             '<div data-structure-body></div>';
         document.body.appendChild(popup);
         refreshStructurePopup();
-        positionPopup(popup,anchor);
+        if(position){
+            popup.style.left=clamp(Number(position.left)||130,8,window.innerWidth-popup.offsetWidth-8)+'px';
+            popup.style.top=clamp(Number(position.top)||70,8,window.innerHeight-popup.offsetHeight-8)+'px';
+        }else positionPopup(popup,anchor);
         makeDraggable(popup,popup.querySelector('[data-popup-drag]'));
+        saveStructurePopupState(true);
     };
 
     const openLayoutPicker=anchor=>{
-        closeFloating();
+        closeFloating(false);
         const popup=document.createElement('div');
         popup.id='builder-layout-popup';
         popup.className='builder-floating-popup builder-layout-popup';
@@ -544,7 +585,7 @@
     };
 
     const openColorPicker=(fieldName,anchor)=>{
-        closeFloating();
+        closeFloating(false);
         const parsed=parseColor(nodeAt(selected)[fieldName])||{r:244,g:238,b:226,a:1};
         colorState={field:fieldName,color:parsed,format:'hex'};
         const popup=document.createElement('div');
@@ -625,7 +666,14 @@
         }
         const close=event.target.closest('[data-popup-close]');
         if(close){
-            closeFloating();
+            const popup=close.closest('.builder-floating-popup');
+            if(popup&&popup.id==='builder-structure-popup'){
+                saveStructurePopupState(false);
+                popup.remove();
+            }else if(popup){
+                popup.remove();
+                colorState=null;
+            }else closeFloating(false);
             return;
         }
         const format=event.target.closest('[data-color-format]');
@@ -749,13 +797,15 @@
         }
         if(name==='layout_type'&&node.layout_type==='CONTAINER')ensureChildren(node);
         if(name!=='active'&&node.layout_type!=='CONTAINER')node.active=true;
-        if(['content_width','padding_mode','margin_mode','column_padding_mode'].includes(name))props();
+        if(['content_width','padding_mode','margin_mode','column_padding_mode','wrap_items'].includes(name))props();
         sync();
     });
 
     document.addEventListener('keydown',event=>{
-        if(event.key==='Escape')closeFloating();
+        if(event.key==='Escape')closeFloating(false);
     });
 
     props();
+    const savedStructure=readStructurePopupState();
+    if(savedStructure.open)openStructurePopup(q('#structure-open'),savedStructure);
 })();

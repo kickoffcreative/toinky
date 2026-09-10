@@ -79,7 +79,7 @@ function builder_e(string $value): string{return htmlspecialchars($value,ENT_QUO
 <title>Page Builder</title>
 <link rel="stylesheet" href="assets/toinky-admin-shell.css">
 <link rel="stylesheet" href="assets/toinky-admin-workspace.css">
-<link rel="stylesheet" href="assets/toinky-page-builder.css?v=20260909-live-preview">
+<link rel="stylesheet" href="assets/toinky-page-builder.css?v=20260910-container-items">
 </head>
 <body class="page-builder-app">
 <header class="page-builder-topbar">
@@ -116,7 +116,7 @@ function builder_e(string $value): string{return htmlspecialchars($value,ENT_QUO
 <form method="post" id="builder-form">
 <input type="hidden" name="csrf_token" value="<?=htmlspecialchars(AuthService::csrfToken(),ENT_QUOTES,'UTF-8')?>"><input type="hidden" name="action" value="save_page_builder"><input type="hidden" name="section_id" value="<?=(int)$section['site_page_section_id']?>"><input type="hidden" name="rows_payload" id="rows-payload">
 <div class="inspector-heading"><span>Editing</span><strong><?=builder_e((string)$section['label_text'])?></strong></div>
-<div class="builder-inspector-tools"><button type="button" id="structure-open" data-structure-open>Structure</button></div>
+<div class="builder-inspector-tools"><button type="button" id="structure-open" data-structure-open aria-label="Open Structure" title="Structure">☷</button></div>
 <div class="inspector-tabs" role="tablist"><button type="button" class="active" data-inspector-tab="content">Content</button><button type="button" data-inspector-tab="style">Style</button><button type="button" data-inspector-tab="advanced">Advanced</button></div>
 <section class="inspector-panel active" data-inspector-panel="content"><div id="content-properties"><p class="builder-muted">Select a section or row.</p></div></section>
 <section class="inspector-panel" data-inspector-panel="style"><div id="style-properties"></div></section>
@@ -131,6 +131,6 @@ function builder_e(string $value): string{return htmlspecialchars($value,ENT_QUO
 <script>
 window.toinkyPageBuilder={page:<?=json_encode($pageCode)?>,rows:<?=json_encode($rows,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT)?>,media:<?=json_encode($pageMedia,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT)?>,hero:<?=json_encode(($section['section_code']??'')==='HERO')?>};
 </script>
-<script src="assets/toinky-page-builder.js?v=20260910-spacing" defer></script>
+<script src="assets/toinky-page-builder.js?v=20260910-container-items" defer></script>
 </body>
 </html>
