@@ -318,7 +318,7 @@
 
 - **Task/computer:** Windows Codex task, branch `page-builder-structure-popover`.
 - **Current request:** Fix the test section made of `Container > Text Center + Four Columns`: the parent Container background/color image must span the row, child rows must fill the container width, labels must render, and Style needs content width, background fill, row padding, Four Columns main/column background and padding, plus preset icons.
-- **Branch/commit:** `page-builder-structure-popover`, commit `f04749f`.
+- **Branch/commit:** `page-builder-structure-popover`, implementation commit `5510be7`; this handoff entry is recorded in the following handoff-only commit.
 - **Completed:** Added normalized Container fields for `background_fit`, `content_width`, and `max_width_px`; added normalized content-row background fill plus Four Columns column background/image/fill/padding fields. The builder Style tab now exposes Container content width/full-vs-max width, Container background/fill/padding, child-row main box background/fill/padding, and column background/fill/padding for Cards/Three/Four Columns. Four Columns icon inputs are now preset icon dropdowns with 20 choices.
 - **Public rendering:** Root Container background/fill/padding maps to the outer public section, nested Containers render through `.public-container-inner`, Text Center/Four Columns rows span full available width, labels render from `label_text`, and column styles apply to each column card. Removed the negative-margin Container CSS that made nested rows narrow and broken.
 - **Tests:** `node --check public/assets/toinky-page-builder.js` passed. `git diff --check` passed. PHP lint and PHP contract tests could not run in the Windows checkout because `php` is not installed on PATH.
