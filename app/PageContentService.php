@@ -166,6 +166,7 @@ final class PageContentService
         $contentWidth=strtoupper(trim((string)($row['content_width']??'FULL')));
         $itemsDirection=strtoupper(trim((string)($row['items_direction']??'COLUMN')));
         $alignItems=trim((string)($row['align_items']??'stretch'));
+        $alignSelf=trim((string)($row['align_self']??'stretch'));
         $spacingMode=static fn($value): string=>strtoupper(trim((string)$value))==='SIDES'?'SIDES':'ALL';
         $pixels=static fn($value): int=>max(0,min(2000,(int)$value));
         $maxWidth=max(320,min(3840,(int)($row['max_width_px']??1980)?:1980));
@@ -186,6 +187,7 @@ final class PageContentService
             'items_direction'=>$itemsDirection==='ROW'?'ROW':'COLUMN',
             'align_items'=>in_array($alignItems,['flex-start','center','flex-end','stretch'],true)?$alignItems:'stretch',
             'wrap_items'=>array_key_exists('wrap_items',$row)?!empty($row['wrap_items']):true,
+            'align_self'=>in_array($alignSelf,['auto','flex-start','center','flex-end','stretch'],true)?$alignSelf:'stretch',
             'text_color'=>$hex($row['text_color']??''),
             'text_align'=>in_array($textAlign,['left','center','right'],true)?$textAlign:'left',
             'blend_mode'=>in_array($blendMode,['normal','multiply','screen','overlay','darken','lighten','difference'],true)?$blendMode:'normal',
@@ -207,6 +209,12 @@ final class PageContentService
             'column_background_color'=>$hex($row['column_background_color']??''),
             'column_background_media_id'=>$media($row['column_background_media_id']??''),
             'column_background_fit'=>in_array($columnBackgroundFit,['FILL','FIT','TILE'],true)?$columnBackgroundFit:'FILL',
+            'column_margin_mode'=>$spacingMode($row['column_margin_mode']??'ALL'),
+            'column_margin_all_px'=>$pixels($row['column_margin_all_px']??10),
+            'column_margin_top_px'=>$pixels($row['column_margin_top_px']??10),
+            'column_margin_right_px'=>$pixels($row['column_margin_right_px']??10),
+            'column_margin_bottom_px'=>$pixels($row['column_margin_bottom_px']??10),
+            'column_margin_left_px'=>$pixels($row['column_margin_left_px']??10),
             'column_padding_mode'=>$spacingMode($row['column_padding_mode']??'ALL'),
             'column_padding_all_px'=>$pixels($row['column_padding_all_px']??0),
             'column_padding_top_px'=>$pixels($row['column_padding_top_px']??0),

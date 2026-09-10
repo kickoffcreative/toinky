@@ -109,6 +109,7 @@
     const spacingModeOptions=[['ALL','Same all sides'],['SIDES','Different each side']];
     const directionOptions=[['COLUMN','Top to Bottom'],['ROW','Left to Right']];
     const alignItemsOptions=[['stretch','Justify'],['flex-start','Align Left'],['center','Align Center'],['flex-end','Align Right']];
+    const alignSelfOptions=[['stretch','Justify'],['flex-start','Left'],['center','Center'],['flex-end','Right']];
     const wrapOptions=[['1','Wrap on'],['0','Wrap off']];
     const structureKey='toinky-page-builder-structure-popup';
     const iconOptions=[
@@ -284,23 +285,36 @@
         const allKey=base+'_all_px';
         const key=edge=>base+'_'+edge+'_px';
         const mode=node[modeKey]||'ALL';
-        return subheading(title)+
-            select(modeKey,'Mode',mode,spacingModeOptions)+
-            (mode==='ALL'?field(allKey,'All sides',node[allKey]||0,'number'):
-                field(key('top'),'Top',node[key('top')]||0,'number')+
-                field(key('right'),'Right',node[key('right')]||0,'number')+
-                field(key('bottom'),'Bottom',node[key('bottom')]||0,'number')+
-                field(key('left'),'Left',node[key('left')]||0,'number'));
+        const value=edge=>mode==='ALL'?(node[allKey]??0):(node[key(edge)]??0);
+        return spacingControls(title,modeKey,mode,allKey,key,value);
     };
     const marginControls=(title,node)=>{
         const mode=node.margin_mode||'ALL';
-        return subheading(title)+
-            select('margin_mode','Mode',mode,spacingModeOptions)+
-            (mode==='ALL'?field('margin_all_px','All sides',node.margin_all_px||0,'number'):
-                field('margin_top_px','Top',node.margin_top_px||0,'number')+
-                field('margin_right_px','Right',node.margin_right_px||0,'number')+
-                field('margin_bottom_px','Bottom',node.margin_bottom_px||0,'number')+
-                field('margin_left_px','Left',node.margin_left_px||0,'number'));
+        const key=edge=>'margin_'+edge+'_px';
+        const value=edge=>mode==='ALL'?(node.margin_all_px??0):(node[key(edge)]??0);
+        return spacingControls(title,'margin_mode',mode,'margin_all_px',key,value);
+    };
+    const spacingControls=(title,modeKey,mode,allKey,key,value)=>{
+        const linked=mode==='ALL';
+        const input=edge=>'<label><input type="number" data-field="'+
+            escapeHtml(linked?allKey:key(edge))+'" value="'+escapeHtml(value(edge))+
+            '"><span>'+edge.charAt(0).toUpperCase()+edge.slice(1)+'</span></label>';
+        return '<div class="builder-spacing-control"><div class="builder-spacing-head">'+
+            '<span>'+escapeHtml(title)+'</span><small>px</small></div><div class="builder-spacing-grid">'+
+            ['top','right','bottom','left'].map(input).join('')+
+            '<button type="button" class="'+(linked?'active':'')+'" data-choice-field="'+
+            escapeHtml(modeKey)+'" data-choice-value="'+(linked?'SIDES':'ALL')+
+            '" aria-label="'+(linked?'Unlink sides':'Link sides')+'" title="'+
+            (linked?'Unlink sides':'Link sides')+'">⌁</button></div></div>';
+    };
+    const choiceButtons=(name,title,value,options)=>{
+        return '<div class="builder-choice-control"><div class="builder-spacing-head"><span>'+
+            escapeHtml(title)+'</span></div><div class="builder-choice-buttons">'+options.map(option=>
+            '<button type="button" class="'+(String(option[0])===String(value)?'active':'')+
+            '" data-choice-field="'+escapeHtml(name)+'" data-choice-value="'+
+            escapeHtml(option[0])+'" title="'+escapeHtml(option[1])+'" aria-label="'+
+            escapeHtml(option[1])+'">'+escapeHtml(option[1].charAt(0))+'</button>').join('')+
+            '</div></div>';
     };
 
     const layoutControl=node=>{
@@ -343,6 +357,7 @@
             Array.from({length:count},(_,index)=>{
                 const column=node.columns[index]||{};
                 return '<div class="builder-column">'+
+                    subheading((node.layout_type==='CARDS_ONLY'?'Card ':'Column ')+(index+1))+
                     select('columns.'+index+'.icon_text','Icon',column.icon_text||'',iconOptions)+
                     field('columns.'+index+'.title','Column title',column.title||'')+
                     area('columns.'+index+'.content','Column content',column.content||'')+
@@ -377,6 +392,7 @@
             select('align_items','Align items',node.align_items||'stretch',alignItemsOptions)+
             select('wrap_items','Wrap',(node.wrap_items===false||node.wrap_items==='0')?'0':'1',wrapOptions):
             layoutControl(node)+
+            subheading('Main')+
             field('label_text','Label',node.label_text||node.eyebrow_text||'')+
             field('title_text','Title',node.title_text||'')+
             area('content_html','Content',node.content_html||'')+
@@ -386,14 +402,18 @@
         q('#style-properties').innerHTML=container?
             backgroundControls('Container background','',node)+
             marginControls('Container margin',node)+
-            paddingControls('Container padding','',node):
+            paddingControls('Container padding','',node)+
+            choiceButtons('align_self','Align self',node.align_self||'stretch',alignSelfOptions):
             (['IMAGE_LEFT','IMAGE_RIGHT'].includes(node.layout_type)?
                 select('image_media_id','Content image',node.image_media_id||'',mediaOptions):'')+
+            subheading('Main')+
             backgroundControls('Main box background','',node)+
             marginControls('Main box margin',node)+
             paddingControls('Main box padding','',node)+
+            choiceButtons('align_self','Align self',node.align_self||'stretch',alignSelfOptions)+
             (['CARDS_ONLY','TWO_COLUMN','THREE_COLUMN','FOUR_COLUMN'].includes(node.layout_type)?
                 backgroundControls('Column background','column',node)+
+                marginControls('Column margin',{...node,margin_mode:node.column_margin_mode||'ALL',margin_all_px:node.column_margin_all_px??10,margin_top_px:node.column_margin_top_px??10,margin_right_px:node.column_margin_right_px??10,margin_bottom_px:node.column_margin_bottom_px??10,margin_left_px:node.column_margin_left_px??10}).replaceAll('margin_','column_margin_')+
                 paddingControls('Column padding','column',node):'');
         q('#advanced-properties').innerHTML=container?
             select('active','Visibility',node.active===false?'0':'1',[
@@ -761,6 +781,13 @@
                 item.classList.toggle('active',item===tab));
             document.querySelectorAll('[data-inspector-panel]').forEach(item=>
                 item.classList.toggle('active',item.dataset.inspectorPanel===tab.dataset.inspectorTab));
+            return;
+        }
+        const choiceButton=event.target.closest('[data-choice-field]');
+        if(choiceButton){
+            const node=nodeAt(selected);
+            setValue(node,choiceButton.dataset.choiceField,choiceButton.dataset.choiceValue);
+            props();
             return;
         }
         const popup=event.target.closest('.builder-floating-popup');

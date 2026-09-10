@@ -34,10 +34,13 @@ $rows=[[
         ],[
             'layout_type'=>'FOUR_COLUMN',
             'label_text'=>'Four labels',
+            'align_self'=>'center',
             'margin_mode'=>'ALL',
             'margin_all_px'=>0,
             'column_background_color'=>'#FEDCBA',
             'column_background_fit'=>'TILE',
+            'column_margin_mode'=>'ALL',
+            'column_margin_all_px'=>10,
             'column_padding_mode'=>'ALL',
             'column_padding_all_px'=>0,
             'column_padding_left_px'=>12,
@@ -69,8 +72,10 @@ if(($nested['background_color']??null)!=='#ABCDEF'||($nested['background_fit']??
 if(($nested['padding_top_px']??0)!==24||($nested['padding_bottom_px']??0)!==18)throw new RuntimeException('Content row padding was not preserved.');
 $columns=$normalized[0]['children'][0]['children'][1]??[];
 if(($columns['layout_type']??'')!=='FOUR_COLUMN'||($columns['label_text']??'')!=='Four labels')throw new RuntimeException('Four Columns row was not preserved.');
+if(($columns['align_self']??'')!=='center')throw new RuntimeException('Align self was not preserved.');
 if(($columns['column_background_color']??'')!=='#FEDCBA'||($columns['column_background_fit']??'')!=='TILE')throw new RuntimeException('Column style settings were not preserved.');
 if(($columns['margin_mode']??'')!=='ALL'||($columns['margin_all_px']??-1)!==0)throw new RuntimeException('Column row zero margin mode was not preserved.');
+if(($columns['column_margin_mode']??'')!=='ALL'||($columns['column_margin_all_px']??-1)!==10)throw new RuntimeException('Column margin default was not preserved.');
 if(($columns['column_padding_mode']??'')!=='ALL'||($columns['column_padding_all_px']??-1)!==0)throw new RuntimeException('Column zero padding mode was not preserved.');
 if(count($columns['columns']??[])!==4||(($columns['columns'][2]['icon_text']??'')!=='☉'))throw new RuntimeException('Four column icon presets were not preserved.');
 

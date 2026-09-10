@@ -43,6 +43,7 @@ final class PageBuilderService
                 $item['wrap_items']=array_key_exists('wrap_items',$row)?(bool)$row['wrap_items']:true;
                 $blendMode=(string)($row['blend_mode']??'normal');
                 $item['blend_mode']=in_array($blendMode,['normal','multiply','screen','overlay','darken','lighten','difference'],true)?$blendMode:'normal';
+                $item['align_self']=self::alignSelf($row['align_self']??'stretch');
                 self::applySpacing($item,$row,'margin');
                 self::applySpacing($item,$row,'padding');
                 $item['children']=self::normalizeRows(is_array($row['children']??null)?$row['children']:[],$depth+1);
@@ -61,11 +62,13 @@ final class PageBuilderService
             $item['text_align']=in_array($textAlign,['left','center','right'],true)?$textAlign:'left';
             $blendMode=(string)($row['blend_mode']??'normal');
             $item['blend_mode']=in_array($blendMode,['normal','multiply','screen','overlay','darken','lighten','difference'],true)?$blendMode:'normal';
+            $item['align_self']=self::alignSelf($row['align_self']??'stretch');
             self::applySpacing($item,$row,'margin');
             self::applySpacing($item,$row,'padding');
             $item['column_background_color']=self::optionalColor($row['column_background_color']??'');
             $item['column_background_media_id']=self::mediaId($row['column_background_media_id']??null);
             $item['column_background_fit']=self::backgroundFit($row['column_background_fit']??'FILL');
+            self::applySpacing($item,$row,'column_margin',10);
             self::applySpacing($item,$row,'column_padding');
             if(is_array($row['columns']??null)){
                 $item['columns']=[];
@@ -111,12 +114,12 @@ final class PageBuilderService
         return max(0,min(2000,(int)$value));
     }
 
-    private static function applySpacing(array&$item,array$row,string$prefix): void
+    private static function applySpacing(array&$item,array$row,string$prefix,int$defaultAll=0): void
     {
         $mode=strtoupper(trim((string)($row[$prefix.'_mode']??'ALL')));
         $item[$prefix.'_mode']=$mode==='ALL'?'ALL':'SIDES';
-        $item[$prefix.'_all_px']=self::pixels($row[$prefix.'_all_px']??0);
-        foreach(['top','right','bottom','left']as$edge)$item[$prefix.'_'.$edge.'_px']=self::pixels($row[$prefix.'_'.$edge.'_px']??0);
+        $item[$prefix.'_all_px']=self::pixels($row[$prefix.'_all_px']??$defaultAll);
+        foreach(['top','right','bottom','left']as$edge)$item[$prefix.'_'.$edge.'_px']=self::pixels($row[$prefix.'_'.$edge.'_px']??$defaultAll);
     }
 
     private static function color(mixed$value): string
@@ -158,6 +161,12 @@ final class PageBuilderService
     {
         $value=trim((string)$value);
         return in_array($value,['flex-start','center','flex-end','stretch'],true)?$value:'stretch';
+    }
+
+    private static function alignSelf(mixed$value): string
+    {
+        $value=trim((string)$value);
+        return in_array($value,['auto','flex-start','center','flex-end','stretch'],true)?$value:'stretch';
     }
 
     private static function mediaId(mixed$value): ?int
