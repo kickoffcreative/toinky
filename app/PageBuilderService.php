@@ -34,6 +34,9 @@ final class PageBuilderService
             if($layout==='CONTAINER'){
                 $item['background_color']=self::optionalColor($row['background_color']??'');
                 $item['background_media_id']=self::mediaId($row['background_media_id']??null);
+                $item['background_fit']=self::backgroundFit($row['background_fit']??'FILL');
+                $item['content_width']=self::contentWidth($row['content_width']??'FULL');
+                $item['max_width_px']=self::maxWidth($row['max_width_px']??1980);
                 foreach(['top','right','bottom','left']as$edge)$item['padding_'.$edge.'_px']=self::pixels($row['padding_'.$edge.'_px']??0);
                 $item['children']=self::normalizeRows(is_array($row['children']??null)?$row['children']:[],$depth+1);
                 $out[]=$item;
@@ -45,12 +48,17 @@ final class PageBuilderService
             $item['image_media_id']=self::mediaId($row['image_media_id']??null);
             $item['background_media_id']=self::mediaId($row['background_media_id']??null);
             $item['background_color']=self::optionalColor($row['background_color']??'');
+            $item['background_fit']=self::backgroundFit($row['background_fit']??'FILL');
             $item['text_color']=self::optionalColor($row['text_color']??'');
             $textAlign=(string)($row['text_align']??'left');
             $item['text_align']=in_array($textAlign,['left','center','right'],true)?$textAlign:'left';
             $blendMode=(string)($row['blend_mode']??'normal');
             $item['blend_mode']=in_array($blendMode,['normal','multiply','screen','overlay','darken','lighten','difference'],true)?$blendMode:'normal';
             foreach(['top','right','bottom','left']as$edge)$item['padding_'.$edge.'_px']=self::pixels($row['padding_'.$edge.'_px']??0);
+            $item['column_background_color']=self::optionalColor($row['column_background_color']??'');
+            $item['column_background_media_id']=self::mediaId($row['column_background_media_id']??null);
+            $item['column_background_fit']=self::backgroundFit($row['column_background_fit']??'FILL');
+            foreach(['top','right','bottom','left']as$edge)$item['column_padding_'.$edge.'_px']=self::pixels($row['column_padding_'.$edge.'_px']??0);
             if(is_array($row['columns']??null)){
                 $item['columns']=[];
                 foreach(array_slice($row['columns'],0,4)as$column){
@@ -105,6 +113,23 @@ final class PageBuilderService
     {
         $value=strtoupper(trim((string)$value));
         return preg_match('/^#[0-9A-F]{6}([0-9A-F]{2})?$/',$value)?$value:'';
+    }
+
+    private static function backgroundFit(mixed$value): string
+    {
+        $value=strtoupper(trim((string)$value));
+        return in_array($value,['FILL','FIT','TILE'],true)?$value:'FILL';
+    }
+
+    private static function contentWidth(mixed$value): string
+    {
+        $value=strtoupper(trim((string)$value));
+        return in_array($value,['FULL','MAX'],true)?$value:'FULL';
+    }
+
+    private static function maxWidth(mixed$value): int
+    {
+        return max(320,min(3840,(int)$value?:1980));
     }
 
     private static function mediaId(mixed$value): ?int

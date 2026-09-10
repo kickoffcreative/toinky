@@ -103,6 +103,16 @@
         ['FOUR_COLUMN','Four Columns'],
         ['SOCIALS','Social Buttons']
     ];
+    const backgroundFitOptions=[['FILL','Fill'],['FIT','Fit'],['TILE','Tile']];
+    const contentWidthOptions=[['FULL','Full Screen Width'],['MAX','Max Width']];
+    const iconOptions=[
+        ['','No icon'],['✦','Spark'],['◆','Diamond'],['◇','Open Diamond'],
+        ['◐','Half Moon'],['○','Circle'],['●','Filled Circle'],['△','Triangle'],
+        ['▽','Down Triangle'],['☉','Sun'],['☾','Moon'],['♙','Pawn'],
+        ['♜','Tower'],['⚑','Flag'],['⚙','Gear'],['⚖','Balance'],
+        ['✉','Message'],['⌁','Wave'],['∞','Infinity'],['?','Question'],
+        ['!','Alert']
+    ];
 
     const nodeAt=path=>{
         let node=rows[path[0]];
@@ -236,6 +246,22 @@
             '<textarea data-field="'+escapeHtml(name)+'">'+
             escapeHtml(value??'')+'</textarea></label>';
     };
+    const subheading=title=>'<div class="builder-subheading">'+escapeHtml(title)+'</div>';
+    const backgroundControls=(title,prefix,node)=>{
+        const key=name=>prefix?prefix+'_'+name:name;
+        return subheading(title)+
+            field(key('background_color'),'Background color',node[key('background_color')]||'','color')+
+            select(key('background_media_id'),'Background image',node[key('background_media_id')]||'',mediaOptions)+
+            select(key('background_fit'),'Image fill',node[key('background_fit')]||'FILL',backgroundFitOptions);
+    };
+    const paddingControls=(title,prefix,node)=>{
+        const key=edge=>prefix?prefix+'_padding_'+edge+'_px':'padding_'+edge+'_px';
+        return subheading(title)+
+            field(key('top'),'Top padding',node[key('top')]||0,'number')+
+            field(key('right'),'Right padding',node[key('right')]||0,'number')+
+            field(key('bottom'),'Bottom padding',node[key('bottom')]||0,'number')+
+            field(key('left'),'Left padding',node[key('left')]||0,'number');
+    };
 
     const layoutControl=node=>{
         return '<div class="builder-layout-control"><span>Row layout</span>'+
@@ -277,7 +303,7 @@
             Array.from({length:count},(_,index)=>{
                 const column=node.columns[index]||{};
                 return '<div class="builder-column">'+
-                    field('columns.'+index+'.icon_text','Icon',column.icon_text||'')+
+                    select('columns.'+index+'.icon_text','Icon',column.icon_text||'',iconOptions)+
                     field('columns.'+index+'.title','Column title',column.title||'')+
                     area('columns.'+index+'.content','Column content',column.content||'')+
                     '</div>';
@@ -310,13 +336,17 @@
                 area('bullets_text','Bullets, one per line',(node.bullets||[]).join('\n')):'')+
             renderColumns(node));
         q('#style-properties').innerHTML=container?
-            field('background_color','Background color',node.background_color||'#F4EEE2','color')+
-            select('background_media_id','Background image',node.background_media_id||'',mediaOptions)+
-            field('padding_top_px','Top padding',node.padding_top_px||0,'number')+
-            field('padding_right_px','Right padding',node.padding_right_px||0,'number')+
-            field('padding_bottom_px','Bottom padding',node.padding_bottom_px||0,'number')+
-            field('padding_left_px','Left padding',node.padding_left_px||0,'number'):
-            select('image_media_id','Content image',node.image_media_id||'',mediaOptions);
+            select('content_width','Content width',node.content_width||'FULL',contentWidthOptions)+
+            ((node.content_width||'FULL')==='MAX'?field('max_width_px','Max width (px)',node.max_width_px||1980,'number'):'')+
+            backgroundControls('Container background','',node)+
+            paddingControls('Container padding','',node):
+            (['IMAGE_LEFT','IMAGE_RIGHT'].includes(node.layout_type)?
+                select('image_media_id','Content image',node.image_media_id||'',mediaOptions):'')+
+            backgroundControls('Main box background','',node)+
+            paddingControls('Main box padding','',node)+
+            (['CARDS_ONLY','THREE_COLUMN','FOUR_COLUMN'].includes(node.layout_type)?
+                backgroundControls('Column background','column',node)+
+                paddingControls('Column padding','column',node):'');
         q('#advanced-properties').innerHTML=
             select('active','Visibility',node.active===false?'0':'1',[
                 ['1','Visible'],['0','Hidden']
@@ -681,6 +711,7 @@
         }
         if(name==='layout_type'&&node.layout_type==='CONTAINER')ensureChildren(node);
         if(name!=='active'&&node.layout_type!=='CONTAINER')node.active=true;
+        if(name==='content_width')props();
         sync();
     });
 
