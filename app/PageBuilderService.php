@@ -32,7 +32,7 @@ final class PageBuilderService
                 'active'=>array_key_exists('active',$row)?(bool)$row['active']:true,
             ];
             if($layout==='CONTAINER'){
-                $item['background_color']=self::color($row['background_color']??'#F4EEE2');
+                $item['background_color']=self::optionalColor($row['background_color']??'');
                 $item['background_media_id']=self::mediaId($row['background_media_id']??null);
                 foreach(['top','right','bottom','left']as$edge)$item['padding_'.$edge.'_px']=self::pixels($row['padding_'.$edge.'_px']??0);
                 $item['children']=self::normalizeRows(is_array($row['children']??null)?$row['children']:[],$depth+1);
@@ -44,8 +44,8 @@ final class PageBuilderService
             $item['bullets']=self::listValues($row['bullets']??[]);
             $item['image_media_id']=self::mediaId($row['image_media_id']??null);
             $item['background_media_id']=self::mediaId($row['background_media_id']??null);
-            $item['background_color']=self::color($row['background_color']??'#F4EEE2');
-            $item['text_color']=self::color($row['text_color']??'#1C242B');
+            $item['background_color']=self::optionalColor($row['background_color']??'');
+            $item['text_color']=self::optionalColor($row['text_color']??'');
             $textAlign=(string)($row['text_align']??'left');
             $item['text_align']=in_array($textAlign,['left','center','right'],true)?$textAlign:'left';
             $blendMode=(string)($row['blend_mode']??'normal');
@@ -99,6 +99,12 @@ final class PageBuilderService
     {
         $value=strtoupper(trim((string)$value));
         return preg_match('/^#[0-9A-F]{6}$/',$value)?$value:'#F4EEE2';
+    }
+
+    private static function optionalColor(mixed$value): string
+    {
+        $value=strtoupper(trim((string)$value));
+        return preg_match('/^#[0-9A-F]{6}([0-9A-F]{2})?$/',$value)?$value:'';
     }
 
     private static function mediaId(mixed$value): ?int

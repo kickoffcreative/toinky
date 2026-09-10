@@ -292,3 +292,13 @@
 - **Structure UI:** Reduced the floating Structure popup width and row height, hid redundant layout text, tightened indentation, and changed Structure action buttons to compact icon-style controls with accessible labels/titles for add content, add Container, layout, and delete.
 - **Verification:** Local checks passed: PHP lint for `app/PageContentService.php` and `public/page-builder.php`; `node --check public/assets/toinky-page-builder.js`; `tools/page_builder_contract_test.php`; `tools/page_builder_recursive_contract_test.php`; `git diff --check`.
 - **Next step for other task:** Pull/deploy `main` before testing. Check rename, delete on a non-default section, and Structure popup density in browser after a hard refresh.
+
+
+## 2026-09-09 - Page Builder root Container background fix
+
+- **Task/computer:** Windows Codex task, branch `page-builder-structure-popover`.
+- **Current request:** Main Container row background color/image was not showing in the public preview/page.
+- **Diagnosis:** The root Container was rendering as an inner wrapper inside the public section, while child rows were normalized with a default cream row background. That made the parent Container background appear ineffective. Some row background images could also 404 because `theme-media.php?id=...` only allowed a narrow set of media types.
+- **Completed:** Root Container styles now map to outer section-level `--container-*` variables and the renderer outputs the root Container's children directly inside that public section. Container and content rows no longer receive forced fallback background/text colors during Page Builder normalization, so child rows stay transparent unless explicitly styled. Public CSS now applies root Container background color/image/padding to `.layout-rows`. `theme-media.php` now allows active image media referenced from section row JSON.
+- **Tests:** `node --check public/assets/toinky-page-builder.js` passed. `git diff --check` passed. PHP lint could not be run in the Windows checkout because `php` is not installed on PATH.
+- **Outstanding:** Before deployment, run production PHP lint for `app/PageBuilderService.php`, `public/index.php`, and `public/theme-media.php`, plus `tools/page_builder_recursive_contract_test.php`. Then save a section with a root Container background color and image and refresh the preview.
