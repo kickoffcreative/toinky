@@ -233,11 +233,11 @@
         const deleteButton=deletable?
             '<button type="button" class="builder-node-delete" data-delete="'+
             path.join('.')+'" aria-label="Delete '+escapeHtml(layoutTitle(node.layout_type))+
-            '">x</button>':'';
+            '" title="Delete">x</button>':'';
         const container=node.layout_type==='CONTAINER';
         const children=container?(node.children||[]):[];
         const layoutButton=!container&&pathsEqual(path,selected)?
-            '<button type="button" class="builder-structure-layout-button" data-layout-open>Layout</button>':'';
+            '<button type="button" class="builder-structure-layout-button" data-layout-open aria-label="Change layout" title="Change layout">#</button>':'';
         return '<div class="builder-structure-row '+(pathsEqual(path,selected)?'selected':'')+
             '" style="--depth:'+depth+'"><button type="button" data-select="'+
             path.join('.')+'"><span class="builder-structure-caret" aria-hidden="true">'+
@@ -248,9 +248,9 @@
             (container?children.map((child,index)=>
             renderStructureNode(child,path.concat(index),depth+1)).join('')+
             '<div class="builder-structure-actions" style="--depth:'+(depth+1)+'">'+
-            '<button type="button" data-add="'+path.join('.')+'">Add content row</button>'+
+            '<button type="button" data-add="'+path.join('.')+'" aria-label="Add content row" title="Add content row">+T</button>'+
             '<button type="button" class="alt" data-add-container="'+path.join('.')+
-            '">Add Container</button></div>':'');
+            '" aria-label="Add Container" title="Add Container">+[]</button></div>':'');
     };
 
     const renderColumns=node=>{

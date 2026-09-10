@@ -282,3 +282,13 @@
 - **Task/computer:** Windows Codex task.
 - **Instruction:** When the user says `push` for this repo, treat it as publishing the ready work to `main`, not only pushing a side branch, unless the user explicitly asks for branch-only publication.
 - **Current action:** The Page Builder structure work from branch `page-builder-structure-popover` is being fast-forwarded to `main` after this handoff update.
+
+
+## 2026-09-09 - Page Builder parent section tools and compact Structure popup
+
+- **Task/computer:** Windows Codex task, branch `page-builder-structure-popover`.
+- **Current request:** Add rename/delete controls for parent Container sections and make the Structure popup more compact with smaller text, thinner width, and icon-style buttons.
+- **Completed:** Added `PageContentService::renameSection()` and Page Builder POST actions for `rename_section` and `delete_section`. Non-Hero selected sections now show a compact Section name form and Delete button in the builder sidebar; default sections remain protected from deletion by the existing service rule.
+- **Structure UI:** Reduced the floating Structure popup width and row height, hid redundant layout text, tightened indentation, and changed Structure action buttons to compact icon-style controls with accessible labels/titles for add content, add Container, layout, and delete.
+- **Verification:** Local checks passed: PHP lint for `app/PageContentService.php` and `public/page-builder.php`; `node --check public/assets/toinky-page-builder.js`; `tools/page_builder_contract_test.php`; `tools/page_builder_recursive_contract_test.php`; `git diff --check`.
+- **Next step for other task:** Pull/deploy `main` before testing. Check rename, delete on a non-default section, and Structure popup density in browser after a hard refresh.

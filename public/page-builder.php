@@ -41,6 +41,18 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
             header('Location: page-builder.php?page='.rawurlencode($pageCode).'&section='.$sectionId.'&saved=1');
             exit;
         }
+        if($action==='rename_section'){
+            $sectionId=(int)($_POST['section_id']??0);
+            PageContentService::renameSection($admin,$sectionId,(string)($_POST['section_label']??''));
+            header('Location: page-builder.php?page='.rawurlencode($pageCode).'&section='.$sectionId.'&saved=1');
+            exit;
+        }
+        if($action==='delete_section'){
+            $sectionId=(int)($_POST['section_id']??0);
+            PageContentService::deleteSection($admin,$sectionId);
+            header('Location: page-builder.php?page='.rawurlencode($pageCode).'&saved=1');
+            exit;
+        }
         if($action!=='save_page_builder')throw new RuntimeException('Unknown page builder action.');
         $sectionId=(int)($_POST['section_id']??0);
         $sectionById=null;
@@ -67,7 +79,7 @@ function builder_e(string $value): string{return htmlspecialchars($value,ENT_QUO
 <title>Page Builder</title>
 <link rel="stylesheet" href="assets/toinky-admin-shell.css">
 <link rel="stylesheet" href="assets/toinky-admin-workspace.css">
-<link rel="stylesheet" href="assets/toinky-page-builder.css?v=20260909-structure-popup">
+<link rel="stylesheet" href="assets/toinky-page-builder.css?v=20260909-section-tools">
 </head>
 <body class="page-builder-app">
 <header class="page-builder-topbar">
@@ -97,6 +109,10 @@ function builder_e(string $value): string{return htmlspecialchars($value,ENT_QUO
 <?php endforeach;?>
 </nav>
 <?php if($section&&($section['section_code']??'')!=='HERO'):?>
+<div class="section-tools">
+<form method="post" class="section-rename-form"><input type="hidden" name="csrf_token" value="<?=htmlspecialchars(AuthService::csrfToken(),ENT_QUOTES,'UTF-8')?>"><input type="hidden" name="action" value="rename_section"><input type="hidden" name="section_id" value="<?=(int)$section['site_page_section_id']?>"><label>Section name<input name="section_label" maxlength="120" value="<?=builder_e((string)($section['label_text']??''))?>" required></label><button type="submit">Rename</button></form>
+<form method="post" class="section-delete-form" onsubmit="return confirm('Delete this section? This cannot be undone.');"><input type="hidden" name="csrf_token" value="<?=htmlspecialchars(AuthService::csrfToken(),ENT_QUOTES,'UTF-8')?>"><input type="hidden" name="action" value="delete_section"><input type="hidden" name="section_id" value="<?=(int)$section['site_page_section_id']?>"><button type="submit" <?=!empty($section['is_default'])?'disabled title="Default sections can be hidden but not deleted."':'title="Delete section"'?>>Delete</button></form>
+</div>
 <form method="post" id="builder-form">
 <input type="hidden" name="csrf_token" value="<?=htmlspecialchars(AuthService::csrfToken(),ENT_QUOTES,'UTF-8')?>"><input type="hidden" name="action" value="save_page_builder"><input type="hidden" name="section_id" value="<?=(int)$section['site_page_section_id']?>"><input type="hidden" name="rows_payload" id="rows-payload">
 <div class="inspector-heading"><span>Editing</span><strong><?=builder_e((string)$section['label_text'])?></strong></div>
@@ -115,6 +131,6 @@ function builder_e(string $value): string{return htmlspecialchars($value,ENT_QUO
 <script>
 window.toinkyPageBuilder={page:<?=json_encode($pageCode)?>,rows:<?=json_encode($rows,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT)?>,media:<?=json_encode($pageMedia,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT)?>,hero:<?=json_encode(($section['section_code']??'')==='HERO')?>};
 </script>
-<script src="assets/toinky-page-builder.js?v=20260909-structure-popup" defer></script>
+<script src="assets/toinky-page-builder.js?v=20260909-section-tools" defer></script>
 </body>
 </html>
