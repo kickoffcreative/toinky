@@ -99,12 +99,14 @@
         ['TEXT_BULLETS','Text With Bulleted List'],
         ['IMAGE_RIGHT','Image On Right'],
         ['IMAGE_LEFT','Image On Left'],
+        ['TWO_COLUMN','Two Columns'],
         ['THREE_COLUMN','Three Columns'],
         ['FOUR_COLUMN','Four Columns'],
         ['SOCIALS','Social Buttons']
     ];
     const backgroundFitOptions=[['FILL','Fill'],['FIT','Fit'],['TILE','Tile']];
     const contentWidthOptions=[['FULL','Full Screen Width'],['MAX','Max Width']];
+    const spacingModeOptions=[['SIDES','Different each side'],['ALL','Same all sides']];
     const iconOptions=[
         ['','No icon'],['✦','Spark'],['◆','Diamond'],['◇','Open Diamond'],
         ['◐','Half Moon'],['○','Circle'],['●','Filled Circle'],['△','Triangle'],
@@ -199,11 +201,29 @@
     };
     const number=value=>String(Math.round(value*100)/100);
 
+    let previewScroll={x:0,y:0};
+    const readPreviewScroll=()=>{
+        const frame=q('#page-preview');
+        try{
+            if(frame&&frame.contentWindow)previewScroll={
+                x:frame.contentWindow.scrollX||0,
+                y:frame.contentWindow.scrollY||0
+            };
+        }catch(error){}
+    };
+    q('#page-preview')?.addEventListener('load',()=>{
+        const frame=q('#page-preview');
+        try{
+            if(frame&&frame.contentWindow)frame.contentWindow.scrollTo(previewScroll.x,previewScroll.y);
+        }catch(error){}
+    });
+
     renderDraftPreview=(immediate=false)=>{
         const form=q('#preview-form');
         const payload=q('#preview-rows-payload');
         if(!form||!payload)return;
         const submit=()=>{
+            readPreviewScroll();
             payload.value=JSON.stringify(rows);
             if(form.requestSubmit)form.requestSubmit();
             else form.submit();
@@ -255,12 +275,28 @@
             select(key('background_fit'),'Image fill',node[key('background_fit')]||'FILL',backgroundFitOptions);
     };
     const paddingControls=(title,prefix,node)=>{
-        const key=edge=>prefix?prefix+'_padding_'+edge+'_px':'padding_'+edge+'_px';
+        const base=prefix?prefix+'_padding':'padding';
+        const modeKey=base+'_mode';
+        const allKey=base+'_all_px';
+        const key=edge=>base+'_'+edge+'_px';
+        const mode=node[modeKey]||'SIDES';
         return subheading(title)+
-            field(key('top'),'Top padding',node[key('top')]||0,'number')+
-            field(key('right'),'Right padding',node[key('right')]||0,'number')+
-            field(key('bottom'),'Bottom padding',node[key('bottom')]||0,'number')+
-            field(key('left'),'Left padding',node[key('left')]||0,'number');
+            select(modeKey,'Mode',mode,spacingModeOptions)+
+            (mode==='ALL'?field(allKey,'All sides',node[allKey]||0,'number'):
+                field(key('top'),'Top',node[key('top')]||0,'number')+
+                field(key('right'),'Right',node[key('right')]||0,'number')+
+                field(key('bottom'),'Bottom',node[key('bottom')]||0,'number')+
+                field(key('left'),'Left',node[key('left')]||0,'number'));
+    };
+    const marginControls=(title,node)=>{
+        const mode=node.margin_mode||'SIDES';
+        return subheading(title)+
+            select('margin_mode','Mode',mode,spacingModeOptions)+
+            (mode==='ALL'?field('margin_all_px','All sides',node.margin_all_px||0,'number'):
+                field('margin_top_px','Top',node.margin_top_px||0,'number')+
+                field('margin_right_px','Right',node.margin_right_px||0,'number')+
+                field('margin_bottom_px','Bottom',node.margin_bottom_px||0,'number')+
+                field('margin_left_px','Left',node.margin_left_px||0,'number'));
     };
 
     const layoutControl=node=>{
@@ -296,8 +332,8 @@
     };
 
     const renderColumns=node=>{
-        if(!['CARDS_ONLY','THREE_COLUMN','FOUR_COLUMN'].includes(node.layout_type))return '';
-        const count=node.layout_type==='FOUR_COLUMN'?4:3;
+        if(!['CARDS_ONLY','TWO_COLUMN','THREE_COLUMN','FOUR_COLUMN'].includes(node.layout_type))return '';
+        const count=node.layout_type==='TWO_COLUMN'?2:(node.layout_type==='FOUR_COLUMN'?4:3);
         node.columns=Array.isArray(node.columns)?node.columns:[];
         return '<div class="builder-subheading">Columns</div>'+
             Array.from({length:count},(_,index)=>{
@@ -339,12 +375,14 @@
             select('content_width','Content width',node.content_width||'FULL',contentWidthOptions)+
             ((node.content_width||'FULL')==='MAX'?field('max_width_px','Max width (px)',node.max_width_px||1980,'number'):'')+
             backgroundControls('Container background','',node)+
+            marginControls('Container margin',node)+
             paddingControls('Container padding','',node):
             (['IMAGE_LEFT','IMAGE_RIGHT'].includes(node.layout_type)?
                 select('image_media_id','Content image',node.image_media_id||'',mediaOptions):'')+
             backgroundControls('Main box background','',node)+
+            marginControls('Main box margin',node)+
             paddingControls('Main box padding','',node)+
-            (['CARDS_ONLY','THREE_COLUMN','FOUR_COLUMN'].includes(node.layout_type)?
+            (['CARDS_ONLY','TWO_COLUMN','THREE_COLUMN','FOUR_COLUMN'].includes(node.layout_type)?
                 backgroundControls('Column background','column',node)+
                 paddingControls('Column padding','column',node):'');
         q('#advanced-properties').innerHTML=
@@ -711,7 +749,7 @@
         }
         if(name==='layout_type'&&node.layout_type==='CONTAINER')ensureChildren(node);
         if(name!=='active'&&node.layout_type!=='CONTAINER')node.active=true;
-        if(name==='content_width')props();
+        if(['content_width','padding_mode','margin_mode','column_padding_mode'].includes(name))props();
         sync();
     });
 

@@ -37,7 +37,8 @@ final class PageBuilderService
                 $item['background_fit']=self::backgroundFit($row['background_fit']??'FILL');
                 $item['content_width']=self::contentWidth($row['content_width']??'FULL');
                 $item['max_width_px']=self::maxWidth($row['max_width_px']??1980);
-                foreach(['top','right','bottom','left']as$edge)$item['padding_'.$edge.'_px']=self::pixels($row['padding_'.$edge.'_px']??0);
+                self::applySpacing($item,$row,'margin');
+                self::applySpacing($item,$row,'padding');
                 $item['children']=self::normalizeRows(is_array($row['children']??null)?$row['children']:[],$depth+1);
                 $out[]=$item;
                 continue;
@@ -54,14 +55,15 @@ final class PageBuilderService
             $item['text_align']=in_array($textAlign,['left','center','right'],true)?$textAlign:'left';
             $blendMode=(string)($row['blend_mode']??'normal');
             $item['blend_mode']=in_array($blendMode,['normal','multiply','screen','overlay','darken','lighten','difference'],true)?$blendMode:'normal';
-            foreach(['top','right','bottom','left']as$edge)$item['padding_'.$edge.'_px']=self::pixels($row['padding_'.$edge.'_px']??0);
+            self::applySpacing($item,$row,'margin');
+            self::applySpacing($item,$row,'padding');
             $item['column_background_color']=self::optionalColor($row['column_background_color']??'');
             $item['column_background_media_id']=self::mediaId($row['column_background_media_id']??null);
             $item['column_background_fit']=self::backgroundFit($row['column_background_fit']??'FILL');
-            foreach(['top','right','bottom','left']as$edge)$item['column_padding_'.$edge.'_px']=self::pixels($row['column_padding_'.$edge.'_px']??0);
+            self::applySpacing($item,$row,'column_padding');
             if(is_array($row['columns']??null)){
                 $item['columns']=[];
-                foreach(array_slice($row['columns'],0,4)as$column){
+                foreach(array_slice($row['columns'],0,6)as$column){
                     if(!is_array($column))$column=[];
                     $item['columns'][]=[
                         'icon_text'=>self::text($column['icon_text']??'',120),
@@ -101,6 +103,14 @@ final class PageBuilderService
     private static function pixels(mixed$value): int
     {
         return max(0,min(2000,(int)$value));
+    }
+
+    private static function applySpacing(array&$item,array$row,string$prefix): void
+    {
+        $mode=strtoupper(trim((string)($row[$prefix.'_mode']??'SIDES')));
+        $item[$prefix.'_mode']=$mode==='ALL'?'ALL':'SIDES';
+        $item[$prefix.'_all_px']=self::pixels($row[$prefix.'_all_px']??0);
+        foreach(['top','right','bottom','left']as$edge)$item[$prefix.'_'.$edge.'_px']=self::pixels($row[$prefix.'_'.$edge.'_px']??0);
     }
 
     private static function color(mixed$value): string

@@ -94,7 +94,7 @@ function builder_e(string $value): string{return htmlspecialchars($value,ENT_QUO
 <form method="post" id="section-add-form" class="section-add-form">
 <input type="hidden" name="csrf_token" value="<?=htmlspecialchars(AuthService::csrfToken(),ENT_QUOTES,'UTF-8')?>"><input type="hidden" name="action" value="add_section">
 <label>New section<input type="text" name="section_label" maxlength="120" placeholder="Section name" required></label>
-<label>First content<select name="section_layout"><option value="CONTAINER">Empty Container</option><option value="TEXT_TOP">Top Text Only</option><option value="TEXT_CENTER">Text Center</option><option value="IMAGE_RIGHT">Image On Right</option><option value="IMAGE_LEFT">Image On Left</option><option value="THREE_COLUMN">Three Columns</option><option value="FOUR_COLUMN">Four Columns</option><option value="CARDS_ONLY">Cards Only</option><option value="TEXT_BULLETS">Text With Bulleted List</option><option value="STORY_CARDS">Story Cards</option><option value="SOCIALS">Social Buttons</option></select></label>
+<label>First content<select name="section_layout"><option value="CONTAINER">Empty Container</option><option value="TEXT_TOP">Top Text Only</option><option value="TEXT_CENTER">Text Center</option><option value="IMAGE_RIGHT">Image On Right</option><option value="IMAGE_LEFT">Image On Left</option><option value="TWO_COLUMN">Two Columns</option><option value="THREE_COLUMN">Three Columns</option><option value="FOUR_COLUMN">Four Columns</option><option value="CARDS_ONLY">Cards Only</option><option value="TEXT_BULLETS">Text With Bulleted List</option><option value="STORY_CARDS">Story Cards</option><option value="SOCIALS">Social Buttons</option></select></label>
 <button type="submit">Add Section</button>
 </form>
 <form method="post" id="section-order-form" class="section-order-form">
@@ -131,6 +131,6 @@ function builder_e(string $value): string{return htmlspecialchars($value,ENT_QUO
 <script>
 window.toinkyPageBuilder={page:<?=json_encode($pageCode)?>,rows:<?=json_encode($rows,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT)?>,media:<?=json_encode($pageMedia,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT)?>,hero:<?=json_encode(($section['section_code']??'')==='HERO')?>};
 </script>
-<script src="assets/toinky-page-builder.js?v=20260910-container-layout" defer></script>
+<script src="assets/toinky-page-builder.js?v=20260910-spacing" defer></script>
 </body>
 </html>
