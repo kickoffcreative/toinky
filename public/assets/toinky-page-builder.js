@@ -32,6 +32,7 @@
     const orderInput=q('#section-order');
     const orderSave=q('#section-order-save');
     let draggedSection=null;
+    let draggedStructurePath=null;
 
     const syncSectionOrder=()=>{
         if(!sectionNav||!orderInput)return;
@@ -364,7 +365,8 @@
         const layoutButton=!container&&pathsEqual(path,selected)?
             '<button type="button" class="builder-structure-layout-button" data-layout-open aria-label="Change layout" title="Change layout">#</button>':'';
         return '<div class="builder-structure-row '+(pathsEqual(path,selected)?'selected':'')+
-            '" style="--depth:'+depth+'"><button type="button" data-select="'+
+            '" style="--depth:'+depth+'" data-structure-path="'+path.join('.')+
+            '" draggable="'+(path.length>1?'true':'false')+'"><button type="button" data-select="'+
             path.join('.')+'"><span class="builder-structure-caret" aria-hidden="true">'+
             (container&&children.length?'>':'')+'</span><span class="builder-structure-icon" aria-hidden="true">'+
             (container?'[]':'T')+'</span><span class="builder-structure-name">'+
@@ -539,6 +541,31 @@
         if(!body)return;
         body.innerHTML='<div class="builder-structure-list">'+
             renderStructureNode(rows[0],[0])+'</div>';
+    };
+
+    const clearStructureDropState=()=>{
+        document.querySelectorAll('.builder-structure-row').forEach(row=>{
+            row.classList.remove('is-dragging','drop-before','drop-after');
+        });
+    };
+
+    const sameParentPath=(left,right)=>{
+        if(!left||!right||left.length!==right.length||left.length<2)return false;
+        return left.slice(0,-1).every((item,index)=>item===right[index]);
+    };
+
+    const moveStructureNode=(fromPath,toPath,after)=>{
+        if(!sameParentPath(fromPath,toPath))return false;
+        const parent=nodeAt(fromPath.slice(0,-1));
+        if(!parent||!Array.isArray(parent.children))return false;
+        const fromIndex=fromPath[fromPath.length-1];
+        let toIndex=toPath[toPath.length-1]+(after?1:0);
+        if(fromIndex===toIndex||fromIndex+1===toIndex)return false;
+        const moved=parent.children.splice(fromIndex,1)[0];
+        if(fromIndex<toIndex)toIndex-=1;
+        parent.children.splice(toIndex,0,moved);
+        selected=fromPath.slice(0,-1).concat(toIndex);
+        return true;
     };
 
     const openStructurePopup=(anchor,position=null)=>{
@@ -833,6 +860,46 @@
         }
         const popup=event.target.closest('.builder-floating-popup');
         if(!popup)closeFloating();
+    });
+
+    document.addEventListener('dragstart',event=>{
+        const row=event.target.closest('.builder-structure-row[draggable="true"]');
+        if(!row||event.target.closest('[data-delete],[data-layout-open]'))return;
+        draggedStructurePath=row.dataset.structurePath.split('.').map(Number);
+        row.classList.add('is-dragging');
+        if(event.dataTransfer){
+            event.dataTransfer.effectAllowed='move';
+            event.dataTransfer.setData('text/plain',row.dataset.structurePath);
+        }
+    });
+
+    document.addEventListener('dragover',event=>{
+        const row=event.target.closest('.builder-structure-row[draggable="true"]');
+        if(!row||!draggedStructurePath)return;
+        const targetPath=row.dataset.structurePath.split('.').map(Number);
+        if(!sameParentPath(draggedStructurePath,targetPath)||pathsEqual(draggedStructurePath,targetPath))return;
+        event.preventDefault();
+        const rect=row.getBoundingClientRect();
+        const after=event.clientY>rect.top+rect.height/2;
+        clearStructureDropState();
+        row.classList.add(after?'drop-after':'drop-before');
+    });
+
+    document.addEventListener('drop',event=>{
+        const row=event.target.closest('.builder-structure-row[draggable="true"]');
+        if(!row||!draggedStructurePath)return;
+        const targetPath=row.dataset.structurePath.split('.').map(Number);
+        const rect=row.getBoundingClientRect();
+        const after=event.clientY>rect.top+rect.height/2;
+        event.preventDefault();
+        if(moveStructureNode(draggedStructurePath,targetPath,after))props();
+        draggedStructurePath=null;
+        clearStructureDropState();
+    });
+
+    document.addEventListener('dragend',()=>{
+        draggedStructurePath=null;
+        clearStructureDropState();
     });
 
     document.addEventListener('input',event=>{
