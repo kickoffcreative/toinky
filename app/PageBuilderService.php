@@ -32,6 +32,8 @@ final class PageBuilderService
                 'active'=>self::boolValue($row['active']??true),
             ];
             if($layout==='CONTAINER'){
+                $item['style_name']=self::text($row['style_name']??'',80);
+                $item['spacing_preset']=self::spacingPreset($row['spacing_preset']??'');
                 $item['background_color']=self::optionalColor($row['background_color']??'');
                 $item['background_media_id']=self::mediaId($row['background_media_id']??null);
                 $item['background_fit']=self::backgroundFit($row['background_fit']??'FILL');
@@ -46,16 +48,24 @@ final class PageBuilderService
                 $item['align_self']=self::alignSelf($row['align_self']??'stretch');
                 self::applySpacing($item,$row,'margin');
                 self::applySpacing($item,$row,'padding');
+                self::applyResponsive($item,$row);
+                if($depth===0)$item['style_library']=self::styleLibrary($row['style_library']??[]);
                 $item['children']=self::normalizeRows(is_array($row['children']??null)?$row['children']:[],$depth+1);
                 $out[]=$item;
                 continue;
             }
+            $item['style_name']=self::text($row['style_name']??'',80);
+            $item['spacing_preset']=self::spacingPreset($row['spacing_preset']??'');
             foreach(['label_text','eyebrow_text','title_text']as$key)$item[$key]=self::text($row[$key]??'',500);
             $item['content_html']=self::html($row['content_html']??'');
             $item['bullets']=self::listValues($row['bullets']??[]);
             $item['image_media_id']=self::mediaId($row['image_media_id']??null);
             $item['image_width_px']=self::imagePixels($row['image_width_px']??0);
             $item['image_height_px']=self::imagePixels($row['image_height_px']??0);
+            $item['tablet_image_width_px']=self::imagePixels($row['tablet_image_width_px']??0);
+            $item['tablet_image_height_px']=self::imagePixels($row['tablet_image_height_px']??0);
+            $item['mobile_image_width_px']=self::imagePixels($row['mobile_image_width_px']??0);
+            $item['mobile_image_height_px']=self::imagePixels($row['mobile_image_height_px']??0);
             $item['background_media_id']=self::mediaId($row['background_media_id']??null);
             $item['background_color']=self::optionalColor($row['background_color']??'');
             $item['background_fit']=self::backgroundFit($row['background_fit']??'FILL');
@@ -67,6 +77,7 @@ final class PageBuilderService
             $item['align_self']=self::alignSelf($row['align_self']??'stretch');
             self::applySpacing($item,$row,'margin');
             self::applySpacing($item,$row,'padding');
+            self::applyResponsive($item,$row);
             $item['column_background_color']=self::optionalColor($row['column_background_color']??'');
             $item['column_background_media_id']=self::mediaId($row['column_background_media_id']??null);
             $item['column_background_fit']=self::backgroundFit($row['column_background_fit']??'FILL');
@@ -140,6 +151,49 @@ final class PageBuilderService
         $item[$prefix.'_mode']=$mode==='ALL'?'ALL':'SIDES';
         $item[$prefix.'_all_px']=self::pixels($row[$prefix.'_all_px']??$defaultAll);
         foreach(['top','right','bottom','left']as$edge)$item[$prefix.'_'.$edge.'_px']=self::pixels($row[$prefix.'_'.$edge.'_px']??$defaultAll);
+    }
+
+    private static function applyResponsive(array&$item,array$row): void
+    {
+        foreach(['tablet','mobile']as$device){
+            foreach(['padding','margin']as$type)$item[$device.'_'.$type.'_all_px']=self::pixels($row[$device.'_'.$type.'_all_px']??0);
+            $item[$device.'_font_size']=self::fontSize($row[$device.'_font_size']??'');
+            $item[$device.'_columns']=self::columnsCount($row[$device.'_columns']??0);
+        }
+    }
+
+    private static function spacingPreset(mixed$value): string
+    {
+        $value=strtoupper(trim((string)$value));
+        return in_array($value,['TIGHT','NORMAL','SPACIOUS'],true)?$value:'';
+    }
+
+    private static function fontSize(mixed$value): string
+    {
+        $value=trim((string)$value);
+        if($value==='')return'';
+        if(preg_match('/^(?:0|[1-9][0-9]{0,2})(?:\.[0-9]+)?$/',$value))$value.='px';
+        return preg_match('/^(?:[8-9]|[1-7][0-9]|80)(?:\.[0-9]+)?px$/',$value)?$value:'';
+    }
+
+    private static function columnsCount(mixed$value): int
+    {
+        $value=(int)$value;
+        return $value>=1&&$value<=4?$value:0;
+    }
+
+    private static function styleLibrary(mixed$value): array
+    {
+        if(!is_array($value))return[];
+        $out=[];
+        foreach(array_slice($value,0,30)as$style){
+            if(!is_array($style))continue;
+            $name=self::text($style['name']??'',80);
+            $values=is_array($style['values']??null)?$style['values']:[];
+            if($name==='')continue;
+            $out[]=['name'=>$name,'values'=>$values];
+        }
+        return$out;
     }
 
     private static function color(mixed$value): string

@@ -113,6 +113,13 @@
     const alignSelfOptions=[['stretch','Justify'],['flex-start','Left'],['center','Center'],['flex-end','Right']];
     const wrapOptions=[['1','Wrap on'],['0','Wrap off']];
     const structureKey='toinky-page-builder-structure-popup';
+    const spacingPresets=[['','Custom'],['TIGHT','Tight'],['NORMAL','Normal'],['SPACIOUS','Spacious']];
+    const spacingPresetValues={
+        TIGHT:{padding_mode:'ALL',padding_all_px:24,margin_mode:'ALL',margin_all_px:0},
+        NORMAL:{padding_mode:'ALL',padding_all_px:56,margin_mode:'ALL',margin_all_px:0},
+        SPACIOUS:{padding_mode:'ALL',padding_all_px:96,margin_mode:'ALL',margin_all_px:0}
+    };
+    const responsiveColumnOptions=[['','Auto'],['1','1'],['2','2'],['3','3'],['4','4']];
     const iconOptions=[
         ['','No icon'],['✦','Spark'],['◆','Diamond'],['◇','Open Diamond'],
         ['◐','Half Moon'],['○','Circle'],['●','Filled Circle'],['△','Triangle'],
@@ -141,6 +148,20 @@
     const mediaOptions=[['','No image'],...media.map(item=>[
         String(item.media_id),item.title_text||('Media '+item.media_id)
     ])];
+    const styleFields=[
+        'background_color','background_media_id','background_fit','text_color','text_align',
+        'blend_mode','align_self','font_size','font_weight','text_transform',
+        'margin_mode','margin_all_px','margin_top_px','margin_right_px','margin_bottom_px','margin_left_px',
+        'padding_mode','padding_all_px','padding_top_px','padding_right_px','padding_bottom_px','padding_left_px',
+        'column_background_color','column_background_media_id','column_background_fit',
+        'column_margin_mode','column_margin_all_px','column_margin_top_px','column_margin_right_px','column_margin_bottom_px','column_margin_left_px',
+        'column_padding_mode','column_padding_all_px','column_padding_top_px','column_padding_right_px','column_padding_bottom_px','column_padding_left_px',
+        'content_width','max_width_px','min_height_px','items_direction','align_items','wrap_items',
+        'image_width_px','image_height_px','tablet_padding_all_px','mobile_padding_all_px',
+        'tablet_margin_all_px','mobile_margin_all_px','tablet_font_size','mobile_font_size',
+        'tablet_columns','mobile_columns','tablet_image_width_px','mobile_image_width_px',
+        'tablet_image_height_px','mobile_image_height_px'
+    ];
 
     const clamp=(value,min,max)=>Math.min(max,Math.max(min,value));
     const parseColor=value=>{
@@ -357,6 +378,90 @@
             '" aria-label="'+(linked?'Unlink sides':'Link sides')+'" title="'+
             (linked?'Unlink sides':'Link sides')+'">⌁</button></div></div>';
     };
+    const styleLibrary=()=>{
+        const root=rows[0]||{};
+        root.style_library=Array.isArray(root.style_library)?root.style_library:[];
+        return root.style_library;
+    };
+    const savedStyleOptions=()=>[['','Choose saved style'],...styleLibrary().map((style,index)=>[
+        String(index),style.name||('Style '+(index+1))
+    ])];
+    const copyStyle=node=>{
+        const snapshot={};
+        styleFields.forEach(key=>{
+            if(Object.prototype.hasOwnProperty.call(node,key))snapshot[key]=node[key];
+        });
+        if(Array.isArray(node.columns)){
+            snapshot.columns=node.columns.map(column=>{
+                const copy={};
+                ['background_color','background_media_id','background_fit','margin_mode','margin_all_px',
+                    'margin_top_px','margin_right_px','margin_bottom_px','margin_left_px','padding_mode',
+                    'padding_all_px','padding_top_px','padding_right_px','padding_bottom_px','padding_left_px'
+                ].forEach(key=>{
+                    if(Object.prototype.hasOwnProperty.call(column,key))copy[key]=column[key];
+                });
+                return copy;
+            });
+        }
+        return snapshot;
+    };
+    const saveCurrentStyle=()=>{
+        const node=nodeAt(selected);
+        if(!node)return;
+        const name=String(node.style_name||nodeTitle(node)||'Saved style').trim().slice(0,80);
+        const library=styleLibrary();
+        const next={name,values:copyStyle(node)};
+        const index=library.findIndex(style=>style.name===name);
+        if(index>=0)library[index]=next;
+        else library.push(next);
+        rows[0].style_library=library.slice(-30);
+        sync();
+        props();
+    };
+    const applySavedStyle=index=>{
+        const style=styleLibrary()[Number(index)];
+        const node=nodeAt(selected);
+        if(!style||!node||!style.values)return;
+        Object.entries(style.values).forEach(([key,value])=>{
+            if(key==='columns'&&Array.isArray(value)){
+                node.columns=Array.isArray(node.columns)?node.columns:[];
+                value.forEach((column,columnIndex)=>{
+                    node.columns[columnIndex]={...(node.columns[columnIndex]||{}),...column};
+                });
+            }else node[key]=value;
+        });
+        node.style_name=style.name||node.style_name||'';
+        sync();
+        props();
+    };
+    const styleReuseControls=node=>{
+        return subheading('Reusable style')+
+            field('style_name','Name',node.style_name||'')+
+            '<div class="builder-style-reuse">'+
+            select('style_pick','Apply saved style','',savedStyleOptions())+
+            '<button type="button" data-style-apply title="Apply saved style" aria-label="Apply saved style">↙</button>'+
+            '<button type="button" data-style-save title="Save selected styling" aria-label="Save selected styling">+</button>'+
+            '</div>';
+    };
+    const responsiveControls=node=>{
+        const columned=['CARDS_ONLY','TWO_COLUMN','THREE_COLUMN','FOUR_COLUMN'].includes(node.layout_type);
+        const imaged=['IMAGE_LEFT','IMAGE_RIGHT'].includes(node.layout_type);
+        return subheading('Responsive overrides')+
+            field('tablet_padding_all_px','Tablet padding',node.tablet_padding_all_px||'','number')+
+            field('mobile_padding_all_px','Mobile padding',node.mobile_padding_all_px||'','number')+
+            field('tablet_margin_all_px','Tablet margin',node.tablet_margin_all_px||'','number')+
+            field('mobile_margin_all_px','Mobile margin',node.mobile_margin_all_px||'','number')+
+            field('tablet_font_size','Tablet font size',node.tablet_font_size||'')+
+            field('mobile_font_size','Mobile font size',node.mobile_font_size||'')+
+            (columned?
+                select('tablet_columns','Tablet columns',node.tablet_columns||'',responsiveColumnOptions)+
+                select('mobile_columns','Mobile columns',node.mobile_columns||'',responsiveColumnOptions):'')+
+            (imaged?
+                field('tablet_image_width_px','Tablet image width',node.tablet_image_width_px||'','number')+
+                field('tablet_image_height_px','Tablet image height',node.tablet_image_height_px||'','number')+
+                field('mobile_image_width_px','Mobile image width',node.mobile_image_width_px||'','number')+
+                field('mobile_image_height_px','Mobile image height',node.mobile_image_height_px||'','number'):'');
+    };
     const choiceButtons=(name,title,value,options)=>{
         return '<div class="builder-choice-control"><div class="builder-spacing-head"><span>'+
             escapeHtml(title)+'</span></div><div class="builder-choice-buttons">'+options.map(option=>
@@ -384,6 +489,10 @@
         const children=container?(node.children||[]):[];
         const layoutButton=!container&&pathsEqual(path,selected)?
             '<button type="button" class="builder-structure-layout-button" data-layout-open aria-label="Change layout" title="Change layout">#</button>':'';
+        const duplicateButton=deletable?
+            '<button type="button" class="builder-node-duplicate" data-duplicate="'+
+            path.join('.')+'" aria-label="Duplicate '+escapeHtml(layoutTitle(node.layout_type))+
+            '" title="Duplicate">⧉</button>':'';
         return '<div class="builder-structure-row '+(pathsEqual(path,selected)?'selected':'')+
             '" style="--depth:'+depth+'" data-structure-path="'+path.join('.')+
             '" draggable="'+(path.length>1?'true':'false')+'"><button type="button" data-select="'+
@@ -391,7 +500,7 @@
             (container&&children.length?'>':'')+'</span><span class="builder-structure-icon" aria-hidden="true">'+
             (container?'[]':'T')+'</span><span class="builder-structure-name">'+
             escapeHtml(nodeTitle(node))+'</span><small>'+escapeHtml(layoutTitle(node.layout_type))+
-            '</small></button>'+layoutButton+deleteButton+'</div>'+
+            '</small></button>'+layoutButton+duplicateButton+deleteButton+'</div>'+
             (container?children.map((child,index)=>
             renderStructureNode(child,path.concat(index),depth+1)).join('')+
             '<div class="builder-structure-actions" style="--depth:'+(depth+1)+'">'+
@@ -451,10 +560,15 @@
                 area('bullets_text','Bullets, one per line',(node.bullets||[]).join('\n')):'')+
             renderColumns(node));
         q('#style-properties').innerHTML=container?
+            styleReuseControls(node)+
+            select('spacing_preset','Spacing preset',node.spacing_preset||'',spacingPresets)+
             backgroundControls('Container background','',node)+
             marginControls('Container margin',node)+
             paddingControls('Container padding','',node)+
-            choiceButtons('align_self','Align self',node.align_self||'stretch',alignSelfOptions):
+            choiceButtons('align_self','Align self',node.align_self||'stretch',alignSelfOptions)+
+            responsiveControls(node):
+            styleReuseControls(node)+
+            select('spacing_preset','Spacing preset',node.spacing_preset||'',spacingPresets)+
             (['IMAGE_LEFT','IMAGE_RIGHT'].includes(node.layout_type)?
                 select('image_media_id','Content image',node.image_media_id||'',mediaOptions)+
                 field('image_width_px','Image width (px, blank auto)',node.image_width_px||'','number')+
@@ -469,7 +583,8 @@
                 backgroundControls('Column background','column',node)+
                 marginControls('Column margin',{...node,margin_mode:node.column_margin_mode||'ALL',margin_all_px:node.column_margin_all_px??10,margin_top_px:node.column_margin_top_px??10,margin_right_px:node.column_margin_right_px??10,margin_bottom_px:node.column_margin_bottom_px??10,margin_left_px:node.column_margin_left_px??10}).replaceAll('margin_','column_margin_')+
                 paddingControls('Column padding','column',node)+
-                renderColumnStyleControls(node):'');
+                renderColumnStyleControls(node):'')+
+            responsiveControls(node);
         q('#advanced-properties').innerHTML=container?
             select('active','Visibility',node.active===false?'0':'1',[
                 ['1','Visible'],['0','Hidden']
@@ -833,6 +948,20 @@
             props();
             return;
         }
+        const duplicate=event.target.closest('[data-duplicate]');
+        if(duplicate){
+            const path=duplicate.dataset.duplicate.split('.').map(Number);
+            if(path.length<2)return;
+            const parent=nodeAt(path.slice(0,-1));
+            const index=path[path.length-1];
+            if(!parent||!Array.isArray(parent.children)||!parent.children[index])return;
+            const copy=JSON.parse(JSON.stringify(parent.children[index]));
+            if(copy.title_text)copy.title_text=copy.title_text+' Copy';
+            parent.children.splice(index+1,0,copy);
+            selected=path.slice(0,-1).concat(index+1);
+            props();
+            return;
+        }
         const rootRow=event.target.closest('[data-add-root-row]');
         if(rootRow){
             const root=ensureChildren(rows[0]);
@@ -880,13 +1009,24 @@
             props();
             return;
         }
+        const styleSave=event.target.closest('[data-style-save]');
+        if(styleSave){
+            saveCurrentStyle();
+            return;
+        }
+        const styleApply=event.target.closest('[data-style-apply]');
+        if(styleApply){
+            const selectNode=q('[data-field="style_pick"]');
+            if(selectNode&&selectNode.value!=='')applySavedStyle(selectNode.value);
+            return;
+        }
         const popup=event.target.closest('.builder-floating-popup');
         if(!popup)closeFloating();
     });
 
     document.addEventListener('dragstart',event=>{
         const row=event.target.closest('.builder-structure-row[draggable="true"]');
-        if(!row||event.target.closest('[data-delete],[data-layout-open]'))return;
+        if(!row||event.target.closest('[data-delete],[data-duplicate],[data-layout-open]'))return;
         draggedStructurePath=row.dataset.structurePath.split('.').map(Number);
         row.classList.add('is-dragging');
         if(event.dataTransfer){
@@ -949,12 +1089,15 @@
         const name=input.dataset.field;
         setValue(node,name,name==='active'?input.value==='1':
             (input.type==='number'?Number(input.value):input.value));
+        if(name==='spacing_preset'&&spacingPresetValues[input.value]){
+            Object.assign(node,spacingPresetValues[input.value]);
+        }
         if(name==='bullets_text'){
             node.bullets=String(input.value).split(/\r?\n/).filter(Boolean);
         }
         if(name==='layout_type'&&node.layout_type==='CONTAINER')ensureChildren(node);
         if(name!=='active'&&node.layout_type!=='CONTAINER')node.active=true;
-        if(['content_width','padding_mode','margin_mode','column_padding_mode','column_margin_mode','wrap_items'].includes(name)||name.endsWith('.margin_mode')||name.endsWith('.padding_mode'))props();
+        if(['content_width','padding_mode','margin_mode','column_padding_mode','column_margin_mode','wrap_items','spacing_preset'].includes(name)||name.endsWith('.margin_mode')||name.endsWith('.padding_mode'))props();
         sync();
     });
 

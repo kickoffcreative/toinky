@@ -187,7 +187,29 @@ final class PageContentService
         $alignItems=trim((string)($row['align_items']??'stretch'));
         $alignSelf=trim((string)($row['align_self']??'stretch'));
         $maxWidth=max(320,min(3840,(int)($row['max_width_px']??1980)?:1980));
+        $spacingPreset=strtoupper(trim((string)($row['spacing_preset']??'')));
+        $responsiveSize=static function($value): string{
+            $value=trim((string)$value);
+            if($value==='')return'';
+            if(preg_match('/^(?:0|[1-9][0-9]{0,2})(?:\.[0-9]+)?$/',$value))$value.='px';
+            return preg_match('/^(?:[8-9]|[1-7][0-9]|80)(?:\.[0-9]+)?px$/',$value)?$value:'';
+        };
+        $responsiveColumns=static function($value): int{
+            $value=(int)$value;
+            return $value>=1&&$value<=4?$value:0;
+        };
+        $styleLibrary=[];
+        if($depth===0&&is_array($row['style_library']??null)){
+            foreach(array_slice($row['style_library'],0,30)as$style){
+                if(!is_array($style))continue;
+                $name=self::textSlice(trim((string)($style['name']??'')),0,80);
+                $values=is_array($style['values']??null)?$style['values']:[];
+                if($name!=='')$styleLibrary[]=['name'=>$name,'values'=>$values];
+            }
+        }
         return [
+            'style_name'=>self::textSlice(trim((string)($row['style_name']??'')),0,80),
+            'spacing_preset'=>in_array($spacingPreset,['TIGHT','NORMAL','SPACIOUS'],true)?$spacingPreset:'',
             'label_text'=>self::textSlice(trim((string)($row['label_text']??'')),0,190),
             'eyebrow_text'=>self::textSlice(trim((string)($row['eyebrow_text']??'')),0,190),
             'title_text'=>self::textSlice(trim((string)($row['title_text']??'')),0,500),
@@ -197,6 +219,10 @@ final class PageContentService
             'image_media_id'=>$media($row['image_media_id']??''),
             'image_width_px'=>self::imagePixels($row['image_width_px']??0),
             'image_height_px'=>self::imagePixels($row['image_height_px']??0),
+            'tablet_image_width_px'=>self::imagePixels($row['tablet_image_width_px']??0),
+            'tablet_image_height_px'=>self::imagePixels($row['tablet_image_height_px']??0),
+            'mobile_image_width_px'=>self::imagePixels($row['mobile_image_width_px']??0),
+            'mobile_image_height_px'=>self::imagePixels($row['mobile_image_height_px']??0),
             'background_media_id'=>$media($row['background_media_id']??''),
             'background_color'=>$hex($row['background_color']??''),
             'background_fit'=>in_array($backgroundFit,['FILL','FIT','TILE'],true)?$backgroundFit:'FILL',
@@ -225,6 +251,14 @@ final class PageContentService
             'padding_right_px'=>$pixels($row['padding_right_px']??0),
             'padding_bottom_px'=>$pixels($row['padding_bottom_px']??0),
             'padding_left_px'=>$pixels($row['padding_left_px']??0),
+            'tablet_padding_all_px'=>$pixels($row['tablet_padding_all_px']??0),
+            'mobile_padding_all_px'=>$pixels($row['mobile_padding_all_px']??0),
+            'tablet_margin_all_px'=>$pixels($row['tablet_margin_all_px']??0),
+            'mobile_margin_all_px'=>$pixels($row['mobile_margin_all_px']??0),
+            'tablet_font_size'=>$responsiveSize($row['tablet_font_size']??''),
+            'mobile_font_size'=>$responsiveSize($row['mobile_font_size']??''),
+            'tablet_columns'=>$responsiveColumns($row['tablet_columns']??0),
+            'mobile_columns'=>$responsiveColumns($row['mobile_columns']??0),
             'column_background_color'=>$hex($row['column_background_color']??''),
             'column_background_media_id'=>$media($row['column_background_media_id']??''),
             'column_background_fit'=>in_array($columnBackgroundFit,['FILL','FIT','TILE'],true)?$columnBackgroundFit:'FILL',
@@ -245,6 +279,7 @@ final class PageContentService
             'buttons'=>$buttons,
             'sort_order'=>$index,
             'children'=>$children,
+            'style_library'=>$styleLibrary,
         ];
     }
     private static function mediaChoice(array $admin,$value): ?int
