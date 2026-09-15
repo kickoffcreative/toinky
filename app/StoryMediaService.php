@@ -16,28 +16,16 @@ final class StoryMediaService
     public static function upload(array $user,int $plotId,array $fields,array $file): int
     {
         if(!self::canEdit($user,$plotId))throw new RuntimeException('You may only add artwork to stories you own.');
-        if(($file['error']??UPLOAD_ERR_NO_FILE)!==UPLOAD_ERR_OK)throw new RuntimeException('Choose an image to upload.');
-        $size=(int)($file['size']??0);if($size<1||$size>8*1024*1024)throw new RuntimeException('Images must be 8 MB or smaller.');
-        $tmp=(string)($file['tmp_name']??'');$info=@getimagesize($tmp);$mime=(string)($info['mime']??'');
-        $extensions=['image/jpeg'=>'jpg','image/png'=>'png','image/webp'=>'webp'];
-        if(!isset($extensions[$mime]))throw new RuntimeException('Upload a JPEG, PNG, or WebP image.');
         $placement=strtoupper(trim((string)($fields['placement']??'')));
         $placements=['PRIMARY','CHARACTER','OPENING','SCENE','TURNING_POINT','OUTCOME','ENDING','OTHER'];
         if(!in_array($placement,$placements,true))throw new RuntimeException('Choose a valid image placement.');
         $alt=trim((string)($fields['alt_text']??''));if($alt==='')throw new RuntimeException('Alternative text is required.');
         $code=strtoupper(preg_replace('/[^A-Z0-9]+/','_',trim((string)($fields['asset_code']??''))));$code=trim($code,'_');
         if($code==='')$code=$placement.'_'.strtoupper(bin2hex(random_bytes(4)));
-        $root=dirname(__DIR__).'/public/uploads/story-media';if(!is_dir($root)&&!mkdir($root,0775,true)&&!is_dir($root))throw new RuntimeException('The story-media directory could not be created.');
-        $name=strtolower($code).'-'.bin2hex(random_bytes(8)).'.'.$extensions[$mime];$target=$root.'/'.$name;
-        if(!move_uploaded_file($tmp,$target))throw new RuntimeException('The image could not be saved.');
-        $path='public/uploads/story-media/'.$name;
-        db()->beginTransaction();
-        try{
-            if($placement==='PRIMARY')db()->prepare('UPDATE plot_media_assets SET active=0 WHERE plot_id=? AND placement="PRIMARY"')->execute([$plotId]);
-            $q=db()->prepare('INSERT INTO plot_media_assets(plot_id,uploaded_by_user_id,asset_code,placement,role_code,event_code,scene_second,condition_state_key,condition_operator,condition_value,title_text,alt_text,caption_text,file_path,mime_type,file_size_bytes,sort_order) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
-            $q->execute([$plotId,$user['user_id'],$code,$placement,self::nullable($fields['role_code']??null),self::nullable($fields['event_code']??null),self::nullableInt($fields['scene_second']??null),self::nullable($fields['condition_state_key']??null),self::nullable($fields['condition_operator']??null),self::nullable($fields['condition_value']??null),self::nullable($fields['title_text']??null),$alt,self::nullable($fields['caption_text']??null),$path,$mime,$size,(int)($fields['sort_order']??100)]);
-            $id=(int)db()->lastInsertId();db()->commit();return$id;
-        }catch(Throwable $e){if(db()->inTransaction())db()->rollBack();@unlink($target);throw$e;}
+        $title=self::nullable($fields['title_text']??null)?:str_replace('_',' ',ucwords(strtolower($code),'_'));
+        $mediaId=MediaLibraryService::upload($user,['media_type'=>$placement,'title_text'=>$title,'alt_text'=>$alt],$file);
+        try{return self::attachFromLibrary($user,$plotId,array_merge($fields,['library_media_id'=>$mediaId,'asset_code'=>$code,'placement'=>$placement,'title_text'=>$title,'alt_text'=>$alt]));}
+        catch(Throwable $e){try{MediaLibraryService::delete($user,$mediaId);}catch(Throwable $ignored){}throw$e;}
     }
 
     public static function attachFromLibrary(array $user,int $plotId,array $fields): int
