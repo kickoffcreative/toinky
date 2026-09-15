@@ -436,7 +436,9 @@
             paddingControls('Container padding','',node)+
             choiceButtons('align_self','Align self',node.align_self||'stretch',alignSelfOptions):
             (['IMAGE_LEFT','IMAGE_RIGHT'].includes(node.layout_type)?
-                select('image_media_id','Content image',node.image_media_id||'',mediaOptions):'')+
+                select('image_media_id','Content image',node.image_media_id||'',mediaOptions)+
+                field('image_width_px','Image width (px, blank auto)',node.image_width_px||'','number')+
+                field('image_height_px','Image height (px, blank auto)',node.image_height_px||'','number'):'')+
             subheading('Main')+
             backgroundControls('Main box background','',node)+
             marginControls('Main box margin',node)+

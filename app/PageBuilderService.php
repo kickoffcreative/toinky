@@ -29,7 +29,7 @@ final class PageBuilderService
             if(!in_array($layout,PageContentService::LAYOUTS,true)||$layout==='HERO')$layout='TEXT_TOP';
             $item=[
                 'layout_type'=>$layout,
-                'active'=>array_key_exists('active',$row)?(bool)$row['active']:true,
+                'active'=>self::boolValue($row['active']??true),
             ];
             if($layout==='CONTAINER'){
                 $item['background_color']=self::optionalColor($row['background_color']??'');
@@ -40,7 +40,7 @@ final class PageBuilderService
                 $item['min_height_px']=self::pixels($row['min_height_px']??0);
                 $item['items_direction']=self::itemsDirection($row['items_direction']??'COLUMN');
                 $item['align_items']=self::alignItems($row['align_items']??'stretch');
-                $item['wrap_items']=array_key_exists('wrap_items',$row)?(bool)$row['wrap_items']:true;
+                $item['wrap_items']=self::boolValue($row['wrap_items']??true);
                 $blendMode=(string)($row['blend_mode']??'normal');
                 $item['blend_mode']=in_array($blendMode,['normal','multiply','screen','overlay','darken','lighten','difference'],true)?$blendMode:'normal';
                 $item['align_self']=self::alignSelf($row['align_self']??'stretch');
@@ -54,6 +54,8 @@ final class PageBuilderService
             $item['content_html']=self::html($row['content_html']??'');
             $item['bullets']=self::listValues($row['bullets']??[]);
             $item['image_media_id']=self::mediaId($row['image_media_id']??null);
+            $item['image_width_px']=self::imagePixels($row['image_width_px']??0);
+            $item['image_height_px']=self::imagePixels($row['image_height_px']??0);
             $item['background_media_id']=self::mediaId($row['background_media_id']??null);
             $item['background_color']=self::optionalColor($row['background_color']??'');
             $item['background_fit']=self::backgroundFit($row['background_fit']??'FILL');
@@ -118,6 +120,18 @@ final class PageBuilderService
     private static function pixels(mixed$value): int
     {
         return max(0,min(2000,(int)$value));
+    }
+
+    private static function imagePixels(mixed$value): int
+    {
+        return max(0,min(3000,(int)$value));
+    }
+
+    private static function boolValue(mixed$value): bool
+    {
+        if(is_bool($value))return$value;
+        $value=strtolower(trim((string)$value));
+        return !in_array($value,['','0','false','off','no'],true);
     }
 
     private static function applySpacing(array&$item,array$row,string$prefix,int$defaultAll=0): void

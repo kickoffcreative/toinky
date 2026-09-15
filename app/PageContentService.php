@@ -193,8 +193,10 @@ final class PageContentService
             'title_text'=>self::textSlice(trim((string)($row['title_text']??'')),0,500),
             'content_html'=>self::sanitizeHtml((string)($row['content_html']??'')),
             'layout_type'=>$layout,
-            'active'=>!isset($row['active'])||!empty($row['active']),
+            'active'=>self::boolValue($row['active']??true),
             'image_media_id'=>$media($row['image_media_id']??''),
+            'image_width_px'=>self::imagePixels($row['image_width_px']??0),
+            'image_height_px'=>self::imagePixels($row['image_height_px']??0),
             'background_media_id'=>$media($row['background_media_id']??''),
             'background_color'=>$hex($row['background_color']??''),
             'background_fit'=>in_array($backgroundFit,['FILL','FIT','TILE'],true)?$backgroundFit:'FILL',
@@ -203,7 +205,7 @@ final class PageContentService
             'min_height_px'=>$pixels($row['min_height_px']??0),
             'items_direction'=>$itemsDirection==='ROW'?'ROW':'COLUMN',
             'align_items'=>in_array($alignItems,['flex-start','center','flex-end','stretch'],true)?$alignItems:'stretch',
-            'wrap_items'=>array_key_exists('wrap_items',$row)?!empty($row['wrap_items']):true,
+            'wrap_items'=>self::boolValue($row['wrap_items']??true),
             'align_self'=>in_array($alignSelf,['auto','flex-start','center','flex-end','stretch'],true)?$alignSelf:'stretch',
             'text_color'=>$hex($row['text_color']??''),
             'text_align'=>in_array($textAlign,['left','center','right'],true)?$textAlign:'left',
@@ -250,6 +252,8 @@ final class PageContentService
         $id=(int)$value;if($id<1)return null;MediaLibraryService::requireVisible($admin,$id);return$id;
     }
 
+    private static function imagePixels($value): int{return max(0,min(3000,(int)$value));}
+    private static function boolValue($value): bool{if(is_bool($value))return$value;$value=strtolower(trim((string)$value));return!in_array($value,['','0','false','off','no'],true);}
     private static function color($value,string $label): string{$color=strtoupper(trim((string)$value));if(!preg_match('/^#[0-9A-F]{6}([0-9A-F]{2})?$/',$color))throw new RuntimeException('Choose a valid '.$label.'.');return$color;}
     private static function percent($value): int{return max(0,min(100,(int)$value));}
     private static function optionalPixels($value): ?int{$value=trim((string)$value);if($value==='')return null;if(!preg_match('/^\d{1,3}$/',$value)||(int)$value>400)throw new RuntimeException('Section padding must be between 0 and 400 pixels.');return(int)$value;}

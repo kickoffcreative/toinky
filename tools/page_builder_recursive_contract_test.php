@@ -24,13 +24,19 @@ $rows=[[
         'layout_type'=>'CONTAINER',
         'children'=>[[
             'layout_type'=>'TEXT_TOP',
-            'active'=>false,
+            'active'=>'0',
             'title_text'=>'Nested heading',
             'content_html'=>'<p>Nested copy</p><script>alert(1)</script>',
             'background_color'=>'#ABCDEF',
             'background_fit'=>'FIT',
             'padding_top_px'=>24,
             'padding_bottom_px'=>18,
+        ],[
+            'layout_type'=>'IMAGE_RIGHT',
+            'active'=>'false',
+            'title_text'=>'Hidden image row',
+            'image_width_px'=>720,
+            'image_height_px'=>360,
         ],[
             'layout_type'=>'FOUR_COLUMN',
             'label_text'=>'Four labels',
@@ -70,7 +76,10 @@ if(str_contains((string)($nested['content_html']??''),'<script'))throw new Runti
 if(($nested['text_align']??'')!=='left'||($nested['blend_mode']??'')!=='normal')throw new RuntimeException('Optional style defaults were not applied.');
 if(($nested['background_color']??null)!=='#ABCDEF'||($nested['background_fit']??'')!=='FIT')throw new RuntimeException('Content row background settings were not preserved.');
 if(($nested['padding_top_px']??0)!==24||($nested['padding_bottom_px']??0)!==18)throw new RuntimeException('Content row padding was not preserved.');
-$columns=$normalized[0]['children'][0]['children'][1]??[];
+$image=$normalized[0]['children'][0]['children'][1]??[];
+if(($image['layout_type']??'')!=='IMAGE_RIGHT'||($image['active']??true)!==false)throw new RuntimeException('Hidden image row was not preserved.');
+if(($image['image_width_px']??0)!==720||($image['image_height_px']??0)!==360)throw new RuntimeException('Image row sizing was not preserved.');
+$columns=$normalized[0]['children'][0]['children'][2]??[];
 if(($columns['layout_type']??'')!=='FOUR_COLUMN'||($columns['label_text']??'')!=='Four labels')throw new RuntimeException('Four Columns row was not preserved.');
 if(($columns['align_self']??'')!=='center')throw new RuntimeException('Align self was not preserved.');
 if(($columns['column_background_color']??'')!=='#FEDCBA'||($columns['column_background_fit']??'')!=='TILE')throw new RuntimeException('Column style settings were not preserved.');
