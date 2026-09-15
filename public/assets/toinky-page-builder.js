@@ -207,20 +207,40 @@
     };
     const number=value=>String(Math.round(value*100)/100);
 
-    let previewScroll={x:0,y:0};
+    let previewScroll={x:0,y:0,docX:0,docY:0,bodyX:0,bodyY:0};
     const readPreviewScroll=()=>{
         const frame=q('#page-preview');
         try{
+            const win=frame?.contentWindow;
+            const doc=win?.document;
             if(frame&&frame.contentWindow)previewScroll={
-                x:frame.contentWindow.scrollX||0,
-                y:frame.contentWindow.scrollY||0
+                x:win.scrollX||0,
+                y:win.scrollY||0,
+                docX:doc?.documentElement?.scrollLeft||0,
+                docY:doc?.documentElement?.scrollTop||0,
+                bodyX:doc?.body?.scrollLeft||0,
+                bodyY:doc?.body?.scrollTop||0
             };
         }catch(error){}
     };
     q('#page-preview')?.addEventListener('load',()=>{
         const frame=q('#page-preview');
         try{
-            if(frame&&frame.contentWindow)frame.contentWindow.scrollTo(previewScroll.x,previewScroll.y);
+            const win=frame?.contentWindow;
+            const doc=win?.document;
+            if(win){
+                const x=Math.max(previewScroll.x,previewScroll.docX,previewScroll.bodyX);
+                const y=Math.max(previewScroll.y,previewScroll.docY,previewScroll.bodyY);
+                const restore=()=>{
+                    win.scrollTo(x,y);
+                    if(doc?.documentElement)doc.documentElement.scrollTo(x,y);
+                    if(doc?.body)doc.body.scrollTo(x,y);
+                };
+                restore();
+                requestAnimationFrame(restore);
+                setTimeout(restore,80);
+                setTimeout(restore,220);
+            }
         }catch(error){}
     });
 
