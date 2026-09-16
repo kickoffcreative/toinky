@@ -10,6 +10,7 @@ deployment:
     - /bin/cp -Rf public $DEPLOYPATH
     - /bin/mkdir -p $DEPLOYPATH/assets
     - /bin/cp -Rf public/assets/. $DEPLOYPATH/assets/
+    - /bin/rm -rf $DEPLOYPATH/public/assets/genre-themes $DEPLOYPATH/assets/genre-themes $DEPLOYPATH/public/assets/parallax $DEPLOYPATH/assets/parallax
     - /bin/cp -Rf database $DEPLOYPATH
     - /bin/cp -Rf tools $DEPLOYPATH
     - /bin/mkdir -p $DEPLOYPATH/config
