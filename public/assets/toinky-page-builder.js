@@ -162,6 +162,18 @@
         'tablet_columns','mobile_columns','tablet_image_width_px','mobile_image_width_px',
         'tablet_image_height_px','mobile_image_height_px'
     ];
+    const allowedImportLayouts=new Set(layouts.map(item=>item[0]));
+    const allowedImportFields=new Set([
+        'layout_type','active','style_name','spacing_preset','label_text','eyebrow_text',
+        'title_text','content_html','bullets','image_media_id','columns','children',
+        ...styleFields
+    ]);
+    const allowedImportColumnFields=new Set([
+        'icon_text','title','content','background_color','background_media_id','background_fit',
+        'margin_mode','margin_all_px','margin_top_px','margin_right_px','margin_bottom_px','margin_left_px',
+        'padding_mode','padding_all_px','padding_top_px','padding_right_px','padding_bottom_px','padding_left_px'
+    ]);
+    const dangerousImportPattern=/(<\s*\/?\s*(script|iframe|object|embed|style|link|meta)\b|javascript\s*:|\bon[a-z]+\s*=|srcdoc\s*=|data\s*:\s*text\/html)/i;
 
     const clamp=(value,min,max)=>Math.min(max,Math.max(min,value));
     const parseColor=value=>{
@@ -227,6 +239,115 @@
         return {h:(h+360)%360,s:s*100,l:l*100,a:color.a};
     };
     const number=value=>String(Math.round(value*100)/100);
+    const builderAiRules=()=>[
+        'TOINKY PAGE BUILDER AI RULES',
+        '',
+        'Return JSON only. Do not wrap it in Markdown fences. Do not include comments.',
+        'Root format: {"rows":[...]} where rows is an array.',
+        'Every non-hero section must start with one top-level CONTAINER row.',
+        'A CONTAINER is only a shell. It can have backgrounds, spacing, width, flex settings, and children. It must not contain title/content fields.',
+        'Containers may contain nested CONTAINER rows and content rows.',
+        'Allowed layout_type values: '+layouts.map(item=>item[0]).join(', ')+'.',
+        'Recommended root container example:',
+        '{"rows":[{"layout_type":"CONTAINER","active":true,"content_width":"FULL","padding_mode":"ALL","padding_all_px":0,"children":[]}]}',
+        '',
+        'Content row fields: label_text, title_text, content_html, bullets, image_media_id, columns, active.',
+        'Allowed inline HTML in content_html/content: p, br, strong, em, u, h2, h3, ul, ol, li, a.',
+        'Safe links only: https://, mailto:, /relative, ?query, or #anchor.',
+        'Do not include script, iframe, object, embed, style tags, event attributes like onclick/onload, javascript: URLs, or data:text/html URLs.',
+        'Media fields must use existing numeric media IDs only. If no media ID is provided, use null or an empty string.',
+        '',
+        'Common style fields: background_color, background_media_id, background_fit (FILL/FIT/TILE), text_color, text_align (left/center/right), blend_mode (normal/multiply/screen/overlay/darken/lighten/difference), align_self, margin_mode, margin_all_px, padding_mode, padding_all_px.',
+        'Container fields: content_width (FULL/MAX), max_width_px, min_height_px, items_direction (COLUMN/ROW), align_items (stretch/flex-start/center/flex-end), wrap_items.',
+        'Columned layouts use columns: [{"icon_text":"","title":"","content":""}].',
+        'Use concise, production-ready copy. Keep empty values as empty strings, not placeholder text.'
+    ].join('\n');
+    const builderOutlinePrompt=()=>[
+        'Create a Toinky page content outline first, then after approval generate Page Builder JSON using the copied Toinky Page Builder AI Rules.',
+        '',
+        'Ask me for: target page, audience, goal, tone, primary CTA, required sections, available media IDs, preferred colors, and any content that must stay unchanged.',
+        '',
+        'When generating JSON, use a root CONTAINER, nested containers when grouping rows under one background, and content rows for text/image/columns/cards/socials. Keep it safe: no scripts, no event attributes, no unsafe URLs.'
+    ].join('\n');
+    const writeClipboard=text=>{
+        if(navigator.clipboard?.writeText)return navigator.clipboard.writeText(text);
+        const textarea=document.createElement('textarea');
+        textarea.value=text;
+        textarea.setAttribute('readonly','');
+        textarea.style.position='fixed';
+        textarea.style.left='-9999px';
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        textarea.remove();
+        return Promise.resolve();
+    };
+    const aiStatus=(message,error=false)=>{
+        const status=q('#builder-ai-status');
+        if(!status)return;
+        status.textContent=message;
+        status.classList.toggle('error',error);
+        if(message)setTimeout(()=>{
+            if(status.textContent===message)status.textContent='';
+        },2600);
+    };
+    const primitiveImportValue=value=>{
+        if(Array.isArray(value))return value.map(item=>primitiveImportValue(item)).filter(item=>
+            item===null||['string','number','boolean'].includes(typeof item));
+        if(value===null||['string','number','boolean'].includes(typeof value))return value;
+        return '';
+    };
+    const sanitizeImportColumn=column=>{
+        const out={};
+        if(!column||typeof column!=='object'||Array.isArray(column))return out;
+        Object.keys(column).forEach(key=>{
+            if(allowedImportColumnFields.has(key))out[key]=primitiveImportValue(column[key]);
+        });
+        return out;
+    };
+    const sanitizeImportNode=(node,depth=0)=>{
+        if(!node||typeof node!=='object'||Array.isArray(node)||depth>10)return null;
+        const layout=String(node.layout_type||'TEXT_TOP').toUpperCase();
+        const out={layout_type:allowedImportLayouts.has(layout)&&layout!=='HERO'?layout:'TEXT_TOP'};
+        Object.keys(node).forEach(key=>{
+            if(!allowedImportFields.has(key)||key==='layout_type'||key==='children'||key==='columns')return;
+            out[key]=primitiveImportValue(node[key]);
+        });
+        if(Array.isArray(node.columns))out.columns=node.columns.slice(0,6).map(sanitizeImportColumn);
+        if(out.layout_type==='CONTAINER')out.children=Array.isArray(node.children)?
+            node.children.map(child=>sanitizeImportNode(child,depth+1)).filter(Boolean):[];
+        return out;
+    };
+    const parseAiRows=jsonText=>{
+        const raw=String(jsonText||'').trim();
+        if(raw.length<2)throw new Error('Paste Page Builder JSON first.');
+        if(raw.length>600000)throw new Error('The JSON is too large. Keep imports under 600 KB.');
+        if(dangerousImportPattern.test(raw)){
+            throw new Error('Import blocked: remove scripts, event attributes, unsafe URLs, or embedded HTML documents.');
+        }
+        const parsed=JSON.parse(raw);
+        let imported=Array.isArray(parsed)?parsed:parsed?.rows;
+        if(!Array.isArray(imported)&&parsed?.layout_type)imported=[parsed];
+        if(!Array.isArray(imported))throw new Error('JSON must be an array, a row object, or an object with a rows array.');
+        imported=imported.map(item=>sanitizeImportNode(item)).filter(Boolean);
+        if(!imported.length)throw new Error('No valid rows were found.');
+        if(imported[0].layout_type!=='CONTAINER'){
+            imported=[{layout_type:'CONTAINER',active:true,content_width:'FULL',padding_mode:'ALL',padding_all_px:0,children:imported}];
+        }
+        return imported;
+    };
+    const openAiImport=()=>{
+        const modal=q('#builder-ai-modal');
+        if(!modal)return;
+        const error=q('#builder-ai-error');
+        if(error)error.textContent='';
+        modal.hidden=false;
+        q('#builder-ai-json')?.focus();
+    };
+    const closeAiImport=()=>{
+        const modal=q('#builder-ai-modal');
+        if(modal)modal.hidden=true;
+    };
 
     let previewScroll={x:0,y:0,docX:0,docY:0,bodyX:0,bodyY:0};
     const readPreviewScroll=()=>{
@@ -1101,8 +1222,47 @@
         sync();
     });
 
+    q('#ai-rules-copy')?.addEventListener('click',()=>{
+        writeClipboard(builderAiRules()).then(()=>aiStatus('AI rules copied.')).catch(()=>
+            aiStatus('Unable to copy. Select and copy manually.',true));
+    });
+
+    q('#ai-outline-copy')?.addEventListener('click',()=>{
+        writeClipboard(builderOutlinePrompt()).then(()=>aiStatus('Outline prompt copied.')).catch(()=>
+            aiStatus('Unable to copy. Select and copy manually.',true));
+    });
+
+    q('#ai-json-open')?.addEventListener('click',openAiImport);
+    q('#builder-ai-close')?.addEventListener('click',closeAiImport);
+    q('#builder-ai-clear')?.addEventListener('click',()=>{
+        const textarea=q('#builder-ai-json');
+        const error=q('#builder-ai-error');
+        if(textarea)textarea.value='';
+        if(error)error.textContent='';
+    });
+    q('#builder-ai-modal')?.addEventListener('click',event=>{
+        if(event.target===event.currentTarget)closeAiImport();
+    });
+    q('#builder-ai-import')?.addEventListener('click',()=>{
+        const textarea=q('#builder-ai-json');
+        const error=q('#builder-ai-error');
+        try{
+            rows=parseAiRows(textarea?.value||'');
+            selected=[0];
+            if(error)error.textContent='';
+            closeAiImport();
+            props();
+            aiStatus('AI JSON imported as a draft. Review, then save changes.');
+        }catch(importError){
+            if(error)error.textContent=importError.message||'Import failed.';
+        }
+    });
+
     document.addEventListener('keydown',event=>{
-        if(event.key==='Escape')closeFloating(false);
+        if(event.key==='Escape'){
+            closeAiImport();
+            closeFloating(false);
+        }
     });
 
     props();

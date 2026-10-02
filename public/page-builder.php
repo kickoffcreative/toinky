@@ -79,7 +79,7 @@ function builder_e(string $value): string{return htmlspecialchars($value,ENT_QUO
 <title>Page Builder</title>
 <link rel="stylesheet" href="assets/toinky-admin-shell.css">
 <link rel="stylesheet" href="assets/toinky-admin-workspace.css">
-<link rel="stylesheet" href="assets/toinky-page-builder.css?v=20260915-builder-polish">
+<link rel="stylesheet" href="assets/toinky-page-builder.css?v=20261002-ai-import">
 </head>
 <body class="page-builder-app">
 <header class="page-builder-topbar">
@@ -116,13 +116,23 @@ function builder_e(string $value): string{return htmlspecialchars($value,ENT_QUO
 <form method="post" id="builder-form">
 <input type="hidden" name="csrf_token" value="<?=htmlspecialchars(AuthService::csrfToken(),ENT_QUOTES,'UTF-8')?>"><input type="hidden" name="action" value="save_page_builder"><input type="hidden" name="section_id" value="<?=(int)$section['site_page_section_id']?>"><input type="hidden" name="rows_payload" id="rows-payload">
 <div class="inspector-heading"><span>Editing</span><strong><?=builder_e((string)$section['label_text'])?></strong></div>
-<div class="builder-inspector-tools"><button type="button" id="structure-open" data-structure-open aria-label="Open Structure" title="Structure">☷</button></div>
+<div class="builder-inspector-tools"><button type="button" id="structure-open" data-structure-open aria-label="Open Structure" title="Structure">☷</button><button type="button" id="ai-rules-copy" aria-label="Copy AI rules" title="Copy AI rules">AI</button><button type="button" id="ai-outline-copy" aria-label="Copy outline prompt" title="Copy outline prompt">?</button><button type="button" id="ai-json-open" aria-label="Import AI JSON" title="Import AI JSON">{}</button></div>
+<p class="builder-tool-status" id="builder-ai-status" aria-live="polite"></p>
 <div class="inspector-tabs" role="tablist"><button type="button" class="active" data-inspector-tab="content">Content</button><button type="button" data-inspector-tab="style">Style</button><button type="button" data-inspector-tab="advanced">Advanced</button></div>
 <section class="inspector-panel active" data-inspector-panel="content"><div id="content-properties"><p class="builder-muted">Select a section or row.</p></div></section>
 <section class="inspector-panel" data-inspector-panel="style"><div id="style-properties"></div></section>
 <section class="inspector-panel" data-inspector-panel="advanced"><div id="advanced-properties"></div></section>
 <button class="builder-save" type="submit">Save Changes</button>
 </form>
+<div class="builder-ai-modal" id="builder-ai-modal" hidden>
+<div class="builder-ai-dialog" role="dialog" aria-modal="true" aria-labelledby="builder-ai-title">
+<div class="builder-ai-head"><strong id="builder-ai-title">Import AI JSON</strong><button type="button" id="builder-ai-close" aria-label="Close">x</button></div>
+<p class="builder-muted">Paste JSON only. This replaces the current section draft after validation; click Save Changes when ready.</p>
+<textarea id="builder-ai-json" spellcheck="false" placeholder='{"rows":[{"layout_type":"CONTAINER","active":true,"children":[]}]}'></textarea>
+<p class="builder-tool-status error" id="builder-ai-error" aria-live="polite"></p>
+<div class="builder-ai-actions"><button type="button" id="builder-ai-import">Import Draft</button><button type="button" id="builder-ai-clear">Clear</button></div>
+</div>
+</div>
 <?php else:?><p class="builder-muted">Hero sections keep their dedicated Hero editor. Select a content section to edit its Container tree.</p><?php endif;?>
 </aside>
 <button type="button" id="sidebar-toggle" aria-controls="page-builder-sidebar" aria-expanded="true" aria-label="Hide properties sidebar" title="Hide properties sidebar"><span aria-hidden="true">&lt;</span><span class="page-builder-toggle-label">Hide properties sidebar</span></button>
@@ -131,6 +141,6 @@ function builder_e(string $value): string{return htmlspecialchars($value,ENT_QUO
 <script>
 window.toinkyPageBuilder={page:<?=json_encode($pageCode)?>,rows:<?=json_encode($rows,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT)?>,media:<?=json_encode($pageMedia,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT)?>,hero:<?=json_encode(($section['section_code']??'')==='HERO')?>};
 </script>
-<script src="assets/toinky-page-builder.js?v=20260915-builder-polish" defer></script>
+<script src="assets/toinky-page-builder.js?v=20261002-ai-import" defer></script>
 </body>
 </html>
