@@ -20,6 +20,13 @@ foreach($sections as $candidate)if((int)$candidate['site_page_section_id']===$se
 if(!$section)$section=$sections[0]??null;
 
 $error=null;$notice=null;
+$isAjaxSave=($_SERVER['HTTP_X_REQUESTED_WITH']??'')==='XMLHttpRequest';
+function builder_json_exit(array $payload,int $status=200):void{
+    http_response_code($status);
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode($payload,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE);
+    exit;
+}
 if($_SERVER['REQUEST_METHOD']==='POST'){
     try{
         AuthService::requireCsrf();
@@ -31,6 +38,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
             $newSectionId=PageContentService::addSection($admin,$pageCode,['label_text'=>$label,'layout_type'=>'CONTAINER']);
             $children=$layout==='CONTAINER'?[]:[['layout_type'=>$layout,'active'=>false,'label_text'=>'','title_text'=>'','content_html'=>'','bullets'=>[]]];
             PageBuilderService::saveRows($admin,$newSectionId,[['layout_type'=>'CONTAINER','active'=>true,'children'=>$children]]);
+            if($isAjaxSave)builder_json_exit(['ok'=>true,'section_id'=>$newSectionId,'label'=>$label]);
             header('Location: page-builder.php?page='.rawurlencode($pageCode).'&section='.$newSectionId.'&saved=1');
             exit;
         }
@@ -38,18 +46,21 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
             $order=json_decode((string)($_POST['section_order']??'[]'),true,10,JSON_THROW_ON_ERROR);
             if(!is_array($order))throw new RuntimeException('The section order is invalid.');
             PageContentService::reorderSections($admin,$pageCode,array_map('intval',$order));
+            if($isAjaxSave)builder_json_exit(['ok'=>true]);
             header('Location: page-builder.php?page='.rawurlencode($pageCode).'&section='.$sectionId.'&saved=1');
             exit;
         }
         if($action==='rename_section'){
             $sectionId=(int)($_POST['section_id']??0);
             PageContentService::renameSection($admin,$sectionId,(string)($_POST['section_label']??''));
+            if($isAjaxSave)builder_json_exit(['ok'=>true,'section_id'=>$sectionId,'label'=>(string)($_POST['section_label']??'')]);
             header('Location: page-builder.php?page='.rawurlencode($pageCode).'&section='.$sectionId.'&saved=1');
             exit;
         }
         if($action==='delete_section'){
             $sectionId=(int)($_POST['section_id']??0);
             PageContentService::deleteSection($admin,$sectionId);
+            if($isAjaxSave)builder_json_exit(['ok'=>true]);
             header('Location: page-builder.php?page='.rawurlencode($pageCode).'&saved=1');
             exit;
         }
@@ -62,9 +73,13 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         $rows=json_decode((string)($_POST['rows_payload']??'[]'),true,20,JSON_THROW_ON_ERROR);
         if(!is_array($rows))throw new RuntimeException('The builder tree is invalid.');
         PageBuilderService::saveRows($admin,$sectionId,$rows);
+        if($isAjaxSave)builder_json_exit(['ok'=>true]);
         header('Location: page-builder.php?page='.rawurlencode($pageCode).'&section='.$sectionId.'&saved=1');
         exit;
-    }catch(Throwable $e){$error=$e->getMessage();}
+    }catch(Throwable $e){
+        if($isAjaxSave)builder_json_exit(['ok'=>false,'error'=>$e->getMessage()],422);
+        $error=$e->getMessage();
+    }
 }
 if(isset($_GET['saved']))$notice='Changes saved.';
 $rows=$section?PageContentService::editorRows($section):[];
