@@ -80,35 +80,22 @@
     q('#preview-refresh').addEventListener('click',()=>renderDraftPreview(true));
     q('#open-preview').addEventListener('click',()=>window.open(q('#page-preview').src,'_blank','noopener'));
 
-    // Highlight selected element in preview iframe with dotted outline
-    const highlightInPreview=(path,attempt=0)=>{
+    // Scroll preview iframe to the selected section (no highlight for now)
+    const scrollPreviewToSection=(path,attempt=0)=>{
         const iframe=q('#page-preview');
-        if(!iframe){if(attempt<3)setTimeout(()=>highlightInPreview(path,attempt+1),500);return;}
+        if(!iframe){if(attempt<3)setTimeout(()=>scrollPreviewToSection(path,attempt+1),500);return;}
         let doc=null;
         try{doc=iframe.contentDocument;}catch(e){}
-        if(!doc){if(attempt<3)setTimeout(()=>highlightInPreview(path,attempt+1),500);return;}
-        try{doc.querySelectorAll('.builder-preview-highlight').forEach(el=>{el.classList.remove('builder-preview-highlight');});}catch(e){}
-        if(!path||!path.length)return;
+        if(!doc){if(attempt<3)setTimeout(()=>scrollPreviewToSection(path,attempt+1),500);return;}
         const secMatch=window.location.search.match(/[?&]section=(\d+)/);
         const sectionId=secMatch?secMatch[1]:null;
-        let scope=doc;
-        if(sectionId){
-            try{
-                const secEl=doc.querySelector('[data-builder-section="'+sectionId+'"]');
-                if(secEl)scope=secEl;
-            }catch(e){}
-        }
-        // Dialog uses nested paths (e.g., "0.1"), preview uses flat indices (e.g., "1")
-        // Use the last element for the lookup
-        const rowIdx=String(path[path.length-1]);
-        let el=null;
-        try{el=scope.querySelector('[data-builder-path="'+rowIdx+'"]');}catch(e){}
-
-        if(el){
-            el.classList.add('builder-preview-highlight');
-            try{el.scrollIntoView({block:'center',behavior:'smooth'});}catch(e){}
+        if(!sectionId)return;
+        let secEl=null;
+        try{secEl=doc.querySelector('[data-builder-section="'+sectionId+'"]');}catch(e){}
+        if(secEl){
+            try{secEl.scrollIntoView({block:'start',behavior:'smooth'});}catch(e){}
         }else if(attempt<3){
-            setTimeout(()=>highlightInPreview(path,attempt+1),500);
+            setTimeout(()=>scrollPreviewToSection(path,attempt+1),500);
         }
     };
 
@@ -1122,7 +1109,7 @@
             const selEl=document.querySelector('.builder-structure-row.selected');
             if(selEl)selEl.scrollIntoView({block:'nearest',behavior:'smooth'});
             // Highlight in preview iframe
-            highlightInPreview(newSel);
+            scrollPreviewToSection(newSel);
             return;
         }
         const remove=event.target.closest('[data-delete]');
