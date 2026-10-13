@@ -70,6 +70,7 @@ final class PageBuilderService
             $item['background_color']=self::optionalColor($row['background_color']??'');
             $item['background_fit']=self::backgroundFit($row['background_fit']??'FILL');
             $item['text_color']=self::optionalColor($row['text_color']??'');
+            $item['title_color']=self::optionalColor($row['title_color']??'');
             $textAlign=(string)($row['text_align']??'left');
             $item['text_align']=in_array($textAlign,['left','center','right'],true)?$textAlign:'left';
             $blendMode=(string)($row['blend_mode']??'normal');
