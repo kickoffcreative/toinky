@@ -642,9 +642,17 @@
                 const column=node.columns[index]||{};
                 return '<div class="builder-column">'+
                     subheading((node.layout_type==='CARDS_ONLY'?'Card ':'Column ')+(index+1))+
-                    select('columns.'+index+'.icon_text','Icon',column.icon_text||'',iconOptions)+
-                    field('columns.'+index+'.icon_size_px','Icon size (px)',column.icon_size_px||32,'number')+
-                    field('columns.'+index+'.icon_color','Icon color',column.icon_color||'#B58E46','color')+
+                    '<div class="builder-icon-panel">'+
+                    subheading('\ud83c\udfa8 Icon Properties')+
+                    select('columns.'+index+'.icon_text','Shape',column.icon_text||'',iconOptions)+
+                    field('columns.'+index+'.icon_size_px','Size (px)',column.icon_size_px||48,'number')+
+                    field('columns.'+index+'.icon_color','Color',column.icon_color||'#B58E46','color')+
+                    select('columns.'+index+'.icon_bg_enabled','Background',String(column.icon_bg_enabled??'0'),[['0','No background'],['1','Show background']])+
+                    field('columns.'+index+'.icon_bg_color','Background color',column.icon_bg_color||'#1C242B','color')+
+                    field('columns.'+index+'.icon_bg_padding_px','Background padding (px)',column.icon_bg_padding_px||14,'number')+
+                    field('columns.'+index+'.icon_bg_radius_pct','Corner roundness (%)',column.icon_bg_radius_pct??50,'number')+
+                    select('columns.'+index+'.icon_align','Alignment',column.icon_align||'left',[['left','Left'],['center','Center'],['right','Right']])+
+                    '</div>'+
                     field('columns.'+index+'.title','Column title',column.title||'')+
                     area('columns.'+index+'.content','Column content',column.content||'')+
                     '</div>';
