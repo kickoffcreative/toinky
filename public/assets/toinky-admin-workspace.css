@@ -751,13 +751,13 @@ body.member-games .workspace-menu-toggle {
 
 /* Container rows are shells: retain layout, background/color, spacing, and child rows,
    but remove the generic row content controls. */
-.pages-panel .page-builder-row:has(> .container-children-editor) > label:has(input[name$="[title_text]"]),
-.pages-panel .page-builder-row:has(> .container-children-editor) > label:has(textarea[name$="[content_html]"]),
-.pages-panel .page-builder-row:has(> .container-children-editor) > label:has(textarea[name$="[bullets_text]"]),
-.pages-panel .page-builder-row:has(> .container-children-editor) > .row-cards,
-.pages-panel .page-builder-row:has(> .container-children-editor) > .row-buttons,
-.pages-panel .page-builder-row:has(> .container-children-editor) > label:has(input[name$="[active]"]){display:none!important}
+.pages-panel .page-builder-row:has(> .container-children-editor:not([hidden])) > label:has(input[name$="[title_text]"]),
+.pages-panel .page-builder-row:has(> .container-children-editor:not([hidden])) > label:has(textarea[name$="[content_html]"]),
+.pages-panel .page-builder-row:has(> .container-children-editor:not([hidden])) > label:has(textarea[name$="[bullets_text]"]),
+.pages-panel .page-builder-row:has(> .container-children-editor:not([hidden])) > .row-cards,
+.pages-panel .page-builder-row:has(> .container-children-editor:not([hidden])) > .row-buttons,
+.pages-panel .page-builder-row:has(> .container-children-editor:not([hidden])) > label:has(input[name$="[active]"]){display:none!important}
 
 /* Container shells do not own a label or content image. */
-.pages-panel .page-builder-row:has(> .container-children-editor) > label:has(input[name$="[eyebrow_text]"]),
-.pages-panel .page-builder-row:has(> .container-children-editor) > label:has(select[name$="[image_media_id]"]){display:none!important}
+.pages-panel .page-builder-row:has(> .container-children-editor:not([hidden])) > label:has(input[name$="[eyebrow_text]"]),
+.pages-panel .page-builder-row:has(> .container-children-editor:not([hidden])) > label:has(select[name$="[image_media_id]"]){display:none!important}
