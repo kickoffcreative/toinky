@@ -775,6 +775,7 @@
                 ['1','Visible'],['0','Hidden']
             ])+
             field('text_color','Text color',node.text_color||'#1C242B','color')+
+            field('title_color','Title color',node.title_color||'','color')+
             select('text_align','Alignment',node.text_align||'left',[
                 ['left','Left'],['center','Center'],['right','Right']
             ])+
