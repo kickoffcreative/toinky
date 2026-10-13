@@ -286,3 +286,13 @@ label > input[type="checkbox"] { margin-right: 8px; vertical-align: middle; }
     outline:3px dotted #B58E46 !important;
     outline-offset:4px;
 }
+
+/* Centered text row layout */
+.public-content-row.layout-text-center .public-section-copy{
+    text-align:center;
+    margin-left:auto;
+    margin-right:auto;
+}
+.public-content-row.layout-text-center .hero-actions.row-actions{
+    justify-content:center;
+}
