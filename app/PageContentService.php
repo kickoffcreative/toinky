@@ -142,7 +142,9 @@ final class PageContentService
         $spacingMode=static fn($value): string=>strtoupper(trim((string)$value))==='SIDES'?'SIDES':'ALL';
         $pixels=static fn($value): int=>max(0,min(2000,(int)$value));
         $columns=[];
-        foreach(array_slice((array)($row['columns']??[]),0,6)as$column){
+        $columnInput=(array)($row['columns']??[]);
+        if(!$columnInput&&isset($row['columns_json'])){$decoded=json_decode((string)$row['columns_json'],true);if(is_array($decoded))$columnInput=$decoded;}
+        foreach(array_slice($columnInput,0,6)as$column){
             if(!is_array($column))continue;
             $columnBackgroundFit=strtoupper(trim((string)($column['background_fit']??'FILL')));
             $columns[]=[
