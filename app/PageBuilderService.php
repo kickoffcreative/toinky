@@ -89,6 +89,8 @@ final class PageBuilderService
                     if(!is_array($column))$column=[];
                     $columnItem=[
                         'icon_text'=>self::text($column['icon_text']??'',120),
+                        'icon_size_px'=>self::pixels($column['icon_size_px']??32),
+                        'icon_color'=>self::optionalColor($column['icon_color']??'#B58E46'),
                         'title'=>self::text($column['title']??'',190),
                         'content'=>self::html($column['content']??''),
                         'background_color'=>self::optionalColor($column['background_color']??''),
