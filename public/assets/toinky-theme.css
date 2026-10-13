@@ -309,9 +309,3 @@ label > input[type="checkbox"] { margin-right: 8px; vertical-align: middle; }
     gap:12px;
     margin-top:20px;
 }
-
-/* Remove stagger offset for Made for the Host cards (section 57) */
-[data-builder-section="57"] .public-content-row [style*="--column-margin-top:40px"]{
-    --column-margin-top:0px !important;
-    margin-top:0 !important;
-}
