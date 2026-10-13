@@ -80,19 +80,8 @@
     q('#preview-refresh').addEventListener('click',()=>renderDraftPreview(true));
     q('#open-preview').addEventListener('click',()=>window.open(q('#page-preview').src,'_blank','noopener'));
 
-    if(app.hero)return;
-
-    let rows=Array.isArray(app.rows)?app.rows:[];
     // Highlight selected element in preview iframe with dotted outline
     const highlightInPreview=(path,attempt=0)=>{
-        // DEBUG: try to add a visible marker to prove the function runs
-        try{
-            const testIframe=q('#page-preview');
-            if(testIframe&&testIframe.contentDocument&&testIframe.contentDocument.body){
-                testIframe.contentDocument.body.style.border='5px solid red';
-                setTimeout(()=>{try{testIframe.contentDocument.body.style.border='';}catch(e){}},2000);
-            }
-        }catch(e){}
         const iframe=q('#page-preview');
         if(!iframe){if(attempt<3)setTimeout(()=>highlightInPreview(path,attempt+1),500);return;}
         let doc=null;
@@ -114,10 +103,7 @@
         const rowIdx=String(path[path.length-1]);
         let el=null;
         try{el=scope.querySelector('[data-builder-path="'+rowIdx+'"]');}catch(e){}
-        // DEBUG: if row not found, highlight the section itself
-        if(!el&&scope!==doc){
-            el=scope;
-        }
+
         if(el){
             el.classList.add('builder-preview-highlight');
             try{el.scrollIntoView({block:'center',behavior:'smooth'});}catch(e){}
@@ -125,6 +111,11 @@
             setTimeout(()=>highlightInPreview(path,attempt+1),500);
         }
     };
+
+    if(app.hero)return;
+
+    let rows=Array.isArray(app.rows)?app.rows:[];
+
     const media=Array.isArray(app.media)?app.media:[];
     if(!rows.length||rows[0].layout_type!=='CONTAINER'){
         rows=[{layout_type:'CONTAINER',active:true,children:rows}];
