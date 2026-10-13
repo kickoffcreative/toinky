@@ -1284,6 +1284,14 @@
             const origText=saveBtn?saveBtn.textContent:'';
             if(saveBtn){saveBtn.disabled=true;saveBtn.textContent='Saving...';}
             try{
+                // Sync all data-field inputs to rows object (ensures icon fields are captured)
+                document.querySelectorAll('[data-field]').forEach(input=>{
+                    const name=input.dataset.field;
+                    const node=nodeAt(selected);
+                    if(!node||!name)return;
+                    const value=input.type==='number'?Number(input.value):input.value;
+                    setValue(node,name,value);
+                });
                 // Sync the rows payload
                 const payloadInput=q('#rows-payload');
                 if(payloadInput)payloadInput.value=JSON.stringify(rows);
