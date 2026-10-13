@@ -84,61 +84,31 @@
 
     let rows=Array.isArray(app.rows)?app.rows:[];
     // Highlight selected element in preview iframe with dotted outline
-    // Uses text content matching for robustness
     const highlightInPreview=(path,attempt=0)=>{
-        try{
-            const iframe=q('#page-preview');
-            if(!iframe||!iframe.contentDocument){
-                if(attempt<3)setTimeout(()=>highlightInPreview(path,attempt+1),500);
-                return;
-            }
-            const doc=iframe.contentDocument;
-            try{doc.querySelectorAll('.builder-preview-highlight').forEach(el=>{el.classList.remove('builder-preview-highlight');});}catch(e){}
-            if(!path||!path.length)return;
-            // Get the row data to find identifying text
-            let row=null,arr=rows;
-            for(let i=0;i<path.length&&arr;i++){
-                row=arr[path[i]];
-                arr=row&&row.children;
-            }
-            if(!row){
-                if(attempt<3)setTimeout(()=>highlightInPreview(path,attempt+1),500);
-                return;
-            }
-            // Collect text from row (title, heading, card titles)
-            let texts=[];
-            if(row.title)texts.push(row.title);
-            if(row.heading)texts.push(row.heading);
-            if(row.columns)row.columns.forEach(c=>{if(c.title)texts.push(c.title);});
-            // Find element in preview containing this text
-            const secMatch=window.location.search.match(/[?&]section=(\d+)/);
-            const sectionId=secMatch?secMatch[1]:null;
-            let scope=doc;
-            if(sectionId){
+        const iframe=q('#page-preview');
+        if(!iframe){if(attempt<3)setTimeout(()=>highlightInPreview(path,attempt+1),500);return;}
+        let doc=null;
+        try{doc=iframe.contentDocument;}catch(e){}
+        if(!doc){if(attempt<3)setTimeout(()=>highlightInPreview(path,attempt+1),500);return;}
+        try{doc.querySelectorAll('.builder-preview-highlight').forEach(el=>{el.classList.remove('builder-preview-highlight');});}catch(e){}
+        if(!path||!path.length)return;
+        const secMatch=window.location.search.match(/[?&]section=(\d+)/);
+        const sectionId=secMatch?secMatch[1]:null;
+        let scope=doc;
+        if(sectionId){
+            try{
                 const secEl=doc.querySelector('[data-builder-section="'+sectionId+'"]');
                 if(secEl)scope=secEl;
-            }
-            let target=null;
-            for(const t of texts){
-                if(!t)continue;
-                // Find all elements with data-builder-path, check if they contain the text
-                const candidates=scope.querySelectorAll('[data-builder-path]');
-                for(const c of candidates){
-                    if(c.textContent&&c.textContent.includes(t.substring(0,20))){
-                        target=c;
-                        break;
-                    }
-                }
-                if(target)break;
-            }
-            if(target){
-                target.classList.add('builder-preview-highlight');
-                try{target.scrollIntoView({block:'center',behavior:'smooth'});}catch(e){}
-            }else if(attempt<3){
-                setTimeout(()=>highlightInPreview(path,attempt+1),500);
-            }
-        }catch(e){
-            if(attempt<3)setTimeout(()=>highlightInPreview(path,attempt+1),500);
+            }catch(e){}
+        }
+        const rowIdx=String(path[0]);
+        let el=null;
+        try{el=scope.querySelector('[data-builder-path="'+rowIdx+'"]');}catch(e){}
+        if(el){
+            el.classList.add('builder-preview-highlight');
+            try{el.scrollIntoView({block:'center',behavior:'smooth'});}catch(e){}
+        }else if(attempt<3){
+            setTimeout(()=>highlightInPreview(path,attempt+1),500);
         }
     };
     const media=Array.isArray(app.media)?app.media:[];
