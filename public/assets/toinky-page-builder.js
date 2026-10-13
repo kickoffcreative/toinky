@@ -101,7 +101,9 @@
                 if(secEl)scope=secEl;
             }catch(e){}
         }
-        const rowIdx=String(path[0]);
+        // Dialog uses nested paths (e.g., "0.1"), preview uses flat indices (e.g., "1")
+        // Use the last element for the lookup
+        const rowIdx=String(path[path.length-1]);
         let el=null;
         try{el=scope.querySelector('[data-builder-path="'+rowIdx+'"]');}catch(e){}
         if(el){
