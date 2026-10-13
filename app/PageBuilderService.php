@@ -91,7 +91,7 @@ final class PageBuilderService
                         'icon_text'=>self::text($column['icon_text']??'',120),
                         'icon_size_px'=>self::pixels($column['icon_size_px']??32),
                         'icon_color'=>self::optionalColor($column['icon_color']??'#B58E46'),
-                        'icon_align'=>in_array($column['icon_align']??'left',['left','center','right'],true)?$column['icon_align']:'left',
+                        'icon_align'=>(($_a=$column['icon_align']??'left')&&in_array($_a,['left','center','right'],true))?$_a:'left',
                         'title'=>self::text($column['title']??'',190),
                         'content'=>self::html($column['content']??''),
                         'background_color'=>self::optionalColor($column['background_color']??''),
