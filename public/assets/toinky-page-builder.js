@@ -1081,8 +1081,13 @@
         }
         const selectButton=event.target.closest('[data-select]');
         if(selectButton){
-            selected=selectButton.dataset.select.split('.').map(Number);
-            props();
+            const newSel=selectButton.dataset.select.split('.').map(Number);
+            const changed=JSON.stringify(newSel)!==JSON.stringify(selected);
+            selected=newSel;
+            if(changed)props();
+            // Scroll the selected tree item into view
+            const selEl=document.querySelector('.builder-structure-row.selected');
+            if(selEl)selEl.scrollIntoView({block:'nearest',behavior:'smooth'});
             return;
         }
         const remove=event.target.closest('[data-delete]');
