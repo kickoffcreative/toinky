@@ -84,3 +84,12 @@
   .public-content-row.layout-two-column .public-three-columns,.public-content-row.layout-three-column .public-three-columns,.public-content-row.layout-four-column .public-three-columns{grid-template-columns:repeat(var(--row-mobile-columns,var(--row-tablet-columns,1)),minmax(0,1fr))}
   .public-content-row.layout-image-right>img,.public-content-row.layout-image-left>img{width:var(--row-mobile-image-width,var(--row-tablet-image-width,var(--row-image-width,100%)));height:var(--row-mobile-image-height,var(--row-tablet-image-height,var(--row-image-height,auto)))}
 }
+
+/* ---- Page Builder style-control wiring (2026-10-13) ----
+   The Pages editor and Page Builder store these values per section, row,
+   and column. These rules connect them to the rendered page. Leaving a
+   control blank preserves the previous appearance. */
+.public-content-section .type-public-section-title{color:var(--section-title-color,inherit)}
+.public-content-section .section-label{color:var(--section-label-color,inherit)}
+.public-content-row{color:var(--row-text,inherit)}
+.public-three-columns article{background:var(--column-bg,color-mix(in srgb,#fff 82%,transparent))}
