@@ -292,7 +292,12 @@ label > input[type="checkbox"] { margin-right: 8px; vertical-align: middle; }
     text-align:center;
     margin-left:auto;
     margin-right:auto;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
 }
 .public-content-row.layout-text-center .hero-actions.row-actions{
+    display:flex;
     justify-content:center;
+    margin-top:20px;
 }
