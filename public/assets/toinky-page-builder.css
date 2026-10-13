@@ -24,7 +24,7 @@
 .builder-structure-popup .builder-popup-head strong{font-size:13px}
 .builder-structure-list{padding:4px 0}
 .builder-structure-row{display:grid;grid-template-columns:minmax(0,1fr) 22px 22px 22px;align-items:center;gap:3px;min-height:26px;padding:1px 6px 1px calc(6px + var(--depth)*13px);border-bottom:1px solid #eef1f3}
-.builder-structure-row.selected{background:#e6e8eb}
+.builder-structure-row.selected{background:#e6e8eb;outline:2px dotted #B58E46;outline-offset:2px}
 .builder-structure-row[draggable="true"]{cursor:grab}
 .builder-structure-row[draggable="true"]:active{cursor:grabbing}
 .builder-structure-row.is-dragging{opacity:.45}
