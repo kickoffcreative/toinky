@@ -1307,13 +1307,14 @@ document.addEventListener('keydown',event=>{
                         if(!Array.isArray(row.columns))row.columns=[];
                         document.querySelectorAll('[data-field]').forEach(input=>{
                             const fname=input.dataset.field||'';
-                            const m=fname.match(/^columns\.(\d+)\.(.+)$/);
-                            if(!m)return;
-                            const colIdx=parseInt(m[1],10);
-                            const fieldName=m[2];
+                            const parts=fname.split('.');
+                            if(parts.length!==3||parts[0]!=='columns')return;
+                            const colIdx=parseInt(parts[1],10);
+                            if(isNaN(colIdx))return;
+                            const fieldName=parts[2];
                             if(!row.columns[colIdx])row.columns[colIdx]={};
                             let val=input.value;
-                            if(input.type==='number')val=Number(val);
+                            if(input.type==='number'){val=Number(val);if(isNaN(val))val=0;}
                             row.columns[colIdx][fieldName]=val;
                         });
                     }
