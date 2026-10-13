@@ -85,6 +85,14 @@
     let rows=Array.isArray(app.rows)?app.rows:[];
     // Highlight selected element in preview iframe with dotted outline
     const highlightInPreview=(path,attempt=0)=>{
+        // DEBUG: try to add a visible marker to prove the function runs
+        try{
+            const testIframe=q('#page-preview');
+            if(testIframe&&testIframe.contentDocument&&testIframe.contentDocument.body){
+                testIframe.contentDocument.body.style.border='5px solid red';
+                setTimeout(()=>{try{testIframe.contentDocument.body.style.border='';}catch(e){}},2000);
+            }
+        }catch(e){}
         const iframe=q('#page-preview');
         if(!iframe){if(attempt<3)setTimeout(()=>highlightInPreview(path,attempt+1),500);return;}
         let doc=null;
