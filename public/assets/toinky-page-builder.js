@@ -1347,9 +1347,15 @@ document.addEventListener('keydown',event=>{
                     msg.style.cssText='position:fixed;top:20px;right:20px;background:#1C242B;color:#F4EEE2;padding:12px 20px;border-radius:8px;z-index:9999;';
                     document.body.appendChild(msg);
                 }
-                msg.textContent='Changes saved.';
+                let dbgMsg='Changes saved.';
+                if(data&&data.debug&&data.debug.length){
+                    dbgMsg+=' DEBUG: '+data.debug.join(' | ');
+                }
+                msg.textContent=dbgMsg;
                 msg.style.display='block';
-                setTimeout(()=>{msg.style.display='none';},3000);
+                msg.style.maxWidth='80vw';
+                msg.style.wordBreak='break-word';
+                setTimeout(()=>{msg.style.display='none';},8000);
             }catch(err){
                 // Fallback to normal form submit on error
                 console.error('AJAX save failed, falling back:',err);
