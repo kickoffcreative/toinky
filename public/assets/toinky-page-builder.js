@@ -106,6 +106,10 @@
         const rowIdx=String(path[path.length-1]);
         let el=null;
         try{el=scope.querySelector('[data-builder-path="'+rowIdx+'"]');}catch(e){}
+        // DEBUG: if row not found, highlight the section itself
+        if(!el&&scope!==doc){
+            el=scope;
+        }
         if(el){
             el.classList.add('builder-preview-highlight');
             try{el.scrollIntoView({block:'center',behavior:'smooth'});}catch(e){}
