@@ -472,6 +472,17 @@
             '<textarea data-field="'+escapeHtml(name)+'">'+
             escapeHtml(value??'')+'</textarea></label>';
     };
+    const buttonsEditor=node=>{
+        const buttons=Array.isArray(node.buttons)?node.buttons:[];
+        let html=subheading('Buttons');
+        for(let i=0;i<4;i++){
+            const btn=buttons[i]||{};
+            html+='<div class="builder-subheading" style="font-size:12px;margin-top:8px;">Button '+(i+1)+'</div>'+
+                field('buttons.'+i+'.label','Label',btn.label||'')+
+                field('buttons.'+i+'.url','URL',btn.url||'');
+        }
+        return html;
+    };
     const subheading=title=>'<div class="builder-subheading">'+escapeHtml(title)+'</div>';
     const backgroundControls=(title,prefix,node)=>{
         const key=name=>prefix?prefix+'_'+name:name;
@@ -721,6 +732,7 @@
             field('label_text','Label',node.label_text||node.eyebrow_text||'')+
             field('title_text','Title',node.title_text||'')+
             area('content_html','Content',node.content_html||'')+
+            buttonsEditor(node)+
             (node.layout_type==='TEXT_BULLETS'?
                 area('bullets_text','Bullets, one per line',(node.bullets||[]).join('\n')):'')+
             renderColumns(node));
