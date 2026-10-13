@@ -84,15 +84,16 @@
 
     let rows=Array.isArray(app.rows)?app.rows:[];
     // Highlight selected element in preview iframe with dotted outline
-    const highlightInPreview=path=>{
+    const highlightInPreview=(path,attempt=0)=>{
         try{
             const iframe=q('#page-preview');
-            if(!iframe||!iframe.contentDocument)return;
+            if(!iframe||!iframe.contentDocument){
+                if(attempt<5)setTimeout(()=>highlightInPreview(path,attempt+1),300);
+                return;
+            }
             const doc=iframe.contentDocument;
             // Remove old highlights
-            doc.querySelectorAll('.builder-preview-highlight').forEach(el=>{
-                el.classList.remove('builder-preview-highlight');
-            });
+            try{doc.querySelectorAll('.builder-preview-highlight').forEach(el=>{el.classList.remove('builder-preview-highlight');});}catch(e){}
             if(!path||!path.length)return;
             // Get current section ID from URL
             const secMatch=window.location.search.match(/[?&]section=(\d+)/);
@@ -101,16 +102,21 @@
             let scope=doc;
             if(sectionId){
                 const secEl=doc.querySelector('[data-builder-section="'+sectionId+'"]');
-                if(secEl)scope=secEl;
+                if(secEl){scope=secEl;}
+                else if(attempt<5){setTimeout(()=>highlightInPreview(path,attempt+1),300);return;}
             }
             // The path is an index into the rows; use the first element for top-level
-            const rowIdx=path[0];
+            const rowIdx=String(path[0]);
             const el=scope.querySelector('[data-builder-path="'+rowIdx+'"]');
             if(el){
                 el.classList.add('builder-preview-highlight');
-                el.scrollIntoView({block:'center',behavior:'smooth'});
+                try{el.scrollIntoView({block:'center',behavior:'smooth'});}catch(e){}
+            }else if(attempt<5){
+                setTimeout(()=>highlightInPreview(path,attempt+1),300);
             }
-        }catch(e){}
+        }catch(e){
+            if(attempt<5)setTimeout(()=>highlightInPreview(path,attempt+1),300);
+        }
     };
     const media=Array.isArray(app.media)?app.media:[];
     if(!rows.length||rows[0].layout_type!=='CONTAINER'){
