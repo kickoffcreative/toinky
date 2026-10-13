@@ -643,6 +643,8 @@
                 return '<div class="builder-column">'+
                     subheading((node.layout_type==='CARDS_ONLY'?'Card ':'Column ')+(index+1))+
                     select('columns.'+index+'.icon_text','Icon',column.icon_text||'',iconOptions)+
+                    field('columns.'+index+'.icon_size_px','Icon size (px)',column.icon_size_px||32,'number')+
+                    field('columns.'+index+'.icon_color','Icon color',column.icon_color||'#B58E46','color')+
                     field('columns.'+index+'.title','Column title',column.title||'')+
                     area('columns.'+index+'.content','Column content',column.content||'')+
                     '</div>';
