@@ -280,3 +280,9 @@ body:has(#game-live) {
 
 /* Keep checkbox labels readable across the authoring and admin forms. */
 label > input[type="checkbox"] { margin-right: 8px; vertical-align: middle; }
+
+/* Page Builder preview: highlight selected element */
+.builder-preview-highlight{
+    outline:3px dotted #B58E46 !important;
+    outline-offset:4px;
+}
