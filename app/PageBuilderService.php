@@ -124,7 +124,7 @@ final class PageBuilderService
             $href='';
             if(preg_match('/\bhref\s*=\s*(["\'])(.*?)\1/i',$match[0],$found))$href=trim($found[2]);
             if($href!==''&&!preg_match('~^(?:https?://|mailto:|/|\?|#)~i',$href))$href='';
-            return $href===''?'<a>':'<a href="'.htmlspecialchars($href,ENT_QUOTES|ENT_SUBSTITUTE,'UTF-8').'">';
+            $cls='';if(preg_match('/\\bclass\\s*=\\s*([\"\'])(.*?)\\1/i',$match[0],$cfound)){$_c=array_intersect(preg_split('/\\s+/',trim($cfound[2])),['btn','hero-button']);if($_c)$cls=' class="'.htmlspecialchars(implode(' ',$_c),ENT_QUOTES|ENT_SUBSTITUTE,'UTF-8').'"';}return $href===''?'<a'.$cls.'>':'<a href="'.htmlspecialchars($href,ENT_QUOTES|ENT_SUBSTITUTE,'UTF-8').'"'.$cls.'>';
         },$html);
         return function_exists('mb_substr')?mb_substr($html,0,20000):substr($html,0,20000);
     }
