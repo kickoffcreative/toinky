@@ -85,6 +85,10 @@ if(isset($_GET['saved']))$notice='Changes saved.';
 $rows=$section?PageContentService::editorRows($section):[];
 // DIAGNOSTIC (dev only): show raw DB vs normalized icon values - keep during development
 $diagHtml='';
+if($section){
+    $diagHtml.='SECTION_ID='.(int)($section['site_page_section_id']??0).' | ';
+    $diagHtml.='CODE='.($section['section_code']??'?').' | ';
+}
 if($section&&!empty($section['rows_json'])){
     $raw=json_decode((string)$section['rows_json'],true);
     if(is_array($raw)){
@@ -101,6 +105,23 @@ if($section&&!empty($section['rows_json'])){
                     $diagHtml.='R'.$ri.'C'.$ci.': RAW(size='.$rawSize.',align='.$rawAlign.') NORM(size='.$normSize.',align='.$normAlign.') | ';
                 }
             }
+        }
+        // Full rows_json structure (truncated)
+        $diagHtml.="\n\nFULL ROWS_JSON (".count($raw)." rows):\n";
+        foreach($raw as$ri=>$r){
+            $lt=$r['layout_type']??'?';
+            $diagHtml.="Row $ri: layout=$lt";
+            if(!empty($r['children'])&&is_array($r['children'])){
+                $diagHtml.=" children=[";
+                foreach($r['children'] as$ci=>$ch){
+                    $clt=is_array($ch)?($ch['layout_type']??'?'):'?';
+                    $diagHtml.="$ci:$clt,";
+                }
+                $diagHtml.="]";
+            }
+            // Show padding if present
+            if(isset($r['padding_bottom']))$diagHtml.=" padB=".$r['padding_bottom'];
+            $diagHtml.="\n";
         }
     }
 }
