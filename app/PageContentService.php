@@ -322,7 +322,7 @@ final class PageContentService
 
     private static function sanitizeHtml(string $html): string
     {
-        $html=strip_tags($html,'<p><br><strong><b><em><i><u><h2><h3><h4><ul><ol><li><blockquote><a>');$html=preg_replace_callback('/<\/?([a-z0-9]+)(?:\s+[^>]*)?>/i',static function(array $match):string{$tag=strtolower($match[1]);$closing=str_starts_with($match[0],'</');if($closing)return'</'.$tag.'>';if($tag==='br')return'<br>';if($tag!=='a')return'<'.$tag.'>';$href='';if(preg_match('/\bhref\s*=\s*(["\'])(.*?)\1/i',$match[0],$found))$href=trim($found[2]);if($href!==''&&!preg_match('~^(?:https?://|mailto:|/|\?|#)~i',$href))$href='';return$href===''?'<a>':'<a href="'.htmlspecialchars($href,ENT_QUOTES|ENT_SUBSTITUTE,'UTF-8').'">';},$html);return trim((string)$html);
+        $html=strip_tags($html,'<p><br><strong><b><em><i><u><h2><h3><h4><ul><ol><li><blockquote><a>');$html=preg_replace_callback('/<\/?([a-z0-9]+)(?:\s+[^>]*)?>/i',static function(array $match):string{$tag=strtolower($match[1]);$closing=str_starts_with($match[0],'</');if($closing)return'</'.$tag.'>';if($tag==='br')return'<br>';if($tag!=='a')return'<'.$tag.'>';$href='';if(preg_match('/\bhref\s*=\s*(["\'])(.*?)\1/i',$match[0],$found))$href=trim($found[2]);if($href!==''&&!preg_match('~^(?:https?://|mailto:|/|\?|#)~i',$href))$href='';$cls='';if(preg_match('/\\bclass\\s*=\\s*([\"\'])(.*?)\\1/i',$match[0],$cfound)){$_c=array_intersect(preg_split('/\\s+/',trim($cfound[2])),['btn','hero-button']);if($_c)$cls=' class="'.htmlspecialchars(implode(' ',$_c),ENT_QUOTES|ENT_SUBSTITUTE,'UTF-8').'"';}return$href===''?'<a'.$cls.'>':'<a href="'.htmlspecialchars($href,ENT_QUOTES|ENT_SUBSTITUTE,'UTF-8').'"'.$cls.'>';},$html);return trim((string)$html);
     }
 }
 
