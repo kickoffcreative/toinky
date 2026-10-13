@@ -1261,11 +1261,8 @@
         const input=event.target.closest('[data-field]');
         if(!input)return;
         const name=input.dataset.field;
-        // Find row index from the properties container's stored path (more reliable than 'selected')
-        const propC=q('#content-properties');
-        const pathStr=propC&&propC.dataset.selectedPath?propC.dataset.selectedPath:'';
-        const rowIdx=pathStr?parseInt(pathStr.split('.')[0],10):(selected&&selected.length?selected[0]:0);
-        const node=rows[rowIdx];
+        // Resolve the full nested path (e.g., [0,2] for child row) - not just top-level
+        const node=nodeAt(selected);
         if(!node)return;
         setValue(node,name,name==='active'?input.value==='1':
             (input.type==='number'?Number(input.value):input.value));
@@ -1323,10 +1320,7 @@
         if(!fname)return;
         const parts=fname.split('.');
         if(parts.length!==3||parts[0]!=='columns')return;
-        const propC=q('#content-properties');
-        const pathStr=propC&&propC.dataset.selectedPath?propC.dataset.selectedPath:'';
-        const rowIdx=pathStr?parseInt(pathStr.split('.')[0],10):(selected&&selected.length?selected[0]:0);
-        const node=rows[rowIdx];
+        const node=nodeAt(selected);
         if(!node)return;
         setValue(node,fname,val);
     });
@@ -1334,10 +1328,7 @@
         const input=event.target.closest('[data-field]');
         if(!input)return;
         if(input.tagName!=='SELECT')return;
-        const propC=q('#content-properties');
-        const pathStr=propC&&propC.dataset.selectedPath?propC.dataset.selectedPath:'';
-        const rowIdx=pathStr?parseInt(pathStr.split('.')[0],10):(selected&&selected.length?selected[0]:0);
-        const node=rows[rowIdx];
+        const node=nodeAt(selected);
         if(!node)return;
         setValue(node,input.dataset.field,input.value);
     });
@@ -1363,9 +1354,9 @@ document.addEventListener('keydown',event=>{
             if(saveBtn){saveBtn.disabled=true;saveBtn.textContent='Saving...';}
             try{
                 // Sync all data-field inputs directly to rows (bulletproof)
+                // Use nodeAt(selected) to resolve nested paths, not just top-level rows
                 try{
-                    const rowIdx=selected&&selected.length>0?selected[0]:0;
-                    const row=rows[rowIdx];
+                    const row=nodeAt(selected);
                     if(row){
                         if(!Array.isArray(row.columns))row.columns=[];
                         document.querySelectorAll('[data-field]').forEach(input=>{
