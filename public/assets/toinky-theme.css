@@ -305,7 +305,34 @@ label > input[type="checkbox"] { margin-right: 8px; vertical-align: middle; }
 /* Proper buttons array (hero-actions div) */
 .public-content-row.layout-text-center .hero-actions.row-actions{
     display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:16px;
+    margin-top:32px;
+}
+.public-content-row.layout-text-center .hero-actions.row-actions .btn.hero-button{
+    display:inline-flex;
+    align-items:center;
     justify-content:center;
-    gap:12px;
-    margin-top:20px;
+    min-width:280px;
+    min-height:64px;
+    padding:18px 40px;
+    font-size:19px;
+    font-weight:700;
+    letter-spacing:0.02em;
+    text-align:center;
+    border-radius:8px;
+    box-shadow:0 8px 24px rgba(181,142,70,0.35);
+    transition:transform 0.2s ease, box-shadow 0.2s ease;
+}
+.public-content-row.layout-text-center .hero-actions.row-actions .btn.hero-button:hover{
+    transform:translateY(-2px);
+    box-shadow:0 12px 32px rgba(181,142,70,0.5);
+}
+@media (max-width:640px){
+    .public-content-row.layout-text-center .hero-actions.row-actions .btn.hero-button{
+        min-width:240px;
+        width:100%;
+        max-width:320px;
+    }
 }
