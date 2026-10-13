@@ -425,9 +425,24 @@
             '<input type="number" data-color-part="'+escapeHtml(name)+'" value="'+
             escapeHtml(value)+'"></label>';
     };
+    window.toinkyPBSelectSync=function(sel){
+        try{
+            const fname=sel.dataset.field||'';
+            const parts=fname.split('.');
+            if(parts.length!==3||parts[0]!=='columns')return;
+            const propC=document.querySelector('#content-properties');
+            const pathStr=propC&&propC.dataset.selectedPath?propC.dataset.selectedPath:'';
+            const rowIdx=pathStr?parseInt(pathStr.split('.')[0],10):0;
+            // Access rows via the app object
+            const appRows=window.toinkyPageBuilder&&window.toinkyPageBuilder.rows;
+            // Actually rows is a closure variable, we need a different approach
+            // Fallback: dispatch a custom event that the IIFE listens for
+            sel.dispatchEvent(new CustomEvent('pb-select-change',{bubbles:true,detail:{field:fname,value:sel.value}}));
+        }catch(e){}
+    };
     const select=(name,title,value,options)=>{
         return '<label class="builder-field">'+escapeHtml(title)+
-            '<select data-field="'+escapeHtml(name)+'">'+options.map(option=>
+            '<select data-field="'+escapeHtml(name)+'" onchange="window.toinkyPBSelectSync(this)">'+options.map(option=>
             '<option value="'+escapeHtml(option[0])+'" '+
             (String(option[0])===String(value)?'selected':'')+'>'+
             escapeHtml(option[1])+'</option>').join('')+'</select></label>';
@@ -1271,7 +1286,20 @@
         }
     });
 
-        document.addEventListener('change',event=>{
+        document.addEventListener('pb-select-change',event=>{
+        const fname=event.detail&&event.detail.field;
+        const val=event.detail&&event.detail.value;
+        if(!fname)return;
+        const parts=fname.split('.');
+        if(parts.length!==3||parts[0]!=='columns')return;
+        const propC=q('#content-properties');
+        const pathStr=propC&&propC.dataset.selectedPath?propC.dataset.selectedPath:'';
+        const rowIdx=pathStr?parseInt(pathStr.split('.')[0],10):(selected&&selected.length?selected[0]:0);
+        const node=rows[rowIdx];
+        if(!node)return;
+        setValue(node,fname,val);
+    });
+    document.addEventListener('change',event=>{
         const input=event.target.closest('[data-field]');
         if(!input)return;
         if(input.tagName!=='SELECT')return;
