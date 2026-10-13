@@ -83,28 +83,6 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
 }
 if(isset($_GET['saved']))$notice='Changes saved.';
 $rows=$section?PageContentService::editorRows($section):[];
-// TEMP DIAGNOSTIC: show raw DB vs normalized icon values
-$diagHtml='';
-if($section&&!empty($section['rows_json'])){
-    $raw=json_decode((string)$section['rows_json'],true);
-    if(is_array($raw)){
-        foreach($raw as$ri=>$r){
-            if(!empty($r['columns'])&&is_array($r['columns'])){
-                foreach($r['columns'] as$ci=>$c){
-                    $rawSize=$c['icon_size_px']??'MISS';
-                    $rawAlign=$c['icon_align']??'MISS';
-                    // Find normalized
-                    $normSize='?';$normAlign='?';
-                    if(isset($rows[$ri]['columns'][$ci])){
-                        $normSize=$rows[$ri]['columns'][$ci]['icon_size_px']??'MISS';
-                        $normAlign=$rows[$ri]['columns'][$ci]['icon_align']??'MISS';
-                    }
-                    $diagHtml.='R'.$ri.'C'.$ci.': RAW(size='.$rawSize.',align='.$rawAlign.') NORM(size='.$normSize.',align='.$normAlign.') | ';
-                }
-            }
-        }
-    }
-}
 $pageMedia=db()->query('SELECT media_id,title_text FROM writer_media_assets WHERE active=1 ORDER BY title_text,media_id')->fetchAll();
 if($section&&($section['section_code']??'')!=='HERO'&&!$rows)$rows=[['layout_type'=>'CONTAINER','active'=>true,'children'=>[]]];
 function builder_e(string $value): string{return htmlspecialchars($value,ENT_QUOTES,'UTF-8');}
@@ -152,7 +130,7 @@ function builder_e(string $value): string{return htmlspecialchars($value,ENT_QUO
 </div>
 <form method="post" id="builder-form">
 <input type="hidden" name="csrf_token" value="<?=htmlspecialchars(AuthService::csrfToken(),ENT_QUOTES,'UTF-8')?>"><input type="hidden" name="action" value="save_page_builder"><input type="hidden" name="section_id" value="<?=(int)$section['site_page_section_id']?>"><input type="hidden" name="rows_payload" id="rows-payload">
-<?php if($diagHtml): ?><details style="background:#fffbe6;border:1px solid #e0c36a;margin:8px;padding:6px 10px;font-family:monospace;font-size:11px;border-radius:4px;"><summary style="cursor:pointer;color:#8a6d1b;font-weight:bold;">DIAGNOSTIC (dev only) - click to expand</summary><div style="margin-top:6px;color:#333;word-break:break-word;"><?=htmlspecialchars($diagHtml)?></div></details><?php endif; ?>
+
 <div class="inspector-heading"><span>Editing</span><strong><?=builder_e((string)$section['label_text'])?></strong></div>
 <div class="builder-inspector-tools"><button type="button" id="structure-open" data-structure-open aria-label="Open Structure" title="Structure">☷</button><button type="button" id="ai-rules-copy" aria-label="Copy AI rules" title="Copy AI rules">AI</button><button type="button" id="ai-outline-copy" aria-label="Copy outline prompt" title="Copy outline prompt">?</button><button type="button" id="ai-json-open" aria-label="Import AI JSON" title="Import AI JSON">{}</button></div>
 <p class="builder-tool-status" id="builder-ai-status" aria-live="polite"></p>
