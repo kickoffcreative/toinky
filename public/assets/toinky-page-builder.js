@@ -94,15 +94,18 @@
                 el.classList.remove('builder-preview-highlight');
             });
             if(!path||!path.length)return;
-            // Build path string (e.g., "1" or "0.1")
-            // The PHP uses index within renderRows; for top-level it's just the index
-            // For nested, it's "parent.child"
-            const pathStr=path.join('.');
-            // Try direct match, then try last segment (for container children)
-            let el=doc.querySelector('[data-builder-path="'+pathStr+'"]');
-            if(!el&&path.length>1){
-                el=doc.querySelector('[data-builder-path="'+path[path.length-1]+'"]');
+            // Get current section ID from URL
+            const secMatch=window.location.search.match(/[?&]section=(\d+)/);
+            const sectionId=secMatch?secMatch[1]:null;
+            // Find the section in the preview
+            let scope=doc;
+            if(sectionId){
+                const secEl=doc.querySelector('[data-builder-section="'+sectionId+'"]');
+                if(secEl)scope=secEl;
             }
+            // The path is an index into the rows; use the first element for top-level
+            const rowIdx=path[0];
+            const el=scope.querySelector('[data-builder-path="'+rowIdx+'"]');
             if(el){
                 el.classList.add('builder-preview-highlight');
                 el.scrollIntoView({block:'center',behavior:'smooth'});
