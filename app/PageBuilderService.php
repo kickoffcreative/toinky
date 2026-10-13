@@ -89,12 +89,8 @@ final class PageBuilderService
                     if(!is_array($column))$column=[];
                     $columnItem=[
                         'icon_text'=>self::text($column['icon_text']??'',120),
-                        'icon_size_px'=>self::pixels($column['icon_size_px']??48),
+                        'icon_size_px'=>self::pixels($column['icon_size_px']??32),
                         'icon_color'=>self::optionalColor($column['icon_color']??'#B58E46'),
-                        'icon_bg_enabled'=>!empty($column['icon_bg_enabled'])?1:0,
-                        'icon_bg_color'=>self::optionalColor($column['icon_bg_color']??'#1C242B'),
-                        'icon_bg_padding_px'=>self::pixels($column['icon_bg_padding_px']??14),
-                        'icon_bg_radius_pct'=>max(0,min(50,(int)($column['icon_bg_radius_pct']??50))),
                         'icon_align'=>in_array($column['icon_align']??'left',['left','center','right'],true)?$column['icon_align']:'left',
                         'title'=>self::text($column['title']??'',190),
                         'content'=>self::html($column['content']??''),
