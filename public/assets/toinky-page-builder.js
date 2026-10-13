@@ -678,6 +678,7 @@
         const node=nodeAt(selected);
         if(!node)return;
         const propContainer=q('#content-properties');
+        const savedWinY=window.scrollY;
         if(propContainer)propContainer.dataset.selectedPath=selected.join('.');
         const container=node.layout_type==='CONTAINER';
         q('#content-properties').innerHTML=
@@ -752,6 +753,9 @@
             ]);
         sync();
         refreshStructurePopup();
+        if(propContainer)propContainer.scrollTop=0;
+        if(window.scrollY!==savedWinY)window.scrollTo(window.scrollX,savedWinY);
+    
     };
 
     const saveStructurePopupState=open=>{
