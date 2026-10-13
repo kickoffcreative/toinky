@@ -1299,22 +1299,25 @@ document.addEventListener('keydown',event=>{
             const origText=saveBtn?saveBtn.textContent:'';
             if(saveBtn){saveBtn.disabled=true;saveBtn.textContent='Saving...';}
             try{
-                // Sync all data-field inputs to rows object (ensures icon fields are captured)
-                // Use stored path from properties container (more reliable than 'selected' variable)
-                const propCont=q('#content-properties');
-                const storedPath=propCont&&propCont.dataset.selectedPath?propCont.dataset.selectedPath.split('.').map(Number):selected;
-                const syncNode=nodeAt(storedPath);
-                if(syncNode){
-                    document.querySelectorAll('#content-properties [data-field]').forEach(input=>{
-                        const name=input.dataset.field;
-                        if(!name)return;
-                        let value;
-                        if(input.type==='number')value=Number(input.value);
-                        else if(input.tagName==='SELECT')value=input.value;
-                        else value=input.value;
-                        setValue(syncNode,name,value);
-                    });
-                }
+                // Sync all data-field inputs directly to rows (bulletproof)
+                try{
+                    const rowIdx=selected&&selected.length>0?selected[0]:0;
+                    const row=rows[rowIdx];
+                    if(row){
+                        if(!Array.isArray(row.columns))row.columns=[];
+                        document.querySelectorAll('[data-field]').forEach(input=>{
+                            const fname=input.dataset.field||'';
+                            const m=fname.match(/^columns\.(\d+)\.(.+)$/);
+                            if(!m)return;
+                            const colIdx=parseInt(m[1],10);
+                            const fieldName=m[2];
+                            if(!row.columns[colIdx])row.columns[colIdx]={};
+                            let val=input.value;
+                            if(input.type==='number')val=Number(val);
+                            row.columns[colIdx][fieldName]=val;
+                        });
+                    }
+                }catch(syncErr){console.error('[PB Save] Sync failed:',syncErr);}
                 // Sync the rows payload
                 const payloadInput=q('#rows-payload');
                 if(payloadInput)payloadInput.value=JSON.stringify(rows);
