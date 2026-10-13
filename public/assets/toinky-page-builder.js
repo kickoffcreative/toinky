@@ -662,6 +662,8 @@
     const props=()=>{
         const node=nodeAt(selected);
         if(!node)return;
+        const propContainer=q('#content-properties');
+        if(propContainer)propContainer.dataset.selectedPath=selected.join('.');
         const container=node.layout_type==='CONTAINER';
         q('#content-properties').innerHTML=
             selectedSummary(node)+
@@ -1264,7 +1266,20 @@
         }
     });
 
-    document.addEventListener('keydown',event=>{
+        document.addEventListener('change',event=>{
+        const input=event.target.closest('[data-field]');
+        if(!input)return;
+        // Only handle selects here (inputs are handled by 'input' event)
+        if(input.tagName!=='SELECT')return;
+        const propContainer=q('#content-properties');
+        const pathStr=propContainer?propContainer.dataset.selectedPath:null;
+        const selPath=pathStr?pathStr.split('.').map(Number):selected;
+        const node=nodeAt(selPath);
+        if(!node)return;
+        setValue(node,input.dataset.field,input.value);
+    });
+    
+document.addEventListener('keydown',event=>{
         if(event.key==='Escape'){
             closeAiImport();
             closeFloating(false);
@@ -1285,13 +1300,21 @@
             if(saveBtn){saveBtn.disabled=true;saveBtn.textContent='Saving...';}
             try{
                 // Sync all data-field inputs to rows object (ensures icon fields are captured)
-                document.querySelectorAll('[data-field]').forEach(input=>{
-                    const name=input.dataset.field;
-                    const node=nodeAt(selected);
-                    if(!node||!name)return;
-                    const value=input.type==='number'?Number(input.value):input.value;
-                    setValue(node,name,value);
-                });
+                // Use stored path from properties container (more reliable than 'selected' variable)
+                const propCont=q('#content-properties');
+                const storedPath=propCont&&propCont.dataset.selectedPath?propCont.dataset.selectedPath.split('.').map(Number):selected;
+                const syncNode=nodeAt(storedPath);
+                if(syncNode){
+                    document.querySelectorAll('#content-properties [data-field]').forEach(input=>{
+                        const name=input.dataset.field;
+                        if(!name)return;
+                        let value;
+                        if(input.type==='number')value=Number(input.value);
+                        else if(input.tagName==='SELECT')value=input.value;
+                        else value=input.value;
+                        setValue(syncNode,name,value);
+                    });
+                }
                 // Sync the rows payload
                 const payloadInput=q('#rows-payload');
                 if(payloadInput)payloadInput.value=JSON.stringify(rows);
