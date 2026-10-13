@@ -83,6 +83,32 @@
     if(app.hero)return;
 
     let rows=Array.isArray(app.rows)?app.rows:[];
+    // Highlight selected element in preview iframe with dotted outline
+    const highlightInPreview=path=>{
+        try{
+            const iframe=q('#page-preview');
+            if(!iframe||!iframe.contentDocument)return;
+            const doc=iframe.contentDocument;
+            // Remove old highlights
+            doc.querySelectorAll('.builder-preview-highlight').forEach(el=>{
+                el.classList.remove('builder-preview-highlight');
+            });
+            if(!path||!path.length)return;
+            // Build path string (e.g., "1" or "0.1")
+            // The PHP uses index within renderRows; for top-level it's just the index
+            // For nested, it's "parent.child"
+            const pathStr=path.join('.');
+            // Try direct match, then try last segment (for container children)
+            let el=doc.querySelector('[data-builder-path="'+pathStr+'"]');
+            if(!el&&path.length>1){
+                el=doc.querySelector('[data-builder-path="'+path[path.length-1]+'"]');
+            }
+            if(el){
+                el.classList.add('builder-preview-highlight');
+                el.scrollIntoView({block:'center',behavior:'smooth'});
+            }
+        }catch(e){}
+    };
     const media=Array.isArray(app.media)?app.media:[];
     if(!rows.length||rows[0].layout_type!=='CONTAINER'){
         rows=[{layout_type:'CONTAINER',active:true,children:rows}];
@@ -1088,6 +1114,8 @@
             // Scroll the selected tree item into view
             const selEl=document.querySelector('.builder-structure-row.selected');
             if(selEl)selEl.scrollIntoView({block:'nearest',behavior:'smooth'});
+            // Highlight in preview iframe
+            highlightInPreview(newSel);
             return;
         }
         const remove=event.target.closest('[data-delete]');
