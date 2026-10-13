@@ -1274,4 +1274,50 @@
     props();
     const savedStructure=readStructurePopupState();
     if(savedStructure.open)openStructurePopup(q('#structure-open'),savedStructure);
+
+    // AJAX save via index.php (no page refresh) - avoids 404 on page-builder.php POST
+    const builderForm=q('#builder-form');
+    if(builderForm){
+        builderForm.addEventListener('submit',async event=>{
+            event.preventDefault();
+            const saveBtn=builderForm.querySelector('.builder-save');
+            const origText=saveBtn?saveBtn.textContent:'';
+            if(saveBtn){saveBtn.disabled=true;saveBtn.textContent='Saving...';}
+            try{
+                // Sync the rows payload
+                const payloadInput=q('#rows-payload');
+                if(payloadInput)payloadInput.value=JSON.stringify(rows);
+                const formData=new FormData(builderForm);
+                // Add page code for redirect fallback
+                const pageMatch=window.location.search.match(/[?&]page=([^&]+)/);
+                if(pageMatch)formData.append('page',decodeURIComponent(pageMatch[1]));
+                const resp=await fetch('index.php',{
+                    method:'POST',
+                    headers:{'X-Requested-With':'XMLHttpRequest'},
+                    body:formData,
+                    credentials:'same-origin'
+                });
+                const data=await resp.json();
+                if(!resp.ok||!data.ok)throw new Error((data&&data.error)||('Save failed ('+resp.status+')'));
+                // Success - show message without refresh
+                let msg=q('#builder-save-msg');
+                if(!msg){
+                    msg=document.createElement('div');
+                    msg.id='builder-save-msg';
+                    msg.className='builder-save-success';
+                    msg.style.cssText='position:fixed;top:20px;right:20px;background:#1C242B;color:#F4EEE2;padding:12px 20px;border-radius:8px;z-index:9999;';
+                    document.body.appendChild(msg);
+                }
+                msg.textContent='Changes saved.';
+                msg.style.display='block';
+                setTimeout(()=>{msg.style.display='none';},3000);
+            }catch(err){
+                // Fallback to normal form submit on error
+                console.error('AJAX save failed, falling back:',err);
+                builderForm.submit();
+            }finally{
+                if(saveBtn){saveBtn.disabled=false;saveBtn.textContent=origText;}
+            }
+        });
+    }
 })();
