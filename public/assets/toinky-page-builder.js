@@ -1214,8 +1214,13 @@
         }
         const input=event.target.closest('[data-field]');
         if(!input)return;
-        const node=nodeAt(selected);
         const name=input.dataset.field;
+        // Find row index from the properties container's stored path (more reliable than 'selected')
+        const propC=q('#content-properties');
+        const pathStr=propC&&propC.dataset.selectedPath?propC.dataset.selectedPath:'';
+        const rowIdx=pathStr?parseInt(pathStr.split('.')[0],10):(selected&&selected.length?selected[0]:0);
+        const node=rows[rowIdx];
+        if(!node)return;
         setValue(node,name,name==='active'?input.value==='1':
             (input.type==='number'?Number(input.value):input.value));
         if(name==='spacing_preset'&&spacingPresetValues[input.value]){
@@ -1269,12 +1274,11 @@
         document.addEventListener('change',event=>{
         const input=event.target.closest('[data-field]');
         if(!input)return;
-        // Only handle selects here (inputs are handled by 'input' event)
         if(input.tagName!=='SELECT')return;
-        const propContainer=q('#content-properties');
-        const pathStr=propContainer?propContainer.dataset.selectedPath:null;
-        const selPath=pathStr?pathStr.split('.').map(Number):selected;
-        const node=nodeAt(selPath);
+        const propC=q('#content-properties');
+        const pathStr=propC&&propC.dataset.selectedPath?propC.dataset.selectedPath:'';
+        const rowIdx=pathStr?parseInt(pathStr.split('.')[0],10):(selected&&selected.length?selected[0]:0);
+        const node=rows[rowIdx];
         if(!node)return;
         setValue(node,input.dataset.field,input.value);
     });
