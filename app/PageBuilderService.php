@@ -83,6 +83,7 @@ final class PageBuilderService
             $item['column_background_fit']=self::backgroundFit($row['column_background_fit']??'FILL');
             self::applySpacing($item,$row,'column_margin',10);
             self::applySpacing($item,$row,'column_padding');
+            $item['buttons']=self::normalizeRowButtons($row['buttons']??[]);
             if(is_array($row['columns']??null)){
                 $item['columns']=[];
                 foreach(array_slice($row['columns'],0,6)as$column){
@@ -104,6 +105,25 @@ final class PageBuilderService
                 }
             }
             $out[]=$item;
+        }
+        return$out;
+    }
+
+    private static function normalizeRowButtons(mixed$value): array
+    {
+        if(!is_array($value))return[];
+        $out=[];
+        foreach(array_slice($value,0,4)as$button){
+            if(!is_array($button))continue;
+            $label=self::text($button['label']??'',90);
+            if($label==='')continue;
+            $url=trim((string)($button['url']??''));
+            if($url!==''&&!preg_match('~^(?:https?://|mailto:|/|\?|#)~i',$url))$url='';
+            $out[]=[
+                'label'=>$label,
+                'url'=>$url,
+                'visible'=>true,
+            ];
         }
         return$out;
     }
