@@ -5,53 +5,6 @@
     if(!app)return;
 
     const q=selector=>document.querySelector(selector);
-
-    // Elementor-style saves: POST via fetch so the page never reloads and the
-    // scroll position is preserved. Without JS the forms submit normally.
-    let builderToastEl=null,builderToastTimer=null;
-    const builderToast=(message,kind='ok')=>{
-        if(!builderToastEl){
-            builderToastEl=document.createElement('div');
-            builderToastEl.setAttribute('role','status');
-            builderToastEl.style.cssText='position:fixed;bottom:26px;left:50%;transform:translateX(-50%);padding:10px 20px;border-radius:6px;font:600 .85rem/1.4 system-ui,-apple-system,sans-serif;color:#fff;z-index:10000;opacity:0;transition:opacity .25s ease;pointer-events:none;box-shadow:0 8px 24px rgba(0,0,0,.25)';
-            document.body.appendChild(builderToastEl);
-        }
-        builderToastEl.textContent=message;
-        builderToastEl.style.background=kind==='error'?'#8f2d2d':'#2f5d3a';
-        builderToastEl.style.opacity='1';
-        clearTimeout(builderToastTimer);
-        builderToastTimer=setTimeout(()=>{builderToastEl.style.opacity='0';},2600);
-    };
-    const ajaxPostForm=(form,options={})=>{
-        if(!form||form.dataset.ajaxWired==='1')return;
-        form.dataset.ajaxWired='1';
-        if(options.confirmText)form.removeAttribute('onsubmit');
-        form.addEventListener('submit',event=>{
-            event.preventDefault();
-            if(options.confirmText&&!window.confirm(options.confirmText))return;
-            if(options.beforeSerialize)options.beforeSerialize();
-            const submitBtn=form.querySelector('[type="submit"]');
-            if(submitBtn)submitBtn.disabled=true;
-            fetch(form.action||window.location.href,{
-                method:'POST',
-                headers:{'X-Requested-With':'XMLHttpRequest'},
-                body:new FormData(form),
-                credentials:'same-origin'
-            }).then(async response=>{
-                let data=null;
-                try{data=await response.json();}catch(parseError){}
-                if(!response.ok||!data||data.ok!==true)throw new Error((data&&data.error)||('Request failed ('+response.status+')'));
-                return data;
-            }).then(data=>{
-                if(options.okMessage)builderToast(options.okMessage);
-                if(options.onOk)options.onOk(data);
-            }).catch(error=>{
-                builderToast((error&&error.message)||'Save failed.','error');
-            }).finally(()=>{
-                if(submitBtn)submitBtn.disabled=false;
-            });
-        });
-    };
     const toggle=q('#sidebar-toggle');
     const shell=document.querySelector('.page-builder-shell');
     const collapsedKey='toinky-page-builder-sidebar-collapsed';
@@ -117,15 +70,6 @@
         });
         syncSectionOrder();
     }
-
-    ajaxPostForm(q('#section-add-form'),{
-        okMessage:'Section added.',
-        onOk:data=>{
-            if(data&&data.section_id)window.location.href='page-builder.php?page='+encodeURIComponent(app.page)+'&section='+encodeURIComponent(data.section_id);
-            else window.location.reload();
-        }
-    });
-    ajaxPostForm(q('#section-order-form'),{okMessage:'Section order saved.'});
 
     let previewTimer=null;
     let renderDraftPreview=()=>q('#page-preview').contentWindow.location.reload();
@@ -460,32 +404,6 @@
         else previewTimer=setTimeout(submit,350);
     };
     const sync=()=>{q('#rows-payload').value=JSON.stringify(rows);renderDraftPreview()};
-
-    ajaxPostForm(q('#builder-form'),{
-        beforeSerialize:()=>{q('#rows-payload').value=JSON.stringify(rows);},
-        okMessage:'Changes saved.',
-        onOk:()=>{renderDraftPreview(true);}
-    });
-    ajaxPostForm(document.querySelector('.section-rename-form'),{
-        okMessage:'Section renamed.',
-        onOk:data=>{
-            const label=data&&data.label;
-            if(label){
-                const navLabel=sectionNav?sectionNav.querySelector('[data-section-id="'+data.section_id+'"] span'):null;
-                if(navLabel)navLabel.textContent=label;
-                const heading=document.querySelector('.inspector-heading strong');
-                if(heading)heading.textContent=label;
-            }
-        }
-    });
-    ajaxPostForm(document.querySelector('.section-delete-form'),{
-        confirmText:'Delete this section? This cannot be undone.',
-        onOk:()=>{
-            const first=sectionNav?sectionNav.querySelector('[data-section-id]'):null;
-            if(first&&first.getAttribute('href'))window.location.href=first.getAttribute('href');
-            else window.location.href='page-builder.php?page='+encodeURIComponent(app.page);
-        }
-    });
 
     const field=(name,title,value,type='text')=>{
         if(type==='color'){
