@@ -747,7 +747,7 @@ function admin_hero_button_editor(array $button,string $index,bool $template=fal
 </div>
 <button class="btn">Add Layer</button>
 </form>
-<?php else:?>
+<?php elseif($brandTab==='socials'):?>
 <h3>Social Media Links</h3>
 <p class="muted">Add complete profile URLs. Only platforms with a saved link appear in the public website social row.</p>
 <form method="post" class="social-settings-grid">
