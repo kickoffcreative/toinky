@@ -231,6 +231,8 @@ final class PageContentService
             'background_media_id'=>$media($row['background_media_id']??''),
             'background_color'=>$hex($row['background_color']??''),
             'background_fit'=>in_array($backgroundFit,['FILL','FIT','TILE'],true)?$backgroundFit:'FILL',
+            'overlay_color'=>$hex($row['overlay_color']??''),
+            'overlay_opacity'=>max(0,min(100,(int)($row['overlay_opacity']??0))),
             'content_width'=>in_array($contentWidth,['FULL','MAX'],true)?$contentWidth:'FULL',
             'max_width_px'=>$maxWidth,
             'min_height_px'=>$pixels($row['min_height_px']??0),
