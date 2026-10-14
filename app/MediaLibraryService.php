@@ -149,7 +149,17 @@ final class MediaLibraryService
 
     public static function regenerateVersions(array $user,int $mediaId): void
     {
-        $m=self::requireVisible($user,$mediaId);$settings=self::settings();self::deleteVersions($mediaId,['MEDIUM','LARGE']);self::generateOptionalVersions($mediaId,(string)$m['file_path'],pathinfo((string)$m['file_path'],PATHINFO_FILENAME),pathinfo((string)$m['file_path'],PATHINFO_EXTENSION),(string)$m['mime_type'],(int)$m['width_px'],(int)$m['height_px'],$settings);
+        $m=self::requireVisible($user,$mediaId);$settings=self::settings();
+        // Regenerate thumbnail at standard size (fixes old oversized thumbnails)
+        $width=(int)$m['width_px'];$height=(int)$m['height_px'];
+        $cropSize=min($width,$height);$cropX=(int)(($width-$cropSize)/2);$cropY=(int)(($height-$cropSize)/2);
+        $thumbPath=(string)($m['thumbnail_path']??'');
+        if($thumbPath===''){$ext=pathinfo((string)$m['file_path'],PATHINFO_EXTENSION);$thumbPath=preg_replace('/\\.'.$ext.'$/i','-thumb.'.$ext,(string)$m['file_path']);}
+        self::createThumbnail(self::absolutePath((string)$m['file_path']),self::absolutePath($thumbPath),(string)$m['mime_type'],$width,$height,$cropX,$cropY,$cropSize,$settings['thumbnail_size_px'],$settings);
+        db()->prepare('UPDATE writer_media_assets SET thumbnail_path=?,thumbnail_crop_x=?,thumbnail_crop_y=?,thumbnail_crop_size=? WHERE media_id=?')->execute([$thumbPath,$cropX,$cropY,$cropSize,$mediaId]);
+        self::upsertVersion($mediaId,'THUMBNAIL',$thumbPath,(string)$m['mime_type'],$settings['thumbnail_size_px'],$settings['thumbnail_size_px'],(int)filesize(self::absolutePath($thumbPath)),$cropX,$cropY,$cropSize,$cropSize);
+        // Regenerate MEDIUM and LARGE
+        self::deleteVersions($mediaId,['MEDIUM','LARGE']);self::generateOptionalVersions($mediaId,(string)$m['file_path'],pathinfo((string)$m['file_path'],PATHINFO_FILENAME),pathinfo((string)$m['file_path'],PATHINFO_EXTENSION),(string)$m['mime_type'],$width,$height,$settings);
     }
 
     public static function versionsByMediaIds(array $user,array $mediaIds): array
