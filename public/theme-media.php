@@ -24,7 +24,7 @@ if(!$media){http_response_code(404);exit;}
 
 $servedPath=(string)($mediaId>0?$media['file_path']:$path);
 $servedMime=(string)$media['mime_type'];
-if($mediaId>0&&in_array($version,['THUMBNAIL','MEDIUM','LARGE'],true)){
+$versionMediaId=(int)($media['media_id']??0);if($versionMediaId>0&&in_array($version,['THUMBNAIL','MEDIUM','LARGE'],true)){
     try{
         $q=db()->prepare('SELECT file_path,mime_type FROM writer_media_versions WHERE media_id=? AND version_code=?');
         $q->execute([(int)$media['media_id'],$version]);
