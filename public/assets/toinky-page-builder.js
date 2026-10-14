@@ -974,7 +974,7 @@
         brandColors.forEach(c=>{
             const hex=(c.hex||'').toUpperCase();
             if(!hex)return;
-            html+='<button type="button" data-brand-color="'+hex+'" title="'+escapeHtml(c.name||hex)+'" style="width:32px;height:32px;border-radius:4px;border:2px solid #ddd;background:'+hex+';cursor:pointer;" onmouseover="this.style.borderColor='#999'" onmouseout="this.style.borderColor='#ddd'"></button>';
+            html+='<button type="button" data-brand-color="'+hex+'" title="'+escapeHtml(c.name||hex)+'" style="width:32px;height:32px;border-radius:4px;border:2px solid #ddd;background:'+hex+';cursor:pointer;"></button>';
         });
         html+='</div></div>';
         return html;
