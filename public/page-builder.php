@@ -18,7 +18,7 @@ $sectionId=(int)($_GET['section']??0);
 $section=null;
 foreach($sections as $candidate)if((int)$candidate['site_page_section_id']===$sectionId){$section=$candidate;break;}
 if(!$section)$section=$sections[0]??null;
-$brandColors=[];try{$qc=db()->prepare('SELECT setting_value FROM platform_settings WHERE setting_key="BRAND_COLORS"');$qc->execute();$bc=json_decode((string)$qc->fetchColumn(),true);if(is_array($bc))$brandColors=$bc;}catch(Throwable $e){}
+$brandColors=[['name'=>'Paper','hex'=>'#F4EEE2'],['name'=>'Ink','hex'=>'#1C242B'],['name'=>'Wash','hex'=>'#668091'],['name'=>'Tension','hex'=>'#6B2938'],['name'=>'Memory','hex'=>'#66715C'],['name'=>'Choice','hex'=>'#B58E46']];try{$qc=db()->prepare('SELECT setting_value FROM platform_settings WHERE setting_key="BRAND_COLORS"');$qc->execute();$bc=json_decode((string)$qc->fetchColumn(),true);if(is_array($bc)&&count($bc)>0)$brandColors=$bc;}catch(Throwable $e){}
 
 $error=null;$notice=null;
 $isAjaxSave=($_SERVER['HTTP_X_REQUESTED_WITH']??'')==='XMLHttpRequest';
