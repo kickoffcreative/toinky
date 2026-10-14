@@ -93,3 +93,18 @@
 .public-content-section .section-label{color:var(--section-label-color,inherit)}
 .public-content-row{color:var(--row-text,inherit)}
 .public-three-columns article{background:var(--column-bg,color-mix(in srgb,#fff 82%,transparent))}
+
+/* Row background overlay */
+.public-content-row[style*="--row-overlay"]{position:relative;}
+.public-content-row[style*="--row-overlay"]::before{
+    content:"";
+    position:absolute;
+    inset:0;
+    background:var(--row-overlay);
+    pointer-events:none;
+    z-index:0;
+}
+.public-content-row[style*="--row-overlay"] > *{
+    position:relative;
+    z-index:1;
+}
