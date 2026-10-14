@@ -978,11 +978,25 @@
             '</div><div class="builder-color-native-row">'+
             '<input type="color" data-color-native value="'+toHex(colorState.color)+'">'+
             '<label>Opacity<input type="range" min="0" max="1" step="0.01" data-color-alpha value="'+
-            colorState.color.a+'"></label></div>'+colorPopupFields()+
+            colorState.color.a+'"></label>'+ 
+            '<button type="button" data-color-transparent style="margin-left:8px;padding:4px 12px;border:1px solid #ccc;border-radius:4px;background:#fff;cursor:pointer;">Transparent</button></div>'+colorPopupFields()+
             '<p class="builder-color-status" data-color-status>Changes apply immediately.</p>';
         popup.querySelectorAll('[data-color-part]').forEach(input=>{
             input.classList.add('builder-color-part');
         });
+        const transBtn=popup.querySelector('[data-color-transparent]');
+        if(transBtn&&!transBtn.dataset.bound){
+            transBtn.dataset.bound='1';
+            transBtn.addEventListener('click',()=>{
+                if(!colorState)return;
+                setValue(nodeAt(selected),colorState.field,'');
+                updateColorSummary();
+                sync();
+                const popup2=q('#builder-color-popup');
+                if(popup2)popup2.style.display='none';
+                colorState=null;
+            });
+        }
     };
 
     const getValue=(node,path)=>{
