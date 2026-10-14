@@ -18,6 +18,7 @@ $sectionId=(int)($_GET['section']??0);
 $section=null;
 foreach($sections as $candidate)if((int)$candidate['site_page_section_id']===$sectionId){$section=$candidate;break;}
 if(!$section)$section=$sections[0]??null;
+$brandColors=[];try{$qc=db()->prepare('SELECT setting_value FROM platform_settings WHERE setting_key="BRAND_COLORS"');$qc->execute();$bc=json_decode((string)$qc->fetchColumn(),true);if(is_array($bc))$brandColors=$bc;}catch(Throwable $e){}
 
 $error=null;$notice=null;
 $isAjaxSave=($_SERVER['HTTP_X_REQUESTED_WITH']??'')==='XMLHttpRequest';
@@ -198,7 +199,7 @@ function builder_e(string $value): string{return htmlspecialchars($value,ENT_QUO
 <section class="page-builder-preview"><div class="preview-toolbar"><span>Live preview</span><button type="button" id="open-preview">Open page</button></div><iframe id="page-preview" name="page-preview" title="Page preview" src="index.php?view=<?=$pageCode==='HOME'?'public':strtolower($pageCode)?>"></iframe><form method="post" target="page-preview" id="preview-form" action="index.php?view=<?=$pageCode==='HOME'?'public':strtolower($pageCode)?>" hidden><input type="hidden" name="csrf_token" value="<?=htmlspecialchars(AuthService::csrfToken(),ENT_QUOTES,'UTF-8')?>"><input type="hidden" name="action" value="builder_preview"><input type="hidden" name="section_id" value="<?=(int)($section['site_page_section_id']??0)?>"><input type="hidden" name="rows_payload" id="preview-rows-payload"></form></section>
 </main>
 <script>
-window.toinkyPageBuilder={page:<?=json_encode($pageCode)?>,rows:<?=json_encode($rows,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT)?>,media:<?=json_encode($pageMedia,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT)?>,hero:<?=json_encode(($section['section_code']??'')==='HERO')?>};
+window.toinkyPageBuilder={page:<?=json_encode($pageCode)?>,brandColors:<?=json_encode($brandColors,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT)?>,rows:<?=json_encode($rows,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT)?>,media:<?=json_encode($pageMedia,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT)?>,hero:<?=json_encode(($section['section_code']??'')==='HERO')?>};
 </script>
 <script src="assets/toinky-page-builder.js?v=20261002-ai-import" defer></script>
 </body>
