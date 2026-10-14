@@ -239,6 +239,7 @@ final class PageContentService
             'wrap_items'=>self::boolValue($row['wrap_items']??true),
             'align_self'=>in_array($alignSelf,['auto','flex-start','center','flex-end','stretch'],true)?$alignSelf:'stretch',
             'text_color'=>$hex($row['text_color']??''),
+            'title_color'=>$hex($row['title_color']??''),
             'text_align'=>in_array($textAlign,['left','center','right'],true)?$textAlign:'left',
             'blend_mode'=>in_array($blendMode,['normal','multiply','screen','overlay','darken','lighten','difference'],true)?$blendMode:'normal',
             'font_size'=>preg_match('/^(?:10|1[1-9]|2[0-9]|3[0-6])px$/',$fontSize)?$fontSize:'',
