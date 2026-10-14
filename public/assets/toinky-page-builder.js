@@ -486,10 +486,15 @@
     const subheading=title=>'<div class="builder-subheading">'+escapeHtml(title)+'</div>';
     const backgroundControls=(title,prefix,node)=>{
         const key=name=>prefix?prefix+'_'+name:name;
-        return subheading(title)+
+        let html=subheading(title)+
             field(key('background_color'),'Background color',node[key('background_color')]||'','color')+
             select(key('background_media_id'),'Background image',node[key('background_media_id')]||'',mediaOptions)+
             select(key('background_fit'),'Image fill',node[key('background_fit')]||'FILL',backgroundFitOptions);
+        if(!prefix){
+            html+=field('overlay_color','Overlay color',node.overlay_color||'','color')+
+                field('overlay_opacity','Overlay opacity %',node.overlay_opacity??0,'number');
+        }
+        return html;
     };
     const columnBackgroundControls=(index,title,column)=>{
         const base='columns.'+index+'.';
