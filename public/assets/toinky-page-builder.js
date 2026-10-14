@@ -427,7 +427,7 @@
 
     const field=(name,title,value,type='text')=>{
         if(type==='color'){
-            const color=parseColor(value)||{r:244,g:238,b:226,a:1};
+            const color=parseColor(value)||{r:0,g:0,b:0,a:0};
             return '<label class="builder-field builder-color-field">'+
                 '<span>'+escapeHtml(title)+'</span>'+
                 '<div class="builder-color-control">'+
@@ -1011,7 +1011,7 @@
 
     const openColorPicker=(fieldName,anchor)=>{
         closeFloating(false);
-        const parsed=parseColor(getValue(nodeAt(selected),fieldName))||{r:244,g:238,b:226,a:1};
+        const parsed=parseColor(getValue(nodeAt(selected),fieldName))||{r:0,g:0,b:0,a:0};
         colorState={field:fieldName,color:parsed,format:'hex'};
         const popup=document.createElement('div');
         popup.id='builder-color-popup';
