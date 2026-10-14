@@ -37,6 +37,8 @@ final class PageBuilderService
                 $item['background_color']=self::optionalColor($row['background_color']??'');
                 $item['background_media_id']=self::mediaId($row['background_media_id']??null);
                 $item['background_fit']=self::backgroundFit($row['background_fit']??'FILL');
+                $item['overlay_color']=self::optionalColor($row['overlay_color']??'');
+                $item['overlay_opacity']=max(0,min(100,(int)($row['overlay_opacity']??0)));
                 $item['content_width']=self::contentWidth($row['content_width']??'FULL');
                 $item['max_width_px']=self::maxWidth($row['max_width_px']??1980);
                 $item['min_height_px']=self::pixels($row['min_height_px']??0);
