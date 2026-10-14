@@ -970,7 +970,7 @@
     const renderBrandColors=()=>{
         const brandColors=(window.toinkyPageBuilder&&window.toinkyPageBuilder.brandColors)||[];
         if(!brandColors.length)return '';
-        let html='<div class="builder-brand-colors" style="margin:10px 0;padding:8px 0;border-top:1px solid #eee;"><div style="font-size:11px;font-weight:bold;margin-bottom:6px;color:#666;">BRAND COLORS</div><div style="display:flex;flex-wrap:wrap;gap:6px;">';
+        let html='<div class="builder-brand-colors" style="margin:10px 0;padding:10px 12px;border-top:1px solid #eee;"><div style="font-size:11px;font-weight:bold;margin-bottom:8px;color:#666;">BRAND COLORS</div><div style="display:flex;flex-wrap:wrap;gap:8px;">';
         brandColors.forEach(c=>{
             const hex=(c.hex||'').toUpperCase();
             if(!hex)return;
