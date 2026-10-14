@@ -967,6 +967,18 @@
             escapeHtml(toHex(color))+'"></label>';
     };
 
+    const renderBrandColors=()=>{
+        const brandColors=(window.toinkyPageBuilder&&window.toinkyPageBuilder.brandColors)||[];
+        if(!brandColors.length)return '';
+        let html='<div class="builder-brand-colors" style="margin:10px 0;padding:8px 0;border-top:1px solid #eee;"><div style="font-size:11px;font-weight:bold;margin-bottom:6px;color:#666;">BRAND COLORS</div><div style="display:flex;flex-wrap:wrap;gap:6px;">';
+        brandColors.forEach(c=>{
+            const hex=(c.hex||'').toUpperCase();
+            if(!hex)return;
+            html+='<button type="button" data-brand-color="'+hex+'" title="'+escapeHtml(c.name||hex)+'" style="width:32px;height:32px;border-radius:4px;border:2px solid #ddd;background:'+hex+';cursor:pointer;" onmouseover="this.style.borderColor='#999'" onmouseout="this.style.borderColor='#ddd'"></button>';
+        });
+        html+='</div></div>';
+        return html;
+    };
     const renderColorPopup=()=>{
         const popup=q('#builder-color-popup');
         if(!popup||!colorState)return;
@@ -979,7 +991,8 @@
             '<input type="color" data-color-native value="'+toHex(colorState.color)+'">'+
             '<label>Opacity<input type="range" min="0" max="1" step="0.01" data-color-alpha value="'+
             colorState.color.a+'"></label>'+ 
-            '<button type="button" data-color-transparent style="margin-left:8px;padding:4px 12px;border:1px solid #ccc;border-radius:4px;background:#fff;cursor:pointer;">Transparent</button></div>'+colorPopupFields()+
+            '<button type="button" data-color-transparent style="margin-left:8px;padding:4px 12px;border:1px solid #ccc;border-radius:4px;background:#fff;cursor:pointer;">Transparent</button></div>'+
+            renderBrandColors()+colorPopupFields()+
             '<p class="builder-color-status" data-color-status>Changes apply immediately.</p>';
         popup.querySelectorAll('[data-color-part]').forEach(input=>{
             input.classList.add('builder-color-part');
@@ -997,6 +1010,20 @@
                 colorState=null;
             });
         }
+        popup.querySelectorAll('[data-brand-color]').forEach(btn=>{
+            if(btn.dataset.bound)return;
+            btn.dataset.bound='1';
+            btn.addEventListener('click',()=>{
+                if(!colorState)return;
+                const hex=btn.getAttribute('data-brand-color');
+                setValue(nodeAt(selected),colorState.field,hex);
+                updateColorSummary();
+                sync();
+                const popup2=q('#builder-color-popup');
+                if(popup2)popup2.style.display='none';
+                colorState=null;
+            });
+        });
     };
 
     const getValue=(node,path)=>{
