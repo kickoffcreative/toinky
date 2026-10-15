@@ -26,7 +26,7 @@ final class PageBuilderService
         foreach(array_values($rows)as$row){
             if(!is_array($row))continue;
             $layout=strtoupper(trim((string)($row['layout_type']??'TEXT_TOP')));
-            if(!in_array($layout,PageContentService::LAYOUTS,true)||$layout==='HERO')$layout='TEXT_TOP';
+            if(!in_array($layout,PageContentService::LAYOUTS,true))$layout='TEXT_TOP';
             $item=[
                 'layout_type'=>$layout,
                 'active'=>self::boolValue($row['active']??true),
@@ -230,12 +230,6 @@ final class PageBuilderService
             $out[]=['name'=>$name,'values'=>$values];
         }
         return$out;
-    }
-
-    private static function color(mixed$value): string
-    {
-        $value=strtoupper(trim((string)$value));
-        return preg_match('/^#[0-9A-F]{6}$/',$value)?$value:'#F4EEE2';
     }
 
     private static function optionalColor(mixed$value): string

@@ -127,7 +127,6 @@
     ];
     const backgroundFitOptions=[['FILL','Fill'],['FIT','Fit'],['TILE','Tile']];
     const contentWidthOptions=[['FULL','Full Screen Width'],['MAX','Max Width']];
-    const spacingModeOptions=[['ALL','Same all sides'],['SIDES','Different each side']];
     const directionOptions=[['COLUMN','Top to Bottom'],['ROW','Left to Right']];
     const alignItemsOptions=[['stretch','Justify'],['flex-start','Align Left'],['center','Align Center'],['flex-end','Align Right']];
     const alignSelfOptions=[['stretch','Justify'],['flex-start','Left'],['center','Center'],['flex-end','Right']];
@@ -450,13 +449,6 @@
             const fname=sel.dataset.field||'';
             const parts=fname.split('.');
             if(parts.length!==3||parts[0]!=='columns')return;
-            const propC=document.querySelector('#content-properties');
-            const pathStr=propC&&propC.dataset.selectedPath?propC.dataset.selectedPath:'';
-            const rowIdx=pathStr?parseInt(pathStr.split('.')[0],10):0;
-            // Access rows via the app object
-            const appRows=window.toinkyPageBuilder&&window.toinkyPageBuilder.rows;
-            // Actually rows is a closure variable, we need a different approach
-            // Fallback: dispatch a custom event that the IIFE listens for
             sel.dispatchEvent(new CustomEvent('pb-select-change',{bubbles:true,detail:{field:fname,value:sel.value}}));
         }catch(e){}
     };

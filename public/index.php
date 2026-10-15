@@ -77,11 +77,9 @@ function render_public_section(array $section,array $socials): void{if(!empty($s
 
 <?php if(!empty($homeContent['PERSPECTIVES']['rows_json'])):{$perspective=$homeContent['PERSPECTIVES'];render_public_rows($perspective,$socials);}endif;?>
 
- <?php if(isset($homeContent['THREE_VIEWPOINTS']))render_public_section($homeContent['THREE_VIEWPOINTS'],$socials);?>
-
 <?php if(!empty($homeContent['PATHS']['rows_json'])):{$managed=$homeContent['PATHS'];render_public_rows($managed,$socials);}endif;?>
 
-<?php foreach($homeContent as$homeCode=>$homeSection)if(!in_array($homeCode,['HERO','HOW','PERSPECTIVES','THREE_VIEWPOINTS','WORLDS','PATHS','FINALE'],true))render_public_section($homeSection,$socials);?>
+<?php foreach($homeContent as$homeCode=>$homeSection)if(!in_array($homeCode,['HERO','HOW','PERSPECTIVES','PATHS','FINALE'],true))render_public_section($homeSection,$socials);?>
 
 <?php if(!empty($homeContent['FINALE']['rows_json'])):{$managed=$homeContent['FINALE'];render_public_rows($managed,$socials);}endif;?>
  <?php endif; ?>

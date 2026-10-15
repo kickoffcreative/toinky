@@ -119,7 +119,7 @@ final class PageContentService
     private static function normalizeRow(array $row,int $index,?array $admin=null,int $depth=0): array
     {
         $layout=strtoupper(trim((string)($row['layout_type']??'TEXT_TOP')));
-        if(!in_array($layout,self::LAYOUTS,true)||$layout==='HERO')$layout='TEXT_TOP';
+        if(!in_array($layout,self::LAYOUTS,true))$layout='TEXT_TOP';
         $depth=min(12,max(0,$depth));
         $childInput=$row['children']??[];
         if(isset($row['children_json'])){
