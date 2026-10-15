@@ -54,12 +54,7 @@
 @media(max-width:700px){.public-content-row.layout-image-right,.public-content-row.layout-image-left{grid-template-columns:1fr}.public-content-row.layout-image-left>img,.public-content-row.layout-image-left>.public-section-copy{grid-column:auto;grid-row:auto}.public-content-row.layout-image-right>img,.public-content-row.layout-image-left>img{height:auto;max-height:none}}
 @media(max-width:580px){.public-two-columns,.public-four-columns{grid-template-columns:1fr}.public-content-row.layout-two-column .public-three-columns,.public-content-row.layout-three-column .public-three-columns,.public-content-row.layout-four-column .public-three-columns{grid-template-columns:1fr}}
 
-/* The public home currently keeps only its managed parallax hero. */
-.public-home .how-section,
-.public-home .perspective-section,
-.public-home .worlds-section,
-.public-home .paths-section,
-.public-home .home-finale{display:none!important}
+/* Legacy hardcoded home sections were removed; the public home renders Page Builder sections only. */
 
 /* Story cards are available as a page-builder row, not an automatic Stories page block. */
 .public-page main.shell>.public-story-grid{display:none!important}

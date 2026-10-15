@@ -73,62 +73,17 @@ function render_public_section(array $section,array $socials): void{if(!empty($s
    <a class="scroll-cue" href="#how-it-works"><span>Enter the story</span><i aria-hidden="true"></i></a>
  </section>
 
-<?php if(!empty($homeContent['HOW']['rows_json'])):{$how=$homeContent['HOW'];$how['section_code']='HOW';render_public_rows($how,$socials);}else: ?>
- <section class="home-section how-section managed-section-background" id="how-it-works" style="<?=e(home_style($homeContent,'HOW'))?>">
-   <div class="home-wrap">
-     <p class="section-label type-public-section-label"><?=e(home_field($homeContent,'HOW','eyebrow_text','How a Story Night Works'))?></p>
-     <div class="section-heading"><h2 class="type-public-section-title"><?=e(home_field($homeContent,'HOW','title_text','Hosting Is Easier Than You Think'))?></h2><div class="type-public-body"><?=home_field($homeContent,'HOW','content_html','<p>No acting experience. No preparation marathons. No facilitation skills required. Pick an occasion, invite your group, and Toinky runs the night.</p>')?></div></div>
-     <ol class="story-steps" aria-label="How a story night unfolds">
-       <li><span>01</span><div class="step-sigil">✦</div><h3 class="type-public-card-title">Pick your occasion</h3><p class="type-public-body">Birthdays, dinner parties, holidays, or just a legendary game night — you bring the people, Toinky brings the story.</p></li>
-       <li><span>02</span><div class="step-sigil">♙</div><h3 class="type-public-card-title">Invite your group</h3><p class="type-public-body">Everyone gets a character with private secrets and motives. Invites take minutes.</p></li>
-       <li><span>03</span><div class="step-sigil">◐</div><h3 class="type-public-card-title">Play the night</h3><p class="type-public-body">Toinky handles the timing, the secrets, and the surprises.</p></li>
-       <li><span>04</span><div class="step-sigil">⌁</div><h3 class="type-public-card-title">Watch it unfold</h3><p class="type-public-body">Timed choices and hidden motives bend the story around what your group actually does.</p></li>
-     </ol>
-   </div>
- </section>
-<?php endif;?>
+<?php if(!empty($homeContent['HOW']['rows_json'])):{$how=$homeContent['HOW'];$how['section_code']='HOW';render_public_rows($how,$socials);}endif;?>
 
-<?php if(!empty($homeContent['PERSPECTIVES']['rows_json'])):{$perspective=$homeContent['PERSPECTIVES'];render_public_rows($perspective,$socials);}else: ?>
- <section class="home-section perspective-section managed-section-background" style="<?=e(home_style($homeContent,'PERSPECTIVES'))?>">
-   <div class="home-wrap perspective-grid">
-     <?php if(!empty($homeContent['PERSPECTIVES']['image_path'])):?><figure class="perspective-art"><img src="<?=e($homeContent['PERSPECTIVES']['image_path'])?>" alt="<?=e($homeContent['PERSPECTIVES']['image_alt']??'Characters experiencing the same story from different perspectives')?>"></figure><?php endif;?>
-     <div><p class="section-label type-public-section-label"><?=e(home_field($homeContent,'PERSPECTIVES','eyebrow_text','Why It\'s Different'))?></p><h2 class="type-public-section-title"><?=e(home_field($homeContent,'PERSPECTIVES','title_text','A Night, Not an App'))?></h2><div class="type-public-body"><?=home_field($homeContent,'PERSPECTIVES','content_html','<p>Some party games hand everyone the same cards. Toinky gives every player their own truth.</p>')?><ul class="feature-list"><li>Everyone has a secret: private character knowledge means no two players experience the same story.</li><li>Every choice is timed: hesitate, and the moment passes.</li><li>Every action has consequences: the story remembers what your group did.</li><li>Characters with minds of their own: autonomous characters pursue their own goals, with or without you.</li></ul></div></div>
-   </div>
- </section>
-<?php endif;?>
+<?php if(!empty($homeContent['PERSPECTIVES']['rows_json'])):{$perspective=$homeContent['PERSPECTIVES'];render_public_rows($perspective,$socials);}endif;?>
 
  <?php if(isset($homeContent['THREE_VIEWPOINTS']))render_public_section($homeContent['THREE_VIEWPOINTS'],$socials);?>
 
- <section class="home-section worlds-section managed-section-background" id="stories" style="<?=e(home_style($homeContent,'WORLDS'))?>">
-   <div class="home-wrap">
-     <p class="section-label type-public-section-label"><?=e(home_field($homeContent,'WORLDS','eyebrow_text','Story Worlds'))?></p>
-     <div class="section-heading"><h2 class="type-public-section-title"><?=e(home_field($homeContent,'WORLDS','title_text','Go anywhere. Become anyone.'))?></h2><div class="type-public-body"><?=home_field($homeContent,'WORLDS','content_html','<p>Every genre uses the same living-story engine while carrying its own atmosphere, pace, relationships, and rules.</p>')?></div></div>
-     <div class="world-grid">
-<?php foreach(array_slice($publicStories,0,3)as$story):?>
-       <article class="world-story"<?php if(!empty($story['image_path'])):?> style="background-image:linear-gradient(160deg,rgba(28,36,43,.08),rgba(28,36,43,.9)),url('<?=e($story['image_path'])?>')"<?php endif;?>><div class="world-number"><?=(int)$story['play_count']?></div><span class="type-public-meta"><?=e($story['genre'])?> · <?=(int)$story['play_count']?> plays</span><h3 class="type-public-card-title"><?=e($story['title'])?></h3><p class="type-public-body"><?=e($story['setting_name']?:$story['scenario_text'])?></p></article>
-<?php endforeach;?>
-<?php if(!$publicStories):?><article class="world-story"><div class="world-number">∞</div><span class="type-public-meta">Coming Soon</span><h3 class="type-public-card-title">Worlds Unwritten</h3><p class="type-public-body">New story worlds are waiting.</p></article><?php endif;?>
-     </div>
-   </div>
- </section>
-
-<?php if(!empty($homeContent['PATHS']['rows_json'])):{$managed=$homeContent['PATHS'];render_public_rows($managed,$socials);}else: ?>
- <section class="home-section paths-section managed-section-background" style="<?=e(home_style($homeContent,'PATHS'))?>">
-   <div class="home-wrap"><div class="paths-intro"><p class="section-label type-public-section-label"><?=e(home_field($homeContent,'PATHS','eyebrow_text','Hosts and Players'))?></p><h2 class="type-public-section-title"><?=e(home_field($homeContent,'PATHS','title_text','Made for the Host. Loved by the Players.'))?></h2><div class="type-public-body"><?=home_field($homeContent,'PATHS','content_html','<p>One story, one group, one unforgettable occasion.</p>')?></div></div><div class="path-grid">
-     <article><p class="section-label type-public-section-label">For Hosts</p><h2 class="type-public-card-title">Bring everyone into one world.</h2><p class="type-public-body">You’re buying a night, not software. Choose the story, invite the cast, and Toinky manages timing, private events, and surprises.</p><a class="public-action" href="?view=register">Host your first game →</a></article>
-     <article><p class="section-label type-public-section-label">For Players</p><h2 class="type-public-card-title">Become part of the story.</h2><p class="type-public-body">No acting required, just bring your instincts — and when the night ends with everyone comparing secrets, you’ll want to host the next one.</p><a class="public-action" href="?view=register">Create an account →</a></article>
-     <article><p class="section-label type-public-section-label">For Writers</p><h2 class="type-public-card-title">Build stories people can inhabit.</h2><p class="type-public-body">Create with the Story Writer and Inky, your AI co-writer. Creator publishing is on the roadmap.</p><a class="public-action" href="?view=create">Learn about writing for Toinky →</a></article>
-   </div></div>
- </section>
-<?php endif;?>
+<?php if(!empty($homeContent['PATHS']['rows_json'])):{$managed=$homeContent['PATHS'];render_public_rows($managed,$socials);}endif;?>
 
 <?php foreach($homeContent as$homeCode=>$homeSection)if(!in_array($homeCode,['HERO','HOW','PERSPECTIVES','THREE_VIEWPOINTS','WORLDS','PATHS','FINALE'],true))render_public_section($homeSection,$socials);?>
 
-<?php if(!empty($homeContent['FINALE']['rows_json'])):{$managed=$homeContent['FINALE'];render_public_rows($managed,$socials);}else: ?>
- <section class="home-finale managed-section-background" style="<?=e(home_style($homeContent,'FINALE'))?>">
-   <div class="home-wrap"><p class="section-label type-public-section-label"><?=e(home_field($homeContent,'FINALE','eyebrow_text','Your Story Night Is Waiting'))?></p><h2 class="type-public-section-title"><?=e(home_field($homeContent,'FINALE','title_text','Who will you become?'))?></h2><div class="finale-copy type-public-body"><?=home_field($homeContent,'FINALE','content_html','<p>The same moment can mean something different to everyone inside it.</p>')?></div><a class="btn" href="?view=register">Start a Story Night</a> <a class="btn" href="?view=stories">Enter Toinky</a></div>
- </section>
-<?php endif;?>
+<?php if(!empty($homeContent['FINALE']['rows_json'])):{$managed=$homeContent['FINALE'];render_public_rows($managed,$socials);}endif;?>
  <?php endif; ?>
 <?php else: ?>
 <section class="hero"><h1>Your stories are waiting.</h1><p>Create a new lobby or enter the code shared by a host.</p></section>
