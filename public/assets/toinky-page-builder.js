@@ -197,7 +197,7 @@
     const clamp=(value,min,max)=>Math.min(max,Math.max(min,value));
     const parseColor=value=>{
         const raw=String(value??'').trim();
-        let match=raw.match(/^#([0-9a-f]{3,8})$/i);
+        let match=raw.match(/^#?([0-9a-f]{3,8})$/i);
         if(match){
             let hex=match[1];
             if(hex.length===3)hex=hex.split('').map(part=>part+part).join('');
