@@ -64,7 +64,9 @@ final class AuthService
     public static function login(string $email,string $password): array
     {
         $q=db()->prepare('SELECT * FROM users WHERE email=? LIMIT 1');$q->execute([strtolower(trim($email))]);$u=$q->fetch();
-        if(!$u||$u['status']!=='ACTIVE'||!password_verify($password,(string)$u['password_hash']))throw new RuntimeException('Email or password is incorrect.');
+        if(!$u||!password_verify($password,(string)$u['password_hash']))throw new RuntimeException('Email or password is incorrect.');
+        if($u['status']==='DISABLED')throw new RuntimeException('This account has been deactivated. Contact support if you would like to reactivate it.');
+        if($u['status']!=='ACTIVE')throw new RuntimeException('Email or password is incorrect.');
         if(password_needs_rehash((string)$u['password_hash'],PASSWORD_DEFAULT))db()->prepare('UPDATE users SET password_hash=? WHERE user_id=?')->execute([password_hash($password,PASSWORD_DEFAULT),$u['user_id']]);
         self::loginUserId((int)$u['user_id']);return self::currentUser()??[];
     }
@@ -75,6 +77,13 @@ final class AuthService
     public static function logout(): void
     {
         self::boot();$_SESSION=[];if(ini_get('session.use_cookies')){$p=session_get_cookie_params();setcookie(session_name(),'',time()-42000,$p['path'],$p['domain'],$p['secure'],$p['httponly']);}session_destroy();
+    }
+    public static function deactivateAccount(int $userId): void
+    {
+        $q=db()->prepare('SELECT is_admin,status FROM users WHERE user_id=?');$q->execute([$userId]);$u=$q->fetch();
+        if(!$u||$u['status']!=='ACTIVE')throw new RuntimeException('Your account is not active.');
+        if((int)$u['is_admin']===1)throw new RuntimeException('Administrator accounts cannot be deactivated here.');
+        db()->prepare('UPDATE users SET status="DISABLED" WHERE user_id=? AND status="ACTIVE"')->execute([$userId]);
     }
     public static function requireLogin(): array
     {
