@@ -104,7 +104,7 @@ final class LobbyService
     public static function deactivateGame(int $gameId,int $adminUserId): void
     {
         self::requireAdminUser($adminUserId);
-        $q=db()->prepare('SELECT status,deactivated_at_utc FROM games WHERE game_id=? AND deleted_at_utc IS NULL');$q->execute([$gameId]);$game=$q->fetch();if(!$game)throw new RuntimeException('That game was not found.');if($game['status']!=='COMPLETE')throw new RuntimeException('Only completed games can be deactivated.');if($game['deactivated_at_utc'])throw new RuntimeException('That game is already deactivated.');
+        $q=db()->prepare('SELECT status,deactivated_at_utc FROM games WHERE game_id=? AND deleted_at_utc IS NULL');$q->execute([$gameId]);$game=$q->fetch();if(!$game)throw new RuntimeException('That game was not found.');if($game['status']!=='COMPLETE')throw new RuntimeException('Only completed games can be deactivated.');if($game['deactivated_at_utc'])throw new RuntimeException('That game is already archived.');
         db()->prepare('UPDATE games SET deactivated_at_utc=UTC_TIMESTAMP(),deactivated_by_user_id=? WHERE game_id=?')->execute([$adminUserId,$gameId]);
     }
     public static function reactivateGame(int $gameId,int $adminUserId): void
