@@ -117,7 +117,7 @@ final class MediaLibraryService
     public static function update(array $user,int $mediaId,array $fields): void
     {
         $m=self::requireVisible($user,$mediaId);$type=strtoupper(trim((string)($fields['media_type']??'')));if(!in_array($type,self::TYPES,true))throw new RuntimeException('Choose a valid media type.');$title=trim((string)($fields['title_text']??''));$alt=trim((string)($fields['alt_text']??''));if($title===''||$alt==='')throw new RuntimeException('Title and alternative text are required.');if(mb_strlen($title)>190||mb_strlen($alt)>500)throw new RuntimeException('Media title or alternative text is too long.');
-        db()->beginTransaction();try{db()->prepare('UPDATE writer_media_assets SET media_type=?,title_text=?,alt_text=? WHERE media_id=?')->execute([$type,$title,$alt,$mediaId]);db()->prepare('UPDATE plot_media_assets SET title_text=?,alt_text=? WHERE library_media_id=?')->execute([$title,$alt,$mediaId]);db()->commit();}catch(Throwable $e){if(db()->inTransaction())db()->rollBack();throw$e;}
+        $pdo=db();$ownsTransaction=!$pdo->inTransaction();if($ownsTransaction)$pdo->beginTransaction();try{db()->prepare('UPDATE writer_media_assets SET media_type=?,title_text=?,alt_text=? WHERE media_id=?')->execute([$type,$title,$alt,$mediaId]);db()->prepare('UPDATE plot_media_assets SET title_text=?,alt_text=? WHERE library_media_id=?')->execute([$title,$alt,$mediaId]);if($ownsTransaction)$pdo->commit();}catch(Throwable $e){if($ownsTransaction&&$pdo->inTransaction())$pdo->rollBack();throw$e;}
     }
 
     public static function cropResize(array $user,int $mediaId,array $fields): void
@@ -173,7 +173,7 @@ final class MediaLibraryService
 
     public static function delete(array $user,int $mediaId): void
     {
-        $m=self::requireVisible($user,$mediaId);$versions=[];try{$versions=self::versionsByMediaIds($user,[$mediaId])[$mediaId]??[];}catch(Throwable $ignored){}$pdo=db();$pdo->beginTransaction();try{$pdo->prepare('UPDATE plot_media_assets SET active=0 WHERE library_media_id=?')->execute([$mediaId]);$pdo->prepare('DELETE FROM site_parallax_layers WHERE media_id=?')->execute([$mediaId]);$pdo->prepare('UPDATE genre_themes SET background_image_path=IF(background_media_id=?,NULL,background_image_path),divider_image_path=IF(divider_media_id=?,NULL,divider_image_path),card_image_path=IF(card_media_id=?,NULL,card_image_path),background_media_id=IF(background_media_id=?,NULL,background_media_id),divider_media_id=IF(divider_media_id=?,NULL,divider_media_id),card_media_id=IF(card_media_id=?,NULL,card_media_id)')->execute([$mediaId,$mediaId,$mediaId,$mediaId,$mediaId,$mediaId]);$pdo->prepare('UPDATE site_page_sections SET image_media_id=IF(image_media_id=?,NULL,image_media_id),background_media_id=IF(background_media_id=?,NULL,background_media_id)')->execute([$mediaId,$mediaId]);self::cleanPageRowsForMedia($mediaId);$pdo->prepare('DELETE FROM writer_media_assets WHERE media_id=?')->execute([$mediaId]);$pdo->commit();}catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw$e;}
+        $m=self::requireVisible($user,$mediaId);$versions=[];try{$versions=self::versionsByMediaIds($user,[$mediaId])[$mediaId]??[];}catch(Throwable $ignored){}$pdo=db();$ownsTransaction=!$pdo->inTransaction();if($ownsTransaction)$pdo->beginTransaction();try{$pdo->prepare('UPDATE plot_media_assets SET active=0 WHERE library_media_id=?')->execute([$mediaId]);$pdo->prepare('DELETE FROM site_parallax_layers WHERE media_id=?')->execute([$mediaId]);$pdo->prepare('UPDATE genre_themes SET background_image_path=IF(background_media_id=?,NULL,background_image_path),divider_image_path=IF(divider_media_id=?,NULL,divider_image_path),card_image_path=IF(card_media_id=?,NULL,card_image_path),background_media_id=IF(background_media_id=?,NULL,background_media_id),divider_media_id=IF(divider_media_id=?,NULL,divider_media_id),card_media_id=IF(card_media_id=?,NULL,card_media_id)')->execute([$mediaId,$mediaId,$mediaId,$mediaId,$mediaId,$mediaId]);$pdo->prepare('UPDATE site_page_sections SET image_media_id=IF(image_media_id=?,NULL,image_media_id),background_media_id=IF(background_media_id=?,NULL,background_media_id)')->execute([$mediaId,$mediaId]);self::cleanPageRowsForMedia($mediaId);$pdo->prepare('DELETE FROM writer_media_assets WHERE media_id=?')->execute([$mediaId]);if($ownsTransaction)$pdo->commit();}catch(Throwable $e){if($ownsTransaction&&$pdo->inTransaction())$pdo->rollBack();throw$e;}
         foreach([(string)$m['file_path'],(string)($m['thumbnail_path']??'')]as$filePath)self::unlinkUpload($filePath);
         foreach($versions as$version)self::unlinkUpload((string)$version['file_path']);
     }
@@ -185,7 +185,7 @@ final class MediaLibraryService
         foreach(db()->query('SELECT file_path,thumbnail_path FROM writer_media_assets')->fetchAll()as$row){$paths[]=(string)$row['file_path'];if(!empty($row['thumbnail_path']))$paths[]=(string)$row['thumbnail_path'];}
         try{foreach(db()->query('SELECT file_path FROM writer_media_versions')->fetchAll(PDO::FETCH_COLUMN)as$path)$paths[]=(string)$path;}catch(Throwable $ignored){}
         foreach(db()->query("SELECT file_path FROM plot_media_assets WHERE library_media_id IS NULL AND file_path LIKE 'public/uploads/story-media/%'")->fetchAll(PDO::FETCH_COLUMN)as$path)$paths[]=(string)$path;
-        $pdo=db();$pdo->beginTransaction();
+        $pdo=db();$ownsTransaction=!$pdo->inTransaction();if($ownsTransaction)$pdo->beginTransaction();
         try{
             $pdo->exec('UPDATE site_page_sections SET image_media_id=NULL,background_media_id=NULL');
             self::cleanPageRowsForMedia(null);
@@ -193,8 +193,8 @@ final class MediaLibraryService
             $pdo->exec('UPDATE genre_themes SET background_media_id=NULL,divider_media_id=NULL,card_media_id=NULL,background_image_path=NULL,divider_image_path=NULL,card_image_path=NULL');
             $pdo->exec('DELETE FROM plot_media_assets');
             $pdo->exec('DELETE FROM writer_media_assets');
-            $pdo->commit();
-        }catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw$e;}
+            if($ownsTransaction)$pdo->commit();
+        }catch(Throwable $e){if($ownsTransaction&&$pdo->inTransaction())$pdo->rollBack();throw$e;}
         foreach(array_unique($paths)as$path)self::unlinkUpload($path);
     }
 
