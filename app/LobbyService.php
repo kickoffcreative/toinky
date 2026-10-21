@@ -76,11 +76,45 @@ final class LobbyService
     }
     public static function userGames(int $userId): array
     {
-        $q=db()->prepare('SELECT g.game_id,g.join_code,g.status,g.host_user_id,g.created_at_utc,p.title,p.genre,u.display_name host_name,gp.character_id,c.name character_name,sr.rating,(SELECT COALESCE(wma.thumbnail_path,pma.file_path) FROM plot_media_assets pma LEFT JOIN writer_media_assets wma ON wma.media_id=pma.library_media_id AND wma.active=1 WHERE pma.plot_id=p.plot_id AND pma.role_code=pr.role_code AND pma.placement="CHARACTER" AND pma.active=1 ORDER BY pma.sort_order,pma.media_asset_id LIMIT 1) character_image_path,(SELECT COUNT(*) FROM game_players claimed WHERE claimed.game_id=g.game_id AND claimed.character_id IS NOT NULL) claimed_count FROM game_players gp JOIN games g ON g.game_id=gp.game_id JOIN simulations s ON s.simulation_id=g.simulation_id JOIN plots p ON p.plot_id=s.plot_id JOIN users u ON u.user_id=g.host_user_id LEFT JOIN characters c ON c.character_id=gp.character_id LEFT JOIN plot_roles pr ON pr.plot_role_id=c.plot_role_id LEFT JOIN story_ratings sr ON sr.game_id=g.game_id AND sr.user_id=gp.user_id WHERE gp.user_id=? AND g.deleted_at_utc IS NULL ORDER BY g.created_at_utc DESC');$q->execute([$userId]);$games=$q->fetchAll();foreach($games as&$game)$game['can_delete']=(int)$game['host_user_id']===$userId&&$game['status']==='LOBBY'&&(int)$game['claimed_count']===0;unset($game);return$games;
+        $q=db()->prepare('SELECT g.game_id,g.join_code,g.status,g.host_user_id,g.created_at_utc,p.title,p.genre,u.display_name host_name,gp.character_id,c.name character_name,sr.rating,(SELECT COALESCE(wma.thumbnail_path,pma.file_path) FROM plot_media_assets pma LEFT JOIN writer_media_assets wma ON wma.media_id=pma.library_media_id AND wma.active=1 WHERE pma.plot_id=p.plot_id AND pma.role_code=pr.role_code AND pma.placement="CHARACTER" AND pma.active=1 ORDER BY pma.sort_order,pma.media_asset_id LIMIT 1) character_image_path,(SELECT COUNT(*) FROM game_players claimed WHERE claimed.game_id=g.game_id AND claimed.character_id IS NOT NULL) claimed_count FROM game_players gp JOIN games g ON g.game_id=gp.game_id JOIN simulations s ON s.simulation_id=g.simulation_id JOIN plots p ON p.plot_id=s.plot_id JOIN users u ON u.user_id=g.host_user_id LEFT JOIN characters c ON c.character_id=gp.character_id LEFT JOIN plot_roles pr ON pr.plot_role_id=c.plot_role_id LEFT JOIN story_ratings sr ON sr.game_id=g.game_id AND sr.user_id=gp.user_id WHERE gp.user_id=? AND g.deleted_at_utc IS NULL AND g.deactivated_at_utc IS NULL ORDER BY g.created_at_utc DESC');$q->execute([$userId]);$games=$q->fetchAll();foreach($games as&$game)$game['can_delete']=(int)$game['host_user_id']===$userId&&$game['status']==='LOBBY'&&(int)$game['claimed_count']===0;unset($game);return$games;
     }
     public static function deleteLobby(int $gameId,int $userId): void
     {
         $pdo=db();$pdo->beginTransaction();try{$q=$pdo->prepare('SELECT host_user_id,status FROM games WHERE game_id=? AND deleted_at_utc IS NULL FOR UPDATE');$q->execute([$gameId]);$game=$q->fetch();if(!$game||(int)$game['host_user_id']!==$userId)throw new RuntimeException('Only the host can delete this lobby.');if($game['status']!=='LOBBY')throw new RuntimeException('Only games still in the lobby can be deleted.');$q=$pdo->prepare('SELECT COUNT(*) FROM game_players WHERE game_id=? AND character_id IS NOT NULL');$q->execute([$gameId]);if((int)$q->fetchColumn()>0)throw new RuntimeException('This lobby cannot be deleted after a character has been selected.');$pdo->prepare('UPDATE games SET deleted_at_utc=UTC_TIMESTAMP(),deleted_by_user_id=? WHERE game_id=? AND deleted_at_utc IS NULL')->execute([$userId,$gameId]);$pdo->commit();}catch(Throwable$e){if($pdo->inTransaction())$pdo->rollBack();throw$e;}
+    }
+    public static function adminDeleteLobby(int $gameId,int $adminUserId): void
+    {
+        self::requireAdminUser($adminUserId);
+        $pdo=db();$pdo->beginTransaction();try{$q=$pdo->prepare('SELECT status FROM games WHERE game_id=? AND deleted_at_utc IS NULL FOR UPDATE');$q->execute([$gameId]);$game=$q->fetch();if(!$game)throw new RuntimeException('That game was not found.');if($game['status']!=='LOBBY')throw new RuntimeException('Only games still in the lobby can be deleted.');$q=$pdo->prepare('SELECT COUNT(*) FROM game_players WHERE game_id=? AND character_id IS NOT NULL');$q->execute([$gameId]);if((int)$q->fetchColumn()>0)throw new RuntimeException('This lobby cannot be deleted after a character has been selected. Take it over instead.');$pdo->prepare('UPDATE games SET deleted_at_utc=UTC_TIMESTAMP(),deleted_by_user_id=? WHERE game_id=? AND deleted_at_utc IS NULL')->execute([$adminUserId,$gameId]);$pdo->commit();}catch(Throwable$e){if($pdo->inTransaction())$pdo->rollBack();throw$e;}
+    }
+    public static function takeoverGame(int $gameId,int $adminUserId): array
+    {
+        self::requireAdminUser($adminUserId);
+        $pdo=db();$pdo->beginTransaction();try{
+            $q=$pdo->prepare('SELECT g.host_user_id,g.status,g.join_code,p.title,u.display_name host_name,u.email host_email FROM games g JOIN simulations s ON s.simulation_id=g.simulation_id JOIN plots p ON p.plot_id=s.plot_id JOIN users u ON u.user_id=g.host_user_id WHERE g.game_id=? AND g.deleted_at_utc IS NULL AND g.deactivated_at_utc IS NULL FOR UPDATE');$q->execute([$gameId]);$game=$q->fetch();
+            if(!$game)throw new RuntimeException('That game was not found.');
+            if(!in_array($game['status'],['LOBBY','RUNNING'],true))throw new RuntimeException('Only an unstarted or unfinished game can be taken over.');
+            if((int)$game['host_user_id']===$adminUserId)throw new RuntimeException('You already host this game.');
+            $pdo->prepare('UPDATE games SET host_user_id=? WHERE game_id=?')->execute([$adminUserId,$gameId]);
+            $q=$pdo->prepare('SELECT 1 FROM game_players WHERE game_id=? AND user_id=?');$q->execute([$gameId,$adminUserId]);if(!$q->fetchColumn())$pdo->prepare('INSERT INTO game_players(game_id,user_id) VALUES(?,?)')->execute([$gameId,$adminUserId]);
+            $pdo->commit();
+        }catch(Throwable$e){if($pdo->inTransaction())$pdo->rollBack();throw$e;}
+        return['title'=>(string)$game['title'],'join_code'=>(string)$game['join_code'],'host_name'=>(string)$game['host_name'],'host_email'=>(string)$game['host_email']];
+    }
+    public static function deactivateGame(int $gameId,int $adminUserId): void
+    {
+        self::requireAdminUser($adminUserId);
+        $q=db()->prepare('SELECT status,deactivated_at_utc FROM games WHERE game_id=? AND deleted_at_utc IS NULL');$q->execute([$gameId]);$game=$q->fetch();if(!$game)throw new RuntimeException('That game was not found.');if($game['status']!=='COMPLETE')throw new RuntimeException('Only completed games can be deactivated.');if($game['deactivated_at_utc'])throw new RuntimeException('That game is already deactivated.');
+        db()->prepare('UPDATE games SET deactivated_at_utc=UTC_TIMESTAMP(),deactivated_by_user_id=? WHERE game_id=?')->execute([$adminUserId,$gameId]);
+    }
+    public static function reactivateGame(int $gameId,int $adminUserId): void
+    {
+        self::requireAdminUser($adminUserId);
+        db()->prepare('UPDATE games SET deactivated_at_utc=NULL,deactivated_by_user_id=NULL WHERE game_id=? AND deactivated_at_utc IS NOT NULL')->execute([$gameId]);
+    }
+    private static function requireAdminUser(int $userId): void
+    {
+        $q=db()->prepare('SELECT is_admin FROM users WHERE user_id=?');$q->execute([$userId]);if((int)$q->fetchColumn()!==1)throw new RuntimeException('Administrator access is required.');
     }
     private static function newCode(): string
     {
