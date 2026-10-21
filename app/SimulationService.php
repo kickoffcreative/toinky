@@ -2,7 +2,7 @@
 require_once __DIR__.'/GenericStateService.php';
 final class SimulationService {
     public static function create(string $plotCode='CONCEALED_FAILURE', int $duration=300,array $controllers=[]): int {
-        $pdo=db();$q=$pdo->prepare('SELECT * FROM plots WHERE code=? AND status="active"');$q->execute([$plotCode]);$plot=$q->fetch();if(!$plot)throw new RuntimeException('Plot not found.');
+        $pdo=db();$q=$pdo->prepare('SELECT * FROM plots WHERE code=? AND status IN ("draft","active")');$q->execute([$plotCode]);$plot=$q->fetch();if(!$plot)throw new RuntimeException('Plot not found.');
         $pdo->beginTransaction();
         try{
             $pdo->prepare('INSERT INTO simulations(plot_id,duration_seconds,mode,status,current_phase) VALUES(?,?,"MANUAL","READY","SETUP")')->execute([$plot['plot_id'],$duration]);$sid=(int)$pdo->lastInsertId();
