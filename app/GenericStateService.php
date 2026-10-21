@@ -66,6 +66,8 @@ final class GenericStateService
     {
         $pdo=db();$q=$pdo->prepare('SELECT pe.entity_code,p.property_code,p.initial_value FROM simulations s JOIN plot_entities pe ON pe.plot_id=s.plot_id JOIN plot_entity_properties p ON p.plot_entity_id=pe.plot_entity_id WHERE s.simulation_id=? AND p.initial_value IS NOT NULL');$q->execute([$sid]);
         foreach($q->fetchAll() as $r)$pdo->prepare('INSERT IGNORE INTO simulation_entity_state(simulation_id,entity_code,property_code,state_value,updated_at_second) VALUES(?,?,?,?,0)')->execute([$sid,$r['entity_code'],$r['property_code'],$r['initial_value']]);
+        $q=$pdo->prepare('SELECT d.target_code,d.default_text_value FROM simulations s JOIN plot_state_definitions d ON d.plot_id=s.plot_id AND d.effect_scope="WORLD_STATE" AND d.active=1 WHERE s.simulation_id=? AND d.default_text_value IS NOT NULL AND d.default_text_value<>"" AND NOT EXISTS(SELECT 1 FROM plot_state_aliases a WHERE a.plot_id=s.plot_id AND a.state_key=d.target_code)');$q->execute([$sid]);
+        foreach($q->fetchAll() as $r)$pdo->prepare('INSERT IGNORE INTO simulation_state(simulation_id,state_key,state_value,updated_at_second) VALUES(?,?,?,0)')->execute([$sid,$r['target_code'],$r['default_text_value']]);
     }
 
     private static function metadataForKey(int $sid,string $key): ?array
