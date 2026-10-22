@@ -25,6 +25,12 @@ final class SimulationService {
     public static function start(int $sid): void {db()->prepare('UPDATE simulations SET status="RUNNING",current_phase="EXPOSITION",started_at_utc=UTC_TIMESTAMP() WHERE simulation_id=? AND status="READY"')->execute([$sid]);self::generateDueEvents($sid,0,'EXPOSITION');}
     public static function advance(int $sid,int $seconds=30): void {
         $pdo=db();$sim=self::simulation($sid);if($sim['status']==='READY'){self::start($sid);$sim=self::simulation($sid);}if($sim['status']!=='RUNNING')return;
+        // Evaluate opportunities at the step boundary: in the state the players just acted in,
+        // before this step's world events hand every character a fresh decision. Previously
+        // reconcile ran only after events fired, when every character already held an OPEN
+        // decision, so opportunities could only ever open on event-free steps and eligible
+        // ones starved with no later step to fire on.
+        if(class_exists('DynamicOpportunityService'))DynamicOpportunityService::reconcile($sid);
         $next=min((int)$sim['duration_seconds'],(int)$sim['elapsed_seconds']+$seconds);$phase=self::phaseFor($next,(int)$sim['duration_seconds']);
         if(class_exists('BehaviorService'))BehaviorService::expire($sid,$next);
         $pdo->prepare('UPDATE simulations SET elapsed_seconds=?,current_phase=? WHERE simulation_id=?')->execute([$next,$phase,$sid]);self::generateDueEvents($sid,$next,$phase);
