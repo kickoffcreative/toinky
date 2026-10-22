@@ -131,7 +131,7 @@ function writer_definition_picker(array$definitions,array$usage=[]):string{$html
 </p>
 <?php endif;?>
 
-<?php if($_SERVER['REQUEST_METHOD']==='POST'&&$a==='delete_draft'&&$error===null){try{StoryAuthoringService::deleteDraft($writer,$plotId);$plotId=0;$plot=null;$plots=StoryAuthoringService::stories($writer);$notice='Draft deleted.';}catch(Throwable$e){$error=$e->getMessage();}}$inkyDraftId=(int)($_GET['inky_draft']??0);$inkyGuidedDrafts=InkyGuideService::guidedDrafts($writer);$inkyGuideByPlot=[];foreach($inkyGuidedDrafts as$inkyDraft)$inkyGuideByPlot[(int)$inkyDraft['plot_id']]=$inkyDraft; ?>
+<?php if($_SERVER['REQUEST_METHOD']==='POST'&&$a==='delete_draft'&&$error===null){try{StoryAuthoringService::deleteDraft($writer,(int)($_POST['plot_id']??0));$plotId=0;$plot=null;$plots=StoryAuthoringService::stories($writer);$notice='Draft deleted.';}catch(Throwable$e){$error=$e->getMessage();}}$inkyDraftId=(int)($_GET['inky_draft']??0);$inkyGuidedDrafts=InkyGuideService::guidedDrafts($writer);$inkyGuideByPlot=[];foreach($inkyGuidedDrafts as$inkyDraft)$inkyGuideByPlot[(int)$inkyDraft['plot_id']]=$inkyDraft; ?>
 <?php if($notice):?>
 <p class="notice"><?=e($notice)?>
 </p>
