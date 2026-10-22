@@ -43,6 +43,13 @@ final class GenericStateService
             $code=substr($key,7);$q=db()->prepare('SELECT current_value FROM simulation_factors WHERE simulation_id=? AND factor_code=?');$q->execute([$sid,$code]);$v=$q->fetchColumn();$exists=$v!==false;$value=$exists?(string)$v:null;
         }else{
             $r=self::getByKey($sid,$key);$exists=$r['exists'];$value=$r['value'];
+            if(!$exists){
+                // A managed factor may be referenced by its bare code (ending-fragment
+                // conditions store the factor code with no FACTOR: prefix). Fall back
+                // to the factor table so such conditions read the live factor value.
+                $q=db()->prepare('SELECT current_value FROM simulation_factors WHERE simulation_id=? AND factor_code=?');$q->execute([$sid,$key]);$v=$q->fetchColumn();
+                if($v!==false){$exists=true;$value=(string)$v;}
+            }
         }
         $list=array_values(array_filter(array_map('trim',explode(',',(string)$compare)),fn($v)=>$v!==''));
         $num=is_numeric($value)&&is_numeric($compare);
