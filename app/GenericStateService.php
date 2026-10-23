@@ -88,7 +88,10 @@ final class GenericStateService
 
     public static function resolvesManaged(int $sid,string $key): bool
     {
-        return self::metadataForKey($sid,$key)!==null;
+        if(self::metadataForKey($sid,$key)!==null)return true;
+        $q=db()->prepare('SELECT 1 FROM simulations s JOIN plot_state_definitions d ON d.plot_id=s.plot_id AND d.target_code=? AND d.active=1 WHERE s.simulation_id=? LIMIT 1');
+        $q->execute([$key,$sid]);
+        return $q->fetchColumn()!==false;
     }
 
     private static function valueAllowed(array $meta,string $value): bool
