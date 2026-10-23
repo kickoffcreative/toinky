@@ -22,7 +22,7 @@ try{
     try{
         StoryAuthoringService::saveWorldEvent($writer,$plotId,[
             'plot_world_event_id'=>(int)$event['plot_world_event_id'],
-            'event_second'=>(int)$event['event_second'],
+            'trigger_percent'=>(float)$event['trigger_percent'],
             'phase'=>$event['phase'],
             'event_code'=>$event['event_code'].'_RENAMED',
             'headline'=>$event['headline'],
@@ -34,8 +34,8 @@ try{
     if(!$locked)throw new RuntimeException('A referenced event code was not dependency-locked.');
 
     $temporary='STABLE_CODE_TEST_'.strtoupper(bin2hex(random_bytes(4)));
-    $eventId=StoryAuthoringService::saveWorldEvent($writer,$plotId,['event_second'=>1,'phase'=>'EXPOSITION','event_code'=>$temporary,'headline'=>'Stable code test','event_text'=>'Temporary test event.','sort_order'=>999,'active'=>1]);
-    StoryAuthoringService::saveWorldEvent($writer,$plotId,['plot_world_event_id'=>$eventId,'event_second'=>1,'phase'=>'EXPOSITION','event_code'=>$temporary.'_RENAMED','headline'=>'Stable code test','event_text'=>'Temporary test event.','sort_order'=>999,'active'=>1]);
+    $eventId=StoryAuthoringService::saveWorldEvent($writer,$plotId,['trigger_percent'=>1,'phase'=>'EXPOSITION','event_code'=>$temporary,'headline'=>'Stable code test','event_text'=>'Temporary test event.','sort_order'=>999,'active'=>1]);
+    StoryAuthoringService::saveWorldEvent($writer,$plotId,['plot_world_event_id'=>$eventId,'trigger_percent'=>1,'phase'=>'EXPOSITION','event_code'=>$temporary.'_RENAMED','headline'=>'Stable code test','event_text'=>'Temporary test event.','sort_order'=>999,'active'=>1]);
     $pdo->rollBack();
 
     $emptyCode='EMPTY_STORY_CODE_TEST_'.strtoupper(bin2hex(random_bytes(4)));$renamedCode=$emptyCode.'_RENAMED';$genreId=(int)$pdo->query('SELECT genre_id FROM story_genres WHERE active=1 ORDER BY sort_order,genre_id LIMIT 1')->fetchColumn();
