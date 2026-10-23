@@ -35,7 +35,7 @@ final class FocusedOpportunitySimulationService
             $phase=self::seedConditions($sid,$opportunity,$setup);
             $second=self::phaseSecond($phase,$duration);
             $pdo->prepare('UPDATE simulations SET status="RUNNING",elapsed_seconds=?,current_phase=?,started_at_utc=UTC_TIMESTAMP() WHERE simulation_id=?')->execute([$second,$phase,$sid]);
-            self::seedPastWorldEvents($sid,(int)$opportunity['plot_id'],$second,$setup);
+            self::seedPastWorldEvents($sid,(int)$opportunity['plot_id'],$second,$duration,$setup);
             self::seedDeferredCounts($sid,$opportunity,$setup,$phase,$second);
             $focus=DynamicOpportunityService::evaluateFocused($sid,$opportunityCode);$trace=$focus['conditions'];
             if(!$focus['eligible'])$focusError='The seeded checkpoint did not satisfy every active condition.';
@@ -128,9 +128,9 @@ final class FocusedOpportunitySimulationService
         $pdo=db();$eventCode='FOCUS_SETUP_'.preg_replace('/[^A-Z0-9_]/','_',strtoupper($eventSuffix)).'_'.bin2hex(random_bytes(3));$pdo->prepare('INSERT INTO simulation_events(simulation_id,event_second,phase,event_type,actor_character_id,event_code,headline,event_text,visibility) VALUES(?,?,?,"SYSTEM",?,?,"Focused Test Setup","Synthetic history used only to satisfy a focused-test condition.","DIRECTOR")')->execute([$sid,$second,$phase,$cid,$eventCode]);$eventId=(int)$pdo->lastInsertId();$pdo->prepare('INSERT INTO decisions(simulation_id,character_id,event_id,prompt_text,status,opens_at_second,closes_at_second,chosen_option_code,resolved_text) VALUES(?,?,?,"Focused test setup","CHOSEN",?,?,?,"Seeded history")')->execute([$sid,$cid,$eventId,$second,$second,$choiceCode]);
     }
 
-    private static function seedPastWorldEvents(int $sid,int $plotId,int $checkpointSecond,array &$setup): void
+    private static function seedPastWorldEvents(int $sid,int $plotId,int $checkpointSecond,int $duration,array &$setup): void
     {
-        $q=db()->prepare('SELECT event_second,phase,event_code FROM plot_world_events WHERE plot_id=? AND active=1 AND event_second<=? ORDER BY event_second,sort_order,plot_world_event_id');$q->execute([$plotId,$checkpointSecond]);$events=$q->fetchAll();
+        $q=db()->prepare('SELECT trigger_percent,phase,event_code FROM plot_world_events WHERE plot_id=? AND active=1 ORDER BY trigger_percent,sort_order,plot_world_event_id');$q->execute([$plotId]);$events=[];foreach($q->fetchAll() as $row){$row['event_second']=(int)round((float)($row['trigger_percent']??0)*max(1,$duration)/100);if($row['event_second']<=$checkpointSecond)$events[]=$row;}
         $insert=db()->prepare('INSERT IGNORE INTO simulation_events(simulation_id,event_second,phase,event_type,event_code,headline,event_text,visibility) VALUES(?,?,?,"SYSTEM",?,"Focused Test Prehistory","This authored event is treated as already elapsed at the seeded checkpoint.","DIRECTOR")');
         foreach($events as$event)$insert->execute([$sid,$event['event_second'],$event['phase'],$event['event_code']]);
         if($events)$setup[]=['source_type'=>'PREHISTORY','source_key'=>null,'value'=>(string)count($events).' authored world event(s) already elapsed','method'=>'seeded checkpoint'];
