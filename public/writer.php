@@ -259,7 +259,7 @@ function writer_definition_picker(array$definitions,array$usage=[]):string{$html
 
 <?php elseif($tab==='timeline'):?>
 <section class="card writer-tab-panel"><h2>Events</h2><p class="help">Decision prompts and images connect to these stable event codes.</p><?=writer_quick_values($plotId,$tab,$w,$codeUsage)?><?=writer_filter()?>
-<?php $previewDuration=StoryAuthoringService::allowedHostDurations((int)($plot['plot_id']??0));$previewDuration=$previewDuration?min($previewDuration):3600;foreach(array_merge($w['events'],[['plot_world_event_id'=>0,'event_second'=>0,'phase'=>'EXPOSITION','event_code'=>'','headline'=>'','event_text'=>'','sort_order'=>0,'active'=>1]])as$ev):$eventPercent=writer_event_percent($ev,$plot??[]);$eventClock=writer_time_parts((int)round($eventPercent*$previewDuration/100));$eventTime=$eventClock;$eventUse=$codeUsage['event'][(int)$ev['plot_world_event_id']]??[];?>
+<?php $previewDuration=StoryAuthoringService::allowedHostDurations((int)($plot['plot_id']??0));$previewDuration=$previewDuration?min($previewDuration):3600;foreach(array_merge($w['events'],[['plot_world_event_id'=>0,'trigger_percent'=>0,'phase'=>'EXPOSITION','event_code'=>'','headline'=>'','event_text'=>'','sort_order'=>0,'active'=>1]])as$ev):$eventPercent=writer_event_percent($ev,$plot??[]);$eventClock=writer_time_parts((int)round($eventPercent*$previewDuration/100));$eventTime=$eventClock;$eventUse=$codeUsage['event'][(int)$ev['plot_world_event_id']]??[];?>
 <details class="record" <?=empty($ev['plot_world_event_id'])?'open':''?>
 ><summary><?=empty($ev['plot_world_event_id'])?'Add Event':e($eventTime[0].' '.$eventTime[1].' · '.$ev['headline'])?>
 </summary><form method="post" class="grid"><?=writer_form_context($plotId,$tab,'event')?>
@@ -382,8 +382,7 @@ function writer_definition_picker(array$definitions,array$usage=[]):string{$html
 
 <div class="writer-subpanel"><h3>Story Map and Dependencies</h3><p class="help">Open any event to review its authored world event, character decisions, options, and ordered effects. Conditional opportunities open only when every authored condition passes.</p><?=writer_quick_values($plotId,$tab,$w,$codeUsage)?><?=writer_filter()?>
 <?php foreach($w['events']as$ev):$eventDecisions=array_values(array_filter($w['decisions'],static fn($decision)=>(int)($decision['active']??1)===1&&$decision['event_code']===$ev['event_code']));?>
-<details class="mapnode"><summary><span class="mapnode-title"><b><?=e(writer_percent_text(writer_event_percent($ev,$plot??[])))?>% · <?=(int)$ev['event_second']?>
-s · <?=e($ev['headline'])?>
+<details class="mapnode"><summary><span class="mapnode-title"><b><?=e(writer_percent_text(writer_event_percent($ev,$plot??[])))?>% · <?=e($ev['headline'])?>
 </b><small><?=e($ev['phase'].' · '.$ev['event_code'])?>
 </small></span></summary><div class="mapnode-body"><p><?=e($ev['event_text'])?></p>
 <?php foreach($w['decisions']as$d): if((int)($d['active']??1)===1&&$d['event_code']===$ev['event_code']):?>
