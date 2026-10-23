@@ -12,7 +12,7 @@ final class BehaviorService {
         $t=$pdo->prepare('SELECT pdt.*,pr.plot_role_id,c.character_id,c.name,c.actor_type,c.controller_type,c.slot_no FROM plot_decision_templates pdt JOIN plot_roles pr ON pr.plot_id=pdt.plot_id AND pr.role_code=pdt.role_code AND pr.active=1 JOIN characters c ON c.simulation_id=? AND c.plot_role_id=pr.plot_role_id WHERE pdt.plot_id=? AND pdt.event_code=? AND pdt.active=1');
         $t->execute([$sid,$sim['plot_id'],$eventCode]);
         foreach($t->fetchAll() as $row){
-            $opens=$second+self::deliveryOffset($sid,$row,'decision');$closes=$opens+(int)$row['decision_window_seconds'];
+            $opens=$second+self::deliveryOffset($sid,$row,'decision');$closes=$opens+max(5,(int)round((int)$row['decision_window_seconds']*self::durationScale($sim)));
             $pdo->prepare('INSERT IGNORE INTO decisions(simulation_id,character_id,event_id,prompt_text,status,opens_at_second,closes_at_second) VALUES(?,?,?,? ,"OPEN",?,?)')->execute([$sid,$row['character_id'],$eventId,$row['prompt_text'],$opens,$closes]);
             $q=$pdo->prepare('SELECT decision_id,status FROM decisions WHERE character_id=? AND event_id=?');$q->execute([$row['character_id'],$eventId]);$decision=$q->fetch();$did=(int)($decision['decision_id']??0);if(!$did)continue;
             $opts=$pdo->prepare('SELECT * FROM plot_decision_template_options WHERE template_id=? AND active=1 ORDER BY sort_order,template_option_id');$opts->execute([$row['template_id']]);$valid=0;
@@ -73,9 +73,9 @@ final class BehaviorService {
         $pdo=db();$q=$pdo->prepare('SELECT d.*,c.name FROM decisions d JOIN characters c ON c.character_id=d.character_id WHERE d.simulation_id=? AND d.status="OPEN" AND d.closes_at_second<? ORDER BY d.closes_at_second,d.decision_id');$q->execute([$sid,$second]);
         foreach($q->fetchAll() as $d){
             $oq=$pdo->prepare('SELECT label FROM decision_options WHERE decision_id=? ORDER BY sort_order,decision_option_id');$oq->execute([$d['decision_id']]);$labels=array_map(static fn($label)=>lcfirst(trim((string)$label)),array_column($oq->fetchAll(),'label'));$last=array_pop($labels);$choiceText=$last??'act';if($labels)$choiceText=implode(', ',$labels).', or '.$choiceText;
-            $personalText='You were given the chance to '.$choiceText.', but you decided not to act before the situation changed.';
+            $personalText='You were given the chance to '.$choiceText.', but the moment passed before you could act — the situation changed.';
             $pdo->prepare('UPDATE decisions SET status="NO_ACTION",resolved_text=? WHERE decision_id=?')->execute([$personalText,$d['decision_id']]);
-            $pdo->prepare('INSERT INTO character_history(simulation_id,character_id,event_id,event_second,history_type,title,detail_text) VALUES(?,?,?,?,"NO_ACTION",?,?)')->execute([$sid,$d['character_id'],$d['event_id'],$d['closes_at_second'],'You Let the Opportunity Pass',$personalText]);
+            $pdo->prepare('INSERT INTO character_history(simulation_id,character_id,event_id,event_second,history_type,title,detail_text) VALUES(?,?,?,?,"NO_ACTION",?,?)')->execute([$sid,$d['character_id'],$d['event_id'],$d['closes_at_second'],'The Opportunity Passed',$personalText]);
             self::worldLog($sid,(int)$d['closes_at_second'],'NO_ACTION',$d['character_id'],$d['name'].' let an opportunity pass','The situation changed without their intervention.',(int)$d['event_id']);
             if(class_exists('CausalService'))CausalService::applyNoActionDecision($sid,(int)$d['decision_id']);
         }
@@ -86,6 +86,17 @@ final class BehaviorService {
         $o->execute([$d['character_id'],$decisionId,$optionCode,$sim['plot_id'],$decisionId]);$opt=$o->fetch();if(!$opt)throw new RuntimeException('Decision option not found.');
         if(class_exists('CausalService')&&!CausalService::optionAllowed($sid,(int)$opt['template_option_id']))throw new RuntimeException('That action is no longer possible because the world has changed.');
         return$opt;
+    }
+
+    private static function durationScale(array $sim): float
+    {
+        $q=db()->prepare('SELECT timeline_duration_seconds FROM plots WHERE plot_id=?');$q->execute([(int)$sim['plot_id']]);$d=(int)$q->fetchColumn();
+        return $d>0?max(1.0,$d/300):1.0;
+    }
+
+    private static function sentenceText(string $text): string
+    {
+        $text=trim($text);if($text==='')return'';return preg_match('/[.!?\x{2026}]$/u',$text)?$text:$text.'.';
     }
 
     private static function deliveryOffset(int $sid,array $row,string $kind): int
@@ -137,7 +148,7 @@ final class BehaviorService {
             $effects=$pdo->prepare('SELECT * FROM plot_option_effects WHERE template_option_id=? AND active=1 ORDER BY sort_order,effect_id');$effects->execute([$opt['template_option_id']]);
             $changes=[];foreach($effects->fetchAll() as $e){$changes[]=self::applyEffect($sid,(int)$d['character_id'],$d['event_id'],$second,$e,$actorType,(int)$d['decision_id']);}
             $cq=$pdo->prepare('SELECT name FROM characters WHERE character_id=?');$cq->execute([$d['character_id']]);$name=(string)$cq->fetchColumn();
-            $changes=array_values(array_filter($changes,static fn($c)=>!preg_match('/^\s*[A-Z][A-Z0-9_]*\s*=\s*[^.!?]+\.?\s*$/u',(string)$c)));$worldText=(trim((string)$opt['result_text'])===''||trim((string)$opt['result_text'])===trim((string)$opt['label']))?'chose to '.lcfirst(trim((string)$opt['label'])):(string)$opt['result_text'];if($changes)$worldText.=' '.implode(' ',$changes);
+            $changes=array_values(array_filter($changes,static fn($c)=>!preg_match('/^\s*[A-Z][A-Z0-9_]*\s*=\s*[^.!?]+\.?\s*$/u',(string)$c)));$resultText=trim((string)$opt['result_text']);$labelText=trim((string)$opt['label']);if($resultText===''||$resultText===$labelText||preg_match('/\byou\b|\byour\b|\byours\b|\byourself\b/i',$resultText))$worldText='chose to '.lcfirst(rtrim($labelText,'.')).'.';else $worldText=self::sentenceText($resultText);foreach($changes as$change){$change=self::sentenceText((string)$change);if($change!=='')$worldText.=' '.$change;}
             self::worldLog($sid,$second,$actorType.'_ACTION',(int)$d['character_id'],$name.': '.$opt['label'],$worldText,(int)$d['event_id']);
             $pdo->commit();
         }catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw$e;}
