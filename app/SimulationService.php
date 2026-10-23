@@ -36,7 +36,7 @@ final class SimulationService {
         $pdo->prepare('UPDATE simulations SET elapsed_seconds=?,current_phase=? WHERE simulation_id=?')->execute([$next,$phase,$sid]);self::generateDueEvents($sid,$next,$phase);
         if(class_exists('TriggeredTransitionService'))TriggeredTransitionService::evaluate($sid,$next,null);
         if(class_exists('DynamicOpportunityService'))DynamicOpportunityService::reconcile($sid);
-        if($next>=(int)$sim['duration_seconds']){$pdo->prepare('UPDATE simulations SET status="COMPLETE",current_phase="COMPLETE",ended_at_utc=UTC_TIMESTAMP() WHERE simulation_id=?')->execute([$sid]);if(class_exists('BehaviorService'))BehaviorService::expire($sid,$next+1);}
+        if($next>=(int)$sim['duration_seconds']){$pdo->prepare('UPDATE simulations SET status="COMPLETE",current_phase="COMPLETE",ended_at_utc=UTC_TIMESTAMP() WHERE simulation_id=?')->execute([$sid]);if(class_exists('BehaviorService'))BehaviorService::expire($sid,$next+1);if(class_exists('ResolutionService'))ResolutionService::refresh($sid);}
     }
     public static function choose(int $sid,int $decisionId,string $optionCode): void {if(!class_exists('BehaviorService'))throw new RuntimeException('Behavior engine is unavailable.');BehaviorService::choose($sid,$decisionId,$optionCode);}
     private static function phaseFor(int $elapsed,int $duration): string {$p=$duration?($elapsed/$duration):1;return$p<.18?'EXPOSITION':($p<.42?'INCITING_INCIDENT':($p<.72?'RISING_ACTION':($p<.92?'CLIMAX':'RESOLUTION')));}
