@@ -605,6 +605,7 @@ final class StoryAuthoringService
         $pdo=db();$ownsTransaction=!$pdo->inTransaction();if($ownsTransaction)$pdo->beginTransaction();try{
             if($entity==='opportunity'){$q=$pdo->prepare('SELECT opportunity_code,role_code FROM plot_dynamic_opportunities WHERE dynamic_opportunity_id=? AND plot_id=?');$q->execute([$id,$plotId]);$row=$q->fetch();if($row)$pdo->prepare('DELETE FROM plot_decision_templates WHERE plot_id=? AND event_code=? AND role_code=?')->execute([$plotId,$row['opportunity_code'],$row['role_code']]);}
             if($entity==='dynamic_option'){$q=$pdo->prepare('SELECT x.option_code,o.opportunity_code,o.role_code FROM plot_dynamic_opportunity_options x JOIN plot_dynamic_opportunities o ON o.dynamic_opportunity_id=x.dynamic_opportunity_id WHERE x.dynamic_option_id=? AND o.plot_id=?');$q->execute([$id,$plotId]);$row=$q->fetch();if($row)$pdo->prepare('DELETE x FROM plot_decision_template_options x JOIN plot_decision_templates t ON t.template_id=x.template_id WHERE t.plot_id=? AND t.event_code=? AND t.role_code=? AND x.option_code=?')->execute([$plotId,$row['opportunity_code'],$row['role_code'],$row['option_code']]);}
+            if($entity==='character'){$pdo->prepare('DELETE FROM characters WHERE plot_role_id=?')->execute([$id]);}
             $q=$pdo->prepare($deleteSql[$entity][0]);$q->execute([$id,$plotId]);if($q->rowCount()<1)throw new RuntimeException('Story item not found.');
             if($ownsTransaction)$pdo->commit();
         }catch(Throwable$e){if($ownsTransaction&&$pdo->inTransaction())$pdo->rollBack();throw$e;}
