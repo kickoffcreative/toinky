@@ -717,9 +717,9 @@ final class StoryAuthoringService
         return $seconds.' Seconds';
     }
 
-    public static function hostDurationOptions(bool $includeAdminOnly=true): array
+    public static function hostDurationOptions(): array
     {
-        $options=[];$q=db()->query('SELECT duration_seconds,label_text FROM platform_game_durations WHERE active=1 ORDER BY sort_order,duration_seconds');foreach($q->fetchAll()as$row)$options[(int)$row['duration_seconds']]=(string)$row['label_text'];if(!$includeAdminOnly)foreach(array_keys($options)as$seconds)if($seconds<1800)unset($options[$seconds]);return $options;
+        $options=[];$q=db()->query('SELECT duration_seconds,label_text FROM platform_game_durations WHERE active=1 ORDER BY sort_order,duration_seconds');foreach($q->fetchAll()as$row)$options[(int)$row['duration_seconds']]=(string)$row['label_text'];return $options;
     }
 
     public static function defaultHostDurations(): array
