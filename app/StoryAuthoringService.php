@@ -94,7 +94,12 @@ final class StoryAuthoringService
         self::guard($user,$plotId);$genreId=(int)($input['genre_id']??0);$q=db()->prepare('SELECT label_text FROM story_genres WHERE genre_id=? AND active=1');$q->execute([$genreId]);$genre=(string)$q->fetchColumn();if($genre==='')throw new RuntimeException('Choose a genre.');
         $currentQ=db()->prepare('SELECT code FROM plots WHERE plot_id=?');$currentQ->execute([$plotId]);$currentCode=(string)$currentQ->fetchColumn();if($currentCode==='')throw new RuntimeException('Story not found.');$postedCode=trim((string)($input['story_code']??$currentCode));$nextCode=self::code($postedCode===''?$currentCode:$postedCode);if($nextCode!==$currentCode){self::assertStoryCodeChange($plotId,$currentCode,$nextCode);$duplicate=db()->prepare('SELECT 1 FROM plots WHERE code=? AND plot_id<>? LIMIT 1');$duplicate->execute([$nextCode,$plotId]);if($duplicate->fetchColumn())throw new RuntimeException('That Stable Story Code is already assigned to another story.');}
         $title=trim((string)($input['title']??''));if($title==='')throw new RuntimeException('The story needs a title.');
-        db()->prepare('UPDATE plots SET code=?,title=?,archetype=?,genre=?,genre_id=?,setting_name=?,max_players=?,max_npcs=?,scenario_text=? WHERE plot_id=?')->execute([$nextCode,$title,trim((string)$input['archetype']),$genre,$genreId,trim((string)$input['setting_name']),max(1,(int)$input['max_players']),max(0,(int)$input['max_npcs']),trim((string)$input['scenario_text']),$plotId]);
+        $cur=db()->prepare('SELECT timeline_duration_seconds FROM plots WHERE plot_id=?');$cur->execute([$plotId]);$currentDuration=max(1,(int)$cur->fetchColumn());
+        $duration=self::overviewDuration($user,$input,$currentDuration);
+        $standingsCode=self::code((string)($input['standings_stat_code']??''));if($standingsCode!==''){$sq=db()->prepare('SELECT 1 FROM plot_state_definitions WHERE plot_id=? AND effect_scope="STAT" AND target_code=? AND active=1');$sq->execute([$plotId,$standingsCode]);if(!$sq->fetchColumn())throw new RuntimeException('Choose a valid standings stat.');}
+        $standingsTitle=trim((string)($input['standings_title']??''));
+        db()->prepare('UPDATE plots SET code=?,title=?,archetype=?,genre=?,genre_id=?,setting_name=?,max_players=?,max_npcs=?,scenario_text=?,timeline_duration_seconds=?,standings_stat_code=?,standings_title=? WHERE plot_id=?')->execute([$nextCode,$title,trim((string)$input['archetype']),$genre,$genreId,trim((string)$input['setting_name']),max(1,(int)$input['max_players']),max(0,(int)$input['max_npcs']),trim((string)$input['scenario_text']),$duration,$standingsCode!==''?$standingsCode:null,$standingsTitle!==''?mb_substr($standingsTitle,0,120):null,$plotId]);
+        if($duration!==$currentDuration)db()->prepare('UPDATE plot_world_events SET event_second=ROUND(trigger_percent*?/100) WHERE plot_id=? AND trigger_percent IS NOT NULL')->execute([$duration,$plotId]);
     }
 
     public static function saveLocation(array $user,int $plotId,array $input): int
@@ -141,9 +146,12 @@ final class StoryAuthoringService
     public static function saveWorldEvent(array $user,int $plotId,array $input): int
     {
         self::guard($user,$plotId);$id=(int)($input['plot_world_event_id']??0);$code=self::code((string)($input['event_code']??''));if($code==='')throw new RuntimeException('Every event needs an event code.');
-        $values=[self::durationSeconds($input,'event_time_value','event_time_unit','event_second',0),in_array(($input['phase']??''),['EXPOSITION','INCITING_INCIDENT','RISING_ACTION','CLIMAX','RESOLUTION'],true)?$input['phase']:'EXPOSITION',$code,trim((string)($input['headline']??'')),trim((string)($input['event_text']??'')),(int)($input['sort_order']??0),(int)!empty($input['active'])];
-        if($id){$existing=db()->prepare('SELECT event_code FROM plot_world_events WHERE plot_world_event_id=? AND plot_id=?');$existing->execute([$id,$plotId]);$current=$existing->fetchColumn();if($current===false)throw new RuntimeException('Event not found.');self::assertStableCodeChange($plotId,'event',$id,(string)$current,$code);$q=db()->prepare('UPDATE plot_world_events SET event_second=?,phase=?,event_code=?,headline=?,event_text=?,sort_order=?,active=? WHERE plot_world_event_id=? AND plot_id=?');$q->execute(array_merge($values,[$id,$plotId]));return$id;}
-        $q=db()->prepare('INSERT INTO plot_world_events(plot_id,event_second,phase,event_code,headline,event_text,sort_order,active) VALUES(?,?,?,?,?,?,?,?)');$q->execute(array_merge([$plotId],$values));return(int)db()->lastInsertId();
+        $dq=db()->prepare('SELECT timeline_duration_seconds FROM plots WHERE plot_id=?');$dq->execute([$plotId]);$timelineDuration=max(1,(int)$dq->fetchColumn());
+        if(isset($input['trigger_percent'])&&$input['trigger_percent']!==''&&$input['trigger_percent']!==null){$triggerPercent=max(0.0,min(100.0,(float)$input['trigger_percent']));$eventSecond=(int)round($triggerPercent*$timelineDuration/100);}
+        else{$eventSecond=self::durationSeconds($input,'event_time_value','event_time_unit','event_second',0);$triggerPercent=round($eventSecond*100/$timelineDuration,3);}
+        $values=[$eventSecond,$triggerPercent,in_array(($input['phase']??''),['EXPOSITION','INCITING_INCIDENT','RISING_ACTION','CLIMAX','RESOLUTION'],true)?$input['phase']:'EXPOSITION',$code,trim((string)($input['headline']??'')),trim((string)($input['event_text']??'')),(int)($input['sort_order']??0),(int)!empty($input['active'])];
+        if($id){$existing=db()->prepare('SELECT event_code FROM plot_world_events WHERE plot_world_event_id=? AND plot_id=?');$existing->execute([$id,$plotId]);$current=$existing->fetchColumn();if($current===false)throw new RuntimeException('Event not found.');self::assertStableCodeChange($plotId,'event',$id,(string)$current,$code);$q=db()->prepare('UPDATE plot_world_events SET event_second=?,trigger_percent=?,phase=?,event_code=?,headline=?,event_text=?,sort_order=?,active=? WHERE plot_world_event_id=? AND plot_id=?');$q->execute(array_merge($values,[$id,$plotId]));return$id;}
+        $q=db()->prepare('INSERT INTO plot_world_events(plot_id,event_second,trigger_percent,phase,event_code,headline,event_text,sort_order,active) VALUES(?,?,?,?,?,?,?,?,?,?)');$q->execute(array_merge([$plotId],$values));return(int)db()->lastInsertId();
     }
 
     public static function saveDecision(array $user,int $plotId,array $input): int
@@ -693,6 +701,29 @@ final class StoryAuthoringService
     private static function code(string $value):string{return trim(strtoupper((string)preg_replace('/[^A-Za-z0-9]+/','_',trim($value))),'_');}
     private static function nullable($value):?string{$value=trim((string)$value);return$value===''?null:$value;}
     private static function integerOrNull($value):?int{$value=trim((string)$value);return$value===''?null:(int)$value;}
+    public static function durationChoices(bool $isAdmin,int $current): array
+    {
+        $choices=[1800=>'30 Minutes',3600=>'1 Hour',5400=>'1.5 Hours',7200=>'2 Hours',9000=>'2.5 Hours',10800=>'3 Hours'];
+        if($isAdmin)$choices=[300=>'5 Minutes',600=>'10 Minutes',900=>'15 Minutes']+$choices;
+        if($current>0&&!isset($choices[$current]))$choices[$current]=self::durationLabel($current);
+        ksort($choices);return $choices;
+    }
+
+    public static function durationLabel(int $seconds): string
+    {
+        if($seconds>=3600&&$seconds%1800===0)return rtrim(rtrim(number_format($seconds/3600,1),'0'),'.').($seconds===3600?' Hour':' Hours');
+        if($seconds%60===0)return intdiv($seconds,60).' Minutes';
+        return $seconds.' Seconds';
+    }
+
+    private static function overviewDuration(array $user,array $input,int $current): int
+    {
+        if(!isset($input['timeline_duration_seconds'])||$input['timeline_duration_seconds']==='')return $current;
+        $posted=(int)$input['timeline_duration_seconds'];$allowed=array_keys(self::durationChoices((int)($user['is_admin']??0)===1,$current));
+        if(!in_array($posted,$allowed,true))throw new RuntimeException('That game duration is not available.');
+        return $posted;
+    }
+
     private static function durationSeconds(array $input,string $valueKey,string $unitKey,string $legacyKey,int $default):int{$raw=trim((string)($input[$valueKey]??''));if($raw==='')return max(0,(int)($input[$legacyKey]??$default));$units=['seconds'=>1,'minutes'=>60,'hours'=>3600,'days'=>86400];$multiplier=$units[strtolower((string)($input[$unitKey]??'seconds'))]??1;return max(0,(int)round((float)$raw*$multiplier));}
     private static function normalizeAllowedValues(string $value):string{$parts=preg_split('/[\r\n,]+/',$value)?:[];$parts=array_values(array_unique(array_filter(array_map(static fn($x)=>trim((string)$x),$parts),static fn($x)=>$x!=='')));return implode("\n",$parts);}
     private static function assertStableCodeChange(int$plotId,string$entity,int$id,string$current,string$next):void{if($current===$next)return;$usage=self::stableCodeUsageMap($plotId)[$entity][$id]??[];if(!$usage)return;$keywords=[];foreach($usage as$keyword=>$count)$keywords[]=$keyword.' '.$count;throw new RuntimeException('Stable code is locked · '.implode(' · ',$keywords));}
