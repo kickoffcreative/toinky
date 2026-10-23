@@ -100,6 +100,7 @@ final class StoryAuthoringService
         $standingsTitle=trim((string)($input['standings_title']??''));
         db()->prepare('UPDATE plots SET code=?,title=?,archetype=?,genre=?,genre_id=?,setting_name=?,max_players=?,max_npcs=?,scenario_text=?,timeline_duration_seconds=?,standings_stat_code=?,standings_title=? WHERE plot_id=?')->execute([$nextCode,$title,trim((string)$input['archetype']),$genre,$genreId,trim((string)$input['setting_name']),max(1,(int)$input['max_players']),max(0,(int)$input['max_npcs']),trim((string)$input['scenario_text']),$duration,$standingsCode!==''?$standingsCode:null,$standingsTitle!==''?mb_substr($standingsTitle,0,120):null,$plotId]);
         if($duration!==$currentDuration)db()->prepare('UPDATE plot_world_events SET event_second=ROUND(trigger_percent*?/100) WHERE plot_id=? AND trigger_percent IS NOT NULL')->execute([$duration,$plotId]);
+        self::saveAllowedHostDurations($plotId,$input,$duration);
     }
 
     public static function saveLocation(array $user,int $plotId,array $input): int
@@ -714,6 +715,27 @@ final class StoryAuthoringService
         if($seconds>=3600&&$seconds%1800===0)return rtrim(rtrim(number_format($seconds/3600,1),'0'),'.').($seconds===3600?' Hour':' Hours');
         if($seconds%60===0)return intdiv($seconds,60).' Minutes';
         return $seconds.' Seconds';
+    }
+
+    public static function hostDurationOptions(): array
+    {
+        $options=[];$q=db()->query('SELECT duration_seconds,label_text FROM platform_game_durations WHERE active=1 ORDER BY sort_order,duration_seconds');foreach($q->fetchAll()as$row)$options[(int)$row['duration_seconds']]=(string)$row['label_text'];return $options;
+    }
+
+    public static function allowedHostDurations(int $plotId): array
+    {
+        $options=self::hostDurationOptions();$q=db()->prepare('SELECT duration_seconds FROM plot_allowed_durations WHERE plot_id=?');$q->execute([$plotId]);$saved=array_map('intval',$q->fetchAll(PDO::FETCH_COLUMN));if(!$saved)return array_keys($options);$allowed=[];foreach(array_keys($options)as$seconds)if(in_array($seconds,$saved,true))$allowed[]=$seconds;return $allowed!==[]?$allowed:array_keys($options);
+    }
+
+    private static function saveAllowedHostDurations(int $plotId,array $input,int $timelineDuration): void
+    {
+        if(empty($input['allowed_host_durations_present']))return;
+        $options=self::hostDurationOptions();$posted=$input['allowed_host_durations']??[];if(!is_array($posted))$posted=[$posted];
+        $set=[];foreach($posted as$value){$seconds=(int)$value;if(isset($options[$seconds]))$set[$seconds]=true;}
+        if(isset($options[$timelineDuration]))$set[$timelineDuration]=true;
+        if($set===[])throw new RuntimeException('Choose at least one host duration.');
+        db()->prepare('DELETE FROM plot_allowed_durations WHERE plot_id=?')->execute([$plotId]);
+        $ins=db()->prepare('INSERT INTO plot_allowed_durations(plot_id,duration_seconds) VALUES(?,?)');foreach(array_keys($set)as$seconds)$ins->execute([$plotId,$seconds]);
     }
 
     private static function overviewDuration(array $user,array $input,int $current): int
