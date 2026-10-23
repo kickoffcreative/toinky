@@ -21,6 +21,8 @@ generic engine is active in production development. Story content, stable
 codes, conditions, consequences, integrity rules, Inky catalog entries, and
 outcome data belong in the database or catalog data. PHP provides generic
 orchestration and must not contain rules for one named story.
+**Oct 23, 2026 (afternoon):** Fix-everything sweep deployed (repo HEAD `1b227b4b98`): the play timeline no longer drops a player's own decision entries whose result text is empty (the “You Chose to” receipt renders for main-event decisions); player pages use the shared in-page confirmation modal (`_confirm_modal.php`) instead of native `confirm()`; the workspace drawer starts closed on the play page; and the engine now enforces the studio's **Open only once** opportunity setting (migration 121; see `docs/STORY_AUTHORING.md` and Guide rule B15). The Story Writer's Guide gained rule B14 (image generation and likeness verification) after a folder audit caught four likeness failures a shallow recheck had passed, plus three near-duplicate Empty Throne hall images were regenerated with distinct beats. Full record: the Google Handoff's Oct 23 addendum.
+
 
 Inky v1 is active in Story Writer:
 
