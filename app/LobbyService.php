@@ -31,7 +31,7 @@ final class LobbyService
     {
         $pdo=db();$pdo->beginTransaction();try{
             $q=$pdo->prepare('SELECT g.status,g.simulation_id FROM games g JOIN game_players gp ON gp.game_id=g.game_id AND gp.user_id=? WHERE g.game_id=? AND g.deleted_at_utc IS NULL FOR UPDATE');$q->execute([$userId,$gameId]);$game=$q->fetch();if(!$game||$game['status']!=='LOBBY')throw new RuntimeException('Characters can only be changed while the game is in the lobby.');
-            $q=$pdo->prepare('SELECT character_id FROM characters WHERE character_id=? AND simulation_id=? FOR UPDATE');$q->execute([$characterId,$game['simulation_id']]);if(!$q->fetch())throw new RuntimeException('That character is not part of this game.');
+            $q=$pdo->prepare('SELECT character_id,actor_type FROM characters WHERE character_id=? AND simulation_id=? FOR UPDATE');$q->execute([$characterId,$game['simulation_id']]);$claimChar=$q->fetch();if(!$claimChar)throw new RuntimeException('That character is not part of this game.');if(($claimChar['actor_type']??'')==='NPC')throw new RuntimeException('That character plays their part automatically and cannot be claimed.');
             $q=$pdo->prepare('SELECT user_id FROM game_players WHERE game_id=? AND character_id=? FOR UPDATE');$q->execute([$gameId,$characterId]);$owner=(int)$q->fetchColumn();if($owner&&$owner!==$userId)throw new RuntimeException('Another player already chose that character.');
             $old=$pdo->prepare('SELECT character_id FROM game_players WHERE game_id=? AND user_id=? FOR UPDATE');$old->execute([$gameId,$userId]);$oldId=(int)$old->fetchColumn();
             if($oldId&&$oldId!==$characterId)$pdo->prepare('UPDATE characters SET controller_type="AI" WHERE character_id=?')->execute([$oldId]);
