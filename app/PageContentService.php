@@ -220,6 +220,7 @@ final class PageContentService
             'title_text'=>self::textSlice(trim((string)($row['title_text']??'')),0,500),
             'content_html'=>self::sanitizeHtml((string)($row['content_html']??'')),
             'layout_type'=>$layout,
+            'cards_per_row'=>in_array((int)($row['cards_per_row']??3),[2,3,4],true)?(int)$row['cards_per_row']:3,
             'active'=>self::boolValue($row['active']??true),
             'image_media_id'=>$media($row['image_media_id']??''),
             'image_width_px'=>self::imagePixels($row['image_width_px']??0),
