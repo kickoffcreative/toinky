@@ -26,6 +26,7 @@ final class CausalService
             if($change!=='')$changes[]=$change;
         }
         GenericStateService::setByKey($sid,$marker,'APPLIED',$second);
+        $changes=array_values(array_filter($changes,static fn($c)=>!preg_match('/^\s*[A-Z][A-Z0-9_]*\s*=\s*[^.!?]+\.?\s*$/u',(string)$c)));
         if($changes){
             $phase=self::phaseAt($sid,$second);
             $pdo->prepare('INSERT INTO simulation_events(simulation_id,event_second,phase,event_type,actor_character_id,event_code,headline,event_text,visibility,caused_by_event_id) VALUES(?,?,?,?,?,?,?,?,"WORLD",?)')->execute([$sid,$second,$phase,'PLAYER',(int)$d['character_id'],'NO_ACTION_EFFECT_'.$d['decision_id'],$d['name'].': consequence of inaction',implode(' ',$changes),(int)$d['event_id']]);
