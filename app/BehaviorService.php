@@ -90,7 +90,7 @@ final class BehaviorService {
 
     private static function durationScale(array $sim): float
     {
-        $q=db()->prepare('SELECT timeline_duration_seconds FROM plots WHERE plot_id=?');$q->execute([(int)$sim['plot_id']]);$d=(int)$q->fetchColumn();
+        $d=(int)($sim['duration_seconds']??0);
         return $d>0?max(1.0,$d/300):1.0;
     }
 
@@ -103,9 +103,9 @@ final class BehaviorService {
     {
         if(array_key_exists('delivery_offset_seconds',$row)&&$row['delivery_offset_seconds']!==null)return max(0,(int)$row['delivery_offset_seconds']);
         try{
-            $q=db()->prepare('SELECT g.play_duration_seconds,p.timeline_duration_seconds,pds.minimum_game_duration_seconds,pds.perception_step_seconds,pds.decision_step_seconds,pds.npc_additional_seconds FROM games g JOIN simulations s ON s.simulation_id=g.simulation_id JOIN plots p ON p.plot_id=s.plot_id JOIN platform_story_delivery_settings pds ON pds.setting_code="LONG_GAME_STAGGER" AND pds.active=1 WHERE g.simulation_id=? LIMIT 1');
+            $q=db()->prepare('SELECT g.play_duration_seconds,pds.minimum_game_duration_seconds,pds.perception_step_seconds,pds.decision_step_seconds,pds.npc_additional_seconds FROM games g JOIN simulations s ON s.simulation_id=g.simulation_id JOIN plots p ON p.plot_id=s.plot_id JOIN platform_story_delivery_settings pds ON pds.setting_code="LONG_GAME_STAGGER" AND pds.active=1 WHERE g.simulation_id=? LIMIT 1');
             $q->execute([$sid]);$settings=$q->fetch();if(!$settings)return 0;
-            $duration=(int)($settings['play_duration_seconds']??$settings['timeline_duration_seconds']??0);
+            $duration=(int)($settings['play_duration_seconds']??0);
             if($duration<(int)$settings['minimum_game_duration_seconds'])return 0;
             $step=$kind==='decision'?(int)$settings['decision_step_seconds']:(int)$settings['perception_step_seconds'];
             $offset=max(0,((int)($row['slot_no']??1)-1)*$step);
