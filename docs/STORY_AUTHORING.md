@@ -100,6 +100,14 @@ Before entering data, decide:
 12. Optional artwork and where it should appear.
 13. The simulation strategies and story branches that prove the story works.
 
+For item 8, the studio's **Open only once** setting is enforced by the engine
+(since Oct 23, 2026; migration 121). Checked, an opportunity opens at most once
+per character per run. Unchecked, it may open again for that character after
+its previous instance resolves (chosen, expired, or closed), provided its
+conditions still pass and the character has no other open decision; each
+re-opening is a fresh event and a fresh decision. See the Story Writer's
+Guide, rule B15.
+
 ## Optional writer-uploaded artwork
 
 Open **Story Writer** from the portal. Choose an owned story and upload JPEG, PNG, or WebP files up to 8 MB.
@@ -119,6 +127,21 @@ An image may optionally be tied to a character, event, story second, or a world-
 Alternative text is required. Captions are optional. Only active uploaded images appear to players. Missing images never prevent a story from being submitted, simulated, hosted, or played. Toinky does not generate story images.
 
 Uploaded binary files live in `public/uploads/story-media/`; their ownership, placement, conditions, captions, and accessibility text live in `plot_media_assets`.
+
+**Generated artwork (Oct 23, 2026).** AI-generated images follow the Story
+Writer's Guide, rule B14, which is the governing standard. In brief: the
+approved canon portrait is the identity source for every appearance of a
+character (never invent a likeness or an age); prompts must be concrete,
+stageable scenes, because abstract phrasing is literalized by the generator;
+a place keeps its geography, but event and ending images of the same place
+must vary their focal subject and distance or they read as one repeated
+picture; and every finished image is verified individually, at readable size,
+against its canon portraits and its fragment text before it is attached — a
+sampled check is not a pass. In the studio media library, upload event images
+as type **Scene** and ending images as type **Ending** (the pickers only list
+matching types), with title and alt text set to the exact filename. Keep every
+version in the story's Drive folder and move superseded versions to its
+Archive subfolder.
 
 ## Player-immersion requirements
 
