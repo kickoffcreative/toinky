@@ -9,4 +9,4 @@ PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 SET @has_col := (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='plot_world_events' AND COLUMN_NAME='event_second');
 SET @sql := IF(@has_col>0, 'ALTER TABLE `plot_world_events` DROP COLUMN `event_second`', 'SELECT 1');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-INSERT INTO schema_migrations (version) VALUES (124) ON DUPLICATE KEY UPDATE version = version;
+INSERT IGNORE INTO schema_migrations(migration) VALUES('124_merge_durations.sql');
