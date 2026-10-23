@@ -722,9 +722,14 @@ final class StoryAuthoringService
         $options=[];$q=db()->query('SELECT duration_seconds,label_text FROM platform_game_durations WHERE active=1 ORDER BY sort_order,duration_seconds');foreach($q->fetchAll()as$row)$options[(int)$row['duration_seconds']]=(string)$row['label_text'];if(!$includeAdminOnly)foreach(array_keys($options)as$seconds)if($seconds<1800)unset($options[$seconds]);return $options;
     }
 
+    public static function defaultHostDurations(): array
+    {
+        $defaults=[];foreach(array_keys(self::hostDurationOptions())as$seconds)if($seconds>=1800)$defaults[]=$seconds;return $defaults!==[]?$defaults:array_keys(self::hostDurationOptions());
+    }
+
     public static function allowedHostDurations(int $plotId): array
     {
-        $options=self::hostDurationOptions();$q=db()->prepare('SELECT duration_seconds FROM plot_allowed_durations WHERE plot_id=?');$q->execute([$plotId]);$saved=array_map('intval',$q->fetchAll(PDO::FETCH_COLUMN));if(!$saved)return array_keys($options);$allowed=[];foreach(array_keys($options)as$seconds)if(in_array($seconds,$saved,true))$allowed[]=$seconds;return $allowed!==[]?$allowed:array_keys($options);
+        $options=self::hostDurationOptions();$q=db()->prepare('SELECT duration_seconds FROM plot_allowed_durations WHERE plot_id=?');$q->execute([$plotId]);$saved=array_map('intval',$q->fetchAll(PDO::FETCH_COLUMN));if(!$saved)return self::defaultHostDurations();$allowed=[];foreach(array_keys($options)as$seconds)if(in_array($seconds,$saved,true))$allowed[]=$seconds;return $allowed!==[]?$allowed:self::defaultHostDurations();
     }
 
     private static function saveAllowedHostDurations(int $plotId,array $input,int $timelineDuration): void
