@@ -137,7 +137,7 @@ final class BehaviorService {
             $effects=$pdo->prepare('SELECT * FROM plot_option_effects WHERE template_option_id=? AND active=1 ORDER BY sort_order,effect_id');$effects->execute([$opt['template_option_id']]);
             $changes=[];foreach($effects->fetchAll() as $e){$changes[]=self::applyEffect($sid,(int)$d['character_id'],$d['event_id'],$second,$e,$actorType,(int)$d['decision_id']);}
             $cq=$pdo->prepare('SELECT name FROM characters WHERE character_id=?');$cq->execute([$d['character_id']]);$name=(string)$cq->fetchColumn();
-            $worldText=$opt['result_text'];if(array_filter($changes))$worldText.=' '.implode(' ',array_filter($changes));
+            $changes=array_values(array_filter($changes,static fn($c)=>!preg_match('/^\s*[A-Z][A-Z0-9_]*\s*=\s*[^.!?]+\.?\s*$/u',(string)$c)));$worldText=(trim((string)$opt['result_text'])===''||trim((string)$opt['result_text'])===trim((string)$opt['label']))?'chose to '.lcfirst(trim((string)$opt['label'])):(string)$opt['result_text'];if($changes)$worldText.=' '.implode(' ',$changes);
             self::worldLog($sid,$second,$actorType.'_ACTION',(int)$d['character_id'],$name.': '.$opt['label'],$worldText,(int)$d['event_id']);
             $pdo->commit();
         }catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw$e;}
