@@ -76,9 +76,10 @@ final class CausalService
         }
         if($scope==='KNOWLEDGE'){
             $pdo->prepare('INSERT INTO character_knowledge(character_id,knowledge_key,knowledge_text,state,confidence,learned_at_second) VALUES(?,?,?,"KNOWN",100,?) ON DUPLICATE KEY UPDATE knowledge_text=VALUES(knowledge_text),state="KNOWN",confidence=100,learned_at_second=VALUES(learned_at_second)')->execute([$cid,$e['target_code'],$e['set_value']?:$detail,$second]);
+            $tc=(string)($e['target_code']??'');$sv=(string)($e['set_value']??'');if($tc!==''&&$sv!==''&&GenericStateService::resolvesManaged($sid,$tc))GenericStateService::setByKey($sid,$tc,$sv,$second,$detail);
             return $detail?:'Knowledge changed.';
         }
-        if($scope==='GOAL' || $scope==='FEAR')return self::setMotive($sid,$cid,$eventId,$second,$scope,(string)($e['set_value']??''),$detail);
+        if($scope==='GOAL' || $scope==='FEAR'){$motive=self::setMotive($sid,$cid,$eventId,$second,$scope,(string)($e['set_value']??''),$detail);$tc=(string)($e['target_code']??'');$sv=(string)($e['set_value']??'');if($tc!==''&&$sv!==''&&GenericStateService::resolvesManaged($sid,$tc))GenericStateService::setByKey($sid,$tc,$sv,$second,$detail);return $motive;}
         if($scope==='WORLD_STATE')return GenericStateService::setByKey($sid,(string)$e['target_code'],(string)($e['set_value']??''),$second,$detail);
         return'';
     }
