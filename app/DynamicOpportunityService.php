@@ -33,6 +33,7 @@ final class DynamicOpportunityService
         GenericStateService::initializePlotState($sid);
         self::syncStatuses($sid);
 
+        $openedPairs=[];
         // Multiple passes let one actor's decision alter state and immediately make OTHER actors eligible.
         // The same NPC is subject to a short plot-configurable action cooldown so it cannot chain
         // independent decisions at the exact same simulation instant.
@@ -42,11 +43,13 @@ final class DynamicOpportunityService
             $q->execute([$sid,$sim['plot_id']]);
             foreach($q->fetchAll() as $rule){
                 if((int)$sim['elapsed_seconds']>=(int)$sim['duration_seconds']-5)continue;
-                if(self::alreadyOpened($sid,(int)$rule['dynamic_opportunity_id'],(int)$rule['character_id']))continue;
+                $pairKey=(int)$rule['dynamic_opportunity_id'].':'.(int)$rule['character_id'];if(isset($openedPairs[$pairKey]))continue;
+                if(!empty($rule['once_only'])){if(self::alreadyOpened($sid,(int)$rule['dynamic_opportunity_id'],(int)$rule['character_id']))continue;}
+                elseif(self::hasUnresolvedInstance($sid,(int)$rule['dynamic_opportunity_id'],(int)$rule['character_id']))continue;
                 if(self::hasOpenDecision((int)$rule['character_id']))continue;
                 if((string)$rule['actor_type']==='NPC' && self::npcCooldownActive((int)$rule['character_id'],(int)$sim['elapsed_seconds'],(int)$rule['npc_action_cooldown_seconds']))continue;
                 if(!self::conditionsPass($sid,(int)$rule['character_id'],(int)$rule['dynamic_opportunity_id'],(string)$sim['current_phase']))continue;
-                self::openOpportunity($sid,$rule,$sim);$opened=true;
+                self::openOpportunity($sid,$rule,$sim);$opened=true;$openedPairs[$pairKey]=true;
             }
             if(!$opened)break;
             self::syncStatuses($sid);
@@ -62,6 +65,12 @@ final class DynamicOpportunityService
     private static function alreadyOpened(int $sid,int $ruleId,int $cid): bool
     {
         $q=db()->prepare('SELECT 1 FROM simulation_dynamic_opportunities WHERE simulation_id=? AND dynamic_opportunity_id=? AND character_id=? LIMIT 1');
+        $q->execute([$sid,$ruleId,$cid]);return(bool)$q->fetchColumn();
+    }
+
+    private static function hasUnresolvedInstance(int $sid,int $ruleId,int $cid): bool
+    {
+        $q=db()->prepare('SELECT 1 FROM simulation_dynamic_opportunities WHERE simulation_id=? AND dynamic_opportunity_id=? AND character_id=? AND status="OPENED" LIMIT 1');
         $q->execute([$sid,$ruleId,$cid]);return(bool)$q->fetchColumn();
     }
 
@@ -152,7 +161,7 @@ final class DynamicOpportunityService
     {
         $pdo=db();self::ensureBehaviorTemplate($rule);
         $second=(int)$sim['elapsed_seconds'];$code=(string)$rule['opportunity_code'];
-        $q=$pdo->prepare('SELECT event_id FROM simulation_events WHERE simulation_id=? AND event_code=? LIMIT 1');$q->execute([$sid,$code]);$eventId=(int)$q->fetchColumn();
+        $eventId=0;if(!empty($rule['once_only'])||!self::alreadyOpened($sid,(int)$rule['dynamic_opportunity_id'],(int)$rule['character_id'])){$q=$pdo->prepare('SELECT event_id FROM simulation_events WHERE simulation_id=? AND event_code=? LIMIT 1');$q->execute([$sid,$code]);$eventId=(int)$q->fetchColumn();}
         if(!$eventId){
             $pdo->prepare('INSERT INTO simulation_events(simulation_id,event_second,phase,event_type,actor_character_id,event_code,headline,event_text,visibility) VALUES(?,?,?,?,?,?,?,?,"PRIVATE")')->execute([$sid,$second,$sim['current_phase'],'SYSTEM',(int)$rule['character_id'],$code,'A New Opportunity Opens',(string)$rule['prompt_text']]);
             $eventId=(int)$pdo->lastInsertId();
