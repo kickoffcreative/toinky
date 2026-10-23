@@ -8,7 +8,7 @@ final class StoryCorrectionV2Service
     private const SPECS=[
         'plot'=>['fields'=>['title','archetype','setting_name','scenario_text'],'risk'=>'CONTENT'],
         'character'=>['fields'=>['name','public_description','private_knowledge','starting_location','goal_text','fear_text','pronoun_set'],'risk'=>'CONTENT'],
-        'event'=>['fields'=>['headline','event_text','event_second','sort_order'],'risk'=>'STRUCTURAL'],
+        'event'=>['fields'=>['headline','event_text','trigger_percent','sort_order'],'risk'=>'STRUCTURAL'],
         'decision'=>['fields'=>['prompt_text','decision_window_seconds'],'risk'=>'CONTENT'],
         'option'=>['fields'=>['label','result_text','rationale_text','npc_weight'],'risk'=>'CONTENT'],
         'opportunity'=>['fields'=>['prompt_text','window_seconds'],'risk'=>'CONTENT'],
@@ -171,9 +171,10 @@ final class StoryCorrectionV2Service
     private static function validatedValues(string $entity,array $values,int $line): array
     {
         $out=[];foreach($values as$field=>$value){
-            if(in_array($field,['event_second','sort_order','decision_window_seconds','window_seconds','npc_weight','default_numeric_value','delta_value'],true)){
+            if($field==='trigger_percent'){if(!is_numeric($value))throw new RuntimeException('trigger_percent must be a number at change '.$line.'.');$value=(float)$value;if($value<0||$value>100)throw new RuntimeException('trigger_percent must be between 0 and 100 at change '.$line.'.');$out[$field]=$value;continue;}
+            if(in_array($field,['sort_order','decision_window_seconds','window_seconds','npc_weight','default_numeric_value','delta_value'],true)){
                 if($value===null&&in_array($field,['default_numeric_value','delta_value'],true)){$out[$field]=null;continue;}if(!is_int($value)&&!(is_string($value)&&preg_match('/^-?\d+$/',$value)))throw new RuntimeException($field.' must be a whole number at change '.$line.'.');$value=(int)$value;
-                if($field==='event_second'&&($value<0||$value>86400))throw new RuntimeException('event_second must be between 0 and 86,400 at change '.$line.'.');if(in_array($field,['decision_window_seconds','window_seconds'],true)&&($value<5||$value>86400))throw new RuntimeException($field.' must be between 5 and 86,400 at change '.$line.'.');if($field==='npc_weight'&&($value<0||$value>10000))throw new RuntimeException('npc_weight must be between 0 and 10,000 at change '.$line.'.');if($field==='sort_order'&&abs($value)>1000000)throw new RuntimeException('sort_order is outside the supported range at change '.$line.'.');$out[$field]=$value;continue;
+                if(in_array($field,['decision_window_seconds','window_seconds'],true)&&($value<5||$value>86400))throw new RuntimeException($field.' must be between 5 and 86,400 at change '.$line.'.');if($field==='npc_weight'&&($value<0||$value>10000))throw new RuntimeException('npc_weight must be between 0 and 10,000 at change '.$line.'.');if($field==='sort_order'&&abs($value)>1000000)throw new RuntimeException('sort_order is outside the supported range at change '.$line.'.');$out[$field]=$value;continue;
             }
             if($field==='pronoun_set'){$value=strtoupper(trim((string)$value));if(!in_array($value,['HE','SHE','IT'],true))throw new RuntimeException('pronoun_set must be HE, SHE, or IT at change '.$line.'.');}
             if($field==='value_type'){$value=strtoupper(trim((string)$value));if(!in_array($value,['NUMERIC','PRESET','TEXT'],true))throw new RuntimeException('value_type must be NUMERIC, PRESET, or TEXT at change '.$line.'.');}
@@ -194,8 +195,8 @@ final class StoryCorrectionV2Service
 
     private static function validateChronology(int $plotId,array $before): void
     {
-        $q=db()->prepare('SELECT event_code,event_second,sort_order,phase FROM plot_world_events WHERE plot_id=? AND active=1 ORDER BY event_second,sort_order,plot_world_event_id');$q->execute([$plotId]);$rows=$q->fetchAll();$after=array_column($rows,'event_code');if($after!==$before)throw new RuntimeException('Chronology protection blocked this package because it changes the existing stable event sequence. Timing may change, but event order may not.');
-        $rank=['EXPOSITION'=>1,'INCITING_INCIDENT'=>2,'RISING_ACTION'=>3,'CLIMAX'=>4,'RESOLUTION'=>5];$last=0;$pairs=[];foreach($rows as$row){$pair=$row['event_second'].'|'.$row['sort_order'];if(isset($pairs[$pair]))throw new RuntimeException('Two active events would share the same time and same-time order: '.$pairs[$pair].' and '.$row['event_code'].'.');$pairs[$pair]=$row['event_code'];$r=$rank[$row['phase']]??0;if($r<$last)throw new RuntimeException('Chronology protection detected a phase moving backward at '.$row['event_code'].'.');$last=$r;}
+        $q=db()->prepare('SELECT event_code,trigger_percent,sort_order,phase FROM plot_world_events WHERE plot_id=? AND active=1 ORDER BY trigger_percent,sort_order,plot_world_event_id');$q->execute([$plotId]);$rows=$q->fetchAll();$after=array_column($rows,'event_code');if($after!==$before)throw new RuntimeException('Chronology protection blocked this package because it changes the existing stable event sequence. Timing may change, but event order may not.');
+        $rank=['EXPOSITION'=>1,'INCITING_INCIDENT'=>2,'RISING_ACTION'=>3,'CLIMAX'=>4,'RESOLUTION'=>5];$last=0;$pairs=[];foreach($rows as$row){$pair=$row['trigger_percent'].'|'.$row['sort_order'];if(isset($pairs[$pair]))throw new RuntimeException('Two active events would share the same time and same-time order: '.$pairs[$pair].' and '.$row['event_code'].'.');$pairs[$pair]=$row['event_code'];$r=$rank[$row['phase']]??0;if($r<$last)throw new RuntimeException('Chronology protection detected a phase moving backward at '.$row['event_code'].'.');$last=$r;}
     }
 
     private static function validateAffectedValues(int $plotId,array $affected): void
@@ -225,7 +226,7 @@ final class StoryCorrectionV2Service
     private static function eventOrder(int $plotId): array{$q=db()->prepare('SELECT event_code FROM plot_world_events WHERE plot_id=? AND active=1 ORDER BY sort_order,plot_world_event_id');$q->execute([$plotId]);return array_column($q->fetchAll(),'event_code');}
     private static function nextEffectOrder(PDO $pdo,string $table,string $parentColumn,int $parentId): int{$q=$pdo->prepare('SELECT COALESCE(MAX(sort_order),0)+1 FROM '.$table.' WHERE '.$parentColumn.'=?');$q->execute([$parentId]);return(int)$q->fetchColumn();}
     private static function selectFields(array $row,array $fields): array{$out=[];foreach($fields as$f)$out[$f]=$row[$f]??null;return$out;}
-    private static function comparable(string $field,mixed $value): mixed{if($field==='allowed_values_text'&&$value!==null)return self::normalizeAllowed((string)$value);if(in_array($field,['event_second','sort_order','decision_window_seconds','window_seconds','npc_weight','default_numeric_value','delta_value'],true)&&$value!==null)return(int)$value;return$value;}
+    private static function comparable(string $field,mixed $value): mixed{if($field==='allowed_values_text'&&$value!==null)return self::normalizeAllowed((string)$value);if($field==='trigger_percent'&&$value!==null)return(float)$value;if(in_array($field,['sort_order','decision_window_seconds','window_seconds','npc_weight','default_numeric_value','delta_value'],true)&&$value!==null)return(int)$value;return$value;}
     private static function shown(mixed $value): string{return$value===null?'null':json_encode($value,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);}
     private static function normalizeAllowed(string $value): string{$parts=preg_split('/[\r\n,]+/',$value)?:[];$parts=array_values(array_unique(array_filter(array_map(static fn($x)=>trim((string)$x),$parts),static fn($x)=>$x!=='')));return implode("\n",$parts);}
     private static function allowed(string $value): array{return array_values(array_filter(explode("\n",self::normalizeAllowed($value)),static fn($x)=>$x!==''));}
