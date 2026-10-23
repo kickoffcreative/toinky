@@ -171,9 +171,34 @@ final class MediaLibraryService
         foreach($q->fetchAll()as$row)$out[(int)$row['media_id']][$row['version_code']]=$row;return$out;
     }
 
-    public static function delete(array $user,int $mediaId): void
+    public static function usageByMediaIds(array $user,array $mediaIds): array
     {
-        $m=self::requireVisible($user,$mediaId);$versions=[];try{$versions=self::versionsByMediaIds($user,[$mediaId])[$mediaId]??[];}catch(Throwable $ignored){}$pdo=db();$ownsTransaction=!$pdo->inTransaction();if($ownsTransaction)$pdo->beginTransaction();try{$pdo->prepare('UPDATE plot_media_assets SET active=0 WHERE library_media_id=?')->execute([$mediaId]);$pdo->prepare('DELETE FROM site_parallax_layers WHERE media_id=?')->execute([$mediaId]);$pdo->prepare('UPDATE genre_themes SET background_image_path=IF(background_media_id=?,NULL,background_image_path),divider_image_path=IF(divider_media_id=?,NULL,divider_image_path),card_image_path=IF(card_media_id=?,NULL,card_image_path),background_media_id=IF(background_media_id=?,NULL,background_media_id),divider_media_id=IF(divider_media_id=?,NULL,divider_media_id),card_media_id=IF(card_media_id=?,NULL,card_media_id)')->execute([$mediaId,$mediaId,$mediaId,$mediaId,$mediaId,$mediaId]);$pdo->prepare('UPDATE site_page_sections SET image_media_id=IF(image_media_id=?,NULL,image_media_id),background_media_id=IF(background_media_id=?,NULL,background_media_id)')->execute([$mediaId,$mediaId]);self::cleanPageRowsForMedia($mediaId);$pdo->prepare('DELETE FROM writer_media_assets WHERE media_id=?')->execute([$mediaId]);if($ownsTransaction)$pdo->commit();}catch(Throwable $e){if($ownsTransaction&&$pdo->inTransaction())$pdo->rollBack();throw$e;}
+        $ids=array_values(array_unique(array_filter(array_map('intval',$mediaIds),fn($id)=>$id>0)));if(!$ids)return[];
+        $placeholders=implode(',',array_fill(0,count($ids),'?'));$out=[];
+        try{$q=db()->prepare('SELECT a.library_media_id,p.title plot_title,a.placement,a.role_code,a.event_code,a.resolution_fragment_id,a.scene_second,r.name role_name,ev.headline event_headline,f.section_code FROM plot_media_assets a JOIN plots p ON p.plot_id=a.plot_id LEFT JOIN plot_roles r ON r.plot_id=a.plot_id AND r.role_code=a.role_code LEFT JOIN plot_events ev ON ev.plot_id=a.plot_id AND ev.event_code=a.event_code LEFT JOIN plot_resolution_fragments f ON f.resolution_fragment_id=a.resolution_fragment_id WHERE a.active=1 AND a.library_media_id IN('.$placeholders.') ORDER BY p.title,a.placement');$q->execute($ids);
+        foreach($q->fetchAll()as$row){$label='Story \''.(string)$row['plot_title'].'\' — '.ucwords(strtolower(str_replace('_',' ',(string)$row['placement'])));
+            if(!empty($row['role_name']))$label.=': '.(string)$row['role_name'];
+            elseif(!empty($row['event_headline']))$label.=': '.(string)$row['event_headline'];
+            elseif(!empty($row['section_code']))$label.=': ending section '.(string)$row['section_code'];
+            elseif($row['scene_second']!==null)$label.=' at second '.(int)$row['scene_second'];
+            $out[(int)$row['library_media_id']][]=$label;}}catch(Throwable $ignored){}
+        try{$q=db()->prepare('SELECT media_id,COUNT(*) c FROM site_parallax_layers WHERE media_id IN('.$placeholders.') GROUP BY media_id');$q->execute($ids);foreach($q->fetchAll()as$row)$out[(int)$row['media_id']][]='Homepage parallax layer';}catch(Throwable $ignored){}
+        try{$q=db()->prepare('SELECT background_media_id,divider_media_id,card_media_id,g.label_text FROM genre_themes t JOIN story_genres g ON g.genre_id=t.genre_id WHERE background_media_id IN('.$placeholders.') OR divider_media_id IN('.$placeholders.') OR card_media_id IN('.$placeholders.')');$q->execute(array_merge($ids,$ids,$ids));foreach($q->fetchAll()as$row){foreach(['background_media_id'=>'background','divider_media_id'=>'divider','card_media_id'=>'card']as$col=>$kind)if(in_array((int)$row[$col],$ids,true))$out[(int)$row[$col]][]='Genre theme \''.(string)$row['label_text'].'\' ('.$kind.' image)';}}catch(Throwable $ignored){}
+        try{$q=db()->prepare('SELECT image_media_id,background_media_id FROM site_page_sections WHERE image_media_id IN('.$placeholders.') OR background_media_id IN('.$placeholders.')');$q->execute(array_merge($ids,$ids));foreach($q->fetchAll()as$row){foreach(['image_media_id'=>'section image','background_media_id'=>'section background']as$col=>$kind)if(!empty($row[$col])&&in_array((int)$row[$col],$ids,true))$out[(int)$row[$col]][]='Site page ('.$kind.')';}}catch(Throwable $ignored){}
+        try{$q=db()->query('SELECT rows_json FROM site_page_sections WHERE rows_json IS NOT NULL AND rows_json <> ""');foreach($q->fetchAll(PDO::FETCH_COLUMN)as$json){$rows=json_decode((string)$json,true);if(!is_array($rows))continue;$found=[];self::collectMediaIds($rows,$found);foreach($ids as$id)if(!empty($found[$id])&&!in_array('Page Builder content',$out[$id]??[],true))$out[$id][]='Page Builder content';}}catch(Throwable $ignored){}
+        return$out;
+    }
+
+    private static function collectMediaIds(array $value,array &$found): void
+    {
+        foreach($value as$key=>$item){if(is_array($item)){self::collectMediaIds($item,$found);continue;}if(is_string($key)&&str_ends_with($key,'media_id'))$found[(int)$item]=true;}
+    }
+
+    public static function delete(array $user,int $mediaId,bool $force=false): void
+    {
+        $m=self::requireVisible($user,$mediaId);
+        if(!$force){$usage=self::usageByMediaIds($user,[$mediaId])[$mediaId]??[];if($usage)throw new RuntimeException('This media is used in '.count($usage).' place'.(count($usage)===1?'':'s').'. Use View Usage to see where, then Force Delete Media if you still want to remove it.');}
+        $versions=[];try{$versions=self::versionsByMediaIds($user,[$mediaId])[$mediaId]??[];}catch(Throwable $ignored){}$pdo=db();$ownsTransaction=!$pdo->inTransaction();if($ownsTransaction)$pdo->beginTransaction();try{$pdo->prepare('UPDATE plot_media_assets SET active=0 WHERE library_media_id=?')->execute([$mediaId]);$pdo->prepare('DELETE FROM site_parallax_layers WHERE media_id=?')->execute([$mediaId]);$pdo->prepare('UPDATE genre_themes SET background_image_path=IF(background_media_id=?,NULL,background_image_path),divider_image_path=IF(divider_media_id=?,NULL,divider_image_path),card_image_path=IF(card_media_id=?,NULL,card_image_path),background_media_id=IF(background_media_id=?,NULL,background_media_id),divider_media_id=IF(divider_media_id=?,NULL,divider_media_id),card_media_id=IF(card_media_id=?,NULL,card_media_id)')->execute([$mediaId,$mediaId,$mediaId,$mediaId,$mediaId,$mediaId]);$pdo->prepare('UPDATE site_page_sections SET image_media_id=IF(image_media_id=?,NULL,image_media_id),background_media_id=IF(background_media_id=?,NULL,background_media_id)')->execute([$mediaId,$mediaId]);self::cleanPageRowsForMedia($mediaId);$pdo->prepare('DELETE FROM writer_media_assets WHERE media_id=?')->execute([$mediaId]);if($ownsTransaction)$pdo->commit();}catch(Throwable $e){if($ownsTransaction&&$pdo->inTransaction())$pdo->rollBack();throw$e;}
         foreach([(string)$m['file_path'],(string)($m['thumbnail_path']??'')]as$filePath)self::unlinkUpload($filePath);
         foreach($versions as$version)self::unlinkUpload((string)$version['file_path']);
     }
