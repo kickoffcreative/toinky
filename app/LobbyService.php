@@ -47,7 +47,7 @@ final class LobbyService
     public static function startGame(int $gameId,int $userId): void
     {
         $pdo=db();$q=$pdo->prepare('SELECT * FROM games WHERE game_id=? AND deleted_at_utc IS NULL');$q->execute([$gameId]);$g=$q->fetch();if(!$g||(int)$g['host_user_id']!==$userId)throw new RuntimeException('Only the host can start this game.');if($g['status']!=='LOBBY')throw new RuntimeException('This game has already started.');
-        $q=$pdo->prepare('SELECT COUNT(*) total_players,SUM(gp.character_id IS NOT NULL) ready_players FROM game_players gp WHERE gp.game_id=? AND gp.user_id<>?');$q->execute([$gameId,(int)$g['host_user_id']]);$ready=$q->fetch();if((int)$ready['total_players']<1||(int)$ready['ready_players']!==(int)$ready['total_players'])throw new RuntimeException('Every player in the lobby must choose a character before the game starts.');
+        $q=$pdo->prepare('SELECT COUNT(*) total_players,SUM(gp.character_id IS NOT NULL) ready_players FROM game_players gp WHERE gp.game_id=? AND gp.user_id<>?');$q->execute([$gameId,(int)$g['host_user_id']]);$ready=$q->fetch();if((int)$ready['ready_players']!==(int)$ready['total_players'])throw new RuntimeException('Every player in the lobby must choose a character before the game starts.');
         $pdo->beginTransaction();try{$pdo->prepare('UPDATE games SET status="RUNNING" WHERE game_id=? AND status="LOBBY"')->execute([$gameId]);SimulationService::start((int)$g['simulation_id']);CharacterAutomationService::process((int)$g['simulation_id']);$pdo->prepare('UPDATE games SET started_at_utc=UTC_TIMESTAMP() WHERE game_id=?')->execute([$gameId]);$pdo->commit();}catch(Throwable$e){if($pdo->inTransaction())$pdo->rollBack();throw$e;}
     }
     public static function tick(int $gameId): void
