@@ -39,6 +39,15 @@ final class ResolutionService
         return$rows;
     }
 
+    public static function fragments(int $sid): array
+    {
+        $pdo=db();$q=$pdo->prepare('SELECT plot_id FROM simulations WHERE simulation_id=?');$q->execute([$sid]);$plotId=(int)$q->fetchColumn();if($plotId<1)return[];
+        $images=[];foreach(self::fragmentImages($sid) as$img)$images[(int)$img['resolution_fragment_id']][]=$img;
+        $sections=$pdo->prepare('SELECT section_code,MIN(section_order) section_order FROM plot_resolution_fragments WHERE plot_id=? AND active=1 GROUP BY section_code ORDER BY section_order,section_code');$sections->execute([$plotId]);$out=[];
+        foreach($sections->fetchAll() as$s){$f=self::pickFragmentRow($sid,$plotId,(string)$s['section_code']);if(!$f)continue;$fid=(int)$f['resolution_fragment_id'];$out[]=['section_code'=>(string)$s['section_code'],'section_label'=>ucwords(strtolower(str_replace('_',' ',(string)$s['section_code']))),'text'=>self::render($sid,(string)$f['fragment_text']),'images'=>$images[$fid]??[]];}
+        return$out;
+    }
+
     private static function render(int $sid,string $text): string
     {
         return preg_replace_callback('/\{(state|factor):([^}]+)\}/',function($m)use($sid){
