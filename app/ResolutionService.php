@@ -12,15 +12,31 @@ final class ResolutionService
         $pdo->prepare('UPDATE simulation_events SET headline=?,event_text=? WHERE event_id=?')->execute([$headline,implode(' ',$parts),$r['event_id']]);
     }
 
-    private static function pickFragment(int $sid,int $plotId,string $section): string
+    private static function pickFragmentRow(int $sid,int $plotId,string $section): ?array
     {
         $pdo=db();$q=$pdo->prepare('SELECT * FROM plot_resolution_fragments WHERE plot_id=? AND section_code=? AND active=1 ORDER BY priority,resolution_fragment_id');$q->execute([$plotId,$section]);
         foreach($q->fetchAll() as $f){
             $c=$pdo->prepare('SELECT state_key,operator,compare_value FROM plot_resolution_conditions WHERE resolution_fragment_id=? AND active=1 ORDER BY sort_order,resolution_condition_id');$c->execute([$f['resolution_fragment_id']]);$ok=true;
             foreach($c->fetchAll() as $cond){if(!GenericStateService::conditionPasses($sid,$cond['state_key'],$cond['operator'],$cond['compare_value'])){$ok=false;break;}}
-            if($ok)return self::render($sid,(string)$f['fragment_text']);
+            if($ok)return $f;
         }
-        return '';
+        return null;
+    }
+
+    private static function pickFragment(int $sid,int $plotId,string $section): string
+    {
+        $f=self::pickFragmentRow($sid,$plotId,$section);return$f?self::render($sid,(string)$f['fragment_text']):'';
+    }
+
+    public static function fragmentImages(int $sid): array
+    {
+        $pdo=db();$q=$pdo->prepare('SELECT plot_id FROM simulations WHERE simulation_id=?');$q->execute([$sid]);$plotId=(int)$q->fetchColumn();if($plotId<1)return[];
+        $sections=$pdo->prepare('SELECT section_code,MIN(section_order) section_order FROM plot_resolution_fragments WHERE plot_id=? AND active=1 GROUP BY section_code ORDER BY section_order,section_code');$sections->execute([$plotId]);$ids=[];$order=[];
+        foreach($sections->fetchAll() as $i=>$s){$f=self::pickFragmentRow($sid,$plotId,$s['section_code']);if($f){$ids[]=(int)$f['resolution_fragment_id'];$order[(int)$f['resolution_fragment_id']]=$i;}}
+        if(!$ids)return[];
+        $in=implode(',',array_fill(0,count($ids),'?'));$q=$pdo->prepare('SELECT * FROM plot_media_assets WHERE resolution_fragment_id IN ('.$in.') AND active=1 ORDER BY sort_order,media_asset_id');$q->execute($ids);$rows=$q->fetchAll();
+        usort($rows,static function($a,$b)use($order){$oa=$order[(int)$a['resolution_fragment_id']]??99;$ob=$order[(int)$b['resolution_fragment_id']]??99;return($oa<=>$ob)?:((int)$a['sort_order']<=>(int)$b['sort_order'])?:((int)$a['media_asset_id']<=>(int)$b['media_asset_id']);});
+        return$rows;
     }
 
     private static function render(int $sid,string $text): string
