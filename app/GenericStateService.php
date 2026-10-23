@@ -86,6 +86,11 @@ final class GenericStateService
         return null;
     }
 
+    public static function resolvesManaged(int $sid,string $key): bool
+    {
+        return self::metadataForKey($sid,$key)!==null;
+    }
+
     private static function valueAllowed(array $meta,string $value): bool
     {
         if($meta['value_type']==='NUMBER'){
