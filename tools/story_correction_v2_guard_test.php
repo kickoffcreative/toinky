@@ -22,7 +22,7 @@ if(!$version){
     $pdo->prepare('INSERT INTO plot_versions(plot_id,version_no,snapshot_json,submitted_by_user_id,workflow_status) VALUES(?,1,?,? ,"SUBMITTED")')->execute([$plot['plot_id'],$snapshot,$admin['user_id']]);
     $version=['plot_version_id'=>(int)$pdo->lastInsertId(),'version_no'=>1];
 }
-$events=$pdo->prepare('SELECT event_code,event_second,sort_order FROM plot_world_events WHERE plot_id=? AND active=1 ORDER BY event_second,sort_order,plot_world_event_id');
+$events=$pdo->prepare('SELECT event_code,trigger_percent,sort_order FROM plot_world_events WHERE plot_id=? AND active=1 ORDER BY trigger_percent,sort_order,plot_world_event_id');
 $events->execute([$plot['plot_id']]);
 $events=$events->fetchAll();
 if(count($events)<2)throw new RuntimeException('Corrections v2 chronology test needs at least two events.');
@@ -63,8 +63,8 @@ if(!$blocked)throw new RuntimeException('Corrections v2 accepted a stale expecte
 
 $reordered=$base+['changes'=>[[
     'operation'=>'update','entity'=>'event','key'=>$events[0]['event_code'],
-    'expected'=>['event_second'=>(int)$events[0]['event_second'],'sort_order'=>(int)$events[0]['sort_order']],
-    'values'=>['event_second'=>(int)$events[1]['event_second']+1,'sort_order'=>(int)$events[0]['sort_order']],
+    'expected'=>['trigger_percent'=>(float)$events[0]['trigger_percent'],'sort_order'=>(int)$events[0]['sort_order']],
+    'values'=>['trigger_percent'=>(float)$events[1]['trigger_percent']+1,'sort_order'=>(int)$events[0]['sort_order']],
     'reason'=>'Verify chronology protection.',
 ]]];
 $file=correction_file($reordered);$blocked=false;
