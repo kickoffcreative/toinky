@@ -183,7 +183,7 @@
     ];
     const allowedImportLayouts=new Set(layouts.map(item=>item[0]));
     const allowedImportFields=new Set([
-        'layout_type','active','style_name','spacing_preset','label_text','eyebrow_text',
+        'layout_type','cards_per_row','active','style_name','spacing_preset','label_text','eyebrow_text',
         'title_text','content_html','bullets','image_media_id','columns','children',
         ...styleFields
     ]);
@@ -725,6 +725,7 @@
             select('align_items','Align items',node.align_items||'stretch',alignItemsOptions)+
             select('wrap_items','Wrap',(node.wrap_items===false||node.wrap_items==='0')?'0':'1',wrapOptions):
             layoutControl(node)+
+            (node.layout_type==='STORY_CARDS'?select('cards_per_row','Cards per row',String(node.cards_per_row||3),[['2','2 per row'],['3','3 per row'],['4','4 per row']]):'')+
             subheading('Main')+
             field('label_text','Label',node.label_text||node.eyebrow_text||'')+
             field('title_text','Title',node.title_text||'')+
