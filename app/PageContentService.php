@@ -193,6 +193,7 @@ final class PageContentService
         $alignSelf=trim((string)($row['align_self']??'stretch'));
         $maxWidth=max(320,min(3840,(int)($row['max_width_px']??1980)?:1980));
         $spacingPreset=strtoupper(trim((string)($row['spacing_preset']??'')));
+        $cardsPerRow=(int)($row['cards_per_row']??3);if(!in_array($cardsPerRow,[2,3,4],true))$cardsPerRow=3;
         $responsiveSize=static function($value): string{
             $value=trim((string)$value);
             if($value==='')return'';
@@ -220,7 +221,7 @@ final class PageContentService
             'title_text'=>self::textSlice(trim((string)($row['title_text']??'')),0,500),
             'content_html'=>self::sanitizeHtml((string)($row['content_html']??'')),
             'layout_type'=>$layout,
-            'cards_per_row'=>in_array((int)($row['cards_per_row']??3),[2,3,4],true)?(int)$row['cards_per_row']:3,
+            'cards_per_row'=>$cardsPerRow,
             'active'=>self::boolValue($row['active']??true),
             'image_media_id'=>$media($row['image_media_id']??''),
             'image_width_px'=>self::imagePixels($row['image_width_px']??0),
