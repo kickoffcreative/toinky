@@ -1388,6 +1388,7 @@
         const node=nodeAt(selected);
         if(!node)return;
         setValue(node,input.dataset.field,input.value);
+        sync();
     });
     
 document.addEventListener('keydown',event=>{
