@@ -1,4 +1,6 @@
 <?php
+require_once __DIR__ . '/StripeService.php';
+
 final class CommerceService
 {
     private const GRANT_TYPES = ['FREE_FIRST','PURCHASE','ADMIN_GRANT','ADMIN_REVOKE','REFUND_REVOKE'];
@@ -24,7 +26,7 @@ final class CommerceService
         if ($bundles === []) $bundles = self::defaultBundles()['bundles'];
         $currency = strtoupper((string)($decoded['currency'] ?? 'USD'));
         if ($currency === '') $currency = 'USD';
-        return ['enabled' => ($raw['COMMERCE_ENABLED'] ?? '0') === '1', 'free_first' => ($raw['COMMERCE_FREE_FIRST'] ?? '1') !== '0', 'currency' => $currency, 'bundles' => $bundles];
+        return ['enabled' => ($raw['COMMERCE_ENABLED'] ?? '0') === '1', 'free_first' => ($raw['COMMERCE_FREE_FIRST'] ?? '1') !== '0', 'currency' => $currency, 'bundles' => $bundles, 'stripe' => ['mode' => StripeService::mode(), 'publishable' => StripeService::publishableKey(), 'secret_set' => StripeService::secretKey() !== '', 'webhook_set' => StripeService::webhookSecret() !== '']];
     }
 
     public static function enabled(): bool
@@ -55,6 +57,9 @@ final class CommerceService
             'COMMERCE_FREE_FIRST' => ((string)($input['commerce_free_first'] ?? '0')) === '1' ? '1' : '0',
             'COMMERCE_BUNDLES' => json_encode(['currency' => $current['currency'], 'bundles' => $bundles], JSON_UNESCAPED_SLASHES),
         ];
+        $values['STRIPE_PUBLISHABLE_KEY'] = trim((string)($input['stripe_publishable_key'] ?? ''));
+        if (trim((string)($input['stripe_secret_key'] ?? '')) !== '') $values['STRIPE_SECRET_KEY'] = trim((string)$input['stripe_secret_key']);
+        if (trim((string)($input['stripe_webhook_secret'] ?? '')) !== '') $values['STRIPE_WEBHOOK_SECRET'] = trim((string)$input['stripe_webhook_secret']);
         $q = db()->prepare('INSERT INTO platform_settings(setting_key,setting_value,updated_by_user_id) VALUES(?,?,?) ON DUPLICATE KEY UPDATE setting_value=VALUES(setting_value),updated_by_user_id=VALUES(updated_by_user_id)');
         foreach ($values as $k => $v) $q->execute([$k, $v, $adminId]);
     }
@@ -146,6 +151,86 @@ final class CommerceService
         $limit = max(1, min(200, $limit));
         $q = db()->query("SELECT l.*,u.display_name FROM host_occasion_ledger l JOIN users u ON u.user_id=l.user_id ORDER BY l.ledger_id DESC LIMIT $limit");
         return $q->fetchAll();
+    }
+
+    public static function freeFirstAvailable(int $userId): bool
+    {
+        if (!self::settings()['free_first'] || self::isAdmin($userId)) return false;
+        $q = db()->prepare("SELECT COUNT(*) FROM host_occasion_ledger WHERE user_id=? AND entry_type='FREE_FIRST'");
+        $q->execute([$userId]);
+        return (int)$q->fetchColumn() === 0;
+    }
+
+    public static function startPurchase(int $userId, string $bundleKey): string
+    {
+        if (!self::enabled()) throw new RuntimeException('Purchases are not open yet.');
+        $bundle = self::bundle($bundleKey);
+        if ($bundle === null) throw new RuntimeException('That bundle is not available.');
+        if (!StripeService::configured()) throw new RuntimeException('Stripe is not configured yet. Add the Stripe keys in Commerce settings.');
+        $settings = self::settings();
+        $pdo = db();
+        $pdo->prepare("INSERT INTO host_purchases(user_id,bundle_key,occasions_granted,amount_cents,currency,status) VALUES(?,?,?,?,?,'PENDING')")->execute([$userId, $bundle['key'], $bundle['occasions'], $bundle['price_cents'], $settings['currency']]);
+        $purchaseId = (int)$pdo->lastInsertId();
+        $base = 'https://' . (string)($_SERVER['HTTP_HOST'] ?? 'toinky.com');
+        $description = $bundle['occasions'] === 1 ? 'One occasion to host a Toinky story. Occasions never expire.' : $bundle['occasions'] . ' occasions to host Toinky stories. Occasions never expire.';
+        try {
+            $session = StripeService::createCheckoutSession([
+                'mode' => 'payment',
+                'success_url' => $base . '/?view=buy&result=success&purchase=' . $purchaseId,
+                'cancel_url' => $base . '/?view=buy&result=cancelled',
+                'client_reference_id' => (string)$purchaseId,
+                'metadata' => ['purchase_id' => (string)$purchaseId, 'user_id' => (string)$userId, 'bundle_key' => $bundle['key']],
+                'line_items' => [[
+                    'quantity' => 1,
+                    'price_data' => [
+                        'currency' => strtolower($settings['currency']),
+                        'unit_amount' => $bundle['price_cents'],
+                        'product_data' => ['name' => 'Toinky Host Occasions', 'description' => $description],
+                    ],
+                ]],
+            ], 'purchase-' . $purchaseId);
+        } catch (Throwable $e) {
+            $pdo->prepare("UPDATE host_purchases SET status='FAILED' WHERE purchase_id=?")->execute([$purchaseId]);
+            throw $e;
+        }
+        $pdo->prepare('UPDATE host_purchases SET stripe_checkout_session_id=? WHERE purchase_id=?')->execute([(string)($session['id'] ?? ''), $purchaseId]);
+        $url = (string)($session['url'] ?? '');
+        if ($url === '') throw new RuntimeException('Stripe did not return a checkout link.');
+        return $url;
+    }
+
+    public static function purchaseForUser(int $userId, int $purchaseId): ?array
+    {
+        $q = db()->prepare('SELECT * FROM host_purchases WHERE purchase_id=? AND user_id=?');
+        $q->execute([$purchaseId, $userId]);
+        $row = $q->fetch();
+        return $row === false ? null : $row;
+    }
+
+    public static function settlePurchase(int $purchaseId): void
+    {
+        $pdo = db();
+        $q = $pdo->prepare('SELECT * FROM host_purchases WHERE purchase_id=?');
+        $q->execute([$purchaseId]);
+        $p = $q->fetch();
+        if (!$p || (string)$p['status'] !== 'PENDING') return;
+        $sessionId = (string)($p['stripe_checkout_session_id'] ?? '');
+        if ($sessionId === '') return;
+        $session = StripeService::retrieveCheckoutSession($sessionId);
+        if ((string)($session['payment_status'] ?? '') !== 'paid') return;
+        $ownTx = !$pdo->inTransaction();
+        if ($ownTx) $pdo->beginTransaction();
+        try {
+            $upd = $pdo->prepare("UPDATE host_purchases SET status='PAID',stripe_payment_intent_id=?,paid_at_utc=UTC_TIMESTAMP() WHERE purchase_id=? AND status='PENDING'");
+            $upd->execute([(string)($session['payment_intent'] ?? ''), $purchaseId]);
+            if ($upd->rowCount() === 1) {
+                $pdo->prepare("INSERT INTO host_occasion_ledger(user_id,entry_type,occasions,purchase_id,note) VALUES(?,'PURCHASE',?,?,'Stripe purchase.')")->execute([(int)$p['user_id'], (int)$p['occasions_granted'], $purchaseId]);
+            }
+            if ($ownTx) $pdo->commit();
+        } catch (Throwable $e) {
+            if ($ownTx && $pdo->inTransaction()) $pdo->rollBack();
+            throw $e;
+        }
     }
 
     private static function isAdmin(int $userId): bool
