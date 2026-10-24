@@ -25,6 +25,7 @@ require_once __DIR__ . '/TriggeredTransitionService.php';
 require_once __DIR__ . '/StoryReasoner.php';
 require_once __DIR__ . '/AiInteractionLogger.php';
 require_once __DIR__ . '/AiSettingsService.php';
+require_once __DIR__ . '/CommerceService.php';
 require_once __DIR__ . '/AiConnectionService.php';
 require_once __DIR__ . '/DeterministicStoryReasoner.php';
 require_once __DIR__ . '/OllamaStoryReasoner.php';
