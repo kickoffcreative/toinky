@@ -101,20 +101,23 @@ function builder_e(string $value): string{return htmlspecialchars($value,ENT_QUO
 <link rel="stylesheet" href="assets/toinky-admin-shell.css">
 <link rel="stylesheet" href="assets/toinky-admin-workspace.css">
 <link rel="stylesheet" href="assets/toinky-page-builder.css?v=20261002-ai-import">
-<style>.toinky-confirm-overlay{position:fixed;inset:0;background:rgba(28,36,43,.55);display:flex;align-items:center;justify-content:center;z-index:1200;padding:18px}.toinky-confirm-overlay[hidden]{display:none}.toinky-confirm-dialog{background:#F4EEE2;color:#1C242B;border-radius:14px;padding:22px;max-width:420px;width:100%;box-shadow:0 18px 50px rgba(0,0,0,.35);font-family:Inter,system-ui,sans-serif}.toinky-confirm-dialog p{margin:0 0 18px;font-size:15px;line-height:1.5}.toinky-confirm-actions{display:flex;gap:10px;justify-content:flex-end}.toinky-confirm-actions .btn{border:0;border-radius:8px;background:#B58E46;color:#1C242B;padding:10px 14px;font-weight:800;cursor:pointer;font:inherit}.toinky-confirm-actions .btn.alt{background:#fff;color:#6B2938;border:1px solid #6B2938}.toinky-confirm-actions .btn.danger{background:#6B2938;color:#fff}</style></head>
+<style>.toinky-confirm-overlay{position:fixed;inset:0;background:rgba(28,36,43,.55);display:flex;align-items:center;justify-content:center;z-index:1200;padding:18px}.toinky-confirm-overlay[hidden]{display:none}.toinky-confirm-dialog{background:#F4EEE2;color:#1C242B;border-radius:14px;padding:22px;max-width:420px;width:100%;box-shadow:0 18px 50px rgba(0,0,0,.35);font-family:Inter,system-ui,sans-serif}.toinky-confirm-dialog p{margin:0 0 18px;font-size:15px;line-height:1.5}.toinky-confirm-actions{display:flex;gap:10px;justify-content:flex-end}.toinky-confirm-actions .btn{border:0;border-radius:8px;background:#B58E46;color:#1C242B;padding:10px 14px;font-weight:800;cursor:pointer;font:inherit}.toinky-confirm-actions .btn.alt{background:#fff;color:#6B2938;border:1px solid #6B2938}.toinky-confirm-actions .btn.danger{background:#6B2938;color:#fff}.page-create-bar{background:#F4EEE2;border-bottom:1px solid #d8cfbc;padding:12px 18px}.page-create-bar .page-create-form{display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end;font-family:Inter,system-ui,sans-serif;color:#1C242B}.page-create-bar strong{font-size:15px;align-self:center}.page-create-bar label{display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:700}.page-create-bar input{padding:9px 11px;border:1px solid #b9ad93;border-radius:8px;font-size:14px;min-width:190px;background:#fff;color:#1C242B}.page-create-bar button{border:0;border-radius:8px;background:#B58E46;color:#1C242B;padding:10px 16px;font-weight:800;cursor:pointer;font:inherit}</style></head>
 <body class="page-builder-app">
 <header class="page-builder-topbar">
 <a href="admin.php?view=overview" class="page-builder-back">Back to Dashboard</a>
 <strong>Page Builder</strong>
 <label>Page <select id="page-select"><?php foreach($pages as $page):?><option value="<?=builder_e((string)$page['page_code'])?>" <?=$pageCode===$page['page_code']?'selected':''?>><?=builder_e((string)$page['label_text'])?></option><?php endforeach;?></select></label>
+<button type="button" id="preview-refresh">Render Draft</button>
+</header>
+<div class="page-create-bar">
 <form method="post" class="page-create-form">
 <input type="hidden" name="csrf_token" value="<?=htmlspecialchars(AuthService::csrfToken(),ENT_QUOTES,'UTF-8')?>"><input type="hidden" name="action" value="create_page">
-<label>New page<input type="text" name="page_label" maxlength="120" placeholder="Page name" required></label>
+<strong>New page</strong>
+<label>Page name<input type="text" name="page_label" maxlength="120" placeholder="Page name" required></label>
 <label>Address<input type="text" name="page_slug" maxlength="60" placeholder="page-address" required></label>
 <button type="submit">Add Page</button>
 </form>
-<button type="button" id="preview-refresh">Render Draft</button>
-</header>
+</div>
 <?php if($error):?><p class="page-builder-alert error"><?=builder_e($error)?></p><?php elseif($notice):?><p class="page-builder-alert notice"><?=builder_e($notice)?></p><?php endif;?>
 <main class="page-builder-shell">
 <aside class="page-builder-sidebar" id="page-builder-sidebar">
