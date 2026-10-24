@@ -935,6 +935,10 @@ if(colorInput&&swatch){colorInput.addEventListener('input',function(){swatch.sty
 <label class="field">Occasions In Bundle (<?=e($bundle['key'])?>)<input type="number" name="occasions_<?=e($bundle['key'])?>" min="1" max="50" value="<?=(int)$bundle['occasions']?>"></label>
 <label class="field">Bundle Price (<?=e($commerceSettings['currency'])?>)<input type="number" name="price_<?=e($bundle['key'])?>" min="0.50" step="0.01" value="<?=e(number_format($bundle['price_cents']/100,2,'.',''))?>"></label>
 <?php endforeach;?>
+<label class="field">Stripe Publishable Key<input type="text" name="stripe_publishable_key" value="<?=e($commerceSettings['stripe']['publishable'])?>" placeholder="pk_test_... or pk_live_..." autocomplete="off"></label>
+<label class="field">Stripe Secret Key<input type="password" name="stripe_secret_key" value="" placeholder="<?=$commerceSettings['stripe']['secret_set']?'Saved — Leave Blank To Keep It':'sk_test_... or sk_live_...'?>" autocomplete="off"></label>
+<label class="field">Stripe Webhook Signing Secret<input type="password" name="stripe_webhook_secret" value="" placeholder="<?=$commerceSettings['stripe']['webhook_set']?'Saved — Leave Blank To Keep It':'whsec_...'?>" autocomplete="off"></label>
+<p class="muted">Stripe mode detected from the secret key: <strong><?=e($commerceSettings['stripe']['mode'])?></strong>. Keys are stored server-side and never displayed again. The webhook secret belongs to the payment confirmation endpoint and can be filled in when that endpoint is registered with Stripe.</p>
 <button class="btn">Save Commerce Settings</button>
 </form>
 </section>
