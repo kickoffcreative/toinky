@@ -123,3 +123,10 @@
 
 /* ---- Text Center button layout (2026-10-24) ---- */
 .public-page .hero-actions[data-buttons-layout="vertical"]{flex-direction:column;align-items:center}
+
+/* ---- Center the copy box when a text row's alignment is center/right (2026-10-24) ----
+   Top Text and Bullets rows cap their copy at 760px but anchor it left; when the
+   author centers the text, the box itself must center too, or the block reads
+   off-center inside its container. Follows the [style*="--row-overlay"] pattern. */
+.public-content-row.layout-text-top[style*="--row-align:center"] .public-section-copy,.public-content-row.layout-text-bullets[style*="--row-align:center"] .public-section-copy{margin-inline:auto}
+.public-content-row.layout-text-top[style*="--row-align:right"] .public-section-copy,.public-content-row.layout-text-bullets[style*="--row-align:right"] .public-section-copy{margin-left:auto}
