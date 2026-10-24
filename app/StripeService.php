@@ -44,6 +44,23 @@ final class StripeService
         }
     }
 
+    public static function verifySignature(string $payload, string $signatureHeader, string $secret, int $toleranceSeconds = 300): bool
+    {
+        $timestamp = null;
+        $signatures = [];
+        foreach (explode(',', $signatureHeader) as $part) {
+            $kv = explode('=', trim($part), 2);
+            if (count($kv) !== 2) continue;
+            if ($kv[0] === 't') $timestamp = $kv[1];
+            if ($kv[0] === 'v1') $signatures[] = $kv[1];
+        }
+        if ($timestamp === null || $signatures === [] || !is_numeric($timestamp)) return false;
+        if (abs(time() - (int)$timestamp) > $toleranceSeconds) return false;
+        $expected = hash_hmac('sha256', $timestamp . '.' . $payload, $secret);
+        foreach ($signatures as $sig) if (hash_equals($expected, $sig)) return true;
+        return false;
+    }
+
     public static function createCheckoutSession(array $params, string $idempotencyKey): array
     {
         return self::request('POST', '/checkout/sessions', $params, $idempotencyKey);
