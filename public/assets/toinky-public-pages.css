@@ -107,6 +107,7 @@
 .public-story-scroller .public-story-card{flex:0 0 calc((100% - 60px)/4);scroll-snap-align:start}
 .public-story-scroller .public-story-card h2{font-size:1.9rem}
 .public-story-scroller .public-story-card .type-public-body{font-size:.9rem;line-height:1.5}
+.public-content-row.layout-story-cards{background-color:transparent;background-image:none}
 .story-scroll-btn{position:absolute;top:50%;transform:translateY(-50%);z-index:2;width:48px;height:48px;border-radius:50%;border:1px solid rgba(28,36,43,.35);background:rgba(244,238,226,.94);color:#1C242B;font-size:28px;line-height:1;cursor:pointer;box-shadow:0 6px 16px rgba(28,36,43,.18);display:grid;place-items:center;padding:0}
 .story-scroll-btn:hover{background:#B58E46;color:#F4EEE2}
 .story-scroll-btn[disabled]{opacity:0;pointer-events:none}
@@ -114,3 +115,8 @@
 .story-scroll-next{right:8px}
 @media(max-width:900px){.public-story-scroller .public-story-card{flex-basis:calc((100% - 20px)/2)}}
 @media(max-width:580px){.public-story-scroller .public-story-card{flex-basis:100%}}
+
+/* ---- Public-page button rows: side by side, breathable, consistent (2026-10-24) ---- */
+.public-page .hero-actions,.public-page .row-actions{display:flex;flex-wrap:wrap;gap:16px;align-items:center}
+.public-page .hero-actions .btn,.public-page .row-actions .btn,.public-page .row-actions .public-action{padding:14px 28px}
+.public-page .hero-actions{justify-content:center}
