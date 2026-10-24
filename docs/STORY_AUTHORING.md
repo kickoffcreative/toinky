@@ -86,7 +86,7 @@ Hosts can invite players by email from an open lobby. The message is sent from `
 
 Before entering data, decide:
 
-1. The premise, genre, setting, tone, timeline duration, and player promise.
+1. The premise, genre, setting, tone, the host durations the story offers, and player promise.
 2. The cast, including each character's public role, private knowledge, starting location, current goal, fear, and pronouns. Pronouns are deliberately limited to `HE`, `SHE`, or `IT`.
 3. The world-state entities and properties that make outcomes authoritative.
 4. The factors that represent broad pressure, trust, safety, unrest, or similar conditions.
@@ -107,6 +107,32 @@ its previous instance resolves (chosen, expired, or closed), provided its
 conditions still pass and the character has no other open decision; each
 re-opening is a fresh event and a fresh decision. See the Story Writer's
 Guide, rule B15.
+
+## Run durations
+
+A story has no fixed timeline length. The story-level timeline clock was
+retired (Oct 23, 2026; migration 124 dropped `plots.timeline_duration_seconds`
+and `plot_world_events.event_second`). Instead, every world event carries a
+`trigger_percent`, and in a run it fires at
+`round(trigger_percent × run duration / 100)` sim-seconds — so the same story
+paces itself to whatever length the host chooses.
+
+The host picks the run length when creating a lobby
+(`LobbyService::createGame` creates the simulation on that duration), and
+decision windows scale with the sim's duration. The host form preselects
+1 Hour.
+
+The writer controls which lengths a host may choose for a story in **Story
+Writer → Story Overview → Host Durations** (migration 122,
+`plot_allowed_durations`). If no lengths are selected, the platform default
+applies (30 Minutes through 7 Days).
+
+The 3, 5, and 15-minute lengths are admin-only test lengths (migration 123;
+`active=0` in `platform_game_durations`). They appear in no writer-facing
+list. They survive only in the admin host form, and `createGame` lets
+administrators use them on any story, while non-administrators are bound to
+active lengths plus the story's allow-list. Event readouts in the studio
+preview use the story's shortest offered length.
 
 ## Optional writer-uploaded artwork
 
