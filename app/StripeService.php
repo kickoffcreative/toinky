@@ -12,8 +12,10 @@ final class StripeService
     public static function mode(): string
     {
         $key = self::secretKey();
-        if (str_starts_with($key, 'sk_live_')) return 'LIVE';
-        if (str_starts_with($key, 'sk_test_')) return 'TEST';
+        // Stripe's current "Create a secret key" flow issues restricted keys (rk_live_/rk_test_)
+        // for scoped permission sets; the legacy standard keys use sk_live_/sk_test_. Both count.
+        if (str_starts_with($key, 'sk_live_') || str_starts_with($key, 'rk_live_')) return 'LIVE';
+        if (str_starts_with($key, 'sk_test_') || str_starts_with($key, 'rk_test_')) return 'TEST';
         return 'NOT SET';
     }
 
