@@ -125,10 +125,12 @@
 /* ---- Text Center button layout (2026-10-24) ----
    toinky-theme.css forces .hero-actions to flex-direction:column for Text Center
    rows (specificity 0,4,0, inside @media max-width:800px); the layout control must
-   win at every width, so both directions are declared at 0,6,0. Horizontal is
-   the default, so a row without the attribute still reads as a row. */
-.public-page .public-content-row.layout-text-center .hero-actions.row-actions[data-buttons-layout="horizontal"]{flex-direction:row;flex-wrap:wrap;justify-content:center;align-items:center}
-.public-page .public-content-row.layout-text-center .hero-actions.row-actions[data-buttons-layout="vertical"]{flex-direction:column;align-items:center}
+   win at every width, so both directions are declared at 0,5,0. No body-class
+   prefix: the home page body is public-home, not public-page, and the control
+   must work there too. Horizontal is the default, so a row without the
+   attribute still reads as a row. */
+.public-content-row.layout-text-center .hero-actions.row-actions[data-buttons-layout="horizontal"]{flex-direction:row;flex-wrap:wrap;justify-content:center;align-items:center}
+.public-content-row.layout-text-center .hero-actions.row-actions[data-buttons-layout="vertical"]{flex-direction:column;align-items:center}
 
 /* ---- Center the copy box when a text row's alignment is center/right (2026-10-24) ----
    Top Text and Bullets rows cap their copy at 760px but anchor it left; when the
