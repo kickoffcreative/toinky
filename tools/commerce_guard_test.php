@@ -26,10 +26,11 @@ $set('COMMERCE_ENABLED','1');$set('COMMERCE_FREE_FIRST','1');
 $gameIds=[];
 try{
     $before=CommerceService::balance($hostId);
+    $check($before['granted']>=1,'free first occasion is already visible in the first balance read');
     CommerceService::grantFreeFirst($hostId);
     CommerceService::grantFreeFirst($hostId);
     $afterGrant=CommerceService::balance($hostId);
-    $check($afterGrant['granted']===$before['granted']+1,'free first occasion granted exactly once');
+    $check($afterGrant['granted']===$before['granted'],'free first occasion is never granted twice');
 
     $state=LobbyService::createGame($hostId,'EMPTY_THRONE',1800);
     $gameId=(int)$state['game']['game_id'];$gameIds[]=$gameId;
