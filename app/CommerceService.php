@@ -66,6 +66,7 @@ final class CommerceService
 
     public static function balance(int $userId): array
     {
+        if (self::enabled()) self::grantFreeFirst($userId);
         $pdo = db();
         $in = implode(',', array_map(static fn($t) => $pdo->quote($t), self::GRANT_TYPES));
         $q = $pdo->prepare("SELECT COALESCE(SUM(occasions),0) FROM host_occasion_ledger WHERE user_id=? AND entry_type IN($in)");
