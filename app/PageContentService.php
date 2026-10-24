@@ -227,6 +227,7 @@ final class PageContentService
         $maxWidth=max(320,min(3840,(int)($row['max_width_px']??1980)?:1980));
         $spacingPreset=strtoupper(trim((string)($row['spacing_preset']??'')));
         $cardsPerRow=(int)($row['cards_per_row']??3);if(!in_array($cardsPerRow,[2,3,4],true))$cardsPerRow=3;
+        $buttonsLayout=strtoupper(trim((string)($row['buttons_layout']??'HORIZONTAL')));if(!in_array($buttonsLayout,['HORIZONTAL','VERTICAL'],true))$buttonsLayout='HORIZONTAL';
         $responsiveSize=static function($value): string{
             $value=trim((string)$value);
             if($value==='')return'';
@@ -255,6 +256,8 @@ final class PageContentService
             'content_html'=>self::sanitizeHtml((string)($row['content_html']??'')),
             'layout_type'=>$layout,
             'cards_per_row'=>$cardsPerRow,
+            'buttons_layout'=>$buttonsLayout,
+            'buttons_same_width'=>self::boolValue($row['buttons_same_width']??false),
             'active'=>self::boolValue($row['active']??true),
             'image_media_id'=>$media($row['image_media_id']??''),
             'image_width_px'=>self::imagePixels($row['image_width_px']??0),
