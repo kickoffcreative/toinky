@@ -32,6 +32,11 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
     try{
         AuthService::requireCsrf();
         $action=(string)($_POST['action']??'');
+        if($action==='create_page'){
+            $newPageCode=PageContentService::addPage($admin,(string)($_POST['page_label']??''),(string)($_POST['page_slug']??''));
+            header('Location: page-builder.php?page='.rawurlencode($newPageCode).'&saved=1');
+            exit;
+        }
         if($action==='add_section'){
             $label=trim((string)($_POST['section_label']??''));
             $layout=strtoupper(trim((string)($_POST['section_layout']??'CONTAINER')));
@@ -102,6 +107,12 @@ function builder_e(string $value): string{return htmlspecialchars($value,ENT_QUO
 <a href="admin.php?view=overview" class="page-builder-back">Back to Dashboard</a>
 <strong>Page Builder</strong>
 <label>Page <select id="page-select"><?php foreach($pages as $page):?><option value="<?=builder_e((string)$page['page_code'])?>" <?=$pageCode===$page['page_code']?'selected':''?>><?=builder_e((string)$page['label_text'])?></option><?php endforeach;?></select></label>
+<form method="post" class="page-create-form">
+<input type="hidden" name="csrf_token" value="<?=htmlspecialchars(AuthService::csrfToken(),ENT_QUOTES,'UTF-8')?>"><input type="hidden" name="action" value="create_page">
+<label>New page<input type="text" name="page_label" maxlength="120" placeholder="Page name" required></label>
+<label>Address<input type="text" name="page_slug" maxlength="60" placeholder="page-address" required></label>
+<button type="submit">Add Page</button>
+</form>
 <button type="button" id="preview-refresh">Render Draft</button>
 </header>
 <?php if($error):?><p class="page-builder-alert error"><?=builder_e($error)?></p><?php elseif($notice):?><p class="page-builder-alert notice"><?=builder_e($notice)?></p><?php endif;?>
