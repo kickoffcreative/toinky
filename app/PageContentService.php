@@ -81,6 +81,22 @@ final class PageContentService
         db()->prepare('UPDATE site_page_sections SET eyebrow_text=?,title_text=?,content_html=?,buttons_json=?,rows_json=?,image_media_id=?,layout_type=?,columns_json=?,background_mode=?,background_color=?,background_media_id=?,background_fit=?,background_opacity=?,overlay_mode=?,overlay_color_start=?,overlay_color_end=?,overlay_opacity=?,padding_top_px=?,padding_right_px=?,padding_bottom_px=?,padding_left_px=?,mobile_padding_top_px=?,mobile_padding_right_px=?,mobile_padding_bottom_px=?,mobile_padding_left_px=?,label_font_size=?,label_color=?,label_transform=?,title_font_size=?,title_color=?,title_transform=?,body_font_size=?,body_color=?,body_transform=?,updated_by_user_id=? WHERE site_page_section_id=?')->execute([$eyebrow?:null,$title?:null,$html?:null,$buttonsJson,$rowsJson,$imageId,$layout,json_encode($columns,JSON_UNESCAPED_SLASHES),$mode,$mode==='COLOR'?$color:null,$backgroundId,$fit,$backgroundOpacity,$overlayMode,$overlayStart,$overlayEnd,$overlayOpacity,$padding['top'],$padding['right'],$padding['bottom'],$padding['left'],$padding['mobile_top'],$padding['mobile_right'],$padding['mobile_bottom'],$padding['mobile_left'],$type['label_font_size'],$type['label_color'],$type['label_transform'],$type['title_font_size'],$type['title_color'],$type['title_transform'],$type['body_font_size'],$type['body_color'],$type['body_transform'],$admin['user_id'],$sectionId]);
     }
 
+    public static function saveHero(array $admin,int $sectionId,array $input): void
+    {
+        if((int)($admin['is_admin']??0)!==1)throw new RuntimeException('Administrator access is required.');
+        $q=db()->prepare('SELECT section_code FROM site_page_sections WHERE site_page_section_id=?');$q->execute([$sectionId]);$code=$q->fetchColumn();
+        if($code===false)throw new RuntimeException('Page section not found.');
+        $imageId=self::mediaChoice($admin,$input['image_media_id']??'');
+        if((string)$code!=='HERO'){
+            db()->prepare('UPDATE site_page_sections SET image_media_id=?,updated_by_user_id=? WHERE site_page_section_id=?')->execute([$imageId,$admin['user_id'],$sectionId]);
+            return;
+        }
+        $eyebrow=trim((string)($input['eyebrow_text']??''));$title=trim((string)($input['title_text']??''));
+        if(mb_strlen($eyebrow)>190||mb_strlen($title)>500)throw new RuntimeException('A page title or label is too long.');
+        $html=self::sanitizeHtml((string)($input['content_html']??''));
+        db()->prepare('UPDATE site_page_sections SET eyebrow_text=?,title_text=?,content_html=?,image_media_id=?,updated_by_user_id=? WHERE site_page_section_id=?')->execute([$eyebrow?:null,$title?:null,$html?:null,$imageId,$admin['user_id'],$sectionId]);
+    }
+
     public static function addSection(array $admin,string $pageCode,array $input): int
     {
         if((int)($admin['is_admin']??0)!==1)throw new RuntimeException('Administrator access is required.');$label=trim((string)($input['label_text']??''));if($label===''||mb_strlen($label)>120)throw new RuntimeException('Enter a section name up to 120 characters.');$baseCode=strtoupper(trim((string)preg_replace('/[^A-Za-z0-9]+/','_',$label),'_'));if($baseCode==='')throw new RuntimeException('Enter a valid section name.');$q=db()->prepare('SELECT site_page_id FROM site_pages WHERE page_code=? AND active=1');$q->execute([strtoupper($pageCode)]);$pageId=(int)$q->fetchColumn();if(!$pageId)throw new RuntimeException('Page not found.');$code=$baseCode;$suffix=2;$exists=db()->prepare('SELECT 1 FROM site_page_sections WHERE site_page_id=? AND section_code=?');while(true){$exists->execute([$pageId,$code]);if(!$exists->fetchColumn())break;$code=$baseCode.'_'.$suffix++;}$sort=(int)db()->query('SELECT COALESCE(MAX(sort_order),0)+10 FROM site_page_sections WHERE site_page_id='.$pageId)->fetchColumn();$layout=in_array(($input['layout_type']??''),self::LAYOUTS,true)?$input['layout_type']:'IMAGE_RIGHT';$q=db()->prepare('INSERT INTO site_page_sections(site_page_id,section_code,label_text,layout_type,sort_order,updated_by_user_id) VALUES(?,?,?,?,?,?)');$q->execute([$pageId,$code,$label,$layout,$sort,$admin['user_id']]);return(int)db()->lastInsertId();
