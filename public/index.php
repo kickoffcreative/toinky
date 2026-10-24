@@ -10,6 +10,7 @@ elseif($_SERVER['REQUEST_METHOD']==='POST'){try{AuthService::requireCsrf();$acti
  if($action==='forgot'){AuthService::createPasswordResetForEmail((string)$_POST['email']);$notice='If that account exists, a password-reset email has been sent.';$view='forgot';}
  if($action==='reset'){AuthService::resetPassword((string)$_POST['token'],(string)$_POST['password']);$notice='Password updated. You can now sign in.';$view='login';}
  if($action==='create_game'){$u=AuthService::requireLogin();$state=LobbyService::createGame((int)$u['user_id'],(string)$_POST['plot_code'],(int)($_POST['duration_seconds']??300));header('Location: lobby.php?game='.(int)$state['game']['game_id']);exit;}
+ if($action==='buy_bundle'){$u=AuthService::requireLogin();$url=CommerceService::startPurchase((int)$u['user_id'],(string)($_POST['bundle_key']??''));header('Location: '.$url);exit;}
  if($action==='join_game'){$u=AuthService::requireLogin();$state=LobbyService::joinByCode((int)$u['user_id'],(string)$_POST['join_code']);header('Location: lobby.php?game='.(int)$state['game']['game_id']);exit;}
  if($action==='delete_game'){$u=AuthService::requireLogin();LobbyService::deleteLobby((int)$_POST['game_id'],(int)$u['user_id']);$notice='Lobby deleted.';} if($action==='archive_game'){$u=AuthService::requireLogin();LobbyService::archiveGame((int)$_POST['game_id'],(int)$u['user_id']);$notice='Game archived.';} if($action==='unarchive_game'){$u=AuthService::requireLogin();LobbyService::unarchiveGame((int)$_POST['game_id'],(int)$u['user_id']);$notice='Game unarchived.';}
  if($action==='request_writer'){$u=AuthService::requireLogin();AuthService::requestWriterAccess((int)$u['user_id'],(string)($_POST['request_text']??''));$notice='Your Story Writer request has been sent for administrator review.';}
@@ -52,7 +53,45 @@ function render_public_section(array $section,array $socials): void{if(!empty($s
  <?php elseif($view==='reset'): ?><section class="card auth"><h1>Choose a new password</h1><form method="post"><?=csrf_field()?><input type="hidden" name="action" value="reset"><input type="hidden" name="token" value="<?=e((string)($_GET['token']??''))?>"><label class="field">New password<input type="password" name="password" minlength="10" required></label><button class="btn">Update password</button></form></section>
  <?php elseif($isStoryDetail):?>
  <?php if(!$storyDetail):?><section class="public-page-hero"><div><p class="section-label type-public-section-label">Story Worlds</p><h1 class="type-public-hero-title">Story Not Found</h1><p class="type-public-intro">That story is no longer available. Browse the current worlds to choose another.</p><a class="btn" href="?view=stories">Browse Stories</a></div></section><?php else:?><section class="public-story-detail"><?php if(!empty($storyDetail['image_path'])):?><img src="<?=e(public_optimized_image((string)$storyDetail['image_path'],'LARGE'))?>" srcset="<?=e(public_image_srcset((string)$storyDetail['image_path']))?>" sizes="(max-width: 768px) 100vw, 800px" alt="<?=e($storyDetail['title'])?> artwork"><?php else:?><div class="story-art-placeholder" aria-hidden="true"><span><?=e(mb_substr($storyDetail['title'],0,1))?></span></div><?php endif;?><div><a class="story-back type-public-meta" href="?view=stories">← All Stories</a><p class="section-label type-public-section-label"><?=e($storyDetail['genre'])?> · <?=(int)$storyDetail['max_players']?> players</p><h1 class="type-public-hero-title"><?=e($storyDetail['title'])?></h1><p class="story-setting type-public-meta"><?=e($storyDetail['setting_name']?:'A Toinky story world')?> · <?=(int)$storyDetail['play_count']?> completed or active plays</p><div class="type-public-intro"><p><?=e($storyDetail['scenario_text'])?></p></div><div class="story-detail-actions"><a class="btn" href="<?=$user?'./?host='.urlencode((string)$storyDetail['code']).'#host-a-game':'?view=register&amp;host='.urlencode((string)$storyDetail['code'])?>">Host This Story</a><a class="public-action" href="?view=how_it_works">See How Toinky Works →</a></div></div></section><?php endif;?>
- <?php elseif($isPublicPage): $pageHero=$pageContent['HERO']??reset($pageContent);$pageHeroId=(int)($pageHero['site_page_section_id']??0); ?>
+ <?php elseif($view==='buy'): ?>
+<section class="card auth" style="max-width:760px;margin:28px auto">
+<h1>Buy Occasions</h1>
+<?php
+$buySettings=CommerceService::settings();
+$buyResult=(string)($_GET['result']??'');
+$buyPurchaseId=(int)($_GET['purchase']??0);
+$buyPurchase=null;
+if($user&&$buyResult==='success'&&$buyPurchaseId>0){try{CommerceService::settlePurchase($buyPurchaseId);}catch(Throwable $e){}$buyPurchase=CommerceService::purchaseForUser((int)$user['user_id'],$buyPurchaseId);}
+$buyBalance=$user?CommerceService::balance((int)$user['user_id']):null;
+?>
+<?php if(!$buySettings['enabled']):?>
+<p class="muted">Purchases are not open yet. Check back soon.</p>
+<?php elseif(!$user):?>
+<p>Occasions let you host Toinky stories for your group. <a href="?view=login">Sign in</a> or <a href="?view=register">create an account</a> to buy occasions.</p>
+<?php else:?>
+<?php if($buyResult==='success'&&$buyPurchase&&$buyPurchase['status']==='PAID'):?>
+<div class="notice">Payment confirmed — <?=(int)$buyPurchase['occasions_granted']?> occasion<?=(int)$buyPurchase['occasions_granted']===1?'':'s'?> added to your balance.</div>
+<?php elseif($buyResult==='success'):?>
+<div class="notice">Your payment is being confirmed. Your occasions will appear here and on your profile as soon as Stripe confirms the payment — usually a few seconds.</div>
+<?php elseif($buyResult==='cancelled'):?>
+<div class="notice">Checkout was cancelled — nothing was charged.</div>
+<?php endif;?>
+<?php if(CommerceService::freeFirstAvailable((int)$user['user_id'])):?>
+<p><strong>Good news:</strong> your first occasion is free. Just create a lobby and it is applied automatically — no purchase needed.</p>
+<?php endif;?>
+<p class="muted">Your balance: <strong><?=(int)$buyBalance['available']?></strong> occasion<?=(int)$buyBalance['available']===1?'':'s'?> available<?php if((int)$buyBalance['reserved']>0):?> · <?=(int)$buyBalance['reserved']?> held for upcoming games<?php endif;?>.</p>
+<?php foreach($buySettings['bundles'] as $bundle):?>
+<form method="post" style="margin:14px 0">
+<?=csrf_field()?>
+<input type="hidden" name="action" value="buy_bundle">
+<input type="hidden" name="bundle_key" value="<?=e($bundle['key'])?>">
+<p><strong><?=(int)$bundle['occasions']===1?'Single Occasion':(int)$bundle['occasions'].' Occasions'?></strong> — $<?=e(number_format($bundle['price_cents']/100,2))?><?php if($bundle['occasions']>1):?> <span class="muted">($<?=e(number_format($bundle['price_cents']/$bundle['occasions']/100,2))?> each)</span><?php endif;?> <button class="btn">Buy</button></p>
+</form>
+<?php endforeach;?>
+<p class="muted">Occasions never expire. An occasion is only spent when a game actually starts — if a lobby never starts, the occasion comes back on its own. Players always join free.</p>
+<?php endif;?>
+</section>
+<?php elseif($isPublicPage): $pageHero=$pageContent['HERO']??reset($pageContent);$pageHeroId=(int)($pageHero['site_page_section_id']??0); ?>
  <section class="public-page-hero managed-section-background" style="<?=e($pageHero?PageContentService::style($pageHero):'')?>"><div><p class="section-label type-public-section-label"><?=e((string)($pageHero['eyebrow_text']??'Toinky'))?></p><h1 class="type-public-hero-title"><?=e((string)($pageHero['title_text']??ucwords(str_replace('_',' ',$view))))?></h1><div class="public-page-copy type-public-intro"><?=$pageHero['content_html']??''?></div></div><?php if(!empty($pageHero['image_path'])):?><img src="<?=e(public_optimized_image((string)$pageHero['image_path'],'LARGE'))?>" srcset="<?=e(public_image_srcset((string)$pageHero['image_path']))?>" sizes="(max-width: 768px) 100vw, 800px" alt="<?=e($pageHero['image_alt']??'')?>"><?php endif;?></section>
  <?php if($view==='stories'):?><section class="public-story-grid"><?php foreach($publicStories as$story):?><article class="public-story-card"><?php if(!empty($story['image_path'])):?><img src="<?=e(public_optimized_image((string)$story['image_path'],'MEDIUM'))?>" srcset="<?=e(public_image_srcset((string)$story['image_path']))?>" sizes="(max-width: 768px) 100vw, 400px" alt="<?=e($story['title'])?> artwork"><?php else:?><div class="story-art-placeholder" aria-hidden="true"><span><?=e(mb_substr($story['title'],0,1))?></span></div><?php endif;?><div><p class="type-public-meta"><?=e($story['genre'])?> · <?=(int)$story['play_count']?> plays</p><h2 class="type-public-card-title"><?=e($story['title'])?></h2><p class="story-card-setting type-public-meta"><?=e($story['setting_name']?:'A Toinky story world')?></p><p class="type-public-body"><?=e(public_story_excerpt((string)$story['scenario_text']))?></p><a class="public-action" href="?view=story&amp;code=<?=rawurlencode((string)$story['code'])?>">Explore This Story →</a></div></article><?php endforeach;?><?php if(!$publicStories):?><p class="type-public-intro">New story worlds are being prepared. Check back soon.</p><?php endif;?></section><?php endif;?>
  <?php foreach($pageContent as$code=>$section):if((int)$section['site_page_section_id']===$pageHeroId)continue;render_public_section($section,$socials);endforeach;?>
