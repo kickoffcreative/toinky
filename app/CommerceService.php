@@ -233,6 +233,102 @@ final class CommerceService
         }
     }
 
+    public static function recentPurchases(int $limit = 50): array
+    {
+        $limit = max(1, min(200, $limit));
+        $q = db()->query("SELECT p.*,u.display_name FROM host_purchases p JOIN users u ON u.user_id=p.user_id ORDER BY p.purchase_id DESC LIMIT $limit");
+        return $q->fetchAll();
+    }
+
+    public static function handleWebhookEvent(array $event): void
+    {
+        $type = (string)($event['type'] ?? '');
+        $object = (array)($event['data']['object'] ?? []);
+        if ($type === 'checkout.session.completed' || $type === 'checkout.session.async_payment_succeeded') {
+            $purchaseId = self::purchaseIdFromSessionObject($object);
+            if ($purchaseId > 0) self::settlePurchase($purchaseId);
+            return;
+        }
+        if ($type === 'checkout.session.expired') {
+            $purchaseId = self::purchaseIdFromSessionObject($object);
+            if ($purchaseId > 0) self::expirePurchase($purchaseId);
+            return;
+        }
+        if ($type === 'charge.refunded') {
+            $paymentIntent = (string)($object['payment_intent'] ?? '');
+            $amount = (int)($object['amount'] ?? 0);
+            $refunded = (int)($object['amount_refunded'] ?? 0);
+            if ($paymentIntent !== '' && $amount > 0 && $refunded >= $amount) {
+                $purchase = self::purchaseByPaymentIntent($paymentIntent);
+                if ($purchase) self::revokePurchase((int)$purchase['purchase_id'], 'REFUNDED');
+            }
+            return;
+        }
+        if ($type === 'charge.dispute.closed') {
+            if ((string)($object['status'] ?? '') === 'lost') {
+                $paymentIntent = (string)($object['payment_intent'] ?? '');
+                if ($paymentIntent !== '') {
+                    $purchase = self::purchaseByPaymentIntent($paymentIntent);
+                    if ($purchase) self::revokePurchase((int)$purchase['purchase_id'], 'CHARGEBACK');
+                }
+            }
+            return;
+        }
+    }
+
+    public static function expirePurchase(int $purchaseId): void
+    {
+        db()->prepare("UPDATE host_purchases SET status='EXPIRED' WHERE purchase_id=? AND status='PENDING'")->execute([$purchaseId]);
+    }
+
+    public static function revokePurchase(int $purchaseId, string $reason): void
+    {
+        $status = $reason === 'CHARGEBACK' ? 'CHARGEBACK' : 'REFUNDED';
+        $pdo = db();
+        $q = $pdo->prepare('SELECT * FROM host_purchases WHERE purchase_id=?');
+        $q->execute([$purchaseId]);
+        $p = $q->fetch();
+        if (!$p || (string)$p['status'] !== 'PAID') return;
+        $ownTx = !$pdo->inTransaction();
+        if ($ownTx) $pdo->beginTransaction();
+        try {
+            $upd = $pdo->prepare('UPDATE host_purchases SET status=? WHERE purchase_id=? AND status=\'PAID\'');
+            $upd->execute([$status, $purchaseId]);
+            if ($upd->rowCount() === 1) {
+                $balance = self::balance((int)$p['user_id']);
+                $takeBack = min((int)$p['occasions_granted'], max(0, $balance['available']));
+                if ($takeBack > 0) {
+                    $note = $reason === 'CHARGEBACK' ? 'Chargeback: unspent occasions revoked.' : 'Refund: unspent occasions revoked.';
+                    $pdo->prepare("INSERT INTO host_occasion_ledger(user_id,entry_type,occasions,purchase_id,note) VALUES(?,'REFUND_REVOKE',?,?,?)")->execute([(int)$p['user_id'], -$takeBack, $purchaseId, $note]);
+                }
+            }
+            if ($ownTx) $pdo->commit();
+        } catch (Throwable $e) {
+            if ($ownTx && $pdo->inTransaction()) $pdo->rollBack();
+            throw $e;
+        }
+    }
+
+    private static function purchaseIdFromSessionObject(array $object): int
+    {
+        $purchaseId = (int)($object['metadata']['purchase_id'] ?? 0);
+        if ($purchaseId < 1) $purchaseId = (int)($object['client_reference_id'] ?? 0);
+        if ($purchaseId < 1 && !empty($object['id'])) {
+            $q = db()->prepare('SELECT purchase_id FROM host_purchases WHERE stripe_checkout_session_id=?');
+            $q->execute([(string)$object['id']]);
+            $purchaseId = (int)($q->fetchColumn() ?: 0);
+        }
+        return $purchaseId;
+    }
+
+    private static function purchaseByPaymentIntent(string $paymentIntent): ?array
+    {
+        $q = db()->prepare('SELECT * FROM host_purchases WHERE stripe_payment_intent_id=?');
+        $q->execute([$paymentIntent]);
+        $row = $q->fetch();
+        return $row === false ? null : $row;
+    }
+
     private static function isAdmin(int $userId): bool
     {
         $q = db()->prepare('SELECT is_admin FROM users WHERE user_id=?');
