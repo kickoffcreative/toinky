@@ -17,6 +17,23 @@ final class PageContentService
         return db()->query('SELECT * FROM site_pages WHERE active=1 ORDER BY sort_order,site_page_id')->fetchAll();
     }
 
+    public static function addPage(array $admin, string $label, string $slug): string
+    {
+        if((int)($admin['is_admin']??0)!==1)throw new RuntimeException('Administrator access is required.');
+        $label=trim($label);
+        if($label===''||mb_strlen($label)>120)throw new RuntimeException('Enter a page name up to 120 characters.');
+        $slug=strtolower(trim($slug));
+        if(!preg_match('/^[a-z0-9]+(?:-[a-z0-9]+)*$/',$slug))throw new RuntimeException('Use a simple page address: lowercase letters, numbers, and hyphens.');
+        if(in_array($slug,['home','public','login','register','forgot','reset','story','buy'],true))throw new RuntimeException('That page address is reserved.');
+        $code=strtoupper(str_replace('-','_',$slug));
+        $q=db()->prepare('SELECT 1 FROM site_pages WHERE page_code=?');
+        $q->execute([$code]);
+        if($q->fetchColumn())throw new RuntimeException('A page with that address already exists.');
+        $sort=(int)db()->query('SELECT COALESCE(MAX(sort_order),0)+10 FROM site_pages')->fetchColumn();
+        db()->prepare('INSERT INTO site_pages(page_code,label_text,sort_order,active) VALUES(?,?,?,1)')->execute([$code,$label,$sort]);
+        return $code;
+    }
+
     public static function sections(string $pageCode): array
     {
         $q=db()->prepare('SELECT s.*,im.file_path image_path,im.thumbnail_path image_thumbnail,im.alt_text image_alt,bg.media_id background_media_id,bg.file_path background_path FROM site_page_sections s JOIN site_pages p ON p.site_page_id=s.site_page_id LEFT JOIN writer_media_assets im ON im.media_id=s.image_media_id AND im.active=1 LEFT JOIN writer_media_assets bg ON bg.media_id=s.background_media_id AND bg.active=1 WHERE p.page_code=? AND p.active=1 AND s.active=1 ORDER BY s.sort_order,s.site_page_section_id');$q->execute([strtoupper($pageCode)]);return$q->fetchAll();
