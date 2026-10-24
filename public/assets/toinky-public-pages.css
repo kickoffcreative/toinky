@@ -120,3 +120,6 @@
 .public-page .hero-actions,.public-page .row-actions{display:flex;flex-wrap:wrap;gap:16px;align-items:center}
 .public-page .hero-actions .btn,.public-page .row-actions .btn,.public-page .row-actions .public-action{padding:14px 28px}
 .public-page .hero-actions{justify-content:center}
+
+/* ---- Text Center button layout (2026-10-24) ---- */
+.public-page .hero-actions[data-buttons-layout="vertical"]{flex-direction:column;align-items:center}
