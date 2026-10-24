@@ -87,6 +87,9 @@ final class PageBuilderService
             self::applySpacing($item,$row,'column_margin',10);
             self::applySpacing($item,$row,'column_padding');
             $item['buttons']=self::normalizeRowButtons($row['buttons']??[]);
+            $buttonsLayout=strtoupper(trim((string)($row['buttons_layout']??'HORIZONTAL')));
+            $item['buttons_layout']=in_array($buttonsLayout,['HORIZONTAL','VERTICAL'],true)?$buttonsLayout:'HORIZONTAL';
+            $item['buttons_same_width']=self::boolValue($row['buttons_same_width']??false);
             if(is_array($row['columns']??null)){
                 $item['columns']=[];
                 foreach(array_slice($row['columns'],0,6)as$column){
