@@ -467,6 +467,10 @@
     const buttonsEditor=node=>{
         const buttons=Array.isArray(node.buttons)?node.buttons:[];
         let html=subheading('Buttons');
+        if(node.layout_type==='TEXT_CENTER'){
+            html+=select('buttons_layout','Button layout',node.buttons_layout||'HORIZONTAL',[['HORIZONTAL','Horizontal Centered'],['VERTICAL','Vertical Stacked']])+
+                '<label class="builder-check"><input type="checkbox" data-field="buttons_same_width" value="1"'+(node.buttons_same_width===true||node.buttons_same_width==='1'||node.buttons_same_width===1?' checked':'')+'> Force Same Width Buttons</label>';
+        }
         for(let i=0;i<4;i++){
             const btn=buttons[i]||{};
             html+='<div class="builder-subheading" style="font-size:12px;margin-top:8px;">Button '+(i+1)+'</div>'+
@@ -1317,7 +1321,8 @@
         const node=nodeAt(selected);
         if(!node)return;
         setValue(node,name,name==='active'?input.value==='1':
-            (input.type==='number'?Number(input.value):input.value));
+            (input.type==='checkbox'?(input.checked?'1':'0'):
+            (input.type==='number'?Number(input.value):input.value)));
         if(name==='spacing_preset'&&spacingPresetValues[input.value]){
             Object.assign(node,spacingPresetValues[input.value]);
         }
@@ -1326,7 +1331,7 @@
         }
         if(name==='layout_type'&&node.layout_type==='CONTAINER')ensureChildren(node);
         if(name!=='active'&&node.layout_type!=='CONTAINER')node.active=true;
-        if(['content_width','padding_mode','margin_mode','column_padding_mode','column_margin_mode','wrap_items','spacing_preset'].includes(name)||name.endsWith('.margin_mode')||name.endsWith('.padding_mode'))props();
+        if(['content_width','padding_mode','margin_mode','column_padding_mode','column_margin_mode','wrap_items','spacing_preset','layout_type'].includes(name)||name.endsWith('.margin_mode')||name.endsWith('.padding_mode'))props();
         sync();
     });
 
