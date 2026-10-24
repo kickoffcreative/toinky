@@ -70,6 +70,13 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
             header('Location: page-builder.php?page='.rawurlencode($pageCode).'&saved=1');
             exit;
         }
+        if($action==='save_hero'){
+            $sectionId=(int)($_POST['section_id']??0);
+            PageContentService::saveHero($admin,$sectionId,$_POST);
+            if($isAjaxSave)builder_json_exit(['ok'=>true]);
+            header('Location: page-builder.php?page='.rawurlencode($pageCode).'&section='.$sectionId.'&saved=1');
+            exit;
+        }
         if($action!=='save_page_builder')throw new RuntimeException('Unknown page builder action.');
         $sectionId=(int)($_POST['section_id']??0);
         $sectionById=null;
@@ -89,6 +96,15 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
 }
 if(isset($_GET['saved']))$notice='Changes saved.';
 $rows=$section?PageContentService::editorRows($section):[];
+$heroText=['eyebrow'=>'','title'=>'','content'=>''];
+if($section&&($section['section_code']??'')==='HERO'){
+    $heroRow=$rows[0]??[];
+    if(($heroRow['layout_type']??'')==='CONTAINER'&&!empty($heroRow['children']))$heroRow=$heroRow['children'][0]??$heroRow;
+    if((string)($section['eyebrow_text']??'')!=='')$heroText['eyebrow']=(string)$section['eyebrow_text'];else $heroText['eyebrow']=(string)($heroRow['label_text']??$heroRow['eyebrow_text']??'');
+    if((string)($section['title_text']??'')!=='')$heroText['title']=(string)$section['title_text'];else $heroText['title']=(string)($heroRow['title_text']??'');
+    if((string)($section['content_html']??'')!=='')$heroText['content']=(string)$section['content_html'];else $heroText['content']=(string)($heroRow['content_html']??'');
+}
+$isFirstSection=$section&&!empty($sections)&&(int)$sections[0]['site_page_section_id']===(int)$section['site_page_section_id'];
 $pageMedia=db()->query('SELECT media_id,title_text FROM writer_media_assets WHERE active=1 ORDER BY title_text,media_id')->fetchAll();
 if($section&&($section['section_code']??'')!=='HERO'&&!$rows)$rows=[['layout_type'=>'CONTAINER','active'=>true,'children'=>[]]];
 function builder_e(string $value): string{return htmlspecialchars($value,ENT_QUOTES,'UTF-8');}
@@ -143,6 +159,15 @@ function builder_e(string $value): string{return htmlspecialchars($value,ENT_QUO
 <form method="post" class="section-rename-form"><input type="hidden" name="csrf_token" value="<?=htmlspecialchars(AuthService::csrfToken(),ENT_QUOTES,'UTF-8')?>"><input type="hidden" name="action" value="rename_section"><input type="hidden" name="section_id" value="<?=(int)$section['site_page_section_id']?>"><label>Section name<input name="section_label" maxlength="120" value="<?=builder_e((string)($section['label_text']??''))?>" required></label><button type="submit">Rename</button></form>
 <form method="post" class="section-delete-form" data-confirm="Delete this section? This cannot be undone."><input type="hidden" name="csrf_token" value="<?=htmlspecialchars(AuthService::csrfToken(),ENT_QUOTES,'UTF-8')?>"><input type="hidden" name="action" value="delete_section"><input type="hidden" name="section_id" value="<?=(int)$section['site_page_section_id']?>"><button type="submit" <?=!empty($section['is_default'])?'disabled title="Default sections can be hidden but not deleted."':'title="Delete section"'?>>Delete</button></form>
 </div>
+<?php if($isFirstSection):?>
+<form method="post" class="section-add-form">
+<input type="hidden" name="csrf_token" value="<?=htmlspecialchars(AuthService::csrfToken(),ENT_QUOTES,'UTF-8')?>"><input type="hidden" name="action" value="save_hero"><input type="hidden" name="section_id" value="<?=(int)$section['site_page_section_id']?>">
+<label>Hero image<select name="image_media_id"><option value="">No image</option><?php foreach($pageMedia as $media):?><option value="<?=(int)$media['media_id']?>" <?=(int)($section['image_media_id']??0)===(int)$media['media_id']?'selected':''?>><?=builder_e((string)($media['title_text']??''))?></option><?php endforeach;?></select></label>
+<?php if(!empty($section['image_path'])):?><p class="builder-muted">Current hero image: <?=builder_e((string)($section['image_alt']??$section['image_path']))?></p><?php endif;?>
+<p class="builder-muted">This is the page's first section, shown as the hero. Set its image here; edit its text in the section rows below.</p>
+<button type="submit">Save Hero Image</button>
+</form>
+<?php endif;?>
 <form method="post" id="builder-form">
 <input type="hidden" name="csrf_token" value="<?=htmlspecialchars(AuthService::csrfToken(),ENT_QUOTES,'UTF-8')?>"><input type="hidden" name="action" value="save_page_builder"><input type="hidden" name="section_id" value="<?=(int)$section['site_page_section_id']?>"><input type="hidden" name="rows_payload" id="rows-payload">
 <div class="inspector-heading"><span>Editing</span><strong><?=builder_e((string)$section['label_text'])?></strong></div>
@@ -163,7 +188,19 @@ function builder_e(string $value): string{return htmlspecialchars($value,ENT_QUO
 <div class="builder-ai-actions"><button type="button" id="builder-ai-import">Import Draft</button><button type="button" id="builder-ai-clear">Clear</button></div>
 </div>
 </div>
-<?php else:?><p class="builder-muted">Hero sections keep their dedicated Hero editor. Select a content section to edit its Container tree.</p><?php endif;?>
+<?php else:?><?php if($section):?>
+<div class="inspector-heading"><span>Editing</span><strong><?=builder_e((string)($section['label_text']??'Hero'))?></strong></div>
+<p class="builder-muted">Hero text and image. Saving here sets the hero's own text; the rows behind it stay untouched.</p>
+<form method="post" class="section-add-form">
+<input type="hidden" name="csrf_token" value="<?=htmlspecialchars(AuthService::csrfToken(),ENT_QUOTES,'UTF-8')?>"><input type="hidden" name="action" value="save_hero"><input type="hidden" name="section_id" value="<?=(int)$section['site_page_section_id']?>">
+<label>Eyebrow<input name="eyebrow_text" maxlength="190" value="<?=builder_e($heroText['eyebrow'])?>"></label>
+<label>Title<input name="title_text" maxlength="500" value="<?=builder_e($heroText['title'])?>"></label>
+<label>Intro<textarea name="content_html" rows="4"><?=builder_e($heroText['content'])?></textarea></label>
+<label>Hero image<select name="image_media_id"><option value="">No image</option><?php foreach($pageMedia as $media):?><option value="<?=(int)$media['media_id']?>" <?=(int)($section['image_media_id']??0)===(int)$media['media_id']?'selected':''?>><?=builder_e((string)($media['title_text']??''))?></option><?php endforeach;?></select></label>
+<?php if(!empty($section['image_path'])):?><p class="builder-muted">Current hero image: <?=builder_e((string)($section['image_alt']??$section['image_path']))?></p><?php endif;?>
+<button type="submit">Save Hero</button>
+</form>
+<?php else:?><p class="builder-muted">Hero sections keep their dedicated Hero editor. Select a content section to edit its Container tree.</p><?php endif;?><?php endif;?>
 </aside>
 <button type="button" id="sidebar-toggle" aria-controls="page-builder-sidebar" aria-expanded="true" aria-label="Hide properties sidebar" title="Hide properties sidebar"><span aria-hidden="true">&lt;</span><span class="page-builder-toggle-label">Hide properties sidebar</span></button>
 <section class="page-builder-preview"><div class="preview-toolbar"><span>Live preview</span><button type="button" id="open-preview">Open page</button></div><iframe id="page-preview" name="page-preview" title="Page preview" src="index.php?view=<?=$pageCode==='HOME'?'public':strtolower($pageCode)?>"></iframe><form method="post" target="page-preview" id="preview-form" action="index.php?view=<?=$pageCode==='HOME'?'public':strtolower($pageCode)?>" hidden><input type="hidden" name="csrf_token" value="<?=htmlspecialchars(AuthService::csrfToken(),ENT_QUOTES,'UTF-8')?>"><input type="hidden" name="action" value="builder_preview"><input type="hidden" name="section_id" value="<?=(int)($section['site_page_section_id']??0)?>"><input type="hidden" name="rows_payload" id="preview-rows-payload"></form></section>
