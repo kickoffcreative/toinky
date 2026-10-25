@@ -222,9 +222,16 @@ function admin_hero_button_editor(array $button,string $index,bool $template=fal
 <?php $users=array_slice($users,0,10);require __DIR__.'/_admin_users_table.php';?>
 </section>
 <?php elseif($view==='accounts'):?>
+<?php $activeUsers=array_values(array_filter($users,static fn($u)=>$u['status']!=='DISABLED'));$disabledUsers=array_values(array_filter($users,static fn($u)=>$u['status']==='DISABLED'));$usersPerPage=25;$activePages=max(1,(int)ceil(count($activeUsers)/$usersPerPage));$disabledPages=max(1,(int)ceil(count($disabledUsers)/$usersPerPage));$activePage=min($activePages,max(1,(int)($_GET['active_page']??1)));$disabledPage=min($disabledPages,max(1,(int)($_GET['disabled_page']??1)));?>
 <section class="panel">
-<h2>User accounts</h2>
-<?php require __DIR__.'/_admin_users_table.php';?>
+<h2>Active users (<?=(int)count($activeUsers)?>)</h2>
+<?php if($activeUsers):?><?php $users=array_slice($activeUsers,($activePage-1)*$usersPerPage,$usersPerPage);require __DIR__.'/_admin_users_table.php';?><?php else:?><p class="muted">No active users.</p><?php endif;?>
+<?php if($activePages>1):?><div class="revision-pagination"><?php if($activePage>1):?><a href="?view=accounts&amp;active_page=<?=$activePage-1?>&amp;disabled_page=<?=$disabledPage?>">Prev</a><?php endif;?><?php for($i=1;$i<=$activePages;$i++):?><a class="<?=$i===$activePage?'active':''?>" href="?view=accounts&amp;active_page=<?=$i?>&amp;disabled_page=<?=$disabledPage?>"><?=$i?></a><?php endfor;?><?php if($activePage<$activePages):?><a href="?view=accounts&amp;active_page=<?=$activePage+1?>&amp;disabled_page=<?=$disabledPage?>">Next</a><?php endif;?></div><?php endif;?>
+</section>
+<section class="panel">
+<h2>Disabled users (<?=(int)count($disabledUsers)?>)</h2>
+<?php if($disabledUsers):?><?php $users=array_slice($disabledUsers,($disabledPage-1)*$usersPerPage,$usersPerPage);require __DIR__.'/_admin_users_table.php';?><?php else:?><p class="muted">No disabled users.</p><?php endif;?>
+<?php if($disabledPages>1):?><div class="revision-pagination"><?php if($disabledPage>1):?><a href="?view=accounts&amp;active_page=<?=$activePage?>&amp;disabled_page=<?=$disabledPage-1?>">Prev</a><?php endif;?><?php for($i=1;$i<=$disabledPages;$i++):?><a class="<?=$i===$disabledPage?'active':''?>" href="?view=accounts&amp;active_page=<?=$activePage?>&amp;disabled_page=<?=$i?>"><?=$i?></a><?php endfor;?><?php if($disabledPage<$disabledPages):?><a href="?view=accounts&amp;active_page=<?=$activePage?>&amp;disabled_page=<?=$disabledPage+1?>">Next</a><?php endif;?></div><?php endif;?>
 </section>
 <?php elseif($view==='user'):?>
 <section class="panel">
