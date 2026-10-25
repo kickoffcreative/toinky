@@ -553,7 +553,7 @@ function writer_definition_picker(array$definitions,array$usage=[]):string{$html
 
 <?php else:?>
 <div class="writer-subpanel"><p class="help">Upload or reuse images for this story. Manage image details, crops, and thumbnails in your media library.</p><?=writer_quick_values($plotId,$tab,$w,$codeUsage)?><?=writer_filter()?>
-<details class="writer-media-panel"><summary>Upload New Media</summary><div class="writer-media-panel-body"><p class="help">Upload JPEG, PNG, or WebP files up to 10 MB. Only your uploads appear here; administrators can manage all active media.</p>
+<details class="writer-media-panel" open><summary>Upload New Media</summary><div class="writer-media-panel-body"><p class="help">Upload JPEG, PNG, or WebP files up to 10 MB. Only your uploads appear here; administrators can manage all active media.</p>
 <form method="post" enctype="multipart/form-data" class="grid"><?=writer_form_context($plotId,$tab,'library_upload')?>
 <label class="field">Media Type<select name="media_type"><?php foreach(MediaLibraryService::TYPES as$type):?><option><?=e($type)?></option><?php endforeach;?></select></label>
 <label class="field">Title<input name="title_text" maxlength="190" required></label><label class="field wide">Alternative Text<input name="alt_text" maxlength="500" required></label>
