@@ -13,9 +13,29 @@ final class CharacterAutomationService
                 try{
                     $context=AiReasoningContextService::forDecision($sid,(int)$d['decision_id']);$context['purpose']='LIVE_CHARACTER_OPTION_SELECTION';
                     $result=StoryReasonerFactory::withFallback()->selectOption($context,$options);$selected=(string)($result['selected_action']??'');$pick=null;foreach($options as$o)if((string)$o['option_code']===$selected){$pick=$o;break;}if(!$pick)throw new RuntimeException('Reasoner returned no currently valid option.');
-                    self::log($sid,$d,$result,$selected);BehaviorService::chooseAutomated($sid,(int)$d['decision_id'],$selected);$summary['chosen']++;$progress=true;
+                    BehaviorService::chooseAutomated($sid,(int)$d['decision_id'],$selected);
+                    // Record the reasoning only when this call won the claim;
+                    // a losing racer leaves no history behind.
+                    self::log($sid,$d,$result,$selected);$summary['chosen']++;$progress=true;
                 }catch(Throwable$e){
-                    try{$pick=self::weightedPick($options);self::logFailure($sid,$d,$e->getMessage(),(string)$pick['option_code']);BehaviorService::chooseAutomated($sid,(int)$d['decision_id'],(string)$pick['option_code']);$summary['chosen']++;$progress=true;}catch(Throwable$ignored){$summary['failed']++;}
+                    // A decision resolved by someone else while the reasoner
+                    // was running is benign: skip it, do not fall back, do
+                    // not count it as a failure.
+                    $st=$pdo->prepare('SELECT status FROM decisions WHERE decision_id=? AND simulation_id=?');$st->execute([$d['decision_id'],$sid]);
+                    if($st->fetchColumn()!=='OPEN')continue;
+                    try{
+                        $pick=self::weightedPick($options);
+                        BehaviorService::chooseAutomated($sid,(int)$d['decision_id'],(string)$pick['option_code']);
+                        // Record the fallback only once it actually resolved
+                        // the decision.
+                        self::logFailure($sid,$d,$e->getMessage(),(string)$pick['option_code']);$summary['chosen']++;$progress=true;
+                    }catch(Throwable $e2){
+                        // The weighted fallback also failed and the decision
+                        // is still OPEN: a real failure, not a race. Log it
+                        // visibly instead of swallowing it.
+                        error_log('Toinky AI automation failed for simulation '.$sid.' decision '.$d['decision_id'].': '.$e2->getMessage());
+                        $summary['failed']++;
+                    }
                 }
             }
             if(class_exists('DynamicOpportunityService'))DynamicOpportunityService::reconcile($sid);
