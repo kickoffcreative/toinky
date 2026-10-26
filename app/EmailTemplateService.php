@@ -41,11 +41,6 @@ final class EmailTemplateService
         $base=['recipient_name'=>'there','site_name'=>'Toinky','site_url'=>self::baseUrl(),'logo_url'=>rtrim(self::baseUrl(),'/').'/assets/toinky-logo.png','action_url'=>'','action_label'=>'Open Toinky','message'=>'','message_html'=>'','sender_name'=>'Toinky','story_title'=>'','game_code'=>'','expiry_text'=>'','brand_primary'=>'#1C242B','brand_secondary'=>'#6B2938','brand_accent'=>'#B58E46','brand_surface'=>'#F4EEE2','brand_text'=>'#35424B','brand_heading'=>'#1C242B','brand_title_font'=>'Cormorant Garamond, Georgia, serif','brand_body_font'=>'Instrument Sans, Arial, sans-serif'];$values=array_merge($base,$data);$values['message_html']=(string)($values['message_html']??'');if($values['message_html']===''&&$values['message']!=='')$values['message_html']=self::textToHtml((string)$values['message']);$subject=self::replace((string)$template['subject_template'],$values,false);$values['subject_line']=$subject;$css=self::replace((string)$template['css_template'],$values,false);return['subject'=>$subject,'html'=>'<style>'.$css.'</style>'.self::replace((string)$template['html_template'],$values,true),'text'=>self::replace((string)$template['text_template'],$values,false)];
     }
 
-    public static function defaultTemplate(string $key): array
-    {
-        $defaults=self::defaults();$key=strtoupper(trim($key));return$defaults[$key]??[];
-    }
-
     private static function ensureDefaults(): void
     {
         $q=db()->prepare('INSERT IGNORE INTO email_templates(template_key,label_text,subject_template,html_template,text_template,css_template) VALUES(?,?,?,?,?,?)');foreach(self::defaults()as$key=>$row)$q->execute([$key,$row['label_text'],$row['subject_template'],$row['html_template'],$row['text_template'],$row['css_template']]);
