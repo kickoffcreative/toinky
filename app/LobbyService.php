@@ -6,9 +6,13 @@ final class LobbyService
     public static function createGame(int $hostUserId,string $plotCode,int $duration=300): array
     {
         $pdo=db();$adm=$pdo->prepare('SELECT is_admin FROM users WHERE user_id=?');$adm->execute([$hostUserId]);$isAdmin=(int)$adm->fetchColumn()===1;$q=$pdo->prepare('SELECT active FROM platform_game_durations WHERE duration_seconds=?');$q->execute([$duration]);$durActive=$q->fetchColumn();if($durActive===false||(!$isAdmin&&(int)$durActive!==1))throw new RuntimeException('That story duration is not available.');
-        $q=$pdo->prepare('SELECT plot_id FROM plots WHERE code=? AND status="active"');$q->execute([$plotCode]);$plotRow=$q->fetch();$a=$pdo->prepare('SELECT duration_seconds FROM plot_allowed_durations WHERE plot_id=?');$a->execute([(int)$plotRow['plot_id']]);$allowedDurations=array_map('intval',$a->fetchAll(PDO::FETCH_COLUMN));if(!$isAdmin&&$allowedDurations!==[]&&!in_array($duration,$allowedDurations,true))throw new RuntimeException('That story duration is not available.');
+        $q=$pdo->prepare('SELECT plot_id,published_plot_version_id FROM plots WHERE code=? AND status="active"');$q->execute([$plotCode]);$plotRow=$q->fetch();
+        // Task 5 Phase 1: hosted games run the PUBLISHED version, never the live
+        // draft. Fail closed when no published version is recorded.
+        $publishedVersionId=$plotRow?(int)($plotRow['published_plot_version_id']??0):0;
+        if($publishedVersionId<1)throw new RuntimeException('This story has no published version yet. Ask an administrator to publish a revision first.');$a=$pdo->prepare('SELECT duration_seconds FROM plot_allowed_durations WHERE plot_id=?');$a->execute([(int)$plotRow['plot_id']]);$allowedDurations=array_map('intval',$a->fetchAll(PDO::FETCH_COLUMN));if(!$isAdmin&&$allowedDurations!==[]&&!in_array($duration,$allowedDurations,true))throw new RuntimeException('That story duration is not available.');
         $roles=$pdo->prepare('SELECT pr.role_code FROM plot_roles pr JOIN plots p ON p.plot_id=pr.plot_id WHERE p.code=? AND p.status="active" AND pr.active=1 AND pr.simulation_active=1');$roles->execute([$plotCode]);$controllers=[];foreach($roles->fetchAll()as$r)$controllers[$r['role_code']]='AI';
-        if(CommerceService::enabled())CommerceService::assertCanHost($hostUserId);$sid=SimulationService::create($plotCode,$duration,$controllers);$code=self::newCode();
+        if(CommerceService::enabled())CommerceService::assertCanHost($hostUserId);$sid=SimulationService::create($plotCode,$duration,$controllers,$publishedVersionId);$code=self::newCode();
         $pdo->beginTransaction();try{$pdo->prepare('INSERT INTO games(simulation_id,host_user_id,join_code,play_duration_seconds) VALUES(?,?,?,?)')->execute([$sid,$hostUserId,$code,$duration]);$gid=(int)$pdo->lastInsertId();$pdo->prepare('INSERT INTO game_players(game_id,user_id) VALUES(?,?)')->execute([$gid,$hostUserId]);if(CommerceService::enabled())CommerceService::reserveForGame($hostUserId,$gid);$pdo->commit();}catch(Throwable$e){if($pdo->inTransaction())$pdo->rollBack();throw$e;}
         return self::lobbyState($gid,$hostUserId);
     }
