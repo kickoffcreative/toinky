@@ -228,6 +228,11 @@ function admin_hero_button_editor(array $button,string $index,bool $template=fal
 <?php $activeUsers=array_values(array_filter($users,static fn($u)=>$u['status']!=='DISABLED'));$disabledUsers=array_values(array_filter($users,static fn($u)=>$u['status']==='DISABLED'));$usersPerPage=25;$activePages=max(1,(int)ceil(count($activeUsers)/$usersPerPage));$disabledPages=max(1,(int)ceil(count($disabledUsers)/$usersPerPage));$activePage=min($activePages,max(1,(int)($_GET['active_page']??1)));$disabledPage=min($disabledPages,max(1,(int)($_GET['disabled_page']??1)));?>
 <section class="panel">
 <h2>Active users (<?=(int)count($activeUsers)?>)</h2>
+<div class="folder-tabs">
+<a class="folder-tab active" href="admin.php?view=accounts">Users</a>
+<a class="folder-tab" href="admin.php?view=writer_requests">Writer Requests</a>
+<a class="folder-tab" href="admin.php?view=invitations">Invitations</a>
+</div>
 <?php if($activeUsers):?><?php $users=array_slice($activeUsers,($activePage-1)*$usersPerPage,$usersPerPage);require __DIR__.'/_admin_users_table.php';?><?php else:?><p class="muted">No active users.</p><?php endif;?>
 <?php if($activePages>1):?><div class="revision-pagination"><?php if($activePage>1):?><a href="?view=accounts&amp;active_page=<?=$activePage-1?>&amp;disabled_page=<?=$disabledPage?>">Prev</a><?php endif;?><?php for($i=1;$i<=$activePages;$i++):?><a class="<?=$i===$activePage?'active':''?>" href="?view=accounts&amp;active_page=<?=$i?>&amp;disabled_page=<?=$disabledPage?>"><?=$i?></a><?php endfor;?><?php if($activePage<$activePages):?><a href="?view=accounts&amp;active_page=<?=$activePage+1?>&amp;disabled_page=<?=$disabledPage?>">Next</a><?php endif;?></div><?php endif;?>
 </section>
@@ -345,6 +350,11 @@ function admin_hero_button_editor(array $button,string $index,bool $template=fal
 <?php elseif($view==='invitations'):?>
 <section class="panel">
 <h2>Invite a user</h2>
+<div class="folder-tabs">
+<a class="folder-tab" href="admin.php?view=accounts">Users</a>
+<a class="folder-tab" href="admin.php?view=writer_requests">Writer Requests</a>
+<a class="folder-tab active" href="admin.php?view=invitations">Invitations</a>
+</div>
 <form method="post">
 <?=csrf_field()?>
 <input type="hidden" name="action" value="invite">
@@ -387,6 +397,11 @@ function admin_hero_button_editor(array $button,string $index,bool $template=fal
 <?php elseif($view==='writer_requests'):?>
 <section class="panel">
 <h2>Story Writer access requests</h2>
+<div class="folder-tabs">
+<a class="folder-tab" href="admin.php?view=accounts">Users</a>
+<a class="folder-tab active" href="admin.php?view=writer_requests">Writer Requests</a>
+<a class="folder-tab" href="admin.php?view=invitations">Invitations</a>
+</div>
 <p class="muted">New accounts can host and participate in games. Story-building access is granted here after review.</p>
 <table class="table">
 <tr>
@@ -512,6 +527,10 @@ function admin_hero_button_editor(array $button,string $index,bool $template=fal
 <section class="panel">
 <h2>Genre Theme Manager</h2>
 <p class="muted">Choose a theme tab to edit its palette, complete typography, and media. Existing themes remain attached to their stories.</p>
+<div class="folder-tabs">
+<a class="folder-tab" href="admin.php?view=brand_fonts">Brand</a>
+<a class="folder-tab active" href="admin.php?view=themes">Theme Manager</a>
+</div>
 <div class="theme-tabs" role="tablist">
 <?php foreach($themes as$i=>$t):?>
 <button type="button" class="theme-tab <?=($activeTheme?(int)$t['genre_id']===$activeTheme:$i===0)?'active':''?>" data-theme-tab="theme-<?=(int)$t['genre_id']?>">
@@ -620,6 +639,7 @@ function admin_hero_button_editor(array $button,string $index,bool $template=fal
 <a class="folder-tab <?=$brandTab==='socials'?'active':''?>" href="?view=brand_fonts&amp;brand_tab=socials">Socials</a>
 <a class="folder-tab <?=$brandTab==='email'?'active':''?>" href="?view=brand_fonts&amp;brand_tab=email">Email Settings</a>
 <a class="folder-tab <?=$brandTab==='colors'?'active':''?>" href="?view=brand_fonts&amp;brand_tab=colors">Colors</a>
+<a class="folder-tab" href="?view=themes">Theme Manager</a>
 </div>
 <?php if($brandTab==='fonts'):?>
 <div class="brand-font-guidance"><strong>Typography is organized by where text appears.</strong> Public Website controls marketing pages; Application &amp; Admin controls signed-in workspaces. Page sections follow these defaults unless that section shows an override.</div>
@@ -984,6 +1004,10 @@ if(colorInput&&swatch){colorInput.addEventListener('input',function(){swatch.sty
 <?php elseif($view==='narrator'):?>
 <section class="panel">
 <h2>Voice Narrator</h2>
+<div class="folder-tabs">
+<a class="folder-tab" href="ai-settings.php">AI Settings</a>
+<a class="folder-tab active" href="admin.php?view=narrator">Voice Narrator</a>
+</div>
 <p class="muted">The narrator reads the story aloud with an open-source voice. It is parked for now — the voice takes too long to load to feel immersive — so it is off by default. Turn it on here when you want players to see it again.</p>
 <form method="post">
 <?=csrf_field()?>
@@ -1050,6 +1074,7 @@ Simulations
 <a class="folder-tab <?=$simulationType==='all'?'active':''?>" href="admin.php?view=simulations&amp;simulation_type=all">All</a>
 <a class="folder-tab <?=$simulationType==='standalone'?'active':''?>" href="admin.php?view=simulations&amp;simulation_type=standalone">Standalone</a>
 <a class="folder-tab <?=$simulationType==='hosted'?'active':''?>" href="admin.php?view=simulations&amp;simulation_type=hosted">Hosted Games</a>
+<a class="folder-tab" href="lab.php">Story Engine Lab</a>
 <table class="table">
 <tr>
 <th>ID</th>
