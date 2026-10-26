@@ -19,6 +19,13 @@ final class SimulationService {
             if(class_exists('GenericStateService'))GenericStateService::initializePlotState($sid);
             $roles=$pdo->prepare('SELECT * FROM plot_roles WHERE plot_id=? AND active=1 AND simulation_active=1 ORDER BY CASE WHEN role_type="PLAYER" THEN 0 ELSE 1 END,slot_no');$roles->execute([$plot['plot_id']]);$activeRoles=$roles->fetchAll();
             $playerCount=count(array_filter($activeRoles,fn($r)=>$r['role_type']==='PLAYER'));$npcCount=count(array_filter($activeRoles,fn($r)=>$r['role_type']==='NPC'));$allowedNpcs=$playerCount===1?2:1;
+            // Task 15: a story with no active player characters must not
+            // start. Without this gate create() commits a READY simulation
+            // with an empty cast and advance() completes it on elapsed time
+            // alone, producing silent empty-cast runs. This is the single
+            // choke point: every creation path (hosted games, Lab, review
+            // batches, focused runs) funnels through create().
+            if($playerCount<1)throw new RuntimeException('This story has no active player characters. Activate at least one before running a game or review.');
             if($npcCount>$allowedNpcs)throw new RuntimeException('Story cast exceeds the active NPC budget: solo allows 2 NPCs; multiplayer allows 1 NPC.');
             foreach($activeRoles as$r){
                 $npcReasoner=strtolower(trim((string)getenv('GAME2_SIM_NPC_REASONER')));$defaultController=$r['role_type']==='NPC'&&$npcReasoner==='weighted'?'HUMAN':($r['role_type']==='NPC'?'AI':'HUMAN');$controller=strtoupper((string)($controllers[$r['role_code']]??$defaultController));if(!in_array($controller,['HUMAN','AI'],true))$controller=$defaultController;
