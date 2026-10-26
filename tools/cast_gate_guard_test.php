@@ -29,14 +29,13 @@ $plotId=(int)$prow['plot_id'];$plotCode=(string)$prow['code'];
 $roles=$pdo->prepare('SELECT plot_role_id,active,simulation_active FROM plot_roles WHERE plot_id=?');$roles->execute([$plotId]);$saved=$roles->fetchAll();
 try{
     $pdo->prepare('UPDATE plot_roles SET active=0,simulation_active=0 WHERE plot_id=?')->execute([$plotId]);
+    $before=(int)$pdo->query('SELECT COUNT(*) FROM simulations WHERE plot_id='.$plotId)->fetchColumn();
     $thrown=false;$message='';
     try{SimulationService::create($plotCode,300,[],null);}catch(Throwable $e){$thrown=true;$message=$e->getMessage();}
+    $after=(int)$pdo->query('SELECT COUNT(*) FROM simulations WHERE plot_id='.$plotId)->fetchColumn();
     $check($thrown,'create() throws for a plot with no active player characters');
     $check(str_contains($message,'no active player characters'),'create() refusal names the missing player characters');
-    $count=(int)$pdo->query('SELECT COUNT(*) FROM simulations WHERE plot_id='.$plotId)->fetchColumn();
-    // No simulation may have been created by the refused attempt; the count
-    // is compared against a fresh baseline taken after the deactivation.
-    $check(true,'refused create leaves the plot with no new simulation (count checked by the throw above)');
+    $check($after===$before,'a refused create leaves no new simulation behind');
 }finally{
     foreach($saved as $r)$pdo->prepare('UPDATE plot_roles SET active=?,simulation_active=? WHERE plot_role_id=?')->execute([(int)$r['active'],(int)$r['simulation_active'],(int)$r['plot_role_id']]);
     echo "roles restored.\n";
