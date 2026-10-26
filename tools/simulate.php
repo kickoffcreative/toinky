@@ -52,8 +52,26 @@ if(!in_array(strtolower((string)$opt['npc-reasoner']),['weighted','manual','olla
 if(!in_array(strtolower((string)$opt['player-reasoner']),['manual','ollama'],true)){fwrite(STDERR,"--player-reasoner must be manual or ollama.\n");exit(2);}
 $focus=strtoupper(trim((string)$opt['focus']));
 
-$dbOverride=trim((string)getenv('GAME2_DATABASE_CONFIG'));
-if($opt['reset']&&($dbOverride===''||!str_contains(basename($dbOverride),'test'))){fwrite(STDERR,"Refusing --reset unless GAME2_DATABASE_CONFIG explicitly points to a test database config.\n");exit(2);}
+// Task 14: --reset drops EVERY table, so the guard checks the database the
+// config actually points at -- not the config filename. Refuse unless the
+// database name ends in _test (a disposable test database) and the host is
+// local. A config file merely named *test* pointing at a live database, or a
+// remote host, must never pass. resetDatabase() itself is unchanged.
+if($opt['reset']){
+    $dbOverride=trim((string)getenv('GAME2_DATABASE_CONFIG'));
+    $dbConfigPath=$dbOverride!==''?$dbOverride:$root.'/config/database.php';
+    if(!is_file($dbConfigPath)){fwrite(STDERR,"Refusing --reset: database config not found at {$dbConfigPath}.\n");exit(2);}
+    $dbCfg=require $dbConfigPath;
+    $dbHost='localhost';$dbName='';
+    foreach(explode(';',(string)($dbCfg['dsn']??''))as$part){
+        if(!str_contains($part,'='))continue;
+        [$dbKey,$dbVal]=explode('=',$part,2);
+        if(strtolower(trim($dbKey))==='host')$dbHost=strtolower(trim($dbVal));
+        if(strtolower(trim($dbKey))==='dbname')$dbName=trim($dbVal);
+    }
+    if(!str_ends_with($dbName,'_test')){fwrite(STDERR,"Refusing --reset: database '{$dbName}' is not a disposable test database (name must end in _test).\n");exit(2);}
+    if(!in_array($dbHost,['127.0.0.1','localhost'],true)){fwrite(STDERR,"Refusing --reset: database host '{$dbHost}' is not local (127.0.0.1/localhost only).\n");exit(2);}
+}
 
 $npcReasoner=strtolower((string)$opt['npc-reasoner']);
 if($npcReasoner==='ollama'){
