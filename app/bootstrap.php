@@ -32,12 +32,11 @@ require_once __DIR__ . '/OllamaStoryReasoner.php';
 require_once __DIR__ . '/StoryReasonerFactory.php';
 require_once __DIR__ . '/AiReasoningContextService.php';
 
-register_shutdown_function(static function (): void {
-    $sid=(int)($_POST['simulation_id']??$_GET['simulation']??0);
-    if($sid<=0)return;
-    try{
-        GenericStateService::initializePlotState($sid);
-        if(class_exists('TriggeredTransitionService'))TriggeredTransitionService::evaluate($sid);
-        if(class_exists('ResolutionService'))ResolutionService::refresh($sid);
-    }catch(Throwable $e){/* page-level error handling remains authoritative */}
-});
+// No shutdown hook mutates simulation state. Simulation synchronization runs only
+// through explicit authorized commands: LobbyService::tick() (play progression),
+// StateSyncService::reconcile() (Lab), and SimulationService::create()/advance().
+// A previous shutdown hook read simulation_id/simulation from any request — including
+// unauthenticated reads — and applied state, transitions and resolution with no
+// authorization, membership or CSRF check and silently swallowed all errors.
+// It was removed (audit task 1, 2026-10-26). Do not reintroduce request-driven
+// simulation writes here; route them through an authorized command instead.
