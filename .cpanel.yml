@@ -7,6 +7,11 @@ deployment:
     - /bin/chmod 0644 $DEPLOYPATH/index.php $DEPLOYPATH/page-builder.php $DEPLOYPATH/media.php $DEPLOYPATH/install.php $DEPLOYPATH/admin.php $DEPLOYPATH/ai-settings.php $DEPLOYPATH/lab.php $DEPLOYPATH/lobby.php $DEPLOYPATH/lobby-state.php $DEPLOYPATH/play.php $DEPLOYPATH/profile.php $DEPLOYPATH/inky-status.php $DEPLOYPATH/inky-preferences.php $DEPLOYPATH/inky-action.php $DEPLOYPATH/inky-starter.php $DEPLOYPATH/inky-draft-dependencies.php $DEPLOYPATH/theme-media.php $DEPLOYPATH/brand-fonts.php $DEPLOYPATH/captcha-image.php $DEPLOYPATH/stripe-webhook.php
     - /bin/cp -Rf app $DEPLOYPATH
     - /bin/cp -Rf public $DEPLOYPATH
+    # The wholesale public/ copy above also copies public/assets/ into a
+    # shadow $DEPLOYPATH/public/assets/ tree that is unreachable via HTTP
+    # (.htaccess 404s public/) and is pure dead weight. Remove it; the live
+    # asset tree is $DEPLOYPATH/assets/ (populated below) only.
+    - /bin/rm -rf $DEPLOYPATH/public/assets
     - /bin/mkdir -p $DEPLOYPATH/assets
     - /bin/cp -Rf public/assets/. $DEPLOYPATH/assets/
     # Remove unoptimized Inky images deleted from the repo (Oct 26 cleanup) —
@@ -19,4 +24,8 @@ deployment:
     - /bin/cp -Rf tools $DEPLOYPATH
     - /bin/mkdir -p $DEPLOYPATH/config
     - /bin/cp -f config/database.example.php $DEPLOYPATH/config/database.example.php
+    # Verify the deploy against the repo manifest and delete stale files
+    # (code first, migrations last). The manifest never deletes
+    # config/database.php, .installed, or public/uploads/.
+    - /opt/cpanel/ea-php84/root/usr/bin/php tools/deploy_manifest.php $DEPLOYPATH --apply
     - /opt/cpanel/ea-php84/root/usr/bin/php $DEPLOYPATH/tools/migrate.php
