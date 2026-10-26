@@ -28,10 +28,11 @@ final class CausalService
             $claim->execute([$sid,$marker,'CLAIMED',(int)$d['closes_at_second']]);
             if($claim->rowCount()!==1){if($ownsTransaction)$pdo->commit();return;}
 
-            $sim=$pdo->prepare('SELECT plot_id FROM simulations WHERE simulation_id=?');$sim->execute([$sid]);$plotId=(int)$sim->fetchColumn();
-            $e=$pdo->prepare('SELECT * FROM plot_no_action_effects WHERE plot_id=? AND event_code=? AND role_code=? ORDER BY sort_order,no_action_effect_id');$e->execute([$plotId,$d['event_code'],$d['role_code']]);
+            // Task 5 Phase 2: no-action effects from the snapshot when pinned.
+            $effectRows=null;if(class_exists('SimulationContent'))$effectRows=SimulationContent::noActionEffects($sid,(string)$d['event_code'],(string)$d['role_code']);
+            if($effectRows===null){$sim=$pdo->prepare('SELECT plot_id FROM simulations WHERE simulation_id=?');$sim->execute([$sid]);$plotId=(int)$sim->fetchColumn();$e=$pdo->prepare('SELECT * FROM plot_no_action_effects WHERE plot_id=? AND event_code=? AND role_code=? ORDER BY sort_order,no_action_effect_id');$e->execute([$plotId,$d['event_code'],$d['role_code']]);$effectRows=$e->fetchAll();}
             $changes=[];$second=(int)$d['closes_at_second'];
-            foreach($e->fetchAll() as $effect){
+            foreach($effectRows as $effect){
                 if(!self::noActionEffectAllowed($sid,(int)$effect['no_action_effect_id']))continue;
                 $change=self::applyEffect($sid,(int)$d['character_id'],(int)$d['event_id'],$second,$effect,'NO_ACTION',(int)$d['decision_id']);
                 if($change!=='')$changes[]=$change;
@@ -55,15 +56,17 @@ final class CausalService
 
     private static function noActionEffectAllowed(int $sid,int $effectId): bool
     {
-        $q=db()->prepare('SELECT state_key,operator,compare_value FROM plot_no_action_conditions WHERE no_action_effect_id=? ORDER BY sort_order,no_action_condition_id');$q->execute([$effectId]);
-        foreach($q->fetchAll() as $c)if(!GenericStateService::conditionPasses($sid,$c['state_key'],$c['operator'],$c['compare_value']))return false;
+        $conditions=null;if(class_exists('SimulationContent'))$conditions=SimulationContent::noActionConditions($sid,$effectId);
+        if($conditions===null){$q=db()->prepare('SELECT state_key,operator,compare_value FROM plot_no_action_conditions WHERE no_action_effect_id=? ORDER BY sort_order,no_action_condition_id');$q->execute([$effectId]);$conditions=$q->fetchAll();}
+        foreach($conditions as $c)if(!GenericStateService::conditionPasses($sid,$c['state_key'],$c['operator'],$c['compare_value']))return false;
         return true;
     }
 
     public static function optionAllowed(int $sid,int $templateOptionId): bool
     {
-        $q=db()->prepare('SELECT state_key,operator,compare_value FROM plot_option_conditions WHERE template_option_id=? ORDER BY sort_order,option_condition_id');$q->execute([$templateOptionId]);
-        foreach($q->fetchAll() as $c)if(!GenericStateService::conditionPasses($sid,$c['state_key'],$c['operator'],$c['compare_value']))return false;
+        $conditions=null;if(class_exists('SimulationContent'))$conditions=SimulationContent::optionConditions($sid,$templateOptionId);
+        if($conditions===null){$q=db()->prepare('SELECT state_key,operator,compare_value FROM plot_option_conditions WHERE template_option_id=? ORDER BY sort_order,option_condition_id');$q->execute([$templateOptionId]);$conditions=$q->fetchAll();}
+        foreach($conditions as $c)if(!GenericStateService::conditionPasses($sid,$c['state_key'],$c['operator'],$c['compare_value']))return false;
         return true;
     }
 
