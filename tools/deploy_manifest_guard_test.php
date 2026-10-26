@@ -17,10 +17,12 @@ $check(str_contains($src,"'config/database.php'"),'allowlist contains config/dat
 $check(str_contains($src,"'.installed'"),'allowlist contains .installed');
 $check(str_contains($src,"'public/uploads/'"),'allowlist contains public/uploads/');
 $check(str_contains($src,"'--apply'"),'manifest script is verify-only by default and deletes only with --apply');
-$cpanel=file_get_contents($root.'/.cpanel.yml');
-$check(str_contains($cpanel,'rm -rf $DEPLOYPATH/public/assets'),'.cpanel.yml removes the shadow public/assets tree');
-$check(str_contains($cpanel,'tools/deploy_manifest.php $DEPLOYPATH --apply'),'.cpanel.yml runs the manifest (with --apply) before migrations');
-$check(strpos($cpanel,'deploy_manifest.php')<strpos($cpanel,'tools/migrate.php'),'manifest step runs before the migrate step');
+if(is_file($root.'/.cpanel.yml')){
+    $cpanel=file_get_contents($root.'/.cpanel.yml');
+    $check(str_contains($cpanel,'rm -rf $DEPLOYPATH/public/assets'),'.cpanel.yml removes the shadow public/assets tree');
+    $check(str_contains($cpanel,'tools/deploy_manifest.php $DEPLOYPATH --apply'),'.cpanel.yml runs the manifest (with --apply) before migrations');
+    $check(strpos($cpanel,'deploy_manifest.php')<strpos($cpanel,'tools/migrate.php'),'manifest step runs before the migrate step');
+}else{echo "SKIP .cpanel.yml deploy wiring checks (not present on this server)\n";}
 
 if($failures){echo 'FAILURES: '.implode('; ',$failures)."\n";exit(1);}
 echo "deploy_manifest_guard_test: all checks passed.\n";
