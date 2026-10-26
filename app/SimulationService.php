@@ -7,7 +7,7 @@ final class SimulationService {
         // must belong to this plot; its snapshot checksum is recorded so drift
         // (a later draft edit) can be detected. NULL = legacy/unpinned.
         $checksum=null;
-        if($plotVersionId!==null){$vq=$pdo->prepare('SELECT snapshot_json FROM plot_versions WHERE plot_version_id=? AND plot_id=?');$vq->execute([$plotVersionId,$plot['plot_id']]);$snap=$vq->fetchColumn();if($snap===false)throw new RuntimeException('Pinned content version not found for this story.');$checksum=hash('sha256',(string)$snap);}
+        if($plotVersionId!==null){$vq=$pdo->prepare('SELECT snapshot_json FROM plot_versions WHERE plot_version_id=? AND plot_id=?');$vq->execute([$plotVersionId,$plot['plot_id']]);$snap=$vq->fetchColumn();if($snap===false)throw new RuntimeException('Pinned content version not found for this story.');$snapArr=json_decode((string)$snap,true);$checksum=hash('sha256',json_encode($snapArr['content']??[],JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES));}
         $pdo->beginTransaction();
         try{
             $pdo->prepare('INSERT INTO simulations(plot_id,plot_version_id,content_checksum,duration_seconds,mode,status,current_phase) VALUES(?,?,?,?,"MANUAL","READY","SETUP")')->execute([$plot['plot_id'],$plotVersionId,$checksum,$duration]);$sid=(int)$pdo->lastInsertId();
@@ -30,8 +30,10 @@ final class SimulationService {
     public static function start(int $sid): void {db()->prepare('UPDATE simulations SET status="RUNNING",current_phase="EXPOSITION",started_at_utc=UTC_TIMESTAMP() WHERE simulation_id=? AND status="READY"')->execute([$sid]);self::generateDueEvents($sid,0,'EXPOSITION');}
     // Task 5 Phase 1: detect when a pinned simulation's draft has changed since
     // creation. Compares a hash of the live workspace against the checksum
-    // recorded at creation. Throttled to once per minute per simulation and
-    // never throws into the tick. Returns drift details or null.
+    // recorded at creation (workspace only — the plot row's workflow/status
+    // fields change through the normal publish flow and are not drift).
+    // Throttled to once per minute per simulation and never throws into the
+    // tick. Returns drift details or null.
     public static function checkVersionDrift(int $sid): ?array
     {
         $pdo=db();$sim=self::simulation($sid);
@@ -41,7 +43,7 @@ final class SimulationService {
         try{
             if(!class_exists('StoryAuthoringService'))require_once __DIR__.'/StoryAuthoringService.php';
             $plotId=(int)$sim['plot_id'];
-            $live=hash('sha256',json_encode(['plot'=>StoryAuthoringService::story($plotId),'content'=>StoryAuthoringService::audit($plotId)['workspace']],JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES));
+            $live=hash('sha256',json_encode(StoryAuthoringService::audit($plotId)['workspace'],JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES));
             if($live===(string)$sim['content_checksum'])return null;
             error_log('Toinky version drift: simulation '.$sid.' plot '.$plotId.' pinned to version '.$sim['plot_version_id'].' but the live draft no longer matches its checksum.');
             return ['simulation_id'=>$sid,'plot_id'=>$plotId,'plot_version_id'=>(int)$sim['plot_version_id'],'stored_checksum'=>(string)$sim['content_checksum'],'live_checksum'=>$live];
