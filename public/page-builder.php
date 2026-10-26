@@ -79,8 +79,15 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         }
         if($action==='save_section'){
             $sectionId=(int)($_POST['section_id']??0);
-            PageContentService::saveSection($admin,$sectionId,$_POST);
-            if(isset($_POST['active']))PageContentService::setSectionActive($admin,$sectionId,((string)$_POST['active']==='1'));
+            // Task 9: content + visibility commit or fail together. A failure
+            // in setSectionActive no longer leaves a committed content save
+            // behind a 422/error.
+            $pdo=db();$pdo->beginTransaction();
+            try{
+                PageContentService::saveSection($admin,$sectionId,$_POST);
+                if(isset($_POST['active']))PageContentService::setSectionActive($admin,$sectionId,((string)$_POST['active']==='1'));
+                $pdo->commit();
+            }catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw $e;}
             if($isAjaxSave)builder_json_exit(['ok'=>true]);
             header('Location: page-builder.php?page='.rawurlencode($pageCode).'&section='.$sectionId.'&saved=1');
             exit;
@@ -184,7 +191,7 @@ $__hasRows=!empty($section['rows_json']);
 <details class="section-settings" open>
 <summary><strong>Section Settings</strong><span class="builder-muted">Layout, image, text, background &amp; visibility</span></summary>
 <form method="post" class="section-add-form">
-<input type="hidden" name="csrf_token" value="<?=htmlspecialchars(AuthService::csrfToken(),ENT_QUOTES,'UTF-8')?>"><input type="hidden" name="action" value="save_section"><input type="hidden" name="section_id" value="<?=(int)$section['site_page_section_id']?>">
+<input type="hidden" name="csrf_token" value="<?=htmlspecialchars(AuthService::csrfToken(),ENT_QUOTES,'UTF-8')?>"><input type="hidden" name="action" value="save_section"><input type="hidden" name="section_id" value="<?=(int)$section['site_page_section_id']?>"><input type="hidden" name="section_fingerprint" value="<?=builder_e(PageContentService::sectionFingerprint($section))?>">
 <?php if($__hasRows):?><p class="builder-muted">Eyebrow, title, intro and layout are shown from the row tree below — edit the rows to change them. They are kept here so they still apply if the rows are ever cleared.</p><?php endif;?>
 <label>Layout<select name="layout_type" <?=$__hasRows?'disabled':''?>><?php foreach(PageContentService::LAYOUTS as $__layout):?><option value="<?=builder_e($__layout)?>" <?=(string)($section['layout_type']??'')===$__layout?'selected':''?>><?=builder_e(ucwords(strtolower(str_replace('_',' ',$__layout))))?></option><?php endforeach;?></select></label>
 <?php if($__hasRows):?><input type="hidden" name="layout_type" value="<?=builder_e((string)($section['layout_type']??''))?>"><?php endif;?>
