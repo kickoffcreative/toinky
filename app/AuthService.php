@@ -43,7 +43,7 @@ final class AuthService
     public static function currentUser(): ?array
     {
         self::boot();$id=(int)($_SESSION['user_id']??0);if($id<=0)return null;
-        $q=db()->prepare('SELECT user_id,email,display_name,is_admin,status,created_at_utc,last_login_at_utc FROM users WHERE user_id=?');$q->execute([$id]);$u=$q->fetch();
+        $q=db()->prepare('SELECT user_id,email,display_name,is_admin,is_super_admin,status,created_at_utc,last_login_at_utc FROM users WHERE user_id=?');$q->execute([$id]);$u=$q->fetch();
         if(!$u||$u['status']!=='ACTIVE'){self::logout();return null;}return$u;
     }
     public static function register(string $email,string $name,string $password,?string $inviteToken=null,?string $gameInviteToken=null): array
@@ -68,7 +68,50 @@ final class AuthService
         if($u['status']==='DISABLED')throw new RuntimeException('This account has been deactivated. Contact support if you would like to reactivate it.');
         if($u['status']!=='ACTIVE')throw new RuntimeException('Email or password is incorrect.');
         if(password_needs_rehash((string)$u['password_hash'],PASSWORD_DEFAULT))db()->prepare('UPDATE users SET password_hash=? WHERE user_id=?')->execute([password_hash($password,PASSWORD_DEFAULT),$u['user_id']]);
+        if(self::superAdminNeedsTwoFactor($u)){self::issueTwoFactorCode((int)$u['user_id']);self::boot();$_SESSION['two_factor_pending_user_id']=(int)$u['user_id'];return ['two_factor_required'=>true,'user_id'=>(int)$u['user_id'],'email'=>(string)$u['email']];}
         self::loginUserId((int)$u['user_id']);return self::currentUser()??[];
+    }
+    public static function isSuperAdmin(int $userId): bool
+    {
+        $q=db()->prepare('SELECT is_super_admin FROM users WHERE user_id=?');$q->execute([$userId]);return (int)$q->fetchColumn()===1;
+    }
+    public static function superAdminNeedsTwoFactor(array $user): bool
+    {
+        if((int)($user['is_super_admin']??0)!==1)return false;
+        $last=trim((string)($user['last_login_at_utc']??''));
+        if($last==='')return true;
+        $ts=strtotime($last.' UTC');if($ts===false)return true;
+        return (time()-$ts)>(14*24*60*60);
+    }
+    public static function pendingTwoFactorUserId(): int
+    {
+        self::boot();return (int)($_SESSION['two_factor_pending_user_id']??0);
+    }
+    public static function issueTwoFactorCode(int $userId): void
+    {
+        $q=db()->prepare('SELECT email,display_name FROM users WHERE user_id=?');$q->execute([$userId]);$u=$q->fetch();
+        if(!$u)throw new RuntimeException('Account not found.');
+        db()->prepare('UPDATE user_two_factor_codes SET used_at_utc=UTC_TIMESTAMP() WHERE user_id=? AND used_at_utc IS NULL AND expires_at_utc>UTC_TIMESTAMP()')->execute([$userId]);
+        $code=str_pad((string)random_int(0,999999),6,'0',STR_PAD_LEFT);
+        db()->prepare('INSERT INTO user_two_factor_codes(user_id,code_hash,expires_at_utc) VALUES(?,?,DATE_ADD(UTC_TIMESTAMP(),INTERVAL 10 MINUTE))')->execute([$userId,hash('sha256',$code)]);
+        $sent=self::sendTemplatedMessage((string)$u['email'],'TWO_FACTOR_CODE',['recipient_name'=>(string)($u['display_name']??'there'),'action_url'=>self::baseUrl().'/?view=login','action_label'=>'Sign in to Toinky','message'=>'Your Toinky sign-in code is '.$code.'. Enter it to finish signing in.','expiry_text'=>'This code expires in 10 minutes.'],null,$userId);
+        if(!$sent)throw new RuntimeException('We could not send the sign-in code. Try again in a few minutes.');
+    }
+    public static function resendTwoFactorCode(int $userId): void
+    {
+        $q=db()->prepare('SELECT COUNT(*) FROM user_two_factor_codes WHERE user_id=? AND created_at_utc>DATE_SUB(UTC_TIMESTAMP(),INTERVAL 1 HOUR)');$q->execute([$userId]);
+        if((int)$q->fetchColumn()>=5)throw new RuntimeException('Too many codes sent. Wait an hour and try again.');
+        self::issueTwoFactorCode($userId);
+    }
+    public static function verifyTwoFactorCode(int $userId,string $code): array
+    {
+        $code=(string)preg_replace('/\D/','',trim($code));
+        if(strlen($code)!==6)throw new RuntimeException('Enter the 6-digit code sent to your email.');
+        $q=db()->prepare('SELECT user_two_factor_code_id,code_hash FROM user_two_factor_codes WHERE user_id=? AND used_at_utc IS NULL AND expires_at_utc>UTC_TIMESTAMP() ORDER BY user_two_factor_code_id DESC LIMIT 1');$q->execute([$userId]);$row=$q->fetch();
+        if(!$row||!hash_equals((string)$row['code_hash'],hash('sha256',$code)))throw new RuntimeException('That code is incorrect or expired. Request a new code and try again.');
+        db()->prepare('UPDATE user_two_factor_codes SET used_at_utc=UTC_TIMESTAMP() WHERE user_two_factor_code_id=?')->execute([(int)$row['user_two_factor_code_id']]);
+        self::boot();unset($_SESSION['two_factor_pending_user_id']);
+        self::loginUserId($userId);return self::currentUser()??[];
     }
     private static function loginUserId(int $id): void
     {
@@ -80,8 +123,9 @@ final class AuthService
     }
     public static function deactivateAccount(int $userId): void
     {
-        $q=db()->prepare('SELECT is_admin,status FROM users WHERE user_id=?');$q->execute([$userId]);$u=$q->fetch();
+        $q=db()->prepare('SELECT is_admin,is_super_admin,status FROM users WHERE user_id=?');$q->execute([$userId]);$u=$q->fetch();
         if(!$u||$u['status']!=='ACTIVE')throw new RuntimeException('Your account is not active.');
+        if((int)($u['is_super_admin']??0)===1)throw new RuntimeException('Super Admin accounts cannot be deactivated.');
         if((int)$u['is_admin']===1)throw new RuntimeException('Administrator accounts cannot be deactivated here.');
         db()->prepare('UPDATE users SET status="DISABLED" WHERE user_id=? AND status="ACTIVE"')->execute([$userId]);
     }
