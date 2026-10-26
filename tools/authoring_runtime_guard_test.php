@@ -83,8 +83,13 @@ try{
     $check((int)$histAfter->fetchColumn()===$histBefore,'old simulation history unchanged after retire');
 
     // (iii) A role with no runtime characters deletes cleanly.
+    // The first test role already occupies NPC slot 1 (uq_plot_role is
+    // UNIQUE(plot_id,role_type,slot_no)), so the second role needs the next
+    // free NPC slot.
+    $slotQ=$pdo->prepare('SELECT COALESCE(MAX(slot_no),0)+1 FROM plot_roles WHERE plot_id=? AND role_type=?');$slotQ->execute([$plotId,'NPC']);$freeSlot=(int)$slotQ->fetchColumn();
     $role2=StoryAuthoringService::saveCharacter($admin,$plotId,[
         'plot_role_id'=>0,'role_code'=>'GUARDTEST2','name'=>'Guard Test 2','role_type'=>'NPC',
+        'slot_no'=>$freeSlot,
         'starting_location'=>$location,'goal_text'=>'','fear_text'=>'',
         'public_description'=>'A second test-only NPC.','private_knowledge'=>'',
         'pronoun_set'=>'IT','simulation_active'=>1,'active'=>1,
