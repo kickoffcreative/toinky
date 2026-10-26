@@ -1,11 +1,16 @@
 <?php
 require_once __DIR__.'/GenericStateService.php';
 final class SimulationService {
-    public static function create(string $plotCode='CONCEALED_FAILURE', int $duration=300,array $controllers=[]): int {
+    public static function create(string $plotCode='CONCEALED_FAILURE', int $duration=300,array $controllers=[],?int $plotVersionId=null): int {
         $pdo=db();$q=$pdo->prepare('SELECT * FROM plots WHERE code=? AND status IN ("draft","active")');$q->execute([$plotCode]);$plot=$q->fetch();if(!$plot)throw new RuntimeException('Plot not found.');
+        // Task 5 Phase 1: pin the content version. When a version is supplied it
+        // must belong to this plot; its snapshot checksum is recorded so drift
+        // (a later draft edit) can be detected. NULL = legacy/unpinned.
+        $checksum=null;
+        if($plotVersionId!==null){$vq=$pdo->prepare('SELECT snapshot_json FROM plot_versions WHERE plot_version_id=? AND plot_id=?');$vq->execute([$plotVersionId,$plot['plot_id']]);$snap=$vq->fetchColumn();if($snap===false)throw new RuntimeException('Pinned content version not found for this story.');$checksum=hash('sha256',(string)$snap);}
         $pdo->beginTransaction();
         try{
-            $pdo->prepare('INSERT INTO simulations(plot_id,duration_seconds,mode,status,current_phase) VALUES(?,?,"MANUAL","READY","SETUP")')->execute([$plot['plot_id'],$duration]);$sid=(int)$pdo->lastInsertId();
+            $pdo->prepare('INSERT INTO simulations(plot_id,plot_version_id,content_checksum,duration_seconds,mode,status,current_phase) VALUES(?,?,?,?,"MANUAL","READY","SETUP")')->execute([$plot['plot_id'],$plotVersionId,$checksum,$duration]);$sid=(int)$pdo->lastInsertId();
             $f=$pdo->prepare('SELECT * FROM plot_factors WHERE plot_id=?');$f->execute([$plot['plot_id']]);foreach($f->fetchAll()as$r)$pdo->prepare('INSERT INTO simulation_factors(simulation_id,factor_code,label,current_value,min_value,max_value) VALUES(?,?,?,?,?,?)')->execute([$sid,$r['factor_code'],$r['label'],$r['initial_value'],$r['min_value'],$r['max_value']]);
             if(class_exists('GenericStateService'))GenericStateService::initializePlotState($sid);
             $roles=$pdo->prepare('SELECT * FROM plot_roles WHERE plot_id=? AND active=1 AND simulation_active=1 ORDER BY CASE WHEN role_type="PLAYER" THEN 0 ELSE 1 END,slot_no');$roles->execute([$plot['plot_id']]);$activeRoles=$roles->fetchAll();
@@ -23,8 +28,28 @@ final class SimulationService {
         }catch(Throwable$e){if($pdo->inTransaction())$pdo->rollBack();throw$e;}
     }
     public static function start(int $sid): void {db()->prepare('UPDATE simulations SET status="RUNNING",current_phase="EXPOSITION",started_at_utc=UTC_TIMESTAMP() WHERE simulation_id=? AND status="READY"')->execute([$sid]);self::generateDueEvents($sid,0,'EXPOSITION');}
+    // Task 5 Phase 1: detect when a pinned simulation's draft has changed since
+    // creation. Compares a hash of the live workspace against the checksum
+    // recorded at creation. Throttled to once per minute per simulation and
+    // never throws into the tick. Returns drift details or null.
+    public static function checkVersionDrift(int $sid): ?array
+    {
+        $pdo=db();$sim=self::simulation($sid);
+        if(!$sim||empty($sim['plot_version_id'])||empty($sim['content_checksum']))return null;
+        if(!empty($sim['drift_checked_at_utc'])&&strtotime((string)$sim['drift_checked_at_utc'])>time()-60)return null;
+        $pdo->prepare('UPDATE simulations SET drift_checked_at_utc=UTC_TIMESTAMP() WHERE simulation_id=?')->execute([$sid]);
+        try{
+            if(!class_exists('StoryAuthoringService'))require_once __DIR__.'/StoryAuthoringService.php';
+            $plotId=(int)$sim['plot_id'];
+            $live=hash('sha256',json_encode(['plot'=>StoryAuthoringService::story($plotId),'content'=>StoryAuthoringService::audit($plotId)['workspace']],JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES));
+            if($live===(string)$sim['content_checksum'])return null;
+            error_log('Toinky version drift: simulation '.$sid.' plot '.$plotId.' pinned to version '.$sim['plot_version_id'].' but the live draft no longer matches its checksum.');
+            return ['simulation_id'=>$sid,'plot_id'=>$plotId,'plot_version_id'=>(int)$sim['plot_version_id'],'stored_checksum'=>(string)$sim['content_checksum'],'live_checksum'=>$live];
+        }catch(Throwable $e){error_log('Toinky version drift check failed for simulation '.$sid.': '.$e->getMessage());return null;}
+    }
     public static function advance(int $sid,int $seconds=30): void {
         $pdo=db();$sim=self::simulation($sid);if($sim['status']==='READY'){self::start($sid);$sim=self::simulation($sid);}if($sim['status']!=='RUNNING')return;
+        self::checkVersionDrift($sid);
         // Evaluate opportunities at the step boundary: in the state the players just acted in,
         // before this step's world events hand every character a fresh decision. Previously
         // reconcile ran only after events fired, when every character already held an OPEN
