@@ -11,27 +11,40 @@ final class CausalService
 
     public static function applyNoActionDecision(int $sid,int $decisionId): void
     {
-        $pdo=db();
-        $q=$pdo->prepare('SELECT d.decision_id,d.event_id,d.character_id,d.closes_at_second,se.event_code,pr.role_code,c.name FROM decisions d JOIN simulation_events se ON se.event_id=d.event_id JOIN characters c ON c.character_id=d.character_id JOIN plot_roles pr ON pr.plot_role_id=c.plot_role_id WHERE d.simulation_id=? AND d.decision_id=? AND d.status="NO_ACTION" LIMIT 1');
-        $q->execute([$sid,$decisionId]);$d=$q->fetch();if(!$d)return;
-        $marker='NO_ACTION_EFFECT_'.$d['decision_id'];
-        $m=GenericStateService::getByKey($sid,$marker);if($m['exists'])return;
+        $pdo=db();$ownsTransaction=!$pdo->inTransaction();if($ownsTransaction)$pdo->beginTransaction();
+        try{
+            $q=$pdo->prepare('SELECT d.decision_id,d.event_id,d.character_id,d.closes_at_second,se.event_code,pr.role_code,c.name FROM decisions d JOIN simulation_events se ON se.event_id=d.event_id JOIN characters c ON c.character_id=d.character_id JOIN plot_roles pr ON pr.plot_role_id=c.plot_role_id WHERE d.simulation_id=? AND d.decision_id=? AND d.status="NO_ACTION" LIMIT 1');
+            $q->execute([$sid,$decisionId]);$d=$q->fetch();if(!$d){if($ownsTransaction)$pdo->commit();return;}
+            $marker='NO_ACTION_EFFECT_'.$d['decision_id'];
+            // Task 2: atomic marker claim. The marker has no managed metadata
+            // (no dot, no plot_state_aliases row), so it lives in
+            // simulation_state under the UNIQUE (simulation_id, state_key) key.
+            // INSERT IGNORE claims it exactly once: the first invoker inserts
+            // (rowCount 1) and applies the effects; concurrent invokers get
+            // rowCount 0 and return without re-applying them. The claim runs
+            // inside this transaction, so a crash rolls it back and the
+            // effects can still be applied later.
+            $claim=$pdo->prepare('INSERT IGNORE INTO simulation_state(simulation_id,state_key,state_value,updated_at_second) VALUES(?,?,?,?)');
+            $claim->execute([$sid,$marker,'CLAIMED',(int)$d['closes_at_second']]);
+            if($claim->rowCount()!==1){if($ownsTransaction)$pdo->commit();return;}
 
-        $sim=$pdo->prepare('SELECT plot_id FROM simulations WHERE simulation_id=?');$sim->execute([$sid]);$plotId=(int)$sim->fetchColumn();
-        $e=$pdo->prepare('SELECT * FROM plot_no_action_effects WHERE plot_id=? AND event_code=? AND role_code=? ORDER BY sort_order,no_action_effect_id');$e->execute([$plotId,$d['event_code'],$d['role_code']]);
-        $changes=[];$second=(int)$d['closes_at_second'];
-        foreach($e->fetchAll() as $effect){
-            if(!self::noActionEffectAllowed($sid,(int)$effect['no_action_effect_id']))continue;
-            $change=self::applyEffect($sid,(int)$d['character_id'],(int)$d['event_id'],$second,$effect,'NO_ACTION',(int)$d['decision_id']);
-            if($change!=='')$changes[]=$change;
-        }
-        GenericStateService::setByKey($sid,$marker,'APPLIED',$second);
-        $changes=array_values(array_filter($changes,static fn($c)=>!preg_match('/^\s*[A-Z][A-Z0-9_]*\s*=\s*[^.!?]+\.?\s*$/u',(string)$c)));
-        if($changes){
-            $phase=self::phaseAt($sid,$second);
-            $pdo->prepare('INSERT INTO simulation_events(simulation_id,event_second,phase,event_type,actor_character_id,event_code,headline,event_text,visibility,caused_by_event_id) VALUES(?,?,?,?,?,?,?,?,"WORLD",?)')->execute([$sid,$second,$phase,'PLAYER',(int)$d['character_id'],'NO_ACTION_EFFECT_'.$d['decision_id'],$d['name'].': consequence of inaction',implode(' ',$changes),(int)$d['event_id']]);
-            $pdo->prepare('INSERT INTO character_history(simulation_id,character_id,event_id,event_second,history_type,title,detail_text) VALUES(?,?,?,?,"CONSEQUENCE",?,?)')->execute([$sid,(int)$d['character_id'],(int)$d['event_id'],$second,'Consequence Of Inaction',implode(' ',$changes)]);
-        }
+            $sim=$pdo->prepare('SELECT plot_id FROM simulations WHERE simulation_id=?');$sim->execute([$sid]);$plotId=(int)$sim->fetchColumn();
+            $e=$pdo->prepare('SELECT * FROM plot_no_action_effects WHERE plot_id=? AND event_code=? AND role_code=? ORDER BY sort_order,no_action_effect_id');$e->execute([$plotId,$d['event_code'],$d['role_code']]);
+            $changes=[];$second=(int)$d['closes_at_second'];
+            foreach($e->fetchAll() as $effect){
+                if(!self::noActionEffectAllowed($sid,(int)$effect['no_action_effect_id']))continue;
+                $change=self::applyEffect($sid,(int)$d['character_id'],(int)$d['event_id'],$second,$effect,'NO_ACTION',(int)$d['decision_id']);
+                if($change!=='')$changes[]=$change;
+            }
+            $pdo->prepare('UPDATE simulation_state SET state_value=? WHERE simulation_id=? AND state_key=?')->execute(['APPLIED',$sid,$marker]);
+            $changes=array_values(array_filter($changes,static fn($c)=>!preg_match('/^\s*[A-Z][A-Z0-9_]*\s*=\s*[^.!?]+\.?\s*$/u',(string)$c)));
+            if($changes){
+                $phase=self::phaseAt($sid,$second);
+                $pdo->prepare('INSERT INTO simulation_events(simulation_id,event_second,phase,event_type,actor_character_id,event_code,headline,event_text,visibility,caused_by_event_id) VALUES(?,?,?,?,?,?,?,?,"WORLD",?)')->execute([$sid,$second,$phase,'PLAYER',(int)$d['character_id'],'NO_ACTION_EFFECT_'.$d['decision_id'],$d['name'].': consequence of inaction',implode(' ',$changes),(int)$d['event_id']]);
+                $pdo->prepare('INSERT INTO character_history(simulation_id,character_id,event_id,event_second,history_type,title,detail_text) VALUES(?,?,?,?,"CONSEQUENCE",?,?)')->execute([$sid,(int)$d['character_id'],(int)$d['event_id'],$second,'Consequence Of Inaction',implode(' ',$changes)]);
+            }
+            if($ownsTransaction)$pdo->commit();
+        }catch(Throwable $e){if($ownsTransaction&&$pdo->inTransaction())$pdo->rollBack();throw$e;}
     }
 
     private static function applyPendingNoActionEffects(int $sid): void
