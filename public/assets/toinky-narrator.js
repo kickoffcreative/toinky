@@ -392,7 +392,11 @@
 
   function startRetelling() {
     var units = wholeStory();
-    if (units.length === 0) return;
+    if (units.length === 0) {
+      setStatus('Nothing to retell yet \u2014 the story has no entries.');
+      updateButtons();
+      return;
+    }
     stopPlayback();
     queue = units;
     isRetelling = true;
