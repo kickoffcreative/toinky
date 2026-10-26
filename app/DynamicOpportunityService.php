@@ -6,8 +6,7 @@ final class DynamicOpportunityService
     public static function evaluateFocused(int $sid,string $opportunityCode): array
     {
         $pdo=db();$opportunityCode=strtoupper(trim($opportunityCode));
-        $q=$pdo->prepare('SELECT o.*,c.character_id,c.actor_type,p.npc_action_cooldown_seconds,s.elapsed_seconds,s.current_phase,s.duration_seconds,s.status FROM plot_dynamic_opportunities o JOIN simulations s ON s.plot_id=o.plot_id JOIN plot_roles pr ON pr.plot_id=o.plot_id AND pr.role_code=o.role_code AND pr.active=1 JOIN characters c ON c.simulation_id=s.simulation_id AND c.plot_role_id=pr.plot_role_id JOIN plots p ON p.plot_id=o.plot_id WHERE s.simulation_id=? AND o.opportunity_code=? AND o.active=1 LIMIT 1');
-        $q->execute([$sid,$opportunityCode]);$rule=$q->fetch();if(!$rule)throw new RuntimeException('Focused opportunity '.$opportunityCode.' is unavailable in this simulation.');
+        $rule=self::ruleForFocused($sid,$opportunityCode);if(!$rule)throw new RuntimeException('Focused opportunity '.$opportunityCode.' is unavailable in this simulation.');
         $trace=self::focusedConditionTrace($sid,(int)$rule['dynamic_opportunity_id'],(string)$rule['role_code'],(string)$rule['current_phase']);$eligible=!array_filter($trace,static fn($condition)=>!$condition['passed']);
         if(!$eligible)return['eligible'=>false,'decision_id'=>null,'conditions'=>$trace];
         $existing=$pdo->prepare('SELECT decision_id FROM simulation_dynamic_opportunities WHERE simulation_id=? AND dynamic_opportunity_id=? AND character_id=? LIMIT 1');$existing->execute([$sid,$rule['dynamic_opportunity_id'],$rule['character_id']]);$decisionId=(int)$existing->fetchColumn();
@@ -18,8 +17,10 @@ final class DynamicOpportunityService
     public static function focusedConditionTrace(int $sid,int $ruleId,string $roleCode,string $phase): array
     {
         $q=db()->prepare('SELECT c.character_id FROM characters c JOIN plot_roles pr ON pr.plot_role_id=c.plot_role_id WHERE c.simulation_id=? AND pr.role_code=? LIMIT 1');$q->execute([$sid,$roleCode]);$cid=(int)$q->fetchColumn();if(!$cid)throw new RuntimeException('Focused opportunity character '.$roleCode.' is not active.');
-        $q=db()->prepare('SELECT * FROM plot_dynamic_opportunity_conditions WHERE dynamic_opportunity_id=? AND active=1 ORDER BY sort_order,dynamic_condition_id');$q->execute([$ruleId]);$trace=[];
-        foreach($q->fetchAll()as$condition){[$exists,$value]=self::sourceValue($sid,$cid,(string)$condition['source_type'],$condition['source_key'],$phase);$trace[]=['source_type'=>(string)$condition['source_type'],'source_key'=>$condition['source_key'],'operator'=>(string)$condition['operator'],'compare_value'=>$condition['compare_value'],'exists'=>$exists,'actual'=>$exists?$value:null,'passed'=>self::compare($exists,$value,(string)$condition['operator'],$condition['compare_value'])];}
+        $conditions=null;if(class_exists('SimulationContent'))$conditions=SimulationContent::dynamicConditions($sid,$ruleId);
+        if($conditions===null){$q=db()->prepare('SELECT * FROM plot_dynamic_opportunity_conditions WHERE dynamic_opportunity_id=? AND active=1 ORDER BY sort_order,dynamic_condition_id');$q->execute([$ruleId]);$conditions=$q->fetchAll();}
+        $trace=[];
+        foreach($conditions as$condition){[$exists,$value]=self::sourceValue($sid,$cid,(string)$condition['source_type'],$condition['source_key'],$phase);$trace[]=['source_type'=>(string)$condition['source_type'],'source_key'=>$condition['source_key'],'operator'=>(string)$condition['operator'],'compare_value'=>$condition['compare_value'],'exists'=>$exists,'actual'=>$exists?$value:null,'passed'=>self::compare($exists,$value,(string)$condition['operator'],$condition['compare_value'])];}
         return$trace;
     }
 
@@ -39,9 +40,7 @@ final class DynamicOpportunityService
         // independent decisions at the exact same simulation instant.
         for($pass=0;$pass<12;$pass++){
             $opened=false;
-            $q=$pdo->prepare('SELECT d.*,c.character_id,c.actor_type,p.npc_action_cooldown_seconds FROM plot_dynamic_opportunities d JOIN plot_roles pr ON pr.plot_id=d.plot_id AND pr.role_code=d.role_code AND pr.active=1 JOIN characters c ON c.simulation_id=? AND c.plot_role_id=pr.plot_role_id JOIN plots p ON p.plot_id=d.plot_id WHERE d.plot_id=? AND d.active=1 ORDER BY d.priority,d.dynamic_opportunity_id');
-            $q->execute([$sid,$sim['plot_id']]);
-            foreach($q->fetchAll() as $rule){
+            foreach(self::opportunityRules($sid,$sim) as $rule){
                 if((int)$sim['elapsed_seconds']>=(int)$sim['duration_seconds']-5)continue;
                 $pairKey=(int)$rule['dynamic_opportunity_id'].':'.(int)$rule['character_id'];if(isset($openedPairs[$pairKey]))continue;
                 if(!empty($rule['once_only'])){if(self::alreadyOpened($sid,(int)$rule['dynamic_opportunity_id'],(int)$rule['character_id']))continue;}
@@ -54,6 +53,34 @@ final class DynamicOpportunityService
             if(!$opened)break;
             self::syncStatuses($sid);
         }
+    }
+
+    // Task 5 Phase 2: one opportunity rule row in the live query's shape
+    // (opportunity fields + the cast character + the plot cooldown), from
+    // the snapshot when pinned. As in the live query, the character's
+    // actor_type wins over the opportunity's when the keys collide.
+    private static function ruleForFocused(int $sid,string $opportunityCode): ?array {
+        $pdo=db();
+        if(class_exists('SimulationContent')&&SimulationContent::forSimulation($sid)!==null){
+            $opp=SimulationContent::opportunity($sid,$opportunityCode);if($opp===null)return null;
+            $sim=$pdo->prepare('SELECT elapsed_seconds,current_phase,duration_seconds,status FROM simulations WHERE simulation_id=?');$sim->execute([$sid]);$s=$sim->fetch();if(!$s)return null;
+            $ch=$pdo->prepare('SELECT c.character_id,c.actor_type FROM characters c JOIN plot_roles pr ON pr.plot_role_id=c.plot_role_id WHERE c.simulation_id=? AND pr.role_code=? AND pr.active=1 LIMIT 1');$ch->execute([$sid,$opp['role_code']]);$c=$ch->fetch();if(!$c)return null;
+            return array_merge($opp,$s,$c,['npc_action_cooldown_seconds'=>SimulationContent::plotValue($sid,'npc_action_cooldown_seconds')]);
+        }
+        $q=$pdo->prepare('SELECT o.*,c.character_id,c.actor_type,p.npc_action_cooldown_seconds,s.elapsed_seconds,s.current_phase,s.duration_seconds,s.status FROM plot_dynamic_opportunities o JOIN simulations s ON s.plot_id=o.plot_id JOIN plot_roles pr ON pr.plot_id=o.plot_id AND pr.role_code=o.role_code AND pr.active=1 JOIN characters c ON c.simulation_id=s.simulation_id AND c.plot_role_id=pr.plot_role_id JOIN plots p ON p.plot_id=o.plot_id WHERE s.simulation_id=? AND o.opportunity_code=? AND o.active=1 LIMIT 1');
+        $q->execute([$sid,$opportunityCode]);$rule=$q->fetch();return$rule?:null;
+    }
+
+    private static function opportunityRules(int $sid,array $sim): array {
+        $pdo=db();
+        if(class_exists('SimulationContent')&&SimulationContent::forSimulation($sid)!==null){
+            $opps=SimulationContent::opportunities($sid)??[];
+            $chars=$pdo->prepare('SELECT pr.role_code,c.character_id,c.actor_type FROM characters c JOIN plot_roles pr ON pr.plot_role_id=c.plot_role_id WHERE c.simulation_id=? AND pr.active=1');$chars->execute([$sid]);$byRole=[];foreach($chars->fetchAll()as$c)$byRole[(string)$c['role_code']]=$c;
+            $cooldown=SimulationContent::plotValue($sid,'npc_action_cooldown_seconds');
+            $rows=[];foreach($opps as$o){$role=(string)$o['role_code'];if(!isset($byRole[$role]))continue;$rows[]=array_merge($o,$byRole[$role],['npc_action_cooldown_seconds'=>$cooldown]);}return$rows;
+        }
+        $q=$pdo->prepare('SELECT d.*,c.character_id,c.actor_type,p.npc_action_cooldown_seconds FROM plot_dynamic_opportunities d JOIN plot_roles pr ON pr.plot_id=d.plot_id AND pr.role_code=d.role_code AND pr.active=1 JOIN characters c ON c.simulation_id=? AND c.plot_role_id=pr.plot_role_id JOIN plots p ON p.plot_id=d.plot_id WHERE d.plot_id=? AND d.active=1 ORDER BY d.priority,d.dynamic_opportunity_id');
+        $q->execute([$sid,$sim['plot_id']]);return$q->fetchAll();
     }
 
     private static function syncStatuses(int $sid): void
@@ -98,8 +125,9 @@ final class DynamicOpportunityService
             if(!$meta || ($filter!=='' && strtoupper((string)$meta['role_code'])!==$filter))$trace=false;
             else $traceLabel='t='.(int)$meta['elapsed_seconds'].' '.$meta['role_code'].'/'.$meta['opportunity_code'];
         }
-        $q=$pdo->prepare('SELECT * FROM plot_dynamic_opportunity_conditions WHERE dynamic_opportunity_id=? AND active=1 ORDER BY sort_order,dynamic_condition_id');$q->execute([$ruleId]);
-        foreach($q->fetchAll() as $condition){
+        $conditions=null;if(class_exists('SimulationContent'))$conditions=SimulationContent::dynamicConditions($sid,$ruleId);
+        if($conditions===null){$q=$pdo->prepare('SELECT * FROM plot_dynamic_opportunity_conditions WHERE dynamic_opportunity_id=? AND active=1 ORDER BY sort_order,dynamic_condition_id');$q->execute([$ruleId]);$conditions=$q->fetchAll();}
+        foreach($conditions as $condition){
             [$exists,$value]=self::sourceValue($sid,$cid,(string)$condition['source_type'],$condition['source_key'],$phase);
             $pass=self::compare($exists,$value,(string)$condition['operator'],$condition['compare_value']);
             if($trace){
@@ -159,7 +187,13 @@ final class DynamicOpportunityService
 
     private static function openOpportunity(int $sid,array $rule,array $sim): void
     {
-        $pdo=db();self::ensureBehaviorTemplate($rule);
+        $pdo=db();
+        // Task 5 Phase 2: a pinned simulation must not mirror its snapshot
+        // into the shared live template tables — that would overwrite the
+        // draft's mirror for every other simulation of the story.
+        // BehaviorService::onWorldEvent opens the decision from the pinned
+        // opportunity instead.
+        if(!class_exists('SimulationContent')||SimulationContent::forSimulation($sid)===null)self::ensureBehaviorTemplate($rule);
         $second=(int)$sim['elapsed_seconds'];$code=(string)$rule['opportunity_code'];
         $eventId=0;if(!empty($rule['once_only'])||!self::alreadyOpened($sid,(int)$rule['dynamic_opportunity_id'],(int)$rule['character_id'])){$q=$pdo->prepare('SELECT event_id FROM simulation_events WHERE simulation_id=? AND event_code=? LIMIT 1');$q->execute([$sid,$code]);$eventId=(int)$q->fetchColumn();}
         if(!$eventId){
