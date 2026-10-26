@@ -7,6 +7,13 @@
  *
  * Settings are per player (localStorage, per browser): enable/disable,
  * voice, auto-play, wait-for-player, rate, volume.
+ *
+ * Scope: the narrator reads ONLY the current story beat (the Now card)
+ * and, when the story ends, the epilogue. It deliberately does NOT read
+ * the whole timeline history — narrating dozens of past entries back to
+ * back blocks the page (neural synthesis runs on the main thread) and
+ * makes the choice buttons unresponsive. Only the latest beat is ever
+ * queued; older unplayed beats are dropped.
  */
 (function () {
   'use strict';
@@ -78,8 +85,9 @@
   var currentUtterance = null; // active SpeechSynthesisUtterance
   var speaking = false;
   var waitingForPlayer = false;
-  var queue = [];            // [{key, text}]
-  var spokenKeys = {};       // fingerprint -> true (already spoken/queued)
+  var pending = null;        // at most ONE queued beat (the latest)
+  var lastBeatKey = '';      // fingerprint of the beat already spoken/queued
+  var lastEpilogueKey = '';
   var pollTimer = null;
   var els = {};
 
@@ -94,7 +102,7 @@
 
   function updateButtons() {
     if (els.readNow) els.readNow.disabled = !settings.enabled || speaking;
-    if (els.stopBtn) els.stopBtn.disabled = !speaking && queue.length === 0 && !waitingForPlayer;
+    if (els.stopBtn) els.stopBtn.disabled = !speaking && !pending && !waitingForPlayer;
     if (els.continueBtn) els.continueBtn.hidden = !waitingForPlayer;
   }
 
@@ -178,7 +186,6 @@
       var u = new SpeechSynthesisUtterance(text);
       u.rate = settings.rate;
       u.volume = settings.volume;
-      // Prefer an English voice when one is available.
       var voices = window.speechSynthesis.getVoices() || [];
       var en = null;
       for (var i = 0; i < voices.length; i++) {
@@ -196,8 +203,6 @@
   function speak(text) {
     if (settings.voice === 'system' || engineFailed) return speakSystem(text);
     return speakKokoro(text).catch(function () {
-      // Kokoro failed (load or generate) — fall back to the system voice
-      // for this utterance rather than dropping the narration entirely.
       engineFailed = true;
       setStatus('Narrator voice unavailable — using your system voice.');
       return speakSystem(text);
@@ -216,75 +221,69 @@
     speaking = false;
   }
 
-  /* ---------- text collection ---------- */
+  /* ---------- current beat ---------- */
 
-  // Collect the narratable story text currently on the page, oldest first.
-  // Each unit gets a stable fingerprint so it is only narrated once.
-  function collectUnits() {
+  // Read ONLY the current beat: the Now card (headline + event text +
+  // decision prompt) or, when the story is complete, the epilogue.
+  // Returns {key, text} or null when there is nothing new to read.
+  function currentBeat() {
     var live = document.querySelector('#game-live');
-    if (!live) return [];
-    var units = [];
-    function add(text, prefix) {
-      text = cleanText(text);
-      if (!text) return;
-      var full = prefix ? (prefix + ' ' + text) : text;
-      units.push({ key: hash(full), text: full });
-    }
-    // Current beat: the Now card (headline + event text + decision prompt).
+    if (!live) return null;
     var now = live.querySelector('.now-card');
     if (now) {
       var ev = now.querySelector('.now-event');
-      if (ev) add(ev.textContent, '');
+      var text = ev ? cleanText(ev.textContent) : '';
       var dec = now.querySelector('.now-decision');
       if (dec) {
         var prompt = dec.querySelector('p');
-        if (prompt) add(prompt.textContent, 'Decision.');
+        if (prompt) {
+          var ptext = cleanText(prompt.textContent);
+          if (ptext) text = text ? (text + ' Decision. ' + ptext) : ('Decision. ' + ptext);
+        }
       }
+      if (!text) return null;
+      return { key: hash('beat:' + text), text: text };
     }
-    // Story so far: timeline entries, oldest first (page order).
-    var entries = live.querySelectorAll('.timeline-entry');
-    entries.forEach(function (entry) {
-      add(entry.textContent, '');
-    });
-    // Ending: fragments + epilogue, when the story is complete.
-    var frags = live.querySelectorAll('.ending-fragment');
-    frags.forEach(function (frag) {
-      var label = frag.querySelector('h3');
-      var body = frag.querySelector('p');
-      if (body) add(body.textContent, label ? (cleanText(label.textContent) + '.') : '');
-    });
+    // Story complete: read the epilogue once.
     var outcome = live.querySelector('.outcome');
     if (outcome) {
       var epi = outcome.querySelector('p');
-      if (epi) add(epi.textContent, '');
+      var etext = epi ? cleanText(epi.textContent) : '';
+      if (!etext) return null;
+      return { key: hash('epilogue:' + etext), text: etext, epilogue: true };
     }
-    return units;
+    return null;
   }
 
   function enqueueNew() {
     if (!settings.enabled || !settings.autoplay) return;
-    var units = collectUnits();
-    var added = false;
-    units.forEach(function (u) {
-      if (!spokenKeys[u.key]) {
-        spokenKeys[u.key] = true;
-        queue.push(u);
-        added = true;
-      }
-    });
-    if (added) pump();
+    var beat = currentBeat();
+    if (!beat) return;
+    // Only the latest beat is ever queued. If a newer beat arrived while
+    // one was waiting, the older one is dropped — the narrator never falls
+    // behind the story, and the page never queues up synthesis work.
+    if (beat.epilogue) {
+      if (beat.key === lastEpilogueKey) return;
+      lastEpilogueKey = beat.key;
+    } else {
+      if (beat.key === lastBeatKey) return;
+      lastBeatKey = beat.key;
+    }
+    pending = beat;
+    pump();
   }
 
   function pump() {
     if (speaking || waitingForPlayer) return;
     if (!settings.enabled) return;
-    var next = queue.shift();
+    var next = pending;
+    pending = null;
     if (!next) { updateButtons(); return; }
     speaking = true;
     updateButtons();
     speak(next.text).then(function () {
       speaking = false;
-      if (settings.waitForPlayer && queue.length > 0) {
+      if (settings.waitForPlayer && pending) {
         waitingForPlayer = true;
         setStatus('Paused — tap Continue when you\u2019re ready.');
         updateButtons();
@@ -302,29 +301,20 @@
 
   function readNow() {
     if (!settings.enabled) return;
-    var live = document.querySelector('#game-live');
-    if (!live) return;
-    var now = live.querySelector('.now-card');
-    var text = '';
-    if (now) {
-      var ev = now.querySelector('.now-event');
-      if (ev) text = cleanText(ev.textContent);
-    }
-    if (!text) {
-      var first = live.querySelector('.timeline-entry');
-      if (first) text = cleanText(first.textContent);
-    }
-    if (!text) return;
-    // Read the current beat immediately, ahead of the queue.
-    var key = hash('now:' + text);
-    if (!spokenKeys[key]) spokenKeys[key] = true;
-    queue.unshift({ key: key, text: text });
+    var beat = currentBeat();
+    if (!beat) return;
+    // Read the current beat immediately, replacing anything pending.
+    stopPlayback();
+    waitingForPlayer = false;
+    lastBeatKey = beat.key;
+    if (beat.epilogue) lastEpilogueKey = beat.key;
+    pending = beat;
     pump();
   }
 
   function stopAll() {
     stopPlayback();
-    queue = [];
+    pending = null;
     waitingForPlayer = false;
     setStatus(settings.enabled ? 'Ready.' : 'Narration off.');
     updateButtons();
@@ -419,7 +409,13 @@
       saveSettings(settings);
       // Switching to a Kokoro voice after a failed load retries the engine.
       if (settings.voice !== 'system') engineFailed = false;
+      // Stop whatever is playing in the old voice so the change is heard
+      // immediately instead of after a queued backlog.
+      stopPlayback();
+      pending = null;
+      waitingForPlayer = false;
       applySettingsToUI();
+      if (settings.enabled) enqueueNew();
     });
     if (els.autoplay) els.autoplay.addEventListener('change', function () {
       settings.autoplay = !!els.autoplay.checked;
@@ -454,8 +450,6 @@
 
     applySettingsToUI();
     if (settings.enabled && settings.autoplay) {
-      // Resume narration for returning players (the toggle is the gesture
-      // only on first enable; auto-play resumes on the next poll).
       enqueueNew();
     }
     pollTimer = setInterval(enqueueNew, POLL_MS);
