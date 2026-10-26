@@ -16,8 +16,13 @@ $src=file_exists($wrapper)?file_get_contents($wrapper):'';
 $check(str_contains($src,"require __DIR__.'/public/inky-draft-dependencies.php'"),'root wrapper requires the public/ endpoint');
 $check(str_contains($src,"require __DIR__.'/app/runtime_check.php'"),'root wrapper requires runtime_check.php first');
 $check(file_exists($root.'/public/inky-draft-dependencies.php'),'public/inky-draft-dependencies.php exists');
-$cpanel=file_get_contents($root.'/.cpanel.yml');
-$check(substr_count($cpanel,'inky-draft-dependencies.php')>=2,'.cpanel.yml names inky-draft-dependencies.php in both the copy list and the chmod list');
+// .cpanel.yml is not copied to the deployed directory, so on the live server
+// this file is absent — skip the check there (CI runs it from the checkout,
+// where the file exists). An unguarded read dies under strict_types.
+if(is_file($root.'/.cpanel.yml')){
+    $cpanel=file_get_contents($root.'/.cpanel.yml');
+    $check(substr_count($cpanel,'inky-draft-dependencies.php')>=2,'.cpanel.yml names inky-draft-dependencies.php in both the copy list and the chmod list');
+}else{echo "SKIP .cpanel.yml names inky-draft-dependencies.php (not present on this server)\n";}
 $js=file_get_contents($root.'/public/assets/toinky-inky-draft.js');
 $check(str_contains($js,"fetch('inky-draft-dependencies.php'"),'JS still fetches the relative endpoint (root wrapper is the fix, not a JS change)');
 
