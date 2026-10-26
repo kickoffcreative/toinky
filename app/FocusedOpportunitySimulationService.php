@@ -14,8 +14,15 @@ final class FocusedOpportunitySimulationService
         $q->execute([$plotId]);return$q->fetchAll();
     }
 
-    public static function activeOptions(int $plotId,string $opportunityCode): array
+    public static function activeOptions(int $plotId,string $opportunityCode,?int $plotVersionId=null): array
     {
+        // Task 5 Phase 2: a pinned batch resolves its target choices from the
+        // version snapshot; a missing opportunity in the snapshot is an empty
+        // list (fail fast) rather than a live read.
+        if($plotVersionId!==null&&class_exists('SimulationContent')){
+            $snap=SimulationContent::forVersion($plotVersionId);
+            if($snap!==null){$opp=SimulationContent::opportunityByVersion($plotVersionId,$opportunityCode);if($opp===null)return[];$opts=SimulationContent::dynamicOptionsByVersion($plotVersionId,(int)$opp['dynamic_opportunity_id'])??[];return array_map(static fn($x)=>['option_code'=>$x['option_code'],'label'=>$x['label'],'sort_order'=>$x['sort_order']],$opts);}
+        }
         $q=db()->prepare('SELECT x.option_code,x.label,x.sort_order FROM plot_dynamic_opportunity_options x JOIN plot_dynamic_opportunities o ON o.dynamic_opportunity_id=x.dynamic_opportunity_id WHERE o.plot_id=? AND o.opportunity_code=? AND o.active=1 AND x.active=1 ORDER BY x.sort_order,x.dynamic_option_id');
         $q->execute([$plotId,strtoupper(trim($opportunityCode))]);return$q->fetchAll();
     }
@@ -23,9 +30,16 @@ final class FocusedOpportunitySimulationService
     public static function run(string $plotCode,string $opportunityCode,string $optionCode,int $duration=300,int $step=30,?int $plotVersionId=null): array
     {
         $pdo=db();$opportunityCode=strtoupper(trim($opportunityCode));$optionCode=strtoupper(trim($optionCode));
-        $q=$pdo->prepare('SELECT o.*,p.code plot_code FROM plot_dynamic_opportunities o JOIN plots p ON p.plot_id=o.plot_id WHERE p.code=? AND o.opportunity_code=? AND o.active=1');$q->execute([$plotCode,$opportunityCode]);$opportunity=$q->fetch();
+        // Task 5 Phase 2: a pinned focused run resolves its opportunity from
+        // the version snapshot. When the snapshot exists there is no live
+        // fallback: an opportunity added after the version was submitted is
+        // not part of that version's content.
+        $opportunity=null;$versionSnap=null;
+        if($plotVersionId!==null&&class_exists('SimulationContent'))$versionSnap=SimulationContent::forVersion($plotVersionId);
+        if($versionSnap!==null)$opportunity=SimulationContent::opportunityByVersion($plotVersionId,$opportunityCode);
+        else{$q=$pdo->prepare('SELECT o.*,p.code plot_code FROM plot_dynamic_opportunities o JOIN plots p ON p.plot_id=o.plot_id WHERE p.code=? AND o.opportunity_code=? AND o.active=1');$q->execute([$plotCode,$opportunityCode]);$opportunity=$q->fetch();}
         if(!$opportunity)throw new RuntimeException('Focused opportunity '.$opportunityCode.' is not active in '.$plotCode.'.');
-        $options=self::activeOptions((int)$opportunity['plot_id'],$opportunityCode);if(!$options)throw new RuntimeException('Focused opportunity '.$opportunityCode.' has no active choices.');
+        $options=self::activeOptions((int)$opportunity['plot_id'],$opportunityCode,$plotVersionId);if(!$options)throw new RuntimeException('Focused opportunity '.$opportunityCode.' has no active choices.');
         if(!in_array($optionCode,array_column($options,'option_code'),true))throw new RuntimeException('Focused choice '.$optionCode.' is not active under '.$opportunityCode.'.');
 
         putenv('GAME2_SIM_NPC_REASONER=manual');putenv('GAME2_SIM_PLAYER_REASONER=manual');
@@ -57,7 +71,9 @@ final class FocusedOpportunitySimulationService
 
     private static function seedConditions(int $sid,array $opportunity,array &$setup): string
     {
-        $q=db()->prepare('SELECT * FROM plot_dynamic_opportunity_conditions WHERE dynamic_opportunity_id=? AND active=1 ORDER BY sort_order,dynamic_condition_id');$q->execute([$opportunity['dynamic_opportunity_id']]);$conditions=$q->fetchAll();$groups=[];
+        $conditions=null;if(class_exists('SimulationContent'))$conditions=SimulationContent::dynamicConditions($sid,(int)$opportunity['dynamic_opportunity_id']);
+        if($conditions===null){$q=db()->prepare('SELECT * FROM plot_dynamic_opportunity_conditions WHERE dynamic_opportunity_id=? AND active=1 ORDER BY sort_order,dynamic_condition_id');$q->execute([$opportunity['dynamic_opportunity_id']]);$conditions=$q->fetchAll();}
+        $groups=[];
         foreach($conditions as$c){$type=(string)$c['source_type'];$key=(string)($c['source_key']??'');$groups[$type.'|'.$key][]=$c;}
         $phase='RISING_ACTION';
         foreach($groups as$group){$type=(string)$group[0]['source_type'];$key=(string)($group[0]['source_key']??'');if($type==='PHASE'){$phase=(string)self::chooseCandidate($sid,$opportunity,$group,self::PHASES);$setup[]=['source_type'=>'PHASE','source_key'=>null,'value'=>$phase,'method'=>'seeded checkpoint'];continue;}if(in_array($type,['ACTION_COUNT','PLAYER_ACTION_COUNT','OPTION_CHOICE_COUNT'],true))continue;
@@ -68,7 +84,10 @@ final class FocusedOpportunitySimulationService
 
     private static function seedDeferredCounts(int $sid,array $opportunity,array &$setup,string $phase,int $second): void
     {
-        $q=db()->prepare('SELECT * FROM plot_dynamic_opportunity_conditions WHERE dynamic_opportunity_id=? AND active=1 AND source_type IN ("OPTION_CHOICE_COUNT","ACTION_COUNT","PLAYER_ACTION_COUNT") ORDER BY FIELD(source_type,"OPTION_CHOICE_COUNT","ACTION_COUNT","PLAYER_ACTION_COUNT"),sort_order,dynamic_condition_id');$q->execute([$opportunity['dynamic_opportunity_id']]);$groups=[];foreach($q->fetchAll()as$c)$groups[$c['source_type'].'|'.(string)($c['source_key']??'')][]=$c;
+        $conditions=null;if(class_exists('SimulationContent'))$conditions=SimulationContent::dynamicConditions($sid,(int)$opportunity['dynamic_opportunity_id']);
+        if($conditions!==null){$order=['OPTION_CHOICE_COUNT'=>0,'ACTION_COUNT'=>1,'PLAYER_ACTION_COUNT'=>2];$conditions=array_values(array_filter($conditions,static fn($c)=>isset($order[(string)$c['source_type']])));usort($conditions,static function($a,$b)use($order){return($order[(string)$a['source_type']]<=>$order[(string)$b['source_type']])?:((int)$a['sort_order']<=>(int)$b['sort_order'])?:((int)$a['dynamic_condition_id']<=>(int)$b['dynamic_condition_id']);});}
+        else{$q=db()->prepare('SELECT * FROM plot_dynamic_opportunity_conditions WHERE dynamic_opportunity_id=? AND active=1 AND source_type IN ("OPTION_CHOICE_COUNT","ACTION_COUNT","PLAYER_ACTION_COUNT") ORDER BY FIELD(source_type,"OPTION_CHOICE_COUNT","ACTION_COUNT","PLAYER_ACTION_COUNT"),sort_order,dynamic_condition_id');$q->execute([$opportunity['dynamic_opportunity_id']]);$conditions=$q->fetchAll();}
+        $groups=[];foreach($conditions as$c)$groups[$c['source_type'].'|'.(string)($c['source_key']??'')][]=$c;
         foreach($groups as$group){$type=(string)$group[0]['source_type'];$key=(string)($group[0]['source_key']??'');$value=(int)self::chooseCandidate($sid,$opportunity,$group,self::numericCandidates($group,0,100));self::applyCountSeed($sid,$opportunity,$type,$key,$value,$phase,$second);$setup[]=['source_type'=>$type,'source_key'=>$key?:null,'value'=>(string)$value,'method'=>'seeded history'];}
         $trace=DynamicOpportunityService::focusedConditionTrace($sid,(int)$opportunity['dynamic_opportunity_id'],(string)$opportunity['role_code'],$phase);$failed=array_values(array_filter($trace,static fn($row)=>!$row['passed']));if($failed){$labels=array_map(static fn($row)=>$row['source_type'].($row['source_key']!==null?':'.$row['source_key']:'').' '.$row['operator'].' '.$row['compare_value'].' (actual '.($row['exists']?$row['actual']:'missing').')',$failed);throw new RuntimeException('Focused setup cannot satisfy: '.implode('; ',$labels));}
     }
@@ -76,7 +95,13 @@ final class FocusedOpportunitySimulationService
     private static function candidates(int $sid,array $opportunity,string $type,string $key,array $conditions): array
     {
         $values=[];foreach($conditions as$c){$compare=(string)($c['compare_value']??'');if(in_array($c['operator'],['EQ','NEQ'],true)&&$compare!=='')$values[]=$compare;foreach(array_filter(array_map('trim',explode(',',$compare)),static fn($v)=>$v!=='')as$v)$values[]=$v;if(is_numeric($compare)){for($n=(int)$compare-1;$n<=(int)$compare+1;$n++)$values[]=(string)$n;}}
-        $q=db()->prepare('SELECT value_type,allowed_values_text,default_numeric_value FROM plot_state_definitions WHERE plot_id=? AND effect_scope=? AND target_code=? LIMIT 1');$q->execute([$opportunity['plot_id'],$type,$key]);$definition=$q->fetch();if($definition){foreach(preg_split('/\r?\n/',trim((string)$definition['allowed_values_text']))?:[]as$v)if(trim($v)!=='')$values[]=trim($v);if($definition['default_numeric_value']!==null)$values[]=(string)$definition['default_numeric_value'];}
+        // Task 5 Phase 2: the state definition comes from the snapshot
+        // when pinned. plot_factors min/max/initial (the FACTOR branch below)
+        // stay live: factors are not in the workspace snapshot.
+        $pinned=class_exists('SimulationContent')?SimulationContent::forSimulation($sid):null;
+        $definition=$pinned!==null?SimulationContent::stateDefinition($sid,$type,$key):null;
+        if($definition===null&&$pinned===null){$q=db()->prepare('SELECT value_type,allowed_values_text,default_numeric_value FROM plot_state_definitions WHERE plot_id=? AND effect_scope=? AND target_code=? LIMIT 1');$q->execute([$opportunity['plot_id'],$type,$key]);$definition=$q->fetch();}
+        if($definition){foreach(preg_split('/\r?\n/',trim((string)$definition['allowed_values_text']))?:[]as$v)if(trim($v)!=='')$values[]=trim($v);if($definition['default_numeric_value']!==null)$values[]=(string)$definition['default_numeric_value'];}
         $min=null;$max=null;if($type==='FACTOR'){$q=db()->prepare('SELECT initial_value,min_value,max_value FROM plot_factors WHERE plot_id=? AND factor_code=?');$q->execute([$opportunity['plot_id'],$key]);if($r=$q->fetch()){$min=(int)$r['min_value'];$max=(int)$r['max_value'];$values=array_merge($values,[(string)$r['initial_value'],(string)$min,(string)$max]);}}elseif(in_array($type,['STAT','RELATIONSHIP'],true)){$min=0;$max=100;$values=array_merge($values,['0','50','100']);}
         $current=self::currentValue($sid,$opportunity,$type,$key);if($current!==null)$values[]=$current;if(($definition['value_type']??null)==='TEXT')$values[]='FOCUS_TEST_VALUE';if(in_array($type,['WORLD_STATE','FACTOR','STAT','KNOWLEDGE','RELATIONSHIP'],true))$values[]=null;
         $values=array_values(array_unique($values,SORT_REGULAR));if($min!==null)$values=array_values(array_filter($values,static fn($value)=>$value===null||(is_numeric($value)&&(float)$value>=$min&&(float)$value<=$max)));return$values;
@@ -130,7 +155,9 @@ final class FocusedOpportunitySimulationService
 
     private static function seedPastWorldEvents(int $sid,int $plotId,int $checkpointSecond,int $duration,array &$setup): void
     {
-        $q=db()->prepare('SELECT trigger_percent,phase,event_code FROM plot_world_events WHERE plot_id=? AND active=1 ORDER BY trigger_percent,sort_order,plot_world_event_id');$q->execute([$plotId]);$events=[];foreach($q->fetchAll() as $row){$row['event_second']=(int)round((float)($row['trigger_percent']??0)*max(1,$duration)/100);if($row['event_second']<=$checkpointSecond)$events[]=$row;}
+        $rows=null;if(class_exists('SimulationContent'))$rows=SimulationContent::worldEvents($sid);
+        if($rows===null){$q=db()->prepare('SELECT trigger_percent,phase,event_code FROM plot_world_events WHERE plot_id=? AND active=1 ORDER BY trigger_percent,sort_order,plot_world_event_id');$q->execute([$plotId]);$rows=$q->fetchAll();}
+        $events=[];foreach($rows as $row){$row['event_second']=(int)round((float)($row['trigger_percent']??0)*max(1,$duration)/100);if($row['event_second']<=$checkpointSecond)$events[]=$row;}
         $insert=db()->prepare('INSERT IGNORE INTO simulation_events(simulation_id,event_second,phase,event_type,event_code,headline,event_text,visibility) VALUES(?,?,?,"SYSTEM",?,"Focused Test Prehistory","This authored event is treated as already elapsed at the seeded checkpoint.","DIRECTOR")');
         foreach($events as$event)$insert->execute([$sid,$event['event_second'],$event['phase'],$event['event_code']]);
         if($events)$setup[]=['source_type'=>'PREHISTORY','source_key'=>null,'value'=>(string)count($events).' authored world event(s) already elapsed','method'=>'seeded checkpoint'];
