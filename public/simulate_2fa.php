@@ -35,7 +35,7 @@ $u=AuthService::currentUser()??$user;
 <?php if($error): ?><p style="background:#fdecea;padding:12px;border-radius:6px;"><?=e($error)?></p><?php endif; ?>
 <p>This sets your last sign-in back 15 days, so your next sign-in triggers the two-factor code email. Your real sign-in is not affected until you sign out and sign in again. A successful sign-in (with the code) records a fresh sign-in time, so the gap clears itself.</p>
 <form method="post">
-<?=csrf_field()?>
+<input type="hidden" name="csrf_token" value="<?=e(AuthService::csrfToken())?>">
 <input type="hidden" name="action" value="simulate">
 <button type="submit" style="padding:10px 18px;font-size:16px;cursor:pointer;">Set my last sign-in to 15 days ago</button>
 </form>
