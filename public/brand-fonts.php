@@ -1,6 +1,6 @@
 <?php
 declare(strict_types=1);
-$root=dirname(__DIR__);require_once $root.'/app/bootstrap.php';require_once $root.'/app/MigrationService.php';MigrationService::run();
+$root=dirname(__DIR__);require_once $root.'/app/bootstrap.php';
 header('Content-Type: text/css; charset=utf-8');header('Cache-Control: public, max-age=60, must-revalidate');
 $defaults=[
  'public_hero_title'=>['Cormorant Garamond, Georgia, serif','#F4EEE2','#F4EEE2','clamp(3.2rem,7vw,6rem)','600','0.95','-0.02em','none','none'],
