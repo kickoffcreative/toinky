@@ -89,20 +89,6 @@ final class ParallaxService
         return['media_id'=>$mediaId,'path'=>$media['file_path'],'mime'=>$media['mime_type'],'width'=>(int)$media['width_px'],'height'=>(int)$media['height_px'],'size'=>(int)$media['file_size_bytes']];
     }
 
-    private static function storeOptimized(string $source,string $target,string $mime,int $width,int $height): array
-    {
-        $scale=min(1,self::MAX_WIDTH/$width,self::MAX_HEIGHT/$height);$newWidth=max(1,(int)round($width*$scale));$newHeight=max(1,(int)round($height*$scale));
-        if(!function_exists('imagecreatetruecolor')){
-            if($scale<1)throw new RuntimeException('This server needs PHP GD to resize images above 1920×1080.');
-            if(!move_uploaded_file($source,$target)&&!rename($source,$target))throw new RuntimeException('The image could not be saved.');return[$width,$height];
-        }
-        $load=$mime==='image/png'?'imagecreatefrompng':'imagecreatefromjpeg';$src=@$load($source);if(!$src)throw new RuntimeException('The image could not be decoded.');$dst=imagecreatetruecolor($newWidth,$newHeight);
-        if($mime==='image/png'){imagealphablending($dst,false);imagesavealpha($dst,true);$transparent=imagecolorallocatealpha($dst,0,0,0,127);imagefilledrectangle($dst,0,0,$newWidth,$newHeight,$transparent);}
-        imagecopyresampled($dst,$src,0,0,0,0,$newWidth,$newHeight,$width,$height);
-        $ok=$mime==='image/png'?imagepng($dst,$target,7):imagejpeg($dst,$target,86);imagedestroy($src);imagedestroy($dst);
-        if(!$ok)throw new RuntimeException('The optimized image could not be saved.');return[$newWidth,$newHeight];
-    }
-
     private static function deleteUploadedFile(string $path): void
     {
         if(str_starts_with($path,'public/uploads/parallax/')){$name=basename($path);$target=dirname(__DIR__).'/public/uploads/parallax/'.$name;if(is_file($target))@unlink($target);return;}
