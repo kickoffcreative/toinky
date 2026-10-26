@@ -72,31 +72,31 @@ final class CausalService
         return implode(' ',array_values(array_unique($out)));
     }
 
-    private static function resolveEffectTargets(int $sid,int $cid,array $e): array
-    {
+    // Resolve who an effect applies to. target_role_code: ''/SELF = the
+    // deciding character; 'GROUP' = every character in the simulation;
+    // otherwise a comma-separated list of role codes (a single role code
+    // targets just that character). 'SELF' inside a list adds the decider
+    // alongside the listed roles. Falls back to the decider.
+    private static function resolveEffectTargets(int $sid,int $cid,array $e): array {
         $raw=trim((string)($e['target_role_code']??''));
         if($raw===''||strcasecmp($raw,'SELF')===0)return [$cid];
-        if(strcasecmp($raw,'GROUP')===0){
+        $parts=array_map(static fn($p)=>strtoupper(trim($p)),explode(',',$raw));
+        if(in_array('GROUP',$parts,true)){
             $q=db()->prepare('SELECT character_id FROM characters WHERE simulation_id=? ORDER BY character_id');
             $q->execute([$sid]);
             $ids=array_map('intval',$q->fetchAll(PDO::FETCH_COLUMN));
             return $ids?:[$cid];
         }
-        $codes=[];
-        foreach(explode(',',$raw) as $part){
-            $code=strtoupper(trim($part));
-            if($code!==''&&$code!=='SELF')$codes[]=$code;
-        }
-        $codes=array_values(array_unique($codes));
-        if(!$codes)return [$cid];
         $ids=[];
+        if(in_array('SELF',$parts,true))$ids[]=$cid;
+        $codes=array_values(array_unique(array_filter($parts,static fn($c)=>$c!==''&&$c!=='SELF')));
         foreach($codes as $code){
             $q=db()->prepare('SELECT c.character_id FROM characters c JOIN plot_roles pr ON pr.plot_role_id=c.plot_role_id WHERE c.simulation_id=? AND pr.role_code=?');
             $q->execute([$sid,$code]);
             $id=$q->fetchColumn();
             if($id!==false)$ids[]=(int)$id;
         }
-        return $ids?:[$cid];
+        return array_values(array_unique($ids))?:[$cid];
     }
 
     private static function applyEffectToCharacter(int $sid,int $cid,int $eventId,int $second,array $e,string $sourceType='CAUSAL',?int $sourceId=null): string
