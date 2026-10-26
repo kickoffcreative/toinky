@@ -20,7 +20,7 @@ final class FocusedOpportunitySimulationService
         $q->execute([$plotId,strtoupper(trim($opportunityCode))]);return$q->fetchAll();
     }
 
-    public static function run(string $plotCode,string $opportunityCode,string $optionCode,int $duration=300,int $step=30): array
+    public static function run(string $plotCode,string $opportunityCode,string $optionCode,int $duration=300,int $step=30,?int $plotVersionId=null): array
     {
         $pdo=db();$opportunityCode=strtoupper(trim($opportunityCode));$optionCode=strtoupper(trim($optionCode));
         $q=$pdo->prepare('SELECT o.*,p.code plot_code FROM plot_dynamic_opportunities o JOIN plots p ON p.plot_id=o.plot_id WHERE p.code=? AND o.opportunity_code=? AND o.active=1');$q->execute([$plotCode,$opportunityCode]);$opportunity=$q->fetch();
@@ -30,7 +30,7 @@ final class FocusedOpportunitySimulationService
 
         putenv('GAME2_SIM_NPC_REASONER=manual');putenv('GAME2_SIM_PLAYER_REASONER=manual');
         $controllers=[];$roles=$pdo->prepare('SELECT role_code FROM plot_roles WHERE plot_id=? AND active=1 AND simulation_active=1');$roles->execute([$opportunity['plot_id']]);foreach($roles->fetchAll()as$role)$controllers[(string)$role['role_code']]='HUMAN';
-        $sid=SimulationService::create($plotCode,$duration,$controllers);$setup=[];$focus=[];$focusError=null;$choiceApplied=false;$decisionDelivered=false;$available=[];$trace=[];
+        $sid=SimulationService::create($plotCode,$duration,$controllers,$plotVersionId);$setup=[];$focus=[];$focusError=null;$choiceApplied=false;$decisionDelivered=false;$available=[];$trace=[];
         try{
             $phase=self::seedConditions($sid,$opportunity,$setup);
             $second=self::phaseSecond($phase,$duration);
