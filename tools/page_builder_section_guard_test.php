@@ -21,7 +21,7 @@ $pcs=file_get_contents($root.'/app/PageContentService.php');
 
 // --- Task 8 (static) ------------------------------------------------------
 $check(strpos($pb,"\$__hasRows=!empty(\$section['rows_json']);")!==false,'Task 8: page-builder defines $__hasRows from rows_json');
-$check(strpos($pb,'Shown from the row tree')!==false,'Task 8: Section Settings explains the disabled controls');
+$check(strpos($pb,'shown from the row tree')!==false,'Task 8: Section Settings explains the disabled controls');
 $check(strpos($pb,"<?=\$__hasRows?'disabled':''?>")!==false,'Task 8: dead controls carry a disabled attribute when rows exist');
 $check(strpos($pb,'<input type="hidden" name="layout_type"')!==false,'Task 8: layout is kept as a hidden input when disabled');
 $check(strpos($pb,'<input type="hidden" name="eyebrow_text"')!==false,'Task 8: eyebrow is kept as a hidden input when disabled');
