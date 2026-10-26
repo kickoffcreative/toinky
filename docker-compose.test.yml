@@ -1,3 +1,6 @@
+# Local test databases. CI also runs the guard-test suite against MariaDB
+# 10.6 (see .github/workflows/php-validation.yml, mariadb-10-6 job) because
+# the production MariaDB version is not recorded in the repo.
 services:
   game2-test-db:
     image: mariadb:11.4
@@ -8,6 +11,22 @@ services:
       MARIADB_ROOT_PASSWORD: game2root
     ports:
       - "3307:3306"
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    tmpfs:
+      - /var/lib/mysql
+  game2-test-db-106:
+    image: mariadb:10.6
+    environment:
+      MARIADB_DATABASE: game2_test
+      MARIADB_USER: game2
+      MARIADB_PASSWORD: game2
+      MARIADB_ROOT_PASSWORD: root
+    ports:
+      - "3308:3306"
     healthcheck:
       test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
       interval: 2s
