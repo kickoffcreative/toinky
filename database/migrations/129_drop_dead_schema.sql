@@ -3,7 +3,9 @@
 -- plots.recommended_factor_max / plots.recommended_stats_per_role: deprecated in
 -- docs/SCHEMA_DEPRECATIONS.md (Milestone 2), zero PHP consumers, hold only defaults.
 -- Rollback: re-create story_factor_types from migration 014 and re-add the two
--- columns to plots (see migrations 027/029/067 for their original definitions).
+-- columns to plots (original definitions from migration 027:
+--   recommended_factor_max TINYINT UNSIGNED NOT NULL DEFAULT 4
+--   recommended_stats_per_role TINYINT UNSIGNED NOT NULL DEFAULT 2).
 -- Deploy only with a current production backup.
 
 DROP TABLE IF EXISTS story_factor_types;
