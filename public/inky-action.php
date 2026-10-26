@@ -1,5 +1,5 @@
 <?php
-try{$root=dirname(__DIR__);require_once $root.'/app/bootstrap.php';require_once $root.'/app/MigrationService.php';MigrationService::run();require_once $root.'/app/AuthService.php';require_once $root.'/app/InkyCowriterService.php';AuthService::boot();$writer=AuthService::requireWriter();header('Content-Type: application/json; charset=utf-8');header('Cache-Control: no-store');
+try{$root=dirname(__DIR__);require_once $root.'/app/bootstrap.php';require_once $root.'/app/AuthService.php';require_once $root.'/app/InkyCowriterService.php';AuthService::boot();$writer=AuthService::requireWriter();header('Content-Type: application/json; charset=utf-8');header('Cache-Control: no-store');
     if($_SERVER['REQUEST_METHOD']!=='POST')throw new RuntimeException('POST is required.');
     AuthService::requireCsrf();
     $suggestionContext=json_decode((string)($_POST['suggestion_context']??''),true);
