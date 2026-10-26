@@ -1,8 +1,6 @@
 <?php
 $root=dirname(__DIR__);
 require_once $root.'/app/bootstrap.php';
-require_once $root.'/app/MigrationService.php';
-MigrationService::run();
 require_once $root.'/app/AuthService.php';
 require_once $root.'/app/MediaLibraryService.php';
 AuthService::boot();
