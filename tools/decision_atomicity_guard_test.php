@@ -95,8 +95,12 @@ try{
 
     // --- 3. expire + no-action marker are exactly-once -------------------
     [$sid2,$did2,$cid2,$eventId2]=$makeDecision();$testSids[]=$sid2;
-    BehaviorService::expire($sid2,100000);
-    BehaviorService::expire($sid2,100000);
+    // expire() uses a strict closes_at_second < second predicate (the same
+    // convention advance() relies on — its completion path calls
+    // expire($sid,$next+1)), so the fixture decision closing at 100000
+    // expires at 100001, not at 100000.
+    BehaviorService::expire($sid2,100001);
+    BehaviorService::expire($sid2,100001);
     $st->execute([$did2]);$row=$st->fetch();
     $check($row['status']==='NO_ACTION','expired decision is NO_ACTION');
     $h=$pdo->prepare("SELECT COUNT(*) FROM character_history WHERE simulation_id=? AND character_id=? AND history_type='NO_ACTION'");$h->execute([$sid2,$cid2]);
