@@ -475,12 +475,6 @@ final class InkyCowriterService
         if(!is_array($rows))return[];$types=['VALIDATION','FOCUSED_OPPORTUNITY','BROAD_SIMULATION','MANUAL_SMOKE'];$out=[];foreach($rows as$row){if(!is_array($row))continue;$key=self::stableCode((string)($row['stable_key']??''));$type=strtoupper(trim((string)($row['test_type']??'VALIDATION')));$focus=self::stableCode((string)($row['focus_code']??''));$reason=trim((string)($row['reason']??''));$expected=trim((string)($row['expected_evidence']??''));if(!in_array($type,$types,true))$type='VALIDATION';if($key===''||$focus===''||$reason===''||$expected===''||($allowedKeys&&!in_array($key,$allowedKeys,true))||($allowedKeys&&!in_array($focus,$allowedKeys,true)))continue;$runs=max(1,min(50,(int)($row['runs']??10)));if($type==='VALIDATION'||$type==='MANUAL_SMOKE')$runs=1;elseif($type==='BROAD_SIMULATION')$runs=max(10,min(250,(int)($row['runs']??50)));$out[]=['stable_key'=>$key,'test_type'=>$type,'focus_code'=>$focus,'runs'=>$runs,'reason'=>$reason,'expected_evidence'=>$expected];if(count($out)>=6)break;}return$out;
     }
 
-    private static function targetFocus(array $context): array
-    {
-        $type=strtolower(trim((string)($context['target_type']??'')));if(!in_array($type,['decision','opportunity'],true))$type='';
-        $code=self::stableCode((string)($context['target_code']??''));return['type'=>$type,'code'=>$code];
-    }
-
     private static function stableCode(string $value): string
     {
         return trim(strtoupper((string)preg_replace('/[^A-Za-z0-9]+/','_',trim($value))),'_');
