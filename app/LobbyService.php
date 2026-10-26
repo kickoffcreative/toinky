@@ -3,7 +3,7 @@ require_once __DIR__ . '/CommerceService.php';
 
 final class LobbyService
 {
-    public static function createGame(int $hostUserId,string $plotCode,int $duration=300): array
+    public static function createGame(int $hostUserId,string $plotCode,int $duration=300,?string $idempotencyKey=null): array
     {
         $pdo=db();$adm=$pdo->prepare('SELECT is_admin FROM users WHERE user_id=?');$adm->execute([$hostUserId]);$isAdmin=(int)$adm->fetchColumn()===1;$q=$pdo->prepare('SELECT active FROM platform_game_durations WHERE duration_seconds=?');$q->execute([$duration]);$durActive=$q->fetchColumn();if($durActive===false||(!$isAdmin&&(int)$durActive!==1))throw new RuntimeException('That story duration is not available.');
         $q=$pdo->prepare('SELECT plot_id,published_plot_version_id FROM plots WHERE code=? AND status="active"');$q->execute([$plotCode]);$plotRow=$q->fetch();
@@ -12,8 +12,34 @@ final class LobbyService
         $publishedVersionId=$plotRow?(int)($plotRow['published_plot_version_id']??0):0;
         if($publishedVersionId<1)throw new RuntimeException('This story has no published version yet. Ask an administrator to publish a revision first.');$a=$pdo->prepare('SELECT duration_seconds FROM plot_allowed_durations WHERE plot_id=?');$a->execute([(int)$plotRow['plot_id']]);$allowedDurations=array_map('intval',$a->fetchAll(PDO::FETCH_COLUMN));if(!$isAdmin&&$allowedDurations!==[]&&!in_array($duration,$allowedDurations,true))throw new RuntimeException('That story duration is not available.');
         $roles=$pdo->prepare('SELECT pr.role_code FROM plot_roles pr JOIN plots p ON p.plot_id=pr.plot_id WHERE p.code=? AND p.status="active" AND pr.active=1 AND pr.simulation_active=1');$roles->execute([$plotCode]);$controllers=[];foreach($roles->fetchAll()as$r)$controllers[$r['role_code']]='AI';
-        if(CommerceService::enabled())CommerceService::assertCanHost($hostUserId);$sid=SimulationService::create($plotCode,$duration,$controllers,$publishedVersionId);$code=self::newCode();
-        $pdo->beginTransaction();try{$pdo->prepare('INSERT INTO games(simulation_id,host_user_id,join_code,play_duration_seconds) VALUES(?,?,?,?)')->execute([$sid,$hostUserId,$code,$duration]);$gid=(int)$pdo->lastInsertId();$pdo->prepare('INSERT INTO game_players(game_id,user_id) VALUES(?,?)')->execute([$gid,$hostUserId]);if(CommerceService::enabled())CommerceService::reserveForGame($hostUserId,$gid);$pdo->commit();}catch(Throwable$e){if($pdo->inTransaction())$pdo->rollBack();throw$e;}
+        if(CommerceService::enabled())CommerceService::assertCanHost($hostUserId);
+        // Task 6: idempotent retry — a resubmitted key reuses the existing
+        // lobby instead of creating a duplicate simulation + game.
+        if($idempotencyKey!==null&&$idempotencyKey!==''){
+            $ex=$pdo->prepare('SELECT game_id FROM games WHERE idempotency_key=? AND host_user_id=? AND deleted_at_utc IS NULL');$ex->execute([$idempotencyKey,$hostUserId]);$existing=$ex->fetchColumn();
+            if($existing!==false)return self::lobbyState((int)$existing,$hostUserId);
+        }
+        $code=self::newCode();
+        // Task 6: one transaction for the simulation + game + host player +
+        // occasion reservation. SimulationService::create() participates, so
+        // any failure rolls everything back and no simulation is orphaned.
+        $pdo->beginTransaction();try{
+            $sid=SimulationService::create($plotCode,$duration,$controllers,$publishedVersionId);
+            $pdo->prepare('INSERT INTO games(simulation_id,host_user_id,join_code,play_duration_seconds,idempotency_key) VALUES(?,?,?,?,?)')->execute([$sid,$hostUserId,$code,$duration,$idempotencyKey]);
+            $gid=(int)$pdo->lastInsertId();
+            $pdo->prepare('INSERT INTO game_players(game_id,user_id) VALUES(?,?)')->execute([$gid,$hostUserId]);
+            if(CommerceService::enabled())CommerceService::reserveForGame($hostUserId,$gid);
+            $pdo->commit();
+        }catch(Throwable$e){
+            if($pdo->inTransaction())$pdo->rollBack();
+            // A concurrent duplicate with the same idempotency key: the other
+            // request won the race; return its lobby instead of erroring.
+            if($idempotencyKey!==null&&$idempotencyKey!==''&&strpos($e->getMessage(),'uniq_game_idempotency')!==false){
+                $ex=$pdo->prepare('SELECT game_id FROM games WHERE idempotency_key=? AND host_user_id=? AND deleted_at_utc IS NULL');$ex->execute([$idempotencyKey,$hostUserId]);$existing=$ex->fetchColumn();
+                if($existing!==false)return self::lobbyState((int)$existing,$hostUserId);
+            }
+            throw$e;
+        }
         return self::lobbyState($gid,$hostUserId);
     }
     public static function joinByCode(int $userId,string $code): array
@@ -52,9 +78,50 @@ final class LobbyService
     }
     public static function startGame(int $gameId,int $userId): void
     {
-        $pdo=db();$q=$pdo->prepare('SELECT * FROM games WHERE game_id=? AND deleted_at_utc IS NULL');$q->execute([$gameId]);$g=$q->fetch();if(!$g||(int)$g['host_user_id']!==$userId)throw new RuntimeException('Only the host can start this game.');if($g['status']!=='LOBBY')throw new RuntimeException('This game has already started.');
-        $q=$pdo->prepare('SELECT COUNT(*) total_players,SUM(gp.character_id IS NOT NULL) ready_players FROM game_players gp WHERE gp.game_id=? AND gp.user_id<>?');$q->execute([$gameId,(int)$g['host_user_id']]);$ready=$q->fetch();if((int)$ready['ready_players']!==(int)$ready['total_players'])throw new RuntimeException('Every player in the lobby must choose a character before the game starts.');
-        $pdo->beginTransaction();try{$pdo->prepare('UPDATE games SET status="RUNNING" WHERE game_id=? AND status="LOBBY"')->execute([$gameId]);SimulationService::start((int)$g['simulation_id']);CharacterAutomationService::process((int)$g['simulation_id']);$pdo->prepare('UPDATE games SET started_at_utc=UTC_TIMESTAMP() WHERE game_id=?')->execute([$gameId]);if(CommerceService::enabled())CommerceService::consumeForGame($gameId);$pdo->commit();}catch(Throwable$e){if($pdo->inTransaction())$pdo->rollBack();throw$e;}
+        $pdo=db();
+        // Task 2/3: the per-game advisory lock is the outermost lock. Acquire
+        // it FIRST (bounded wait) so a concurrent tick or choice cannot
+        // interleave with game start. A human start must not be silently
+        // dropped, so a failed acquire is a retryable error, not a no-op.
+        $lock='toinky_game_'.$gameId;$lq=$pdo->prepare('SELECT GET_LOCK(?,5)');$lq->execute([$lock]);
+        if((int)$lq->fetchColumn()!==1)throw new RuntimeException('The game is busy. Please try again.');
+        try{
+            $q=$pdo->prepare('SELECT * FROM games WHERE game_id=? AND deleted_at_utc IS NULL');$q->execute([$gameId]);$g=$q->fetch();if(!$g||(int)$g['host_user_id']!==$userId)throw new RuntimeException('Only the host can start this game.');
+            // Idempotent re-entry: already RUNNING with a started simulation
+            // is a success (a retried start after an interrupted first one).
+            // RUNNING with the simulation still READY means the first start
+            // committed the state change but not the simulation start, so
+            // complete it below.
+            if($g['status']==='RUNNING'){
+                $sim=$pdo->prepare('SELECT status FROM simulations WHERE simulation_id=?');$sim->execute([(int)$g['simulation_id']]);$s=$sim->fetch();
+                if($s&&$s['status']==='RUNNING'&&!empty($g['started_at_utc']))return;
+                self::completeStart((int)$g['simulation_id']);return;
+            }
+            if($g['status']!=='LOBBY')throw new RuntimeException('This game has already started.');
+            $q=$pdo->prepare('SELECT COUNT(*) total_players,SUM(gp.character_id IS NOT NULL) ready_players FROM game_players gp WHERE gp.game_id=? AND gp.user_id<>?');$q->execute([$gameId,(int)$g['host_user_id']]);$ready=$q->fetch();if((int)$ready['ready_players']!==(int)$ready['total_players'])throw new RuntimeException('Every player in the lobby must choose a character before the game starts.');
+            // Tx 1: short, atomic state transition only — flip to RUNNING,
+            // stamp the start, consume the occasion. Nothing slow runs here.
+            $pdo->beginTransaction();try{
+                $upd=$pdo->prepare('UPDATE games SET status="RUNNING",started_at_utc=UTC_TIMESTAMP() WHERE game_id=? AND status="LOBBY"');$upd->execute([$gameId]);
+                if($upd->rowCount()!==1)throw new RuntimeException('This game has already started.');
+                if(CommerceService::enabled())CommerceService::consumeForGame($gameId);
+                $pdo->commit();
+            }catch(Throwable$e){if($pdo->inTransaction())$pdo->rollBack();throw$e;}
+            // Step 2: start the simulation and run the opening AI decisions
+            // OUTSIDE the transaction, still holding the advisory lock.
+            self::completeStart((int)$g['simulation_id']);
+        }finally{$pdo->prepare('SELECT RELEASE_LOCK(?)')->execute([$lock]);}
+    }
+
+    // Start the simulation (idempotent: only READY simulations move) and run
+    // the opening AI decisions, each in its own transaction. Failures here
+    // are logged, not fatal: the game is already RUNNING and the next tick
+    // retries any decision that is still OPEN.
+    private static function completeStart(int $sid): void
+    {
+        SimulationService::start($sid);
+        $summary=CharacterAutomationService::process($sid);
+        if(!empty($summary['failed']))error_log('Toinky startGame: '.(int)$summary['failed'].' opening AI decision(s) failed for simulation '.$sid.'.');
     }
     public static function tick(int $gameId): void
     {
@@ -67,9 +134,18 @@ final class LobbyService
     }
     public static function choose(int $gameId,int $userId,int $decisionId,string $optionCode): void
     {
-        $q=db()->prepare('SELECT g.simulation_id,g.status,gp.character_id AS player_character_id,d.character_id AS decision_character_id FROM games g JOIN game_players gp ON gp.game_id=g.game_id AND gp.user_id=? JOIN decisions d ON d.decision_id=? AND d.simulation_id=g.simulation_id WHERE g.game_id=?');$q->execute([$userId,$decisionId,$gameId]);$r=$q->fetch();
-        if(!$r||$r['status']!=='RUNNING'||(int)$r['player_character_id']!==(int)$r['decision_character_id'])throw new RuntimeException('This decision does not belong to your selected character.');
-        BehaviorService::chooseControlled((int)$r['simulation_id'],$decisionId,$optionCode);CharacterAutomationService::process((int)$r['simulation_id']);
+        $pdo=db();
+        // Task 2: a human choice must hold the same per-game advisory lock
+        // tick() uses, or it can run concurrent with a tick that is mid
+        // advance/expire/process. Bounded wait; a failed acquire is a
+        // retryable error, not a silent drop.
+        $lock='toinky_game_'.$gameId;$lq=$pdo->prepare('SELECT GET_LOCK(?,5)');$lq->execute([$lock]);
+        if((int)$lq->fetchColumn()!==1)throw new RuntimeException('The game is busy. Please try again.');
+        try{
+            $q=$pdo->prepare('SELECT g.simulation_id,g.status,gp.character_id AS player_character_id,d.character_id AS decision_character_id FROM games g JOIN game_players gp ON gp.game_id=g.game_id AND gp.user_id=? JOIN decisions d ON d.decision_id=? AND d.simulation_id=g.simulation_id WHERE g.game_id=?');$q->execute([$userId,$decisionId,$gameId]);$r=$q->fetch();
+            if(!$r||$r['status']!=='RUNNING'||(int)$r['player_character_id']!==(int)$r['decision_character_id'])throw new RuntimeException('This decision does not belong to your selected character.');
+            BehaviorService::chooseControlled((int)$r['simulation_id'],$decisionId,$optionCode);CharacterAutomationService::process((int)$r['simulation_id']);
+        }finally{$pdo->prepare('SELECT RELEASE_LOCK(?)')->execute([$lock]);}
     }
     public static function playerCharacter(int $gameId,int $userId): ?array
     {
