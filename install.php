@@ -116,7 +116,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$alreadyInstalled) {
         if (file_put_contents($configFile, $config, LOCK_EX) === false) throw new RuntimeException('Database tables were installed, but config/database.php could not be written.');
         @chmod($configFile, 0600);
 
-        $markerBody = "Game2 installed at " . gmdate('c') . "\nDatabase: " . $name . "\n";
+        $markerBody = "Toinky installed at " . gmdate('c') . "\nDatabase: " . $name . "\n";
         if (file_put_contents($marker, $markerBody, LOCK_EX) === false) throw new RuntimeException('Installation completed, but the .installed lock file could not be created.');
         @chmod($marker, 0600);
 
@@ -131,18 +131,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$alreadyInstalled) {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Game2 Installer</title>
+<title>Toinky Installer</title>
 <style>
 body{font-family:Inter,system-ui,sans-serif;background:#f3f4f6;color:#111827;margin:0;padding:32px}.card{max-width:680px;margin:40px auto;background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:28px;box-shadow:0 8px 30px #0000000d}h1{margin-top:0}label{display:block;font-weight:650;margin:16px 0 6px}input{width:100%;box-sizing:border-box;padding:11px 12px;border:1px solid #cbd5e1;border-radius:9px;font:inherit}button,.button{display:inline-block;margin-top:20px;background:#111827;color:#fff;border:0;border-radius:9px;padding:11px 16px;font:inherit;text-decoration:none;cursor:pointer}.notice{padding:12px 14px;border-radius:10px;margin:16px 0}.error{background:#fee2e2;color:#991b1b}.success{background:#dcfce7;color:#166534}.muted{color:#64748b;font-size:14px;line-height:1.5}code{background:#f1f5f9;padding:2px 5px;border-radius:5px}
 </style>
 </head>
 <body><main class="card">
-<h1>Game2 Installer</h1>
-<p class="muted">This installer connects to an existing MySQL database, creates the Game2 tables, loads the starter plot data, writes <code>config/database.php</code>, and locks itself after a successful installation.</p>
+<h1>Toinky Installer</h1>
+<p class="muted">This installer connects to an existing MySQL database, creates the Toinky tables, loads the starter plot data, writes <code>config/database.php</code>, and locks itself after a successful installation.</p>
 <?php if ($error): ?><div class="notice error"><?=h($error)?></div><?php endif; ?>
 <?php if ($success): ?><div class="notice success"><?=h($success)?></div><?php endif; ?>
 <?php if ($alreadyInstalled): ?>
-<div class="notice success"><strong>Game2 is installed.</strong><br>The installer is locked by <code>.installed</code>.</div>
+<div class="notice success"><strong>Toinky is installed.</strong><br>The installer is locked by <code>.installed</code>.</div>
 <a class="button" href="./">Open Toinky</a>
 <p class="muted">To intentionally reinstall later, first remove the production <code>.installed</code> file manually. Do not remove it during normal updates.</p>
 <?php else: ?>
@@ -155,7 +155,7 @@ body{font-family:Inter,system-ui,sans-serif;background:#f3f4f6;color:#111827;mar
 <input id="db_user" name="db_user" value="<?=h((string)($_POST['db_user'] ?? 'sixpillarsadmin_game2'))?>" required>
 <label for="db_password">Database Password</label>
 <input id="db_password" name="db_password" type="password" required>
-<button type="submit">Install Game2</button>
+<button type="submit">Install Toinky</button>
 </form>
 <p class="muted">The database and MySQL user must already exist in cPanel, and the user must have privileges on that database.</p>
 <?php endif; ?>
