@@ -29,8 +29,6 @@ $snapshot=function(int $sid)use($pdo): string{
     $parts=[];
     $row=$pdo->prepare('SELECT * FROM simulations WHERE simulation_id=?');$row->execute([$sid]);$parts[]='sim:'.json_encode($row->fetch());
     foreach(['simulation_state','simulation_factors'] as $t){
-        $q=$pdo->prepare("SELECT COUNT(*) c, COALESCE(MD5(GROUP_CONCAT(CONCAT_WS('|',simulation_id) ORDER BY 1)),'') h FROM $t WHERE simulation_id=?");
-        // MD5 over full rows is impractical; use count + a stable digest of the table content for this sim.
         $q=$pdo->prepare("SELECT * FROM $t WHERE simulation_id=? ORDER BY 1,2");
         $q->execute([$sid]);$parts[]=$t.':'.json_encode($q->fetchAll());
     }
