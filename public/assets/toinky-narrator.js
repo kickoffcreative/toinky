@@ -98,6 +98,8 @@
   var spokenDecisionKeys = {}; // fingerprints of personal decisions already narrated
   var decisionsSeeded = false; // existing decisions snapshotted on enable (only NEW ones are read)
   var retellingStarted = false; // full retelling already started for this completed game
+  var retellingTotal = 0;      // units in the current retelling
+  var retellingDone = 0;       // units already spoken in the current retelling
   var pollTimer = null;
   var els = {};
 
@@ -366,7 +368,7 @@
     if (!settings.enabled) return;
     var next = queue.shift();
     if (!next) {
-      if (isRetelling) { isRetelling = false; setStatus('Ready.'); }
+      if (isRetelling) { isRetelling = false; setStatus('Story finished.'); }
       updateButtons();
       return;
     }
@@ -374,13 +376,20 @@
     updateButtons();
     speak(next.text).then(function () {
       speaking = false;
+      if (isRetelling) retellingDone++;
       if (settings.waitForPlayer && queue.length > 0) {
         waitingForPlayer = true;
         setStatus('Paused — tap Continue when you\u2019re ready.');
         updateButtons();
         return;
       }
-      setStatus(isRetelling ? 'Telling the story…' : 'Ready.');
+      if (isRetelling && queue.length > 0) {
+        setStatus('Telling the story… (' + retellingDone + ' of ' + retellingTotal + ')');
+      } else if (isRetelling) {
+        setStatus('Telling the story…');
+      } else {
+        setStatus('Ready.');
+      }
       updateButtons();
       pump();
     }).catch(function () {
@@ -402,7 +411,9 @@
     isRetelling = true;
     retellingStarted = true;
     waitingForPlayer = false;
-    setStatus('Telling the whole story…');
+    retellingTotal = units.length;
+    retellingDone = 0;
+    setStatus('Telling the whole story… (' + units.length + ' parts)');
     updateButtons();
     pump();
   }
