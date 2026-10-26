@@ -19,6 +19,12 @@ function db(): PDO {
 
 function e($value): string { return htmlspecialchars((string)$value, ENT_QUOTES, 'UTF-8'); }
 
+// Task 20: one correlation ID per request, so a tick -> AI call -> failure
+// can be traced end to end. Read it via correlationId(); Logger includes it
+// in every structured log line.
+$GLOBALS['toinky_correlation_id'] = bin2hex(random_bytes(8));
+function correlationId(): string { return (string)($GLOBALS['toinky_correlation_id'] ?? ''); }
+
 require_once __DIR__ . '/GenericStateService.php';
 require_once __DIR__ . '/ResolutionService.php';
 require_once __DIR__ . '/TriggeredTransitionService.php';
@@ -31,6 +37,7 @@ require_once __DIR__ . '/DeterministicStoryReasoner.php';
 require_once __DIR__ . '/OllamaStoryReasoner.php';
 require_once __DIR__ . '/StoryReasonerFactory.php';
 require_once __DIR__ . '/AiReasoningContextService.php';
+require_once __DIR__ . '/Logger.php';
 
 // No shutdown hook mutates simulation state. Simulation synchronization runs only
 // through explicit authorized commands: LobbyService::tick() (play progression),
