@@ -171,9 +171,9 @@ final class StoryAuthoringService
     public static function saveOptionEffect(array $user,int $plotId,array $input): int
     {
         self::guard($user,$plotId);$optionId=(int)$input['template_option_id'];$q=db()->prepare('SELECT 1 FROM plot_decision_template_options o JOIN plot_decision_templates t ON t.template_id=o.template_id WHERE o.template_option_id=? AND t.plot_id=?');$q->execute([$optionId,$plotId]);if(!$q->fetchColumn())throw new RuntimeException('The option does not belong to this story.');
-        $id=(int)($input['effect_id']??0);$scope=in_array(($input['effect_scope']??''),['FACTOR','STAT','LOCATION','KNOWLEDGE','RELATIONSHIP','WORLD_STATE','GOAL','FEAR'],true)?$input['effect_scope']:'WORLD_STATE';$values=[$scope,self::code((string)$input['target_code']),self::integerOrNull($input['delta_value']??null),self::nullable($input['set_value']??null),self::nullable($input['detail_text']??null),(int)($input['sort_order']??0),(int)!empty($input['active'])];if($values[1]==='')throw new RuntimeException('An effect needs a target code.');self::validateManagedValue($plotId,$scope,$values[1],$values[2],$values[3]);
-        if($id){$q=db()->prepare('UPDATE plot_option_effects e JOIN plot_decision_template_options o ON o.template_option_id=e.template_option_id JOIN plot_decision_templates t ON t.template_id=o.template_id SET e.effect_scope=?,e.target_code=?,e.delta_value=?,e.set_value=?,e.detail_text=?,e.sort_order=?,e.active=? WHERE e.effect_id=? AND t.plot_id=?');$q->execute(array_merge($values,[$id,$plotId]));return$id;}
-        $q=db()->prepare('INSERT INTO plot_option_effects(template_option_id,effect_scope,target_code,delta_value,set_value,detail_text,sort_order,active) VALUES(?,?,?,?,?,?,?,?)');$q->execute(array_merge([$optionId],$values));return(int)db()->lastInsertId();
+        $id=(int)($input['effect_id']??0);$scope=in_array(($input['effect_scope']??''),['FACTOR','STAT','LOCATION','KNOWLEDGE','RELATIONSHIP','WORLD_STATE','GOAL','FEAR'],true)?$input['effect_scope']:'WORLD_STATE';$values=[$scope,self::code((string)$input['target_code']),self::integerOrNull($input['delta_value']??null),self::nullable($input['set_value']??null),self::nullable($input['detail_text']??null),(int)($input['sort_order']??0),(int)!empty($input['active']),self::normalizeTargetRoles($input['target_role_code']??null)];if($values[1]==='')throw new RuntimeException('An effect needs a target code.');self::validateManagedValue($plotId,$scope,$values[1],$values[2],$values[3]);
+        if($id){$q=db()->prepare('UPDATE plot_option_effects e JOIN plot_decision_template_options o ON o.template_option_id=e.template_option_id JOIN plot_decision_templates t ON t.template_id=o.template_id SET e.effect_scope=?,e.target_code=?,e.delta_value=?,e.set_value=?,e.detail_text=?,e.sort_order=?,e.active=?,e.target_role_code=? WHERE e.effect_id=? AND t.plot_id=?');$q->execute(array_merge($values,[$id,$plotId]));return$id;}
+        $q=db()->prepare('INSERT INTO plot_option_effects(template_option_id,effect_scope,target_code,delta_value,set_value,detail_text,sort_order,active,target_role_code) VALUES(?,?,?,?,?,?,?,?,?)');$q->execute(array_merge([$optionId],$values));return(int)db()->lastInsertId();
     }
 
 
@@ -204,9 +204,9 @@ final class StoryAuthoringService
     public static function saveNoActionEffect(array $user,int $plotId,array $input): int
     {
         self::guard($user,$plotId);$eventCode=self::code((string)($input['event_code']??''));$roleCode=self::code((string)($input['role_code']??''));$decisionQ=db()->prepare('SELECT 1 FROM plot_decision_templates WHERE plot_id=? AND event_code=? AND role_code=?');$decisionQ->execute([$plotId,$eventCode,$roleCode]);if(!$decisionQ->fetchColumn())throw new RuntimeException('No-action effects attach to an existing decision.');
-        $id=(int)($input['no_action_effect_id']??0);$scope=in_array(($input['effect_scope']??''),['FACTOR','STAT','LOCATION','KNOWLEDGE','WORLD_STATE','GOAL','FEAR'],true)?$input['effect_scope']:'WORLD_STATE';$values=[$scope,self::code((string)$input['target_code']),self::integerOrNull($input['delta_value']??null),self::nullable($input['set_value']??null),self::nullable($input['detail_text']??null),(int)($input['sort_order']??0)];if($values[1]==='')throw new RuntimeException('An effect needs a target code.');self::validateManagedValue($plotId,$scope,$values[1],$values[2],$values[3]);
-        if($id){$q=db()->prepare('UPDATE plot_no_action_effects SET effect_scope=?,target_code=?,delta_value=?,set_value=?,detail_text=?,sort_order=? WHERE no_action_effect_id=? AND plot_id=?');$q->execute(array_merge($values,[$id,$plotId]));return$id;}
-        $q=db()->prepare('INSERT INTO plot_no_action_effects(plot_id,event_code,role_code,effect_scope,target_code,delta_value,set_value,detail_text,sort_order) VALUES(?,?,?,?,?,?,?,?,?)');$q->execute(array_merge([$plotId,$eventCode,$roleCode],$values));return(int)db()->lastInsertId();
+        $id=(int)($input['no_action_effect_id']??0);$scope=in_array(($input['effect_scope']??''),['FACTOR','STAT','LOCATION','KNOWLEDGE','WORLD_STATE','GOAL','FEAR'],true)?$input['effect_scope']:'WORLD_STATE';$values=[$scope,self::code((string)$input['target_code']),self::integerOrNull($input['delta_value']??null),self::nullable($input['set_value']??null),self::nullable($input['detail_text']??null),(int)($input['sort_order']??0),self::normalizeTargetRoles($input['target_role_code']??null)];if($values[1]==='')throw new RuntimeException('An effect needs a target code.');self::validateManagedValue($plotId,$scope,$values[1],$values[2],$values[3]);
+        if($id){$q=db()->prepare('UPDATE plot_no_action_effects SET effect_scope=?,target_code=?,delta_value=?,set_value=?,detail_text=?,sort_order=?,target_role_code=? WHERE no_action_effect_id=? AND plot_id=?');$q->execute(array_merge($values,[$id,$plotId]));return$id;}
+        $q=db()->prepare('INSERT INTO plot_no_action_effects(plot_id,event_code,role_code,effect_scope,target_code,delta_value,set_value,detail_text,sort_order,target_role_code) VALUES(?,?,?,?,?,?,?,?,?,?)');$q->execute(array_merge([$plotId,$eventCode,$roleCode],$values));return(int)db()->lastInsertId();
     }
 
     public static function saveNoActionCondition(array $user,int $plotId,array $input): int
@@ -240,9 +240,9 @@ final class StoryAuthoringService
 
     public static function saveDynamicEffect(array $user,int $plotId,array $input): int
     {
-        self::guard($user,$plotId);$option=(int)$input['dynamic_option_id'];$q=db()->prepare('SELECT o.dynamic_opportunity_id FROM plot_dynamic_opportunity_options x JOIN plot_dynamic_opportunities o ON o.dynamic_opportunity_id=x.dynamic_opportunity_id WHERE x.dynamic_option_id=? AND o.plot_id=?');$q->execute([$option,$plotId]);$opportunityId=(int)$q->fetchColumn();if(!$opportunityId)throw new RuntimeException('The conditional option does not belong to this story.');$id=(int)($input['dynamic_effect_id']??0);$scopes=['FACTOR','STAT','LOCATION','KNOWLEDGE','RELATIONSHIP','WORLD_STATE','GOAL','FEAR'];$values=[in_array(($input['effect_scope']??''),$scopes,true)?$input['effect_scope']:'WORLD_STATE',self::code((string)$input['target_code']),self::integerOrNull($input['delta_value']??null),self::nullable($input['set_value']??null),self::nullable($input['detail_text']??null),(int)($input['sort_order']??0),(int)!empty($input['active'])];if(!$values[1])throw new RuntimeException('A conditional effect needs a target code.');self::validateManagedValue($plotId,$values[0],$values[1],$values[2],$values[3]);
-        if($id){$q=db()->prepare('UPDATE plot_dynamic_option_effects e JOIN plot_dynamic_opportunity_options x ON x.dynamic_option_id=e.dynamic_option_id JOIN plot_dynamic_opportunities o ON o.dynamic_opportunity_id=x.dynamic_opportunity_id SET e.effect_scope=?,e.target_code=?,e.delta_value=?,e.set_value=?,e.detail_text=?,e.sort_order=?,e.active=? WHERE e.dynamic_effect_id=? AND o.plot_id=?');$q->execute(array_merge($values,[$id,$plotId]));DynamicOpportunityService::syncBehaviorTemplateById($opportunityId);return$id;}
-        $q=db()->prepare('INSERT INTO plot_dynamic_option_effects(dynamic_option_id,effect_scope,target_code,delta_value,set_value,detail_text,sort_order,active) VALUES(?,?,?,?,?,?,?,?)');$q->execute(array_merge([$option],$values));$id=(int)db()->lastInsertId();DynamicOpportunityService::syncBehaviorTemplateById($opportunityId);return$id;
+        self::guard($user,$plotId);$option=(int)$input['dynamic_option_id'];$q=db()->prepare('SELECT o.dynamic_opportunity_id FROM plot_dynamic_opportunity_options x JOIN plot_dynamic_opportunities o ON o.dynamic_opportunity_id=x.dynamic_opportunity_id WHERE x.dynamic_option_id=? AND o.plot_id=?');$q->execute([$option,$plotId]);$opportunityId=(int)$q->fetchColumn();if(!$opportunityId)throw new RuntimeException('The conditional option does not belong to this story.');$id=(int)($input['dynamic_effect_id']??0);$scopes=['FACTOR','STAT','LOCATION','KNOWLEDGE','RELATIONSHIP','WORLD_STATE','GOAL','FEAR'];$values=[in_array(($input['effect_scope']??''),$scopes,true)?$input['effect_scope']:'WORLD_STATE',self::code((string)$input['target_code']),self::integerOrNull($input['delta_value']??null),self::nullable($input['set_value']??null),self::nullable($input['detail_text']??null),(int)($input['sort_order']??0),(int)!empty($input['active']),self::normalizeTargetRoles($input['target_role_code']??null)];if(!$values[1])throw new RuntimeException('A conditional effect needs a target code.');self::validateManagedValue($plotId,$values[0],$values[1],$values[2],$values[3]);
+        if($id){$q=db()->prepare('UPDATE plot_dynamic_option_effects e JOIN plot_dynamic_opportunity_options x ON x.dynamic_option_id=e.dynamic_option_id JOIN plot_dynamic_opportunities o ON o.dynamic_opportunity_id=x.dynamic_opportunity_id SET e.effect_scope=?,e.target_code=?,e.delta_value=?,e.set_value=?,e.detail_text=?,e.sort_order=?,e.active=?,e.target_role_code=? WHERE e.dynamic_effect_id=? AND o.plot_id=?');$q->execute(array_merge($values,[$id,$plotId]));DynamicOpportunityService::syncBehaviorTemplateById($opportunityId);return$id;}
+        $q=db()->prepare('INSERT INTO plot_dynamic_option_effects(dynamic_option_id,effect_scope,target_code,delta_value,set_value,detail_text,sort_order,active,target_role_code) VALUES(?,?,?,?,?,?,?,?,?)');$q->execute(array_merge([$option],$values));$id=(int)db()->lastInsertId();DynamicOpportunityService::syncBehaviorTemplateById($opportunityId);return$id;
     }
 
     public static function saveResolution(array $user,int $plotId,array $input): int
@@ -696,6 +696,21 @@ final class StoryAuthoringService
 
     private static function guard(array $user,int $plotId): void{if(!self::canEdit($user,$plotId))throw new RuntimeException('You may only edit stories you own.');}
     private static function code(string $value):string{return trim(strtoupper((string)preg_replace('/[^A-Za-z0-9]+/','_',trim($value))),'_');}
+    // Normalize an effect's target roles from the editor (multi-select).
+    // Returns NULL for the deciding character (default), 'GROUP' for the
+    // whole group, or a comma-separated list of role codes ('SELF' inside
+    // a list adds the decider alongside the listed roles).
+    private static function normalizeTargetRoles($input):?string{
+        if($input===null||$input==='')return null;
+        $parts=is_array($input)?$input:explode(',',(string)$input);
+        $codes=[];
+        foreach($parts as $part){$code=self::code((string)$part);if($code!=='')$codes[]=$code;}
+        $codes=array_values(array_unique($codes));
+        if(!$codes)return null;
+        if(in_array('GROUP',$codes,true))return 'GROUP';
+        if(count($codes)===1&&$codes[0]==='SELF')return null;
+        return implode(',',$codes);
+    }
     private static function nullable($value):?string{$value=trim((string)$value);return$value===''?null:$value;}
     private static function integerOrNull($value):?int{$value=trim((string)$value);return$value===''?null:(int)$value;}
     public static function durationLabel(int $seconds): string
