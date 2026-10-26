@@ -14,7 +14,16 @@ require_once $root.'/app/StateSyncService.php';
 require_once $root.'/app/SimulationService.php';
 
 $action=$_POST['action']??null;$sid=(int)($_GET['simulation']??($_POST['simulation_id']??0));
-if($_SERVER['REQUEST_METHOD']==='POST'){
+// Task 2: per-simulation advisory lock serializes concurrent Lab requests
+// for the same simulation (two tabs, a reload racing an action). Released
+// by a shutdown function so it is freed even when an action redirects.
+$labLocked=true;
+if($sid>0&&$action!=='create'){
+    $labLock='toinky_sim_'.$sid;$lq=db()->prepare('SELECT GET_LOCK(?,5)');$lq->execute([$labLock]);
+    if((int)$lq->fetchColumn()===1){register_shutdown_function(static function() use ($labLock){try{db()->prepare('SELECT RELEASE_LOCK(?)')->execute([$labLock]);}catch(Throwable $ignored){}});}
+    else{$labLocked=false;$error='The simulation is busy. Please try again.';}
+}
+if($_SERVER['REQUEST_METHOD']==='POST'&&$labLocked){
     try{
         AuthService::requireCsrf();
         if($action==='create'){
@@ -27,7 +36,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         if($action==='decide'){BehaviorService::chooseControlled($sid,(int)$_POST['decision_id'],(string)$_POST['option_code']);CharacterAutomationService::process($sid);header('Location: ?simulation='.$sid);exit;}
     }catch(Throwable$e){$error=$e->getMessage();}
 }
-if($sid>0){try{CausalService::reconcile($sid);StateSyncService::reconcile($sid);DynamicOpportunityService::reconcile($sid);CharacterAutomationService::process($sid);ResolutionService::refresh($sid);}catch(Throwable$e){$error=($error??'').(($error??'')?' | ':'').$e->getMessage();}}
+if($sid>0&&$labLocked){try{CausalService::reconcile($sid);StateSyncService::reconcile($sid);DynamicOpportunityService::reconcile($sid);CharacterAutomationService::process($sid);ResolutionService::refresh($sid);}catch(Throwable$e){$error=($error??'').(($error??'')?' | ':'').$e->getMessage();}}
 $plots=[];$rolesByPlot=[];
 try{$pq=db()->query('SELECT code,title,archetype,genre,setting_name,max_players,max_npcs FROM plots WHERE status="active" ORDER BY title');$plots=$pq->fetchAll();$rq=db()->query('SELECT p.code,pr.role_code,pr.role_type,pr.name,pr.slot_no FROM plot_roles pr JOIN plots p ON p.plot_id=pr.plot_id WHERE p.status="active" AND pr.active=1 AND pr.simulation_active=1 ORDER BY p.code,CASE WHEN pr.role_type="PLAYER" THEN 0 ELSE 1 END,pr.slot_no');foreach($rq->fetchAll()as$r)$rolesByPlot[$r['code']][]=$r;}catch(Throwable$e){$error=($error??'').(($error??'')?' | ':'').$e->getMessage();}
 ?><!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Toinky Story Engine Lab</title><style>
