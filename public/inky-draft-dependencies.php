@@ -9,8 +9,6 @@ header('Cache-Control: no-store');
 try{
     $root=dirname(__DIR__);
     require_once $root.'/app/bootstrap.php';
-    require_once $root.'/app/MigrationService.php';
-    MigrationService::run();
     require_once $root.'/app/AuthService.php';
     require_once $root.'/app/StoryAuthoringService.php';
     require_once $root.'/app/InkyGuideService.php';
