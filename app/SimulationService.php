@@ -48,9 +48,75 @@ final class SimulationService {
         foreach($q->fetchAll()as$effect){if(!self::worldEventEffectConditionsPass($sid,(int)$effect['world_event_effect_id']))continue;$scope=(string)$effect['effect_scope'];$detail=(string)($effect['detail_text']??'');
             if($scope==='WORLD_STATE'){GenericStateService::setByKey($sid,(string)$effect['target_code'],(string)($effect['set_value']??''),$second,$detail);continue;}
             if($scope==='FACTOR'){$fq=$pdo->prepare('SELECT current_value,min_value,max_value FROM simulation_factors WHERE simulation_id=? AND factor_code=? FOR UPDATE');$fq->execute([$sid,$effect['target_code']]);$factor=$fq->fetch();if(!$factor)continue;$old=(int)$factor['current_value'];$new=max((int)$factor['min_value'],min((int)$factor['max_value'],$old+(int)$effect['delta_value']));if($new===$old)continue;$pdo->prepare('UPDATE simulation_factors SET current_value=? WHERE simulation_id=? AND factor_code=?')->execute([$new,$sid,$effect['target_code']]);$pdo->prepare('INSERT INTO simulation_factor_history(simulation_id,factor_code,old_value,new_value,event_second,source_type,source_id,detail_text) VALUES(?,?,?,?,?,"WORLD_EVENT",?,?)')->execute([$sid,$effect['target_code'],$old,$new,$second,$eventId,$detail?:null]);}
-            if($scope==='LOCATION'){if(class_exists('BehaviorService')){$roleCode=(string)$effect['target_code'];$location=(string)($effect['set_value']??'');if($roleCode!==''&&$location!=='')BehaviorService::moveRoleToLocation($sid,$roleCode,$location,$second,$eventId,$detail?:'Location changed');}continue;}
+            if($scope==='LOCATION'){
+                $location=(string)($effect['set_value']??'');
+                if($location===''||!class_exists('BehaviorService'))continue;
+                $targetRoles=trim((string)($effect['target_role_code']??''));
+                if($targetRoles===''){
+                    // Backward compat: target_code holds the single role.
+                    $roleCode=(string)$effect['target_code'];
+                    if($roleCode!==''&&strcasecmp($roleCode,'LOCATION')!==0)BehaviorService::moveRoleToLocation($sid,$roleCode,$location,$second,$eventId,$detail?:'Location changed');
+                }else{
+                    foreach(self::resolveWorldEventTargetRoles($sid,$effect) as $roleCode)BehaviorService::moveRoleToLocation($sid,$roleCode,$location,$second,$eventId,$detail?:'Location changed');
+                }
+                continue;
+            }
+            if($scope==='STAT'){
+                $statCode=(string)$effect['target_code'];$delta=(int)($effect['delta_value']??0);
+                if($statCode===''||$delta===0)continue;
+                foreach(self::resolveWorldEventTargetCharacters($sid,$effect) as $cid){
+                    $sq=$pdo->prepare('SELECT current_value,label FROM character_stats WHERE character_id=? AND stat_code=? FOR UPDATE');$sq->execute([$cid,$statCode]);$stat=$sq->fetch();if(!$stat)continue;$old=(int)$stat['current_value'];$new=max(0,min(100,$old+$delta));if($new===$old)continue;$pdo->prepare('UPDATE character_stats SET current_value=? WHERE character_id=? AND stat_code=?')->execute([$new,$cid,$statCode]);$pdo->prepare('INSERT INTO character_history(simulation_id,character_id,event_id,event_second,history_type,title,detail_text) VALUES(?,?,?,?,"STAT_CHANGE",?,?)')->execute([$sid,$cid,$eventId,$second,$stat['label'].' changed',$old.' → '.$new.($detail?' · '.$detail:'')]);
+                }
+                continue;
+            }
+            if($scope==='KNOWLEDGE'){
+                $key=(string)$effect['target_code'];
+                if($key==='')continue;
+                foreach(self::resolveWorldEventTargetCharacters($sid,$effect) as $cid){
+                    $pdo->prepare('INSERT INTO character_knowledge(character_id,knowledge_key,knowledge_text,state,confidence,learned_at_second) VALUES(?,?,?,"KNOWN",100,?) ON DUPLICATE KEY UPDATE knowledge_text=VALUES(knowledge_text),state="KNOWN",confidence=100,learned_at_second=VALUES(learned_at_second)')->execute([$cid,$key,$effect['set_value']?:$detail,$second]);
+                }
+                continue;
+            }
+            if($scope==='GOAL'||$scope==='FEAR'){
+                $value=(string)($effect['set_value']??'');
+                if($value==='')continue;
+                $column=$scope==='GOAL'?'goal_text':'fear_text';
+                foreach(self::resolveWorldEventTargetCharacters($sid,$effect) as $cid){
+                    $oq=$pdo->prepare('SELECT '.$column.' FROM characters WHERE character_id=? AND simulation_id=?');$oq->execute([$cid,$sid]);$old=(string)$oq->fetchColumn();if($old===$value)continue;$pdo->prepare('UPDATE characters SET '.$column.'=? WHERE character_id=? AND simulation_id=?')->execute([$value,$cid,$sid]);$pdo->prepare('INSERT INTO character_history(simulation_id,character_id,event_id,event_second,history_type,title,detail_text) VALUES(?,?,?,?,"CONSEQUENCE",?,?)')->execute([$sid,$cid,$eventId,$second,ucfirst(strtolower($scope)).' Changed',$old.' → '.$value.($detail?' · '.$detail:'')]);
+                }
+                continue;
+            }
         }
     }
+
+    // World event targets: target_role_code holds a comma-separated list of
+    // role codes, 'GROUP', or is empty (whole group — world events have no
+    // decider). Returns the role codes to affect.
+    private static function resolveWorldEventTargetRoles(int $sid,array $effect): array
+    {
+        $raw=trim((string)($effect['target_role_code']??''));
+        if($raw===''||strcasecmp($raw,'GROUP')===0){
+            $q=db()->prepare('SELECT DISTINCT pr.role_code FROM characters c JOIN plot_roles pr ON pr.plot_role_id=c.plot_role_id WHERE c.simulation_id=? ORDER BY pr.role_code');
+            $q->execute([$sid]);
+            return $q->fetchAll(PDO::FETCH_COLUMN) ?: [];
+        }
+        $codes=[];
+        foreach(explode(',',$raw) as $part){$code=strtoupper(trim($part));if($code!==''&&$code!=='SELF'&&$code!=='GROUP')$codes[]=$code;}
+        return array_values(array_unique($codes));
+    }
+
+    private static function resolveWorldEventTargetCharacters(int $sid,array $effect): array
+    {
+        $ids=[];
+        foreach(self::resolveWorldEventTargetRoles($sid,$effect) as $role){
+            $q=db()->prepare('SELECT c.character_id FROM characters c JOIN plot_roles pr ON pr.plot_role_id=c.plot_role_id WHERE c.simulation_id=? AND pr.role_code=?');
+            $q->execute([$sid,$role]);
+            $id=$q->fetchColumn();
+            if($id!==false)$ids[]=(int)$id;
+        }
+        return $ids;
+    }
+
     private static function worldEventEffectConditionsPass(int $sid,int $effectId): bool
     {
         $q=db()->prepare('SELECT state_key,operator,compare_value FROM plot_world_event_effect_conditions WHERE world_event_effect_id=? ORDER BY sort_order,world_event_effect_condition_id');$q->execute([$effectId]);foreach($q->fetchAll()as$condition)if(!GenericStateService::conditionPasses($sid,(string)$condition['state_key'],(string)$condition['operator'],$condition['compare_value']))return false;return true;
