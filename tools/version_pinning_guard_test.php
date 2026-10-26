@@ -56,15 +56,15 @@ try{
     $check($r['plot_version_id']===null&&$r['content_checksum']===null,'legacy simulation stays unpinned (NULL version + checksum)');
 
     // (iii) Drift detection: change a draft field, expect drift; restore it.
-    $ev=$pdo->prepare('SELECT plot_world_event_id,headline_text FROM plot_world_events WHERE plot_id=? ORDER BY plot_world_event_id LIMIT 1');
+    $ev=$pdo->prepare('SELECT plot_world_event_id,headline FROM plot_world_events WHERE plot_id=? ORDER BY plot_world_event_id LIMIT 1');
     $ev->execute([$plotId]);$erow=$ev->fetch();
     if($erow){
-        $eventId=(int)$erow['plot_world_event_id'];$eventHeadline=$erow['headline_text'];
-        $pdo->prepare('UPDATE plot_world_events SET headline_text=? WHERE plot_world_event_id=?')->execute(['DRIFT TEST — '.$eventHeadline,$eventId]);
+        $eventId=(int)$erow['plot_world_event_id'];$eventHeadline=$erow['headline'];
+        $pdo->prepare('UPDATE plot_world_events SET headline=? WHERE plot_world_event_id=?')->execute(['DRIFT TEST — '.$eventHeadline,$eventId]);
         $drift=SimulationService::checkVersionDrift($sidPinned);
         $check($drift!==null,'drift detected after a draft edit');
         $check($drift!==null&&(int)$drift['plot_version_id']===$versionId,'drift report names the pinned version');
-        $pdo->prepare('UPDATE plot_world_events SET headline_text=? WHERE plot_world_event_id=?')->execute([$eventHeadline,$eventId]);
+        $pdo->prepare('UPDATE plot_world_events SET headline=? WHERE plot_world_event_id=?')->execute([$eventHeadline,$eventId]);
         $eventId=0;$eventHeadline=null;
     }else{echo "SKIP: no world event to edit for the drift check.\n";}
 
@@ -86,7 +86,7 @@ try{
     $failures[]='unexpected exception: '.$e->getMessage();
     echo 'FAIL unexpected exception: '.$e->getMessage()."\n";
 }finally{
-    if($eventId&&$eventHeadline!==null)$pdo->prepare('UPDATE plot_world_events SET headline_text=? WHERE plot_world_event_id=?')->execute([$eventHeadline,$eventId]);
+    if($eventId&&$eventHeadline!==null)$pdo->prepare('UPDATE plot_world_events SET headline=? WHERE plot_world_event_id=?')->execute([$eventHeadline,$eventId]);
     if($savedPointer!==null||true){$ptr=$pdo->prepare('SELECT published_plot_version_id FROM plots WHERE plot_id=?');$ptr->execute([$plotId]);if($ptr->fetchColumn()===null&&$savedPointer!==null)$pdo->prepare('UPDATE plots SET published_plot_version_id=? WHERE plot_id=?')->execute([$savedPointer,$plotId]);}
     if($sidPinned)$cleanupSim($sidPinned);
     if($sidLegacy)$cleanupSim($sidLegacy);
