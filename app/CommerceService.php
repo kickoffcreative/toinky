@@ -120,7 +120,7 @@ final class CommerceService
         }catch(Throwable $e){if($ownsTransaction&&$pdo->inTransaction())$pdo->rollBack();throw $e;}
     }
 
-public static     public static function consumeForGame(int $gameId): void
+public static function consumeForGame(int $gameId): void
     {
         $pdo = db();
         $ownsTransaction=!$pdo->inTransaction();if($ownsTransaction)$pdo->beginTransaction();
@@ -135,7 +135,7 @@ public static     public static function consumeForGame(int $gameId): void
         }catch(Throwable $e){if($ownsTransaction&&$pdo->inTransaction())$pdo->rollBack();throw $e;}
     }
 
-public static     public static function releaseForGame(int $gameId): void
+public static function releaseForGame(int $gameId): void
     {
         $pdo = db();
         $ownsTransaction=!$pdo->inTransaction();if($ownsTransaction)$pdo->beginTransaction();
