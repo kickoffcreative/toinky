@@ -38,7 +38,8 @@ final class SimulationService {
     {
         $pdo=db();$sim=self::simulation($sid);
         if(!$sim||empty($sim['plot_version_id'])||empty($sim['content_checksum']))return null;
-        if(!empty($sim['drift_checked_at_utc'])&&strtotime((string)$sim['drift_checked_at_utc'])>time()-60)return null;
+        $tq=$pdo->prepare('SELECT 1 FROM simulations WHERE simulation_id=? AND drift_checked_at_utc IS NOT NULL AND drift_checked_at_utc>UTC_TIMESTAMP()-INTERVAL 60 SECOND');
+        $tq->execute([$sid]);if($tq->fetchColumn())return null;
         $pdo->prepare('UPDATE simulations SET drift_checked_at_utc=UTC_TIMESTAMP() WHERE simulation_id=?')->execute([$sid]);
         try{
             if(!class_exists('StoryAuthoringService'))require_once __DIR__.'/StoryAuthoringService.php';
