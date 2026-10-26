@@ -101,37 +101,56 @@ final class CommerceService
     {
         if (self::isAdmin($userId)) return;
         $pdo = db();
-        $lock = $pdo->prepare('SELECT ledger_id FROM host_occasion_ledger WHERE user_id=? FOR UPDATE');
-        $lock->execute([$userId]);
-        $lock->fetchAll();
-        $q = $pdo->prepare("SELECT COUNT(*) FROM host_occasion_ledger WHERE game_id=? AND entry_type='RESERVE'");
-        $q->execute([$gameId]);
-        if ((int)$q->fetchColumn() > 0) return;
-        if (self::balance($userId)['available'] < 1) throw new RuntimeException('You have no occasions available. Buy more occasions to host another game.');
-        $pdo->prepare("INSERT INTO host_occasion_ledger(user_id,entry_type,occasions,game_id,note) VALUES(?,'RESERVE',1,?,'Held for this lobby.')")->execute([$userId, $gameId]);
+        // Task 6: participate in the caller's transaction (createGame) so the
+        // reservation rolls back with a failed lobby creation. The early
+        // return for an existing RESERVE becomes a conditional insert so the
+        // transaction always commits.
+        $ownsTransaction=!$pdo->inTransaction();if($ownsTransaction)$pdo->beginTransaction();
+        try{
+            $lock = $pdo->prepare('SELECT ledger_id FROM host_occasion_ledger WHERE user_id=? FOR UPDATE');
+            $lock->execute([$userId]);
+            $lock->fetchAll();
+            $q = $pdo->prepare("SELECT COUNT(*) FROM host_occasion_ledger WHERE game_id=? AND entry_type='RESERVE'");
+            $q->execute([$gameId]);
+            if ((int)$q->fetchColumn() === 0) {
+                if (self::balance($userId)['available'] < 1) throw new RuntimeException('You have no occasions available. Buy more occasions to host another game.');
+                $pdo->prepare("INSERT INTO host_occasion_ledger(user_id,entry_type,occasions,game_id,note) VALUES(?,'RESERVE',1,?,'Held for this lobby.')")->execute([$userId, $gameId]);
+            }
+            if($ownsTransaction)$pdo->commit();
+        }catch(Throwable $e){if($ownsTransaction&&$pdo->inTransaction())$pdo->rollBack();throw $e;}
     }
 
-    public static function consumeForGame(int $gameId): void
+public static     public static function consumeForGame(int $gameId): void
     {
         $pdo = db();
-        $q = $pdo->prepare("SELECT user_id FROM host_occasion_ledger WHERE game_id=? AND entry_type='RESERVE'");
-        $q->execute([$gameId]);
-        $userId = $q->fetchColumn();
-        if ($userId === false) return;
-        $pdo->prepare("INSERT IGNORE INTO host_occasion_ledger(user_id,entry_type,occasions,game_id,note) VALUES(?,'CONSUME',1,?,'Game started.')")->execute([(int)$userId, $gameId]);
+        $ownsTransaction=!$pdo->inTransaction();if($ownsTransaction)$pdo->beginTransaction();
+        try{
+            $q = $pdo->prepare("SELECT user_id FROM host_occasion_ledger WHERE game_id=? AND entry_type='RESERVE'");
+            $q->execute([$gameId]);
+            $userId = $q->fetchColumn();
+            if ($userId !== false) {
+                $pdo->prepare("INSERT IGNORE INTO host_occasion_ledger(user_id,entry_type,occasions,game_id,note) VALUES(?,'CONSUME',1,?,'Game started.')")->execute([(int)$userId, $gameId]);
+            }
+            if($ownsTransaction)$pdo->commit();
+        }catch(Throwable $e){if($ownsTransaction&&$pdo->inTransaction())$pdo->rollBack();throw $e;}
     }
 
-    public static function releaseForGame(int $gameId): void
+public static     public static function releaseForGame(int $gameId): void
     {
         $pdo = db();
-        $q = $pdo->prepare("SELECT r.user_id FROM host_occasion_ledger r WHERE r.game_id=? AND r.entry_type='RESERVE' AND NOT EXISTS(SELECT 1 FROM host_occasion_ledger x WHERE x.game_id=r.game_id AND x.entry_type IN('CONSUME','RELEASE'))");
-        $q->execute([$gameId]);
-        $userId = $q->fetchColumn();
-        if ($userId === false) return;
-        $pdo->prepare("INSERT IGNORE INTO host_occasion_ledger(user_id,entry_type,occasions,game_id,note) VALUES(?,'RELEASE',1,?,'Lobby closed before the game started.')")->execute([(int)$userId, $gameId]);
+        $ownsTransaction=!$pdo->inTransaction();if($ownsTransaction)$pdo->beginTransaction();
+        try{
+            $q = $pdo->prepare("SELECT r.user_id FROM host_occasion_ledger r WHERE r.game_id=? AND r.entry_type='RESERVE' AND NOT EXISTS(SELECT 1 FROM host_occasion_ledger x WHERE x.game_id=r.game_id AND x.entry_type IN('CONSUME','RELEASE'))");
+            $q->execute([$gameId]);
+            $userId = $q->fetchColumn();
+            if ($userId !== false) {
+                $pdo->prepare("INSERT IGNORE INTO host_occasion_ledger(user_id,entry_type,occasions,game_id,note) VALUES(?,'RELEASE',1,?,'Lobby closed before the game started.')")->execute([(int)$userId, $gameId]);
+            }
+            if($ownsTransaction)$pdo->commit();
+        }catch(Throwable $e){if($ownsTransaction&&$pdo->inTransaction())$pdo->rollBack();throw $e;}
     }
 
-    public static function adminAdjust(int $adminId, int $userId, int $occasions, string $note): void
+public static function adminAdjust(int $adminId, int $userId, int $occasions, string $note): void
     {
         if ($userId < 1) throw new RuntimeException('Choose a valid user.');
         if ($occasions === 0 || abs($occasions) > 100) throw new RuntimeException('Enter an adjustment between -100 and 100 occasions.');
