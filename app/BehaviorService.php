@@ -33,7 +33,7 @@ final class BehaviorService {
         if((int)$sim['elapsed_seconds']<(int)$d['opens_at_second']) throw new RuntimeException('That opportunity has not reached you yet.');
         if((int)$sim['elapsed_seconds']>(int)$d['closes_at_second']) throw new RuntimeException('That opportunity has already passed.');
         $o=self::decisionOption($sid,$d,$decisionId,$optionCode,$sim);
-        self::applyOption($sid,$d,$o,(int)$sim['elapsed_seconds'],'PLAYER');
+        self::applyAndConfirm($sid,$d,$o,(int)$sim['elapsed_seconds'],'PLAYER');
     }
 
     public static function chooseNpcForSimulationLab(int $sid,int $decisionId,string $optionCode): void {
@@ -46,7 +46,7 @@ final class BehaviorService {
         if((int)$sim['elapsed_seconds']<(int)$d['opens_at_second'])throw new RuntimeException('That NPC opportunity has not opened yet.');
         if((int)$sim['elapsed_seconds']>(int)$d['closes_at_second'])throw new RuntimeException('That NPC opportunity has already passed.');
         $o=self::decisionOption($sid,$d,$decisionId,$optionCode,$sim);
-        self::applyOption($sid,$d,$o,(int)$sim['elapsed_seconds'],'NPC');
+        self::applyAndConfirm($sid,$d,$o,(int)$sim['elapsed_seconds'],'NPC');
     }
 
     public static function chooseControlled(int $sid,int $decisionId,string $optionCode): void
@@ -56,7 +56,7 @@ final class BehaviorService {
         if($d['status']!=='OPEN')throw new RuntimeException('That decision is already closed.');
         if((int)$sim['elapsed_seconds']<(int)$d['opens_at_second'])throw new RuntimeException('That opportunity has not reached you yet.');
         if((int)$sim['elapsed_seconds']>(int)$d['closes_at_second'])throw new RuntimeException('That opportunity has already passed.');
-        $o=self::decisionOption($sid,$d,$decisionId,$optionCode,$sim);self::applyOption($sid,$d,$o,(int)$sim['elapsed_seconds'],(string)$d['actor_type']);
+        $o=self::decisionOption($sid,$d,$decisionId,$optionCode,$sim);self::applyAndConfirm($sid,$d,$o,(int)$sim['elapsed_seconds'],(string)$d['actor_type']);
     }
 
     public static function chooseAutomated(int $sid,int $decisionId,string $optionCode): void
@@ -66,19 +66,28 @@ final class BehaviorService {
         if($d['status']!=='OPEN')throw new RuntimeException('That decision is already closed.');
         if((int)$sim['elapsed_seconds']<(int)$d['opens_at_second'])throw new RuntimeException('That opportunity has not reached you yet.');
         if((int)$sim['elapsed_seconds']>(int)$d['closes_at_second'])throw new RuntimeException('That opportunity has already passed.');
-        $o=self::decisionOption($sid,$d,$decisionId,$optionCode,$sim);self::applyOption($sid,$d,$o,(int)$sim['elapsed_seconds'],(string)$d['actor_type']);
+        $o=self::decisionOption($sid,$d,$decisionId,$optionCode,$sim);self::applyAndConfirm($sid,$d,$o,(int)$sim['elapsed_seconds'],(string)$d['actor_type']);
     }
 
     public static function expire(int $sid,int $second): void {
-        $pdo=db();$q=$pdo->prepare('SELECT d.*,c.name FROM decisions d JOIN characters c ON c.character_id=d.character_id WHERE d.simulation_id=? AND d.status="OPEN" AND d.closes_at_second<? ORDER BY d.closes_at_second,d.decision_id');$q->execute([$sid,$second]);
-        foreach($q->fetchAll() as $d){
-            $oq=$pdo->prepare('SELECT label FROM decision_options WHERE decision_id=? ORDER BY sort_order,decision_option_id');$oq->execute([$d['decision_id']]);$labels=array_map(static fn($label)=>lcfirst(trim((string)$label)),array_column($oq->fetchAll(),'label'));$last=array_pop($labels);$choiceText=$last??'act';if($labels)$choiceText=implode(', ',$labels).', or '.$choiceText;
-            $personalText='You were given the chance to '.$choiceText.', but the moment passed before you could act — the situation changed.';
-            $pdo->prepare('UPDATE decisions SET status="NO_ACTION",resolved_text=? WHERE decision_id=?')->execute([$personalText,$d['decision_id']]);
-            $pdo->prepare('INSERT INTO character_history(simulation_id,character_id,event_id,event_second,history_type,title,detail_text) VALUES(?,?,?,?,"NO_ACTION",?,?)')->execute([$sid,$d['character_id'],$d['event_id'],$d['closes_at_second'],'The Opportunity Passed',$personalText]);
-            self::worldLog($sid,(int)$d['closes_at_second'],'NO_ACTION',$d['character_id'],$d['name'].' let an opportunity pass','The situation changed without their intervention.',(int)$d['event_id']);
-            if(class_exists('CausalService'))CausalService::applyNoActionDecision($sid,(int)$d['decision_id']);
-        }
+        $pdo=db();$ownsTransaction=!$pdo->inTransaction();if($ownsTransaction)$pdo->beginTransaction();
+        try{
+            $q=$pdo->prepare('SELECT d.*,c.name FROM decisions d JOIN characters c ON c.character_id=d.character_id WHERE d.simulation_id=? AND d.status="OPEN" AND d.closes_at_second<? ORDER BY d.closes_at_second,d.decision_id');$q->execute([$sid,$second]);
+            foreach($q->fetchAll() as $d){
+                $oq=$pdo->prepare('SELECT label FROM decision_options WHERE decision_id=? ORDER BY sort_order,decision_option_id');$oq->execute([$d['decision_id']]);$labels=array_map(static fn($label)=>lcfirst(trim((string)$label)),array_column($oq->fetchAll(),'label'));$last=array_pop($labels);$choiceText=$last??'act';if($labels)$choiceText=implode(', ',$labels).', or '.$choiceText;
+                $personalText='You were given the chance to '.$choiceText.', but the moment passed before you could act — the situation changed.';
+                // Task 2: atomic claim — only the first resolver (a choice or
+                // this expiry) wins. A concurrent choice that already claimed
+                // the decision makes this UPDATE a no-op and we skip the
+                // history, the world log and the no-action effects.
+                $upd=$pdo->prepare('UPDATE decisions SET status="NO_ACTION",resolved_text=? WHERE decision_id=? AND status="OPEN"');$upd->execute([$personalText,$d['decision_id']]);
+                if($upd->rowCount()!==1)continue;
+                $pdo->prepare('INSERT INTO character_history(simulation_id,character_id,event_id,event_second,history_type,title,detail_text) VALUES(?,?,?,?,"NO_ACTION",?,?)')->execute([$sid,$d['character_id'],$d['event_id'],$d['closes_at_second'],'The Opportunity Passed',$personalText]);
+                self::worldLog($sid,(int)$d['closes_at_second'],'NO_ACTION',$d['character_id'],$d['name'].' let an opportunity pass','The situation changed without their intervention.',(int)$d['event_id']);
+                if(class_exists('CausalService'))CausalService::applyNoActionDecision($sid,(int)$d['decision_id']);
+            }
+            if($ownsTransaction)$pdo->commit();
+        }catch(Throwable $e){if($ownsTransaction&&$pdo->inTransaction())$pdo->rollBack();throw$e;}
     }
 
     private static function decisionOption(int $sid,array $d,int $decisionId,string $optionCode,array $sim): array {
@@ -130,28 +139,53 @@ final class BehaviorService {
         $pdo=db();$q=$pdo->prepare('SELECT d.*,c.name,c.character_id FROM decisions d JOIN characters c ON c.character_id=d.character_id WHERE d.decision_id=?');$q->execute([$decisionId]);$d=$q->fetch();if(!$d||$d['status']!=='OPEN')return;
         $o=$pdo->prepare('SELECT * FROM plot_decision_template_options WHERE template_id=? AND active=1 ORDER BY sort_order');$o->execute([$templateId]);$options=[];
         foreach($o->fetchAll() as$r){if(class_exists('CausalService')&&!CausalService::optionAllowed($sid,(int)$r['template_option_id']))continue;$options[]=$r;}
-        if(!$options){$pdo->prepare('UPDATE decisions SET status="CLOSED",resolved_text="No valid NPC action remained in the current world state." WHERE decision_id=?')->execute([$decisionId]);return;}
+        if(!$options){$pdo->prepare('UPDATE decisions SET status="CLOSED",resolved_text="No valid NPC action remained in the current world state." WHERE decision_id=? AND status="OPEN"')->execute([$decisionId]);return;}
         $total=max(1,array_sum(array_map(fn($r)=>max(0,(int)$r['npc_weight']),$options)));$roll=random_int(1,$total);$pick=$options[0];$cursor=0;
         foreach($options as $r){$cursor+=max(0,(int)$r['npc_weight']);if($roll<=$cursor){$pick=$r;break;}}
         $considered=[];$remaining=100;$lastIndex=count($options)-1;
         foreach($options as $i=>$r){$chance=$i===$lastIndex?$remaining:(int)round((max(0,(int)$r['npc_weight'])/$total)*100);$chance=max(0,min($remaining,$chance));$remaining-=$chance;$considered[]=$r['label'].' ['.$chance.'%]'.($r['rationale_text']?' — '.$r['rationale_text']:'');}
-        $pdo->prepare('INSERT INTO character_history(simulation_id,character_id,event_id,event_second,history_type,title,detail_text) VALUES(?,?,?,?,"INTERACTION",?,?)')->execute([$sid,$d['character_id'],$d['event_id'],$second,'Options Considered',implode("\n",$considered)]);
-        self::applyOption($sid,$d,$pick,$second,'NPC');
+$outcome=self::applyOption($sid,$d,$pick,$second,'NPC');
+        // Record the reasoning only when this call won the claim; a losing
+        // racer leaves no history behind.
+        if($outcome!==null&&$outcome['status']==='CHOSEN'&&(string)$outcome['chosen_option_code']===(string)$pick['option_code'])$pdo->prepare('INSERT INTO character_history(simulation_id,character_id,event_id,event_second,history_type,title,detail_text) VALUES(?,?,?,?,"INTERACTION",?,?)')->execute([$sid,$d['character_id'],$d['event_id'],$second,'Options Considered',implode("\n",$considered)]);
     }
 
-    private static function applyOption(int $sid,array $d,array $opt,int $second,string $actorType): void {
-        $pdo=db();$pdo->beginTransaction();
+    // Atomic claim (Task 2): lock the decision row and claim it only while OPEN.
+    // Returns the final decision row (status + chosen_option_code +
+    // resolved_text) so callers can tell an idempotent retry from a conflict.
+    // Participates in an outer transaction instead of nesting one (Task 3):
+    // a nested beginTransaction() is a warning-only no-op, but the nested
+    // commit() would prematurely commit the caller's transaction.
+    private static function applyOption(int $sid,array $d,array $opt,int $second,string $actorType): ?array {
+        $pdo=db();$ownsTransaction=!$pdo->inTransaction();if($ownsTransaction)$pdo->beginTransaction();
         try{
+            $claim=$pdo->prepare('SELECT status,chosen_option_code,resolved_text FROM decisions WHERE decision_id=? AND simulation_id=? FOR UPDATE');$claim->execute([$d['decision_id'],$sid]);$current=$claim->fetch();
+            if(!$current||$current['status']!=='OPEN'){if($ownsTransaction&&$pdo->inTransaction())$pdo->rollBack();return $current?:null;}
             if(class_exists('CausalService')&&!CausalService::optionAllowed($sid,(int)$opt['template_option_id']))throw new RuntimeException('Action invalidated by current world state.');
-            $pdo->prepare('UPDATE decisions SET status="CHOSEN",chosen_option_code=?,resolved_text=? WHERE decision_id=?')->execute([$opt['option_code'],$opt['result_text'],$d['decision_id']]);
+            $upd=$pdo->prepare('UPDATE decisions SET status="CHOSEN",chosen_option_code=?,resolved_text=? WHERE decision_id=? AND status="OPEN"');$upd->execute([$opt['option_code'],$opt['result_text'],$d['decision_id']]);
+            if($upd->rowCount()!==1){if($ownsTransaction&&$pdo->inTransaction())$pdo->rollBack();return self::readDecision($sid,(int)$d['decision_id']);}
             $pdo->prepare('INSERT INTO character_history(simulation_id,character_id,event_id,event_second,history_type,title,detail_text) VALUES(?,?,?,?,"DECISION",?,?)')->execute([$sid,$d['character_id'],$d['event_id'],$second,'Decision: '.$opt['label'],$opt['result_text']]);
             $effects=$pdo->prepare('SELECT * FROM plot_option_effects WHERE template_option_id=? AND active=1 ORDER BY sort_order,effect_id');$effects->execute([$opt['template_option_id']]);
             $changes=[];foreach($effects->fetchAll() as $e){$changes[]=self::applyEffect($sid,(int)$d['character_id'],$d['event_id'],$second,$e,$actorType,(int)$d['decision_id']);}
             $cq=$pdo->prepare('SELECT name FROM characters WHERE character_id=?');$cq->execute([$d['character_id']]);$name=(string)$cq->fetchColumn();
             $changes=array_values(array_filter($changes,static fn($c)=>!preg_match('/^\s*[A-Z][A-Z0-9_]*\s*=\s*[^.!?]+\.?\s*$/u',(string)$c)));$resultText=trim((string)$opt['result_text']);$labelText=trim((string)$opt['label']);if($resultText===''||$resultText===$labelText||preg_match('/\byou\b|\byour\b|\byours\b|\byourself\b/i',$resultText))$worldText='chose to '.lcfirst(rtrim($labelText,'.')).'.';else $worldText=self::sentenceText($resultText);foreach($changes as$change){$change=self::sentenceText((string)$change);if($change!=='')$worldText.=' '.$change;}
             self::worldLog($sid,$second,$actorType.'_ACTION',(int)$d['character_id'],$name.': '.$opt['label'],$worldText,(int)$d['event_id']);
-            $pdo->commit();
-        }catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw$e;}
+            if($ownsTransaction)$pdo->commit();
+            return ['status'=>'CHOSEN','chosen_option_code'=>$opt['option_code'],'resolved_text'=>$opt['result_text']];
+        }catch(Throwable $e){if($ownsTransaction&&$pdo->inTransaction())$pdo->rollBack();throw$e;}
+    }
+
+    private static function readDecision(int $sid,int $decisionId): ?array {
+        $q=db()->prepare('SELECT status,chosen_option_code,resolved_text FROM decisions WHERE decision_id=? AND simulation_id=?');$q->execute([$decisionId,$sid]);$r=$q->fetch();return $r?:null;
+    }
+
+    // Apply a choice and confirm the outcome. An idempotent retry (the same
+    // option already chosen, e.g. a double-click or retried POST) succeeds
+    // silently; any other already-resolved state is a conflict.
+    private static function applyAndConfirm(int $sid,array $d,array $opt,int $second,string $actorType): void {
+        $outcome=self::applyOption($sid,$d,$opt,$second,$actorType);
+        if($outcome!==null&&$outcome['status']==='CHOSEN'&&(string)$outcome['chosen_option_code']===(string)$opt['option_code'])return;
+        throw new RuntimeException('That decision is already closed.');
     }
 
     private static function applyEffect(int $sid,int $cid,int $eventId,int $second,array $e,string $sourceType,?int $sourceId): string {
