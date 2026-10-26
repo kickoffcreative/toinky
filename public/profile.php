@@ -1,5 +1,5 @@
 <?php
-$root=dirname(__DIR__);require_once $root.'/app/bootstrap.php';require_once $root.'/app/MigrationService.php';require_once $root.'/app/CommerceService.php';MigrationService::run();require_once $root.'/app/AuthService.php';require_once $root.'/app/UserProfileService.php';AuthService::boot();$user=AuthService::requireLogin();$error=null;$notice=null;$generatedUrl=null;
+$root=dirname(__DIR__);require_once $root.'/app/bootstrap.php';require_once $root.'/app/CommerceService.php';require_once $root.'/app/AuthService.php';require_once $root.'/app/UserProfileService.php';AuthService::boot();$user=AuthService::requireLogin();$error=null;$notice=null;$generatedUrl=null;
 try{if(!empty($_GET['verify_email'])){UserProfileService::confirmEmailChange((int)$user['user_id'],(string)$_GET['verify_email']);$notice='Your new email address is verified and active.';$user=AuthService::currentUser()??$user;}}
 catch(Throwable $e){$error=$e->getMessage();}
 if($_SERVER['REQUEST_METHOD']==='POST'){try{AuthService::requireCsrf();$action=(string)($_POST['action']??'');
