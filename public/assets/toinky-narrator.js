@@ -85,6 +85,7 @@
   var tts = null;            // KokoroTTS instance (once loaded)
   var engineLoading = null;  // in-flight Kokoro load promise
   var engineFailed = false;  // Kokoro could not load — use system voices
+  var engineState = 'idle';    // 'idle' | 'loading' | 'ready' | 'failed' (Kokoro load state)
   var audioCtx = null;
   var gainNode = null;
   var currentSource = null;  // active AudioBufferSourceNode
@@ -115,7 +116,11 @@
   }
 
   function updateButtons() {
-    if (els.readNow) els.readNow.disabled = !settings.enabled || speaking;
+    // Read Now stays disabled while a Kokoro voice is still loading, so the
+    // player cannot trigger narration (and hear silence) before the neural
+    // voice is ready. The system voice needs no download and is always ready.
+    var kokoroLoading = settings.enabled && settings.voice !== 'system' && !engineFailed && engineState !== 'ready';
+    if (els.readNow) els.readNow.disabled = !settings.enabled || speaking || kokoroLoading;
     if (els.stopBtn) els.stopBtn.disabled = !speaking && queue.length === 0 && !waitingForPlayer;
     if (els.continueBtn) els.continueBtn.hidden = !waitingForPlayer;
     if (els.retellBtn) els.retellBtn.hidden = gameStatus() !== 'COMPLETE';
@@ -141,17 +146,21 @@
     if (tts) return Promise.resolve(tts);
     if (engineFailed) return Promise.reject(new Error('kokoro-unavailable'));
     if (!engineLoading) {
+      engineState = 'loading';
+      updateButtons();
       engineLoading = import(KOKORO_CDN).then(function (mod) {
         return mod.KokoroTTS.from_pretrained(MODEL_ID, {
-          dtype: 'q4f16',
+          dtype: 'q8',
           device: 'wasm',
           progress_callback: progressCb || null
         });
       }).then(function (instance) {
         tts = instance;
+        engineState = 'ready';
         return tts;
       }).catch(function (err) {
         engineFailed = true;
+        engineState = 'failed';
         engineLoading = null;
         throw err;
       });
@@ -437,7 +446,20 @@
     if (els.volume) els.volume.value = String(settings.volume);
     if (els.volumeVal) els.volumeVal.textContent = Math.round(settings.volume * 100) + '%';
     if (gainNode) gainNode.gain.value = settings.volume;
-    setStatus(settings.enabled ? (isRetelling ? 'Telling the story…' : 'Ready.') : 'Narration off.');
+    // Only report Ready when the engine is actually ready. While Kokoro is
+    // still loading, keep the loading status so the player does not trigger
+    // narration (and hear the robotic system fallback) before it is ready.
+    if (!settings.enabled) {
+      setStatus('Narration off.');
+    } else if (settings.voice === 'system' || engineFailed) {
+      setStatus(isRetelling ? 'Telling the story…' : 'Ready.');
+    } else if (engineState === 'ready') {
+      setStatus(isRetelling ? 'Telling the story…' : 'Ready.');
+    } else if (engineState === 'loading') {
+      setStatus('Loading narrator voice…');
+    } else {
+      setStatus('Ready.');
+    }
     updateButtons();
   }
 
@@ -460,10 +482,12 @@
           }
         }).then(function () {
           setStatus('Ready.');
+          applySettingsToUI();
           enqueueNew();
         }).catch(function () {
           engineFailed = true;
           setStatus('Narrator voice unavailable — using your system voice.');
+          applySettingsToUI();
           enqueueNew();
         });
       } else {
