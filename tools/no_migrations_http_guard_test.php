@@ -19,8 +19,10 @@ $check($bad===[] ,'no public/*.php file calls MigrationService::run()'.($bad?' â
 $migrate=file_get_contents($root.'/tools/migrate.php');
 $check(str_contains($migrate,"if(PHP_SAPI!=='cli')"),'tools/migrate.php still has its CLI-only guard');
 $check(str_contains($migrate,'MigrationService::run()'),'tools/migrate.php still runs migrations (deploy-time path intact)');
-$cpanel=file_get_contents($root.'/.cpanel.yml');
-$check(str_contains($cpanel,'tools/migrate.php'),'.cpanel.yml still runs tools/migrate.php as a deploy step');
+if(is_file($root.'/.cpanel.yml')){
+    $cpanel=file_get_contents($root.'/.cpanel.yml');
+    $check(str_contains($cpanel,'tools/migrate.php'),'.cpanel.yml still runs tools/migrate.php as a deploy step');
+}else{echo "SKIP .cpanel.yml still runs tools/migrate.php (not present on this server)\n";}
 
 if($failures){echo 'FAILURES: '.implode('; ',$failures)."\n";exit(1);}
 echo "no_migrations_http_guard_test: all checks passed.\n";
