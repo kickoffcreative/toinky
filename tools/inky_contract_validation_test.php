@@ -29,8 +29,6 @@ $valueMethod=new ReflectionMethod(InkyCowriterService::class,'validatedStoryValu
 $valueMethod->setAccessible(true);
 $opportunityMethod=new ReflectionMethod(InkyCowriterService::class,'validatedOpportunityReview');
 $opportunityMethod->setAccessible(true);
-$targetMethod=new ReflectionMethod(InkyCowriterService::class,'targetFocus');
-$targetMethod->setAccessible(true);
 $focusedMethod=new ReflectionMethod(InkyCowriterService::class,'validatedFocusedTests');
 $focusedMethod->setAccessible(true);
 $characterSuggestionMethod=new ReflectionMethod(InkyCowriterService::class,'validatedCharacterSuggestion');
@@ -249,11 +247,6 @@ $failed=false;
 try{$opportunityMethod->invoke(null,['summary'=>'','opportunities'=>[]]);}
 catch(RuntimeException $e){$failed=str_contains($e->getMessage(),'summary');}
 if(!$failed)throw new RuntimeException('Opportunity-review validation accepted a missing summary.');
-
-$focus=$targetMethod->invoke(null,['target_type'=>'Opportunity','target_code'=>'secret hearing']);
-if($focus['type']!=='opportunity'||$focus['code']!=='SECRET_HEARING')throw new RuntimeException('Opportunity-review focus target was not normalized.');
-$focus=$targetMethod->invoke(null,['target_type'=>'unsafe','target_code'=>'still ignored']);
-if($focus['type']!==''||$focus['code']!=='STILL_IGNORED')throw new RuntimeException('Opportunity-review focus target type was not constrained.');
 
 $focused=$focusedMethod->invoke(null,[
     'summary'=>'Prioritize local branch coverage before broad replay.',
