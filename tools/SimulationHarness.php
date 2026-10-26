@@ -6,11 +6,11 @@ final class SimulationHarness
     {
         $pdo=db();$pdo->exec('SET FOREIGN_KEY_CHECKS=0');$tables=$pdo->query('SHOW TABLES')->fetchAll(PDO::FETCH_COLUMN);foreach($tables as$table)$pdo->exec('DROP TABLE IF EXISTS `'.str_replace('`','``',(string)$table).'`');$pdo->exec('SET FOREIGN_KEY_CHECKS=1');self::runSqlFile($pdo,__DIR__.'/../database/schema.sql');self::runSqlFile($pdo,__DIR__.'/../database/seed.sql');MigrationService::run();
     }
-    public static function run(string $plotCode,string $strategy='no-action',int $duration=300,int $step=30,string $controllerMode='legacy',string $focus=''): array
+    public static function run(string $plotCode,string $strategy='no-action',int $duration=300,int $step=30,string $controllerMode='legacy',string $focus='',?int $plotVersionId=null): array
     {
         $controllerMode=strtolower(trim($controllerMode));$focus=strtoupper(trim($focus));putenv('GAME2_SIM_FOCUS='.$focus);
         $controllers=self::controllerAssignments($plotCode,$controllerMode);
-        $aiCharacterIds=self::prepareAiCharacters($sid=SimulationService::create($plotCode,$duration,$controllers),$controllerMode);
+        $aiCharacterIds=self::prepareAiCharacters($sid=SimulationService::create($plotCode,$duration,$controllers,$plotVersionId),$controllerMode);
         try{
             SimulationService::start($sid);self::playAiDecisions($sid,$aiCharacterIds);
             while(true){$sim=self::simulationRow($sid);if($sim['status']==='COMPLETE')break;if(in_array($controllerMode,['human-random','human-biased'],true))self::playOpenControlledDecisions($sid,$strategy,$aiCharacterIds);elseif($strategy!=='no-action')self::playOpenPlayerDecisions($sid,$strategy,$aiCharacterIds);self::playAiDecisions($sid,$aiCharacterIds);SimulationService::advance($sid,$step);self::playAiDecisions($sid,$aiCharacterIds);}
