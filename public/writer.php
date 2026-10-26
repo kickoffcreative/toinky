@@ -54,11 +54,11 @@ function writer_target_options(array $definitions,string $current):string{$html=
 // Multi-select for an effect's target characters: deciding character
 // (default), whole group, or specific roles. $current is the stored
 // target_role_code (''/NULL = decider, 'GROUP', or comma-separated roles).
-function writer_target_roles_select(array $roles,string $current):string{
+function writer_target_roles_select(array $roles,string $current,bool $forEvent=false):string{
     $selected=array_filter(array_map('trim',explode(',',strtoupper($current))));
-    $html='<select name="target_role_code[]" multiple size="'.min(8,count($roles)+2).'">';
-    $html.='<option value="SELF"'.((!$selected||in_array('SELF',$selected,true))?' selected':'').'>Deciding character</option>';
-    $html.='<option value="GROUP"'.(in_array('GROUP',$selected,true)?' selected':'').'>Whole group</option>';
+    $html='<select name="target_role_code[]" multiple size="'.min(8,count($roles)+($forEvent?1:2)).'">';
+    if(!$forEvent)$html.='<option value="SELF"'.((!$selected||in_array('SELF',$selected,true))?' selected':'').'>Deciding character</option>';
+    $html.='<option value="GROUP"'.((($forEvent&&!$selected)||in_array('GROUP',$selected,true))?' selected':'').'>Whole group</option>';
     foreach($roles as$role){$code=(string)($role['role_code']??'');if($code==='')continue;$html.='<option value="'.e($code).'"'.(in_array($code,$selected,true)?' selected':'').'>'.e(($role['name']??$code).' · '.$code).'</option>';}
     return$html.'</select>';
 }
