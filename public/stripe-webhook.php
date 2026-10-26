@@ -1,5 +1,5 @@
 <?php
-$root=dirname(__DIR__);require_once $root.'/app/bootstrap.php';require_once $root.'/app/MigrationService.php';MigrationService::run();require_once $root.'/app/StripeService.php';require_once $root.'/app/CommerceService.php';
+$root=dirname(__DIR__);require_once $root.'/app/bootstrap.php';require_once $root.'/app/StripeService.php';require_once $root.'/app/CommerceService.php';
 header('Content-Type: application/json; charset=utf-8');header('Cache-Control: no-store');
 if(($_SERVER['REQUEST_METHOD']??'')!=='POST'){http_response_code(405);echo json_encode(['error'=>'Method not allowed.']);exit;}
 $payload=(string)file_get_contents('php://input');
