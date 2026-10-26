@@ -38,7 +38,10 @@ try{$pq=db()->query('SELECT code,title,archetype,genre,setting_name,max_players,
 <link rel="stylesheet" href="assets/toinky-admin-workspace.css">
 <link rel="stylesheet" href="assets/toinky-admin-interior.css">
 </head>
-<body><div class="workspace-layout admin-app lab-app"><?php require __DIR__.'/_workspace_sidebar.php';render_workspace_sidebar($adminUser,'lab',true);?><main class="workspace-main"><header class="workspace-page-header"><div><h1>Story Engine Lab</h1><p>Signed in as <?=e($adminUser['display_name'])?></p></div></header>
+<body><div class="workspace-layout admin-app lab-app"><?php require __DIR__.'/_workspace_sidebar.php';render_workspace_sidebar($adminUser,'lab',true);?><main class="workspace-main"><header class="workspace-page-header"><div><h1>Story Engine Lab</h1><p>Signed in as <?=e($adminUser['display_name'])?></p></div></header><div class="folder-tabs">
+<a class="folder-tab" href="admin.php?view=simulations">Simulations</a>
+<a class="folder-tab active" href="lab.php">Story Engine Lab</a>
+</div>
 <?php if(!empty($error))echo '<div class="error">'.e($error).'</div>'; ?>
 <?php if(!$sid): ?>
 <section class="lab-head"><h1>Story Engine Lab</h1><div class="header-sub">One shared reality. Different personal stories. · Signed in as <?=e($adminUser['display_name'])?></div></section><main class="setup"><h1>New Simulation</h1><p>One shared reality. Different personal stories.</p><form method="post"><input type="hidden" name="action" value="create"><label>Story<br><select name="plot_code" required><?php foreach($plots as$p): ?><option value="<?=e($p['code'])?>"><?=e($p['title'])?> — <?=e($p['genre'])?></option><?php endforeach; ?></select></label><div id="controller-fields" class="controller-list"></div><?php if($plots): ?><div class="story-note"><?=count($plots)?> active <?=count($plots)===1?'story':'stories'?> available. Choose who is controlled by a person and who is controlled by AI.</div><?php else: ?><div class="story-note">No active stories are available. Check that the latest database migration has run.</div><?php endif; ?><br><label>Duration<br><select name="duration_seconds"><option value="300">5 minutes</option><option value="900">15 minutes</option></select></label><br><br><button <?=!$plots?'disabled':''?>>Create Simulation</button></form></main><script>
