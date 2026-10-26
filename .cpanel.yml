@@ -9,6 +9,12 @@ deployment:
     - /bin/cp -Rf public $DEPLOYPATH
     - /bin/mkdir -p $DEPLOYPATH/assets
     - /bin/cp -Rf public/assets/. $DEPLOYPATH/assets/
+    # Remove unoptimized Inky images deleted from the repo (Oct 26 cleanup) —
+    # the deploy copies but never deletes, so stale live copies linger otherwise.
+    # Inky loads only the optimized/ variants; these are dead weight.
+    - /bin/rm -f $DEPLOYPATH/assets/inky/rig/body_base_blank.png $DEPLOYPATH/assets/inky/rig/eye_left_open.png $DEPLOYPATH/assets/inky/rig/eye_right_open.png $DEPLOYPATH/assets/inky/rig/ink_bubble_large.png $DEPLOYPATH/assets/inky/rig/ink_bubbles_cluster.png $DEPLOYPATH/assets/inky/rig/ink_drop_large.png $DEPLOYPATH/assets/inky/rig/ink_drop_mid_1.png $DEPLOYPATH/assets/inky/rig/ink_drop_mid_2.png $DEPLOYPATH/assets/inky/rig/ink_drop_small_1.png $DEPLOYPATH/assets/inky/rig/ink_ring_1.png $DEPLOYPATH/assets/inky/rig/ink_ring_2.png $DEPLOYPATH/assets/inky/rig/ink_ring_3.png $DEPLOYPATH/assets/inky/rig/ink_ring_4.png $DEPLOYPATH/assets/inky/rig/ink_wave_1.png $DEPLOYPATH/assets/inky/rig/ink_wave_2.png $DEPLOYPATH/assets/inky/rig/lid_left.png $DEPLOYPATH/assets/inky/rig/lid_right.png $DEPLOYPATH/assets/inky/rig/mouth_happy.png $DEPLOYPATH/assets/inky/rig/mouth_open.png $DEPLOYPATH/assets/inky/rig/mouth_small_o.png $DEPLOYPATH/assets/inky/rig/pen_arm.png $DEPLOYPATH/assets/inky/rig/scarf_full.png
+    - /bin/rm -f $DEPLOYPATH/assets/inky/lantern/rig/body_blank.png $DEPLOYPATH/assets/inky/lantern/rig/broken_halo.png $DEPLOYPATH/assets/inky/lantern/rig/cape_left.png $DEPLOYPATH/assets/inky/lantern/rig/cape_right.png $DEPLOYPATH/assets/inky/lantern/rig/eye_left.png $DEPLOYPATH/assets/inky/lantern/rig/eye_right.png $DEPLOYPATH/assets/inky/lantern/rig/halo.png $DEPLOYPATH/assets/inky/lantern/rig/inner_glow.png $DEPLOYPATH/assets/inky/lantern/rig/lid_left.png $DEPLOYPATH/assets/inky/lantern/rig/lid_right.png $DEPLOYPATH/assets/inky/lantern/rig/mouth_o.png $DEPLOYPATH/assets/inky/lantern/rig/mouth_open.png $DEPLOYPATH/assets/inky/lantern/rig/mouth_smile.png $DEPLOYPATH/assets/inky/lantern/rig/scarf.png $DEPLOYPATH/assets/inky/lantern/rig/sparks.png
+    - /bin/rm -rf $DEPLOYPATH/assets/inky/lantern/source
     - /bin/cp -Rf database $DEPLOYPATH
     - /bin/cp -Rf tools $DEPLOYPATH
     - /bin/mkdir -p $DEPLOYPATH/config
