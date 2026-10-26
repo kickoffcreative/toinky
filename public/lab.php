@@ -19,7 +19,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         AuthService::requireCsrf();
         if($action==='create'){
             $plotCode=trim((string)($_POST['plot_code']??'CONCEALED_FAILURE'));
-            $controllers=is_array($_POST['controllers']??null)?$_POST['controllers']:[];$sid=SimulationService::create($plotCode,(int)($_POST['duration_seconds']??300),$controllers);
+            $controllers=is_array($_POST['controllers']??null)?$_POST['controllers']:[];$lv=db()->prepare('SELECT plot_version_id FROM plot_versions WHERE plot_id=(SELECT plot_id FROM plots WHERE code=?) ORDER BY version_no DESC LIMIT 1');$lv->execute([$plotCode]);$labVersion=$lv->fetchColumn();$sid=SimulationService::create($plotCode,(int)($_POST['duration_seconds']??300),$controllers,$labVersion===false?null:(int)$labVersion);
             header('Location: ?simulation='.$sid);exit;
         }
         if($action==='start'){SimulationService::start($sid);CharacterAutomationService::process($sid);header('Location: ?simulation='.$sid);exit;}
