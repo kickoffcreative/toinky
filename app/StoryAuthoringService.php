@@ -607,13 +607,32 @@ final class StoryAuthoringService
         if($entity==='decision'){foreach($w['decisions']as$row)if((int)$row['template_id']===$id){$q=db()->prepare('SELECT 1 FROM plot_dynamic_opportunities WHERE plot_id=? AND opportunity_code=? AND role_code=? LIMIT 1');$q->execute([$plotId,$row['event_code'],$row['role_code']]);if($q->fetchColumn())$dependencies[]='Conditional opportunity · '.$row['event_code'];break;}}
         if($entity==='option'){foreach($w['options']as$row)if((int)$row['template_option_id']===$id){$q=db()->prepare('SELECT t.event_code,t.role_code FROM plot_decision_template_options x JOIN plot_decision_templates t ON t.template_id=x.template_id WHERE x.template_option_id=? AND t.plot_id=?');$q->execute([$id,$plotId]);$parent=$q->fetch();if($parent){$mirror=db()->prepare('SELECT 1 FROM plot_dynamic_opportunity_options x JOIN plot_dynamic_opportunities o ON o.dynamic_opportunity_id=x.dynamic_opportunity_id WHERE o.plot_id=? AND o.opportunity_code=? AND o.role_code=? AND x.option_code=? LIMIT 1');$mirror->execute([$plotId,$parent['event_code'],$parent['role_code'],$row['option_code']]);if($mirror->fetchColumn())$dependencies[]='Conditional choice mirror · '.$row['option_code'];}break;}}
         if($dependencies)throw new RuntimeException('Cannot delete this item while it has linked records: '.implode(' · ',$dependencies));
+        // Runtime immutability (audit task 4): a role that has ever been cast in a
+        // simulation must never be hard-deleted — that would wipe the played
+        // characters and their history/decisions in every game. Retire it instead
+        // (retireCharacter), which excludes it from future games only.
+        if($entity==='character'){
+            $rq=db()->prepare('SELECT COUNT(*) AS used, COUNT(DISTINCT simulation_id) AS sims FROM characters WHERE plot_role_id=?');
+            $rq->execute([$id]);$rc=$rq->fetch();$used=(int)($rc['used']??0);
+            if($used>0){$sims=(int)($rc['sims']??0);throw new RuntimeException('Cannot delete this character while it is used by '.$used.' played character(s) in '.$sims.' game(s). Retire it instead so future games exclude it while past games keep their history.');}
+        }
         $pdo=db();$ownsTransaction=!$pdo->inTransaction();if($ownsTransaction)$pdo->beginTransaction();try{
             if($entity==='opportunity'){$q=$pdo->prepare('SELECT opportunity_code,role_code FROM plot_dynamic_opportunities WHERE dynamic_opportunity_id=? AND plot_id=?');$q->execute([$id,$plotId]);$row=$q->fetch();if($row)$pdo->prepare('DELETE FROM plot_decision_templates WHERE plot_id=? AND event_code=? AND role_code=?')->execute([$plotId,$row['opportunity_code'],$row['role_code']]);}
             if($entity==='dynamic_option'){$q=$pdo->prepare('SELECT x.option_code,o.opportunity_code,o.role_code FROM plot_dynamic_opportunity_options x JOIN plot_dynamic_opportunities o ON o.dynamic_opportunity_id=x.dynamic_opportunity_id WHERE x.dynamic_option_id=? AND o.plot_id=?');$q->execute([$id,$plotId]);$row=$q->fetch();if($row)$pdo->prepare('DELETE x FROM plot_decision_template_options x JOIN plot_decision_templates t ON t.template_id=x.template_id WHERE t.plot_id=? AND t.event_code=? AND t.role_code=? AND x.option_code=?')->execute([$plotId,$row['opportunity_code'],$row['role_code'],$row['option_code']]);}
-            if($entity==='character'){$pdo->prepare('DELETE FROM characters WHERE plot_role_id=?')->execute([$id]);}
             $q=$pdo->prepare($deleteSql[$entity][0]);$q->execute([$id,$plotId]);if($q->rowCount()<1)throw new RuntimeException('Story item not found.');
             if($ownsTransaction)$pdo->commit();
         }catch(Throwable$e){if($ownsTransaction&&$pdo->inTransaction())$pdo->rollBack();throw$e;}
+    }
+
+    // Retire a character (audit task 4): exclude it from all future simulations
+    // while leaving every existing runtime character and its history untouched.
+    // A retired role stays visible in the studio marked inactive. Use this instead
+    // of deleting a role that has ever been cast.
+    public static function retireCharacter(array $user,int $plotId,int $id): void
+    {
+        self::guard($user,$plotId);$id=(int)$id;if($id<1)throw new RuntimeException('That character cannot be retired.');
+        $q=db()->prepare('UPDATE plot_roles SET active=0, simulation_active=0 WHERE plot_role_id=? AND plot_id=?');
+        $q->execute([$id,$plotId]);if($q->rowCount()<1)throw new RuntimeException('Character not found.');
     }
 
     public static function audit(int $plotId): array
