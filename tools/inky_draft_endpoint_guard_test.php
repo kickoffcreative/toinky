@@ -23,7 +23,11 @@ if(is_file($root.'/.cpanel.yml')){
     $cpanel=file_get_contents($root.'/.cpanel.yml');
     $check(substr_count($cpanel,'inky-draft-dependencies.php')>=2,'.cpanel.yml names inky-draft-dependencies.php in both the copy list and the chmod list');
 }else{echo "SKIP .cpanel.yml names inky-draft-dependencies.php (not present on this server)\n";}
-$js=file_get_contents($root.'/public/assets/toinky-inky-draft.js');
+// The deploy copies public/assets to /assets and removes the public/assets
+// shadow tree, so on the live server the JS lives at /assets, not
+// /public/assets. Accept either layout.
+$jsPath=file_exists($root.'/public/assets/toinky-inky-draft.js')?$root.'/public/assets/toinky-inky-draft.js':$root.'/assets/toinky-inky-draft.js';
+$js=file_exists($jsPath)?file_get_contents($jsPath):'';
 $check(str_contains($js,"fetch('inky-draft-dependencies.php'"),'JS still fetches the relative endpoint (root wrapper is the fix, not a JS change)');
 
 if($failures){echo 'FAILURES: '.implode('; ',$failures)."\n";exit(1);}
