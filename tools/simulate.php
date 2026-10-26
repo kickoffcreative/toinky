@@ -63,7 +63,10 @@ if($opt['reset']){
     if(!is_file($dbConfigPath)){fwrite(STDERR,"Refusing --reset: database config not found at {$dbConfigPath}.\n");exit(2);}
     $dbCfg=require $dbConfigPath;
     $dbHost='localhost';$dbName='';
-    foreach(explode(';',(string)($dbCfg['dsn']??''))as$part){
+    // The DSN starts with a scheme (mysql:host=...) — strip it first, or the
+    // first segment's key reads 'mysql:host' and the host is never parsed.
+    $dsn=(string)preg_replace('/^[^:]+:/','',(string)($dbCfg['dsn']??''));
+    foreach(explode(';',$dsn)as$part){
         if(!str_contains($part,'='))continue;
         [$dbKey,$dbVal]=explode('=',$part,2);
         if(strtolower(trim($dbKey))==='host')$dbHost=strtolower(trim($dbVal));
