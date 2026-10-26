@@ -77,6 +77,14 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
             header('Location: page-builder.php?page='.rawurlencode($pageCode).'&section='.$sectionId.'&saved=1');
             exit;
         }
+        if($action==='save_section'){
+            $sectionId=(int)($_POST['section_id']??0);
+            PageContentService::saveSection($admin,$sectionId,$_POST);
+            if(isset($_POST['active']))PageContentService::setSectionActive($admin,$sectionId,((string)$_POST['active']==='1'));
+            if($isAjaxSave)builder_json_exit(['ok'=>true]);
+            header('Location: page-builder.php?page='.rawurlencode($pageCode).'&section='.$sectionId.'&saved=1');
+            exit;
+        }
         if($action!=='save_page_builder')throw new RuntimeException('Unknown page builder action.');
         $sectionId=(int)($_POST['section_id']??0);
         $sectionById=null;
@@ -159,6 +167,46 @@ function builder_e(string $value): string{return htmlspecialchars($value,ENT_QUO
 <form method="post" class="section-rename-form"><input type="hidden" name="csrf_token" value="<?=htmlspecialchars(AuthService::csrfToken(),ENT_QUOTES,'UTF-8')?>"><input type="hidden" name="action" value="rename_section"><input type="hidden" name="section_id" value="<?=(int)$section['site_page_section_id']?>"><label>Section name<input name="section_label" maxlength="120" value="<?=builder_e((string)($section['label_text']??''))?>" required></label><button type="submit">Rename</button></form>
 <form method="post" class="section-delete-form" data-confirm="Delete this section? This cannot be undone."><input type="hidden" name="csrf_token" value="<?=htmlspecialchars(AuthService::csrfToken(),ENT_QUOTES,'UTF-8')?>"><input type="hidden" name="action" value="delete_section"><input type="hidden" name="section_id" value="<?=(int)$section['site_page_section_id']?>"><button type="submit" <?=!empty($section['is_default'])?'disabled title="Default sections can be hidden but not deleted."':'title="Delete section"'?>>Delete</button></form>
 </div>
+<?php
+// Section Settings: the full section editor (layout, image, text, background,
+// overlay, visibility). This replaces the old admin Pages editor. Fields the
+// Pages view did not expose (columns, padding, typography) are carried as
+// hidden inputs at their current values so saveSection never resets them.
+$__cols=json_decode((string)($section['columns_json']??''),true);
+if(!is_array($__cols))$__cols=[];
+$__col=function(int $n,string $key)use($__cols):string{return (string)($__cols[$n][$key]??'');};
+$__sec=function(string $key)use($section):string{return (string)($section[$key]??'');};
+?>
+<details class="section-settings" open>
+<summary><strong>Section Settings</strong><span class="builder-muted">Layout, image, text, background &amp; visibility</span></summary>
+<form method="post" class="section-add-form">
+<input type="hidden" name="csrf_token" value="<?=htmlspecialchars(AuthService::csrfToken(),ENT_QUOTES,'UTF-8')?>"><input type="hidden" name="action" value="save_section"><input type="hidden" name="section_id" value="<?=(int)$section['site_page_section_id']?>">
+<label>Layout<select name="layout_type"><?php foreach(PageContentService::LAYOUTS as $__layout):?><option value="<?=builder_e($__layout)?>" <?=(string)($section['layout_type']??'')===$__layout?'selected':''?>><?=builder_e(ucwords(strtolower(str_replace('_',' ',$__layout))))?></option><?php endforeach;?></select></label>
+<label>Section image<select name="image_media_id"><option value="">No image</option><?php foreach($pageMedia as $media):?><option value="<?=(int)$media['media_id']?>" <?=(int)($section['image_media_id']??0)===(int)$media['media_id']?'selected':''?>><?=builder_e((string)($media['title_text']??''))?></option><?php endforeach;?></select></label>
+<label>Eyebrow<input name="eyebrow_text" maxlength="190" value="<?=builder_e($__sec('eyebrow_text'))?>"></label>
+<label>Title<input name="title_text" maxlength="500" value="<?=builder_e($__sec('title_text'))?>"></label>
+<label>Intro<textarea name="content_html" rows="3"><?=builder_e($__sec('content_html'))?></textarea></label>
+<label>Background<select name="background_mode"><option value="DEFAULT" <?=$__sec('background_mode')==='DEFAULT'?'selected':''?>>Default design</option><option value="COLOR" <?=$__sec('background_mode')==='COLOR'?'selected':''?>>Color</option><option value="MEDIA" <?=$__sec('background_mode')==='MEDIA'?'selected':''?>>Media image</option></select></label>
+<label>Background color<input type="color" name="background_color" value="<?=builder_e($__sec('background_color')!==''?$__sec('background_color'):'#F4EEE2')?>"></label>
+<label>Background image<select name="background_media_id"><option value="">No image</option><?php foreach($pageMedia as $media):?><option value="<?=(int)$media['media_id']?>" <?=(int)($section['background_media_id']??0)===(int)$media['media_id']?'selected':''?>><?=builder_e((string)($media['title_text']??''))?></option><?php endforeach;?></select></label>
+<label>Background fit<select name="background_fit"><?php foreach(PageContentService::BACKGROUND_FITS as $__fit):?><option value="<?=builder_e($__fit)?>" <?=$__sec('background_fit')===$__fit?'selected':''?>><?=builder_e(ucwords(strtolower($__fit)))?></option><?php endforeach;?></select></label>
+<label>Background opacity<input type="number" name="background_opacity" min="0" max="100" value="<?=builder_e($__sec('background_opacity')!==''?$__sec('background_opacity'):'100')?>"></label>
+<label>Overlay<select name="overlay_mode"><option value="NONE" <?=$__sec('overlay_mode')==='NONE'?'selected':''?>>None</option><option value="COLOR" <?=$__sec('overlay_mode')==='COLOR'?'selected':''?>>Color</option><option value="GRADIENT" <?=$__sec('overlay_mode')==='GRADIENT'?'selected':''?>>Gradient</option></select></label>
+<label>Overlay start color<input type="color" name="overlay_color_start" value="<?=builder_e($__sec('overlay_color_start')!==''?$__sec('overlay_color_start'):'#1C242B')?>"></label>
+<label>Overlay end color<input type="color" name="overlay_color_end" value="<?=builder_e($__sec('overlay_color_end')!==''?$__sec('overlay_color_end'):'#6B2938')?>"></label>
+<label>Overlay opacity<input type="number" name="overlay_opacity" min="0" max="100" value="<?=builder_e($__sec('overlay_opacity')!==''?$__sec('overlay_opacity'):'0')?>"></label>
+<label>Visibility<select name="active"><option value="1" <?=!empty($section['active'])?'selected':''?>>Visible</option><option value="0" <?=empty($section['active'])?'selected':''?>>Hidden</option></select></label>
+<?php for($__i=1;$__i<=3;$__i++):?>
+<input type="hidden" name="column_<?=$__i?>_title" value="<?=builder_e($__col($__i-1,'title'))?>">
+<input type="hidden" name="column_<?=$__i?>_content" value="<?=builder_e($__col($__i-1,'content'))?>">
+<input type="hidden" name="column_<?=$__i?>_image_media_id" value="<?=builder_e($__col($__i-1,'image_media_id'))?>">
+<?php endfor;?>
+<?php foreach(['padding_top_px','padding_right_px','padding_bottom_px','padding_left_px','mobile_padding_top_px','mobile_padding_right_px','mobile_padding_bottom_px','mobile_padding_left_px','label_font_size','label_color','label_transform','title_font_size','title_color','title_transform','body_font_size','body_color','body_transform'] as $__k):?>
+<input type="hidden" name="<?=builder_e($__k)?>" value="<?=builder_e($__sec($__k))?>">
+<?php endforeach;?>
+<button type="submit">Save Section Settings</button>
+</form>
+</details>
 <?php if($isFirstSection):?>
 <form method="post" class="section-add-form">
 <input type="hidden" name="csrf_token" value="<?=htmlspecialchars(AuthService::csrfToken(),ENT_QUOTES,'UTF-8')?>"><input type="hidden" name="action" value="save_hero"><input type="hidden" name="section_id" value="<?=(int)$section['site_page_section_id']?>">
