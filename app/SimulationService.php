@@ -8,7 +8,11 @@ final class SimulationService {
         // (a later draft edit) can be detected. NULL = legacy/unpinned.
         $checksum=null;
         if($plotVersionId!==null){$vq=$pdo->prepare('SELECT snapshot_json FROM plot_versions WHERE plot_version_id=? AND plot_id=?');$vq->execute([$plotVersionId,$plot['plot_id']]);$snap=$vq->fetchColumn();if($snap===false)throw new RuntimeException('Pinned content version not found for this story.');$snapArr=json_decode((string)$snap,true);$checksum=hash('sha256',json_encode($snapArr['content']??[],JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES));}
-        $pdo->beginTransaction();
+        // Task 6: participate in the caller's transaction (createGame) instead
+        // of always owning one, so a failed lobby creation rolls the
+        // simulation back too instead of orphaning it. Standalone callers
+        // (Lab, harness) still get their own transaction.
+        $ownsTransaction=!$pdo->inTransaction();if($ownsTransaction)$pdo->beginTransaction();
         try{
             $pdo->prepare('INSERT INTO simulations(plot_id,plot_version_id,content_checksum,duration_seconds,mode,status,current_phase) VALUES(?,?,?,?,"MANUAL","READY","SETUP")')->execute([$plot['plot_id'],$plotVersionId,$checksum,$duration]);$sid=(int)$pdo->lastInsertId();
             $f=$pdo->prepare('SELECT * FROM plot_factors WHERE plot_id=?');$f->execute([$plot['plot_id']]);foreach($f->fetchAll()as$r)$pdo->prepare('INSERT INTO simulation_factors(simulation_id,factor_code,label,current_value,min_value,max_value) VALUES(?,?,?,?,?,?)')->execute([$sid,$r['factor_code'],$r['label'],$r['initial_value'],$r['min_value'],$r['max_value']]);
@@ -24,8 +28,8 @@ final class SimulationService {
                 $pdo->prepare('INSERT INTO character_history(simulation_id,character_id,event_second,history_type,title,detail_text) VALUES(?,?,0,"EXPERIENCED","Initial State",?)')->execute([$sid,$cid,'Location: '.$r['starting_location'].' | Goal: '.$r['goal_text'].' | Fear: '.($r['fear_text']?:'None specified')]);
             }
             $chars=$pdo->prepare('SELECT character_id FROM characters WHERE simulation_id=?');$chars->execute([$sid]);$ids=array_column($chars->fetchAll(),'character_id');foreach($ids as$a)foreach($ids as$b)if($a!==$b)$pdo->prepare('INSERT INTO relationships(simulation_id,from_character_id,to_character_id,trust,suspicion,loyalty) VALUES(?,?,?,?,?,?)')->execute([$sid,$a,$b,50,10,50]);
-            $pdo->commit();return$sid;
-        }catch(Throwable$e){if($pdo->inTransaction())$pdo->rollBack();throw$e;}
+            if($ownsTransaction)$pdo->commit();return$sid;
+        }catch(Throwable$e){if($ownsTransaction&&$pdo->inTransaction())$pdo->rollBack();throw$e;}
     }
     public static function start(int $sid): void {db()->prepare('UPDATE simulations SET status="RUNNING",current_phase="EXPOSITION",started_at_utc=UTC_TIMESTAMP() WHERE simulation_id=? AND status="READY"')->execute([$sid]);self::generateDueEvents($sid,0,'EXPOSITION');}
     // Task 5 Phase 1: detect when a pinned simulation's draft has changed since
