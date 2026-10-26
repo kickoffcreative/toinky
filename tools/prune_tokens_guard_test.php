@@ -23,7 +23,10 @@ $check(!preg_match('/DELETE\s+FROM\s+(writer_media_assets|plot_media_assets)\b/i
 $check(str_contains($src,'usageByMediaIds'),'prune_expired_tokens.php re-checks usage at runtime');
 $check(str_contains($src,'active=0'),'prune_expired_tokens.php also checks inactive plot_media_assets rows');
 foreach(['plot_event_perceptions','plot_focus_profiles','plot_focus_option_weights','platform_story_audit_rules'] as $t){
-    $check(!str_contains($src,$t),'prune_expired_tokens.php does not touch '.$t);
+    // The tool names these tables in its header comment (stating it never
+    // touches them), so a plain string search false-positives. Check for an
+    // actual SQL statement against the table instead.
+    $check(!preg_match('/\b(FROM|INTO|UPDATE|JOIN)\s+`?'.$t.'\b/i',$src),'prune_expired_tokens.php does not touch '.$t);
 }
 
 if($failures){echo 'FAILURES: '.implode('; ',$failures)."\n";exit(1);}
