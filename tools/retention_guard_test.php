@@ -15,7 +15,7 @@ $check(is_file($tool),'tools/prune_ai_logs.php exists');
 $src=$tool&&is_file($tool)?file_get_contents($tool):'';
 $check(str_contains($src,"if(PHP_SAPI!=='cli')"),'prune_ai_logs.php is CLI-only');
 $check(str_contains($src,"--dry-run")||str_contains($src,'$apply=in_array'),'prune_ai_logs.php has an --apply gate (dry-run by default)');
-$check(!str_contains($src,'exit(0);')===false||str_contains($src,'Dry run'),'prune_ai_logs.php reports a dry run without changing rows');
+$check(str_contains($src,'Dry run')&&str_contains($src,'--apply'),'prune_ai_logs.php reports a dry run without changing rows');
 $check(!preg_match('/\bDELETE\s+FROM\b/i',$src),'prune_ai_logs.php never issues a DELETE');
 $check(str_contains($src,'request_json=NULL')&&str_contains($src,'response_json=NULL'),'prune_ai_logs.php nulls old raw payload columns');
 $check(str_contains($src,'parsed_response_json')&&!str_contains($src,'parsed_response_json=NULL'),'prune_ai_logs.php preserves parsed_response_json');
