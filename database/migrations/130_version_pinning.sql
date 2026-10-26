@@ -1,7 +1,9 @@
 -- Task 5 Phase 1 (2026-10-26 audit): pin the content version at simulation creation.
 -- simulations.plot_version_id records which published/draft snapshot a game or
 -- review run was created from; content_checksum is SHA-256 of that version's
--- snapshot_json. NULL = legacy/unpinned (created before pinning; runs live).
+-- snapshot workspace (content only — the snapshot's plot row is volatile
+-- through publish and is excluded). NULL = legacy/unpinned (created before
+-- pinning; runs live).
 -- plots.published_plot_version_id is the version hosted games must use; it is
 -- set by the publish action and backfilled here to each active story's latest
 -- PUBLISHED version. Rollback: drop the two FKs and the three columns.
