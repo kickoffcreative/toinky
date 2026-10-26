@@ -26,6 +26,7 @@ $GLOBALS['toinky_correlation_id'] = bin2hex(random_bytes(8));
 function correlationId(): string { return (string)($GLOBALS['toinky_correlation_id'] ?? ''); }
 
 require_once __DIR__ . '/GenericStateService.php';
+require_once __DIR__ . '/SimulationContent.php';
 require_once __DIR__ . '/ResolutionService.php';
 require_once __DIR__ . '/TriggeredTransitionService.php';
 require_once __DIR__ . '/StoryReasoner.php';
