@@ -86,12 +86,6 @@ final class StoryMediaService
         self::attachFromLibrary($user,$plotId,['placement'=>'ENDING','resolution_fragment_id'=>$fragmentId,'library_media_id'=>(int)$mediaChoice,'asset_code'=>'ENDING_FRAGMENT_'.$fragmentId,'sort_order'=>10]);
     }
 
-    public static function forPlot(int $plotId): array
-    {
-        $q=db()->prepare('SELECT m.*,u.display_name uploader_name FROM plot_media_assets m JOIN users u ON u.user_id=m.uploaded_by_user_id WHERE m.plot_id=? ORDER BY m.placement,m.sort_order,m.media_asset_id');
-        $q->execute([$plotId]);return$q->fetchAll();
-    }
-
     public static function forSimulation(int $simulationId,?int $characterId=null): array
     {
         $q=db()->prepare('SELECT s.plot_id,pr.role_code FROM simulations s LEFT JOIN characters c ON c.simulation_id=s.simulation_id AND c.character_id=? LEFT JOIN plot_roles pr ON pr.plot_role_id=c.plot_role_id WHERE s.simulation_id=?');
@@ -105,11 +99,6 @@ final class StoryMediaService
     public static function characterImagesForPlot(int $plotId): array
     {
         $q=db()->prepare('SELECT m.role_code,COALESCE(l.thumbnail_path,m.file_path) file_path,m.alt_text,m.title_text FROM plot_media_assets m LEFT JOIN writer_media_assets l ON l.media_id=m.library_media_id AND l.active=1 WHERE m.plot_id=? AND m.placement="CHARACTER" AND m.active=1 ORDER BY m.sort_order,m.media_asset_id');$q->execute([$plotId]);$images=[];foreach($q->fetchAll()as$image)if(!isset($images[$image['role_code']]))$images[$image['role_code']]=$image;return$images;
-    }
-
-    public static function characterImagesForSimulation(int $simulationId): array
-    {
-        $q=db()->prepare('SELECT plot_id FROM simulations WHERE simulation_id=?');$q->execute([$simulationId]);$plotId=(int)$q->fetchColumn();return$plotId?self::characterImagesForPlot($plotId):[];
     }
 
     public static function characterImagesByCharacterForSimulation(int $simulationId): array
