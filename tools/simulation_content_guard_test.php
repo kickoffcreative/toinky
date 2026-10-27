@@ -97,6 +97,10 @@ try{
         else{
             $fragId=(int)$frag['resolution_fragment_id'];$fragText=(string)$frag['fragment_text'];
             $hq=$pdo->prepare('SELECT resolution_headline FROM plots WHERE plot_id=?');$hq->execute([$plotId]);$savedHeadline=$hq->fetchColumn();
+            // The pinned headline comes from the snapshot's plot row (engine
+            // default when empty), not from the live draft — the live value
+            // may have changed since the version was submitted.
+            $snapHeadline=trim((string)($snapArr['plot']['resolution_headline']??''))?:'What Actually Remains';
             $pdo->prepare('UPDATE plot_resolution_fragments SET fragment_text=? WHERE resolution_fragment_id=?')->execute(['GUARD TEST ENDING MARKER',$fragId]);
             $pdo->prepare('UPDATE plots SET resolution_headline=? WHERE plot_id=?')->execute(['GUARD TEST HEADLINE MARKER',$plotId]);
             $ins=$pdo->prepare("INSERT INTO simulation_events(simulation_id,event_second,phase,event_type,event_code,headline,event_text,visibility) VALUES(?,0,'RESOLUTION','SYSTEM','FINAL_STATE','','','DIRECTOR')");
@@ -108,7 +112,7 @@ try{
             $check($pr&&str_contains((string)$pr['event_text'],$fragText),'pinned ending keeps the snapshot fragment text');
             $check($pr&&!str_contains((string)$pr['event_text'],'GUARD TEST ENDING MARKER'),'pinned ending ignores the live fragment edit');
             $check($lr&&str_contains((string)$lr['event_text'],'GUARD TEST ENDING MARKER'),'legacy ending uses the edited fragment text');
-            $check($pr&&$pr['headline']===$savedHeadline,'pinned ending keeps the snapshot headline');
+            $check($pr&&$pr['headline']===$snapHeadline,'pinned ending keeps the snapshot headline');
             $check($lr&&$lr['headline']==='GUARD TEST HEADLINE MARKER','legacy ending uses the edited headline');
             $pdo->prepare('UPDATE plot_resolution_fragments SET fragment_text=? WHERE resolution_fragment_id=?')->execute([$fragText,$fragId]);
             $pdo->prepare('UPDATE plots SET resolution_headline=? WHERE plot_id=?')->execute([$savedHeadline,$plotId]);
@@ -119,8 +123,9 @@ try{
     // (iii) auditVersion() fails closed on a snapshot missing a key.
     $maxv=$pdo->prepare('SELECT MAX(version_no) FROM plot_versions WHERE plot_id=?');$maxv->execute([$plotId]);$nextNo=(int)$maxv->fetchColumn()+1;
     $stripped=$snapArr;unset($stripped['content']['events']);
-    $ins=$pdo->prepare('INSERT INTO plot_versions(plot_id,version_no,workflow_status,snapshot_json) VALUES(?,?,\'SUBMITTED\',?)');
-    $ins->execute([$plotId,$nextNo,json_encode($stripped,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES)]);
+    $adminId=$pdo->query('SELECT user_id FROM users WHERE is_admin=1 ORDER BY user_id LIMIT 1')->fetchColumn();if(!$adminId)throw new RuntimeException('SimulationContent test needs an administrator fixture.');
+    $ins=$pdo->prepare('INSERT INTO plot_versions(plot_id,version_no,workflow_status,snapshot_json,submitted_by_user_id) VALUES(?,?,\'SUBMITTED\',?,?)');
+    $ins->execute([$plotId,$nextNo,json_encode($stripped,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES),(int)$adminId]);
     $testVersionId=(int)$pdo->lastInsertId();
     $threw=false;$msg='';
     try{StoryAuthoringService::auditVersion($testVersionId);}
