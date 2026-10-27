@@ -9,14 +9,16 @@ require_once $root.'/app/InkyGuideService.php';
 $draftCount=(int)db()->query('SELECT COUNT(*) FROM inky_story_guide_drafts')->fetchColumn();
 if($draftCount<1){
     // Fresh builds have no saved draft (drafts only exist once a writer runs
-    // the guided flow). Seed a minimal step-0 draft through the real service
-    // so the read below exercises the map on valid draft state; on a live
-    // install drafts already exist and this is a no-op.
+    // the guided flow). Seed a minimal step-0 draft row for EMPTY_THRONE so
+    // the read below exercises the map on a real story workspace. Inserted
+    // directly because saveProgress refuses published stories by design
+    // ("Only draft stories can be resumed through Inky"); the test only
+    // reads state_json. No-op on a live install where drafts already exist.
     $admin=db()->query('SELECT user_id FROM users WHERE is_admin=1 ORDER BY user_id LIMIT 1')->fetch();
     if(!$admin)throw new RuntimeException('Draft dependency test needs an administrator fixture.');
     $seedPlot=(int)(db()->query("SELECT plot_id FROM plots WHERE code='EMPTY_THRONE' AND status='active'")->fetchColumn()?:0);
     if($seedPlot<1)throw new RuntimeException('Draft dependency test needs the EMPTY_THRONE story.');
-    InkyGuideService::saveProgress(['user_id'=>(int)$admin['user_id'],'is_admin'=>1],$seedPlot,['step'=>0,'answers'=>[],'accepted_proposals'=>[]]);
+    db()->prepare('INSERT INTO inky_story_guide_drafts(plot_id,author_user_id,state_json) VALUES(?,?,?)')->execute([$seedPlot,(int)$admin['user_id'],'{"step":0,"answers":[],"accepted_proposals":[]}']);
 }
 $plotId=(int)($argv[1]??0);
 if($plotId<1){
