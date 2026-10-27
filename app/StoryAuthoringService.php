@@ -148,7 +148,7 @@ final class StoryAuthoringService
         else{$legacySecond=self::durationSeconds($input,'event_time_value','event_time_unit','event_second',0);$triggerPercent=max(0.0,min(100.0,round($legacySecond*100/300,3)));}
         $values=[$triggerPercent,in_array(($input['phase']??''),['EXPOSITION','INCITING_INCIDENT','RISING_ACTION','CLIMAX','RESOLUTION'],true)?$input['phase']:'EXPOSITION',$code,trim((string)($input['headline']??'')),trim((string)($input['event_text']??'')),(int)($input['sort_order']??0),(int)!empty($input['active'])];
         if($id){$existing=db()->prepare('SELECT event_code FROM plot_world_events WHERE plot_world_event_id=? AND plot_id=?');$existing->execute([$id,$plotId]);$current=$existing->fetchColumn();if($current===false)throw new RuntimeException('Event not found.');self::assertStableCodeChange($plotId,'event',$id,(string)$current,$code);$q=db()->prepare('UPDATE plot_world_events SET trigger_percent=?,phase=?,event_code=?,headline=?,event_text=?,sort_order=?,active=? WHERE plot_world_event_id=? AND plot_id=?');$q->execute(array_merge($values,[$id,$plotId]));return$id;}
-        $q=db()->prepare('INSERT INTO plot_world_events(plot_id,trigger_percent,phase,event_code,headline,event_text,sort_order,active) VALUES(?,?,?,?,?,?,?,?,?)');$q->execute(array_merge([$plotId],$values));return(int)db()->lastInsertId();
+        $q=db()->prepare('INSERT INTO plot_world_events(plot_id,trigger_percent,phase,event_code,headline,event_text,sort_order,active) VALUES(?,?,?,?,?,?,?,?)');$q->execute(array_merge([$plotId],$values));return(int)db()->lastInsertId();
     }
 
     public static function saveDecision(array $user,int $plotId,array $input): int
