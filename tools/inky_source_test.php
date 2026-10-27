@@ -20,6 +20,7 @@ $guideService=file_get_contents($root.'/app/InkyGuideService.php');
 $guideEndpoint=file_get_contents($root.'/public/inky-starter.php');
 $authoringService=file_get_contents($root.'/app/StoryAuthoringService.php');
 $batchTool=file_get_contents($root.'/tools/inky_review_batch.php');
+$continueBatch=file_get_contents($root.'/tools/inky_continue_batch.php');
 $proposalProbe=file_get_contents($root.'/tools/inky_proposal_probe.php');
 $docs=file_get_contents($root.'/docs/INKY.md');
 $migration=file_get_contents($root.'/database/migrations/083_inky_user_preferences.sql');
@@ -30,7 +31,7 @@ $defaultCatalogMigration=file_get_contents($root.'/database/migrations/086_inky_
 $lanternMigration=file_get_contents($root.'/database/migrations/092_enable_lantern_inky.sql');
 $guideDraftMigration=file_get_contents($root.'/database/migrations/093_inky_guided_story_drafts.sql');
 $profileService=file_get_contents($root.'/app/UserProfileService.php');
-foreach(compact('profile','profileScript','writer','component','script','guideScript','style','guideStyle','characterLayoutStyle','connection','cowriter','actionEndpoint','guideService','guideEndpoint','authoringService','batchTool','proposalProbe','docs','migration','identityMigration','futureCatalogMigration','defaultCatalogMigration','lanternMigration','guideDraftMigration','profileService')as$name=>$source)if($source===false)throw new RuntimeException('Could not read Inky '.$name.' source.');
+foreach(compact('profile','profileScript','writer','component','script','guideScript','style','guideStyle','characterLayoutStyle','connection','cowriter','actionEndpoint','guideService','guideEndpoint','authoringService','batchTool','continueBatch','proposalProbe','docs','migration','identityMigration','futureCatalogMigration','defaultCatalogMigration','lanternMigration','guideDraftMigration','profileService')as$name=>$source)if($source===false)throw new RuntimeException('Could not read Inky '.$name.' source.');
 foreach([
     'data-profile-tab="inky"',
     'save_inky_preferences',
@@ -154,7 +155,7 @@ foreach(["`What's Next?` is the second implemented vertical slice",'Every step m
 foreach(['AuthService::requireWriter','AuthService::requireCsrf','InkyCowriterService::run']as$required)if(!str_contains($actionEndpoint,$required))throw new RuntimeException('Inky action endpoint is missing '.$required.'.');
 foreach(['Usage: php tools/inky_review_batch.php','Runs actions sequentially','InkyCowriterService::run','interaction_id','summary','whats_next','review_consistency','focused_tests']as$required)if(!str_contains($batchTool,$required))throw new RuntimeException('Inky batch runner is missing '.$required.'.');
 foreach(['proposal_key','--show-response','Probe failed:','Latest proposal interaction']as$required)if(!str_contains($proposalProbe,$required))throw new RuntimeException('Inky proposal probe is missing '.$required.'.');
-foreach(['inky_continue_batch.php','ai_response_shape','requested_key','has_character','has_prompt','interaction_created','Running 6 Continue']as$required)if(!str_contains($batchTool,$required))throw new RuntimeException('Inky Continue batch runner is missing '.$required.'.');
+foreach(['inky_continue_batch.php','ai_response_shape','requested_key','has_character','has_prompt','interaction_created','Running ',' Continue with Inky button checks sequentially.']as$required)if(!str_contains($continueBatch,$required))throw new RuntimeException('Inky Continue batch runner is missing '.$required.'.');if(substr_count($continueBatch,"'button'=>")!==6)throw new RuntimeException('Inky Continue batch runner must run 6 button checks.');
 if(str_contains($actionEndpoint,"'message'=>\$e->getMessage()"))throw new RuntimeException('Inky action errors may expose private connection details to the browser.');
 foreach(['INKY_STORY_GUIDE','INKY_STORY_GUIDE_CONTENT','INKY_STORY_GUIDE_EDITS','suggestContent','suggestEdits','AiConnectionService::completeJson','completeJsonWithRepair','JsonException','syntax error','validatedResponse','STEP_COUNT','guidedDrafts','loadProgress','saveProgress','variation','editable_fields','proposalFields','mergeProposalFields','normalizeProposalInput','activeCharacters','draftContextSource','character is required','prompt_text','decision_prompt','value must be a JSON object','target_key','preset_values','allowed_values','What will you do next?','Return a corrected response','not valid JSON','Only revise','edit target','edit replacement','genuinely different','no usable targeted edit suggestions']as$required)if(!str_contains($guideService,$required))throw new RuntimeException('Inky guided conversation service is missing '.$required.'.');
 if(str_contains($guideService,'StoryAuthoringService'))throw new RuntimeException('Inky guide must not create story records during the conversation.');
