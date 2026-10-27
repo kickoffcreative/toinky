@@ -40,10 +40,17 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         if($action==='add_section'){
             $label=trim((string)($_POST['section_label']??''));
             $layout=strtoupper(trim((string)($_POST['section_layout']??'CONTAINER')));
-            if(!in_array($layout,PageContentService::LAYOUTS,true))$layout='CONTAINER';
+            // EMPTY creates a section with no rows at all, so its legacy
+            // fields (and the Section Settings rich-text editor) stay enabled
+            // instead of falling back to the row tree. Every other choice
+            // seeds one root Container row.
+            $isEmpty=$layout==='EMPTY';
+            if(!$isEmpty&&!in_array($layout,PageContentService::LAYOUTS,true))$layout='CONTAINER';
             $newSectionId=PageContentService::addSection($admin,$pageCode,['label_text'=>$label,'layout_type'=>'CONTAINER']);
-            $children=$layout==='CONTAINER'?[]:[['layout_type'=>$layout,'active'=>false,'label_text'=>'','title_text'=>'','content_html'=>'','bullets'=>[]]];
-            PageBuilderService::saveRows($admin,$newSectionId,[['layout_type'=>'CONTAINER','active'=>true,'children'=>$children]]);
+            if(!$isEmpty){
+                $children=$layout==='CONTAINER'?[]:[['layout_type'=>$layout,'active'=>false,'label_text'=>'','title_text'=>'','content_html'=>'','bullets'=>[]]];
+                PageBuilderService::saveRows($admin,$newSectionId,[['layout_type'=>'CONTAINER','active'=>true,'children'=>$children]]);
+            }
             if($isAjaxSave)builder_json_exit(['ok'=>true,'section_id'=>$newSectionId,'label'=>$label]);
             header('Location: page-builder.php?page='.rawurlencode($pageCode).'&section='.$newSectionId.'&saved=1');
             exit;
@@ -100,7 +107,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         if(($sectionById['section_code']??'')==='HERO')throw new RuntimeException('Hero sections use their dedicated editor.');
         $rows=json_decode((string)($_POST['rows_payload']??'[]'),true,20,JSON_THROW_ON_ERROR);
         if(!is_array($rows))throw new RuntimeException('The builder tree is invalid.');
-        PageBuilderService::saveRows($admin,$sectionId,$rows);
+        if(!PageBuilderService::isUnchangedRowlessSection($sectionId,$rows))PageBuilderService::saveRows($admin,$sectionId,$rows);
         if($isAjaxSave)builder_json_exit(['ok'=>true]);
         header('Location: page-builder.php?page='.rawurlencode($pageCode).'&section='.$sectionId.'&saved=1');
         exit;
@@ -155,7 +162,7 @@ function builder_e(string $value): string{return htmlspecialchars($value,ENT_QUO
 <form method="post" id="section-add-form" class="section-add-form">
 <input type="hidden" name="csrf_token" value="<?=htmlspecialchars(AuthService::csrfToken(),ENT_QUOTES,'UTF-8')?>"><input type="hidden" name="action" value="add_section">
 <label>New section<input type="text" name="section_label" maxlength="120" placeholder="Section name" required></label>
-<label>First content<select name="section_layout"><option value="CONTAINER">Empty Container</option><option value="TEXT_TOP">Top Text Only</option><option value="TEXT_CENTER">Text Center</option><option value="IMAGE_RIGHT">Image On Right</option><option value="IMAGE_LEFT">Image On Left</option><option value="TWO_COLUMN">Two Columns</option><option value="THREE_COLUMN">Three Columns</option><option value="FOUR_COLUMN">Four Columns</option><option value="CARDS_ONLY">Cards Only</option><option value="TEXT_BULLETS">Text With Bulleted List</option><option value="STORY_CARDS">Story Cards</option><option value="SOCIALS">Social Buttons</option></select></label>
+<label>First content<select name="section_layout"><option value="CONTAINER">Empty Container</option><option value="TEXT_TOP">Top Text Only</option><option value="TEXT_CENTER">Text Center</option><option value="IMAGE_RIGHT">Image On Right</option><option value="IMAGE_LEFT">Image On Left</option><option value="TWO_COLUMN">Two Columns</option><option value="THREE_COLUMN">Three Columns</option><option value="FOUR_COLUMN">Four Columns</option><option value="CARDS_ONLY">Cards Only</option><option value="TEXT_BULLETS">Text With Bulleted List</option><option value="STORY_CARDS">Story Cards</option><option value="SOCIALS">Social Buttons</option><option value="EMPTY">Empty (no rows)</option></select></label>
 <button type="submit">Add Section</button>
 </form>
 <form method="post" id="section-order-form" class="section-order-form">
@@ -186,13 +193,18 @@ $__sec=function(string $key)use($section):string{return (string)($section[$key]?
 // Task 8: when the section has a row tree, the public page renders the rows,
 // not these legacy text/layout fields. They are shown disabled (kept as hidden
 // inputs so saveSection still preserves them for fallbackRow()).
-$__hasRows=!empty($section['rows_json']);
+// A row-less section (rows_json NULL, '' or '[]') has no row tree, so its
+// legacy fields stay enabled. Decode instead of testing the raw string:
+// '[]' is a non-empty string but means no rows.
+$__decodedRows=json_decode((string)($section['rows_json']??''),true);
+$__hasRows=is_array($__decodedRows)&&!empty($__decodedRows);
 ?>
 <details class="section-settings" open>
 <summary><strong>Section Settings</strong><span class="builder-muted">Layout, image, text, background &amp; visibility</span></summary>
 <form method="post" class="section-add-form" data-rich-form>
 <input type="hidden" name="csrf_token" value="<?=htmlspecialchars(AuthService::csrfToken(),ENT_QUOTES,'UTF-8')?>"><input type="hidden" name="action" value="save_section"><input type="hidden" name="section_id" value="<?=(int)$section['site_page_section_id']?>"><input type="hidden" name="section_fingerprint" value="<?=builder_e(PageContentService::sectionFingerprint($section))?>">
 <?php if($__hasRows):?><p class="builder-muted">Eyebrow, title, intro and layout are shown from the row tree below — edit the rows to change them. They are kept here so they still apply if the rows are ever cleared.</p><?php endif;?>
+<?php if(!$__hasRows):?><p class="builder-muted">This section has no rows — the eyebrow, title and intro below are what the public page shows. Add rows from Structure to switch to the row editor.</p><?php endif;?>
 <label>Layout<select name="layout_type" <?=$__hasRows?'disabled':''?>><?php foreach(PageContentService::LAYOUTS as $__layout):?><option value="<?=builder_e($__layout)?>" <?=(string)($section['layout_type']??'')===$__layout?'selected':''?>><?=builder_e(ucwords(strtolower(str_replace('_',' ',$__layout))))?></option><?php endforeach;?></select></label>
 <?php if($__hasRows):?><input type="hidden" name="layout_type" value="<?=builder_e((string)($section['layout_type']??''))?>"><?php endif;?>
 <label>Section image<select name="image_media_id"><option value="">No image</option><?php foreach($pageMedia as $media):?><option value="<?=(int)$media['media_id']?>" <?=(int)($section['image_media_id']??0)===(int)$media['media_id']?'selected':''?>><?=builder_e((string)($media['title_text']??''))?></option><?php endforeach;?></select></label>
