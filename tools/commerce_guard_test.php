@@ -10,8 +10,10 @@ require_once $root.'/app/LobbyService.php';
 
 $pdo=db();
 $admin=$pdo->query('SELECT user_id FROM users WHERE is_admin=1 ORDER BY user_id LIMIT 1')->fetch();
+if(!$admin){$pdo->prepare('INSERT INTO users(email,password_hash,display_name,is_admin,email_verified_at_utc) VALUES(?,?,?,1,UTC_TIMESTAMP())')->execute(['commerce-test-admin@toinky.invalid','!','Commerce Test Admin']);$admin=['user_id'=>(int)$pdo->lastInsertId()];}
 if(!$admin)throw new RuntimeException('Commerce test needs an administrator fixture.');
 $host=$pdo->query('SELECT user_id FROM users WHERE is_admin=0 ORDER BY user_id LIMIT 1')->fetch();
+if(!$host){$pdo->prepare('INSERT INTO users(email,password_hash,display_name,is_admin,email_verified_at_utc) VALUES(?,?,?,0,UTC_TIMESTAMP())')->execute(['commerce-test-host@toinky.invalid','!','Commerce Test Host']);$host=['user_id'=>(int)$pdo->lastInsertId()];}
 if(!$host)throw new RuntimeException('Commerce test needs a non-admin user fixture.');
 $hostId=(int)$host['user_id'];
 
