@@ -19,6 +19,26 @@ final class PageBuilderService
         ]);
     }
 
+    // True when the section currently has no real rows and the posted tree is
+    // exactly the legacy fallback the editor shows for such a section (one
+    // Container carrying the section's own legacy text). Saving that dialog
+    // unchanged must not materialize the fallback into real rows: a Container
+    // renders only its children, so the legacy intro it carries would vanish
+    // from the public page, and the root Container cannot be deleted from the
+    // dialog to recover. Callers skip the saveRows call when this is true.
+    public static function isUnchangedRowlessSection(int $sectionId, array $rows): bool
+    {
+        $q=db()->prepare('SELECT * FROM site_page_sections WHERE site_page_section_id=?');
+        $q->execute([$sectionId]);
+        $section=$q->fetch();
+        if(!$section||($section['section_code']??'')==='HERO')return false;
+        $raw=json_decode((string)($section['rows_json']??''),true);
+        if(is_array($raw)&&!empty($raw))return false;
+        $posted=self::normalizeRows($rows);
+        $expected=self::normalizeRows(PageContentService::editorRows($section));
+        return $posted==$expected;
+    }
+
     public static function normalizeRows(array $rows,int $depth=0): array
     {
         if($depth>self::MAX_DEPTH)return[];
