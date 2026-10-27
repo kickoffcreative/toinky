@@ -7,6 +7,12 @@ require_once $root.'/app/MigrationService.php';
 MigrationService::run();
 require_once $root.'/app/CommerceService.php';
 require_once $root.'/app/LobbyService.php';
+require_once $root.'/app/SimulationService.php';
+require_once $root.'/app/BehaviorService.php';
+require_once $root.'/app/CausalService.php';
+require_once $root.'/app/CharacterAutomationService.php';
+require_once $root.'/app/DynamicOpportunityService.php';
+require_once $root.'/app/AiReasoningContextService.php';
 
 $pdo=db();
 $admin=$pdo->query('SELECT user_id FROM users WHERE is_admin=1 ORDER BY user_id LIMIT 1')->fetch();
