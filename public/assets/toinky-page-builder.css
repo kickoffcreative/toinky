@@ -107,3 +107,9 @@
 /* ---- Button layout toggle (2026-10-24) ---- */
 .builder-check{display:flex;align-items:center;gap:8px;margin:10px 0;font-size:13px;font-weight:600}
 .builder-check input{width:auto}
+
+/* Rich-text editor (Section Settings intro). Same base rules as the old admin Pages editor. */
+.editor-toolbar{display:flex;flex-wrap:wrap;gap:5px;padding:7px;border:1px solid #cbd5e1;border-bottom:0;border-radius:8px 8px 0 0;background:#f8fafc}
+.editor-toolbar button{background:#fff;border:1px solid #cbd5e1;border-radius:5px;padding:5px 8px;cursor:pointer}
+.editor-toolbar button:disabled{opacity:.45;cursor:not-allowed}
+.rich-editor{min-height:140px;padding:12px;border:1px solid #cbd5e1;border-radius:0 0 8px 8px;background:#fff;overflow:auto}
