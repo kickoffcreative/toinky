@@ -1,4 +1,13 @@
 <?php
+// Task 5 Phase 3: the state-machine metadata tables
+// (plot_state_aliases, plot_entities, plot_entity_properties,
+// plot_property_transitions) stay live deliberately. They are not in the
+// workspace snapshot, have no studio editor (no PHP code writes them),
+// and are structural metadata rather than story content, so no draft edit
+// can change them. If they ever gain a studio editor, they must move into
+// the snapshot first. plot_state_definitions IS a workspace key
+// ('state_definitions'), so the pinned path reads it from the snapshot
+// (see resolvesManaged() and initializePlotState()).
 final class GenericStateService
 {
     public static function getByKey(int $sid,string $key): array
@@ -73,6 +82,24 @@ final class GenericStateService
     {
         $pdo=db();$q=$pdo->prepare('SELECT pe.entity_code,p.property_code,p.initial_value FROM simulations s JOIN plot_entities pe ON pe.plot_id=s.plot_id JOIN plot_entity_properties p ON p.plot_entity_id=pe.plot_entity_id WHERE s.simulation_id=? AND p.initial_value IS NOT NULL');$q->execute([$sid]);
         foreach($q->fetchAll() as $r)$pdo->prepare('INSERT IGNORE INTO simulation_entity_state(simulation_id,entity_code,property_code,state_value,updated_at_second) VALUES(?,?,?,?,0)')->execute([$sid,$r['entity_code'],$r['property_code'],$r['initial_value']]);
+        // Task 5 Phase 3: WORLD_STATE defaults come from the snapshot when
+        // pinned (plot_state_definitions IS a workspace key). The entity
+        // initial values above stay live — plot_entities /
+        // plot_entity_properties / plot_state_aliases are not in the
+        // snapshot and have no studio editor (see the file header).
+        $defaults=null;
+        if(class_exists('SimulationContent'))$defaults=SimulationContent::stateDefinitions($sid);
+        if($defaults!==null){
+            $pq=$pdo->prepare('SELECT plot_id FROM simulations WHERE simulation_id=?');$pq->execute([$sid]);$plotId=(int)$pq->fetchColumn();
+            $aq=$pdo->prepare('SELECT state_key FROM plot_state_aliases WHERE plot_id=?');$aq->execute([$plotId]);$aliases=array_fill_keys($aq->fetchAll(PDO::FETCH_COLUMN),true);
+            foreach($defaults as $d){
+                if((string)($d['effect_scope']??'')!=='WORLD_STATE'||(int)($d['active']??1)!==1)continue;
+                $code=(string)($d['target_code']??'');$value=(string)($d['default_text_value']??'');
+                if($code===''||$value===''||isset($aliases[$code]))continue;
+                $pdo->prepare('INSERT IGNORE INTO simulation_state(simulation_id,state_key,state_value,updated_at_second) VALUES(?,?,?,0)')->execute([$sid,$code,$value]);
+            }
+            return;
+        }
         $q=$pdo->prepare('SELECT d.target_code,d.default_text_value FROM simulations s JOIN plot_state_definitions d ON d.plot_id=s.plot_id AND d.effect_scope="WORLD_STATE" AND d.active=1 WHERE s.simulation_id=? AND d.default_text_value IS NOT NULL AND d.default_text_value<>"" AND NOT EXISTS(SELECT 1 FROM plot_state_aliases a WHERE a.plot_id=s.plot_id AND a.state_key=d.target_code)');$q->execute([$sid]);
         foreach($q->fetchAll() as $r)$pdo->prepare('INSERT IGNORE INTO simulation_state(simulation_id,state_key,state_value,updated_at_second) VALUES(?,?,?,0)')->execute([$sid,$r['target_code'],$r['default_text_value']]);
     }
@@ -89,6 +116,12 @@ final class GenericStateService
     public static function resolvesManaged(int $sid,string $key): bool
     {
         if(self::metadataForKey($sid,$key)!==null)return true;
+        // Task 5 Phase 3: when pinned, the state-definition existence check
+        // reads the snapshot (plot_state_definitions is a workspace key).
+        if(class_exists('SimulationContent')){
+            $defs=SimulationContent::stateDefinitions($sid);
+            if($defs!==null){foreach($defs as$d)if((string)($d['target_code']??'')===$key&&(int)($d['active']??1)===1)return true;return false;}
+        }
         $q=db()->prepare('SELECT 1 FROM simulations s JOIN plot_state_definitions d ON d.plot_id=s.plot_id AND d.target_code=? AND d.active=1 WHERE s.simulation_id=? LIMIT 1');
         $q->execute([$key,$sid]);
         return $q->fetchColumn()!==false;
