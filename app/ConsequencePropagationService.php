@@ -1,4 +1,8 @@
 <?php
+// Task 5 Phase 3: plot_consequence_rules (+ conditions/effects) stay live
+// deliberately — not in the workspace snapshot, no studio editor (no PHP
+// code writes them), no draft-edit vector. If they ever gain a studio
+// editor, they must move into the snapshot first.
 final class ConsequencePropagationService
 {
     public static function evaluate(int $sid,?int $second=null): void
