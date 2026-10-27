@@ -14,7 +14,9 @@ jobs:
           php-version: '8.4'
           extensions: pdo_mysql
       - name: Lint PHP
-        run: find app public tools -type f -name '*.php' -print0 | xargs -0 -n1 php -l
+        run: |
+          find app public tools config -type f -name '*.php' -print0 | xargs -0 -n1 php -l
+          find . -maxdepth 1 -type f -name '*.php' -print0 | xargs -0 -n1 php -l
       - name: Verify deployment preserves cPanel PHP configuration
         run: php tools/deploy_htaccess_test.php
   multiplayer-smoke:
@@ -24,7 +26,7 @@ jobs:
         image: mariadb:11.4
         env:
           MARIADB_ROOT_PASSWORD: root
-          MARIADB_DATABASE: game2
+          MARIADB_DATABASE: game2_test
         ports:
           - 3306:3306
         options: >-
@@ -40,16 +42,31 @@ jobs:
           extensions: pdo_mysql
       - name: Normalize test database collation
         env:
-          GAME2_DATABASE_CONFIG: ${{ github.workspace }}/config/database.test.php
-        run: php -r '$c=require getenv("GAME2_DATABASE_CONFIG");$p=new PDO($c["dsn"],$c["username"],$c["password"]);$p->exec("ALTER DATABASE game2 CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");'
+          GAME2_DATABASE_CONFIG: ${{ github.workspace }}/config/database.test.php.example
+          GAME2_TEST_DB_HOST: 127.0.0.1
+          GAME2_TEST_DB_PORT: '3306'
+          GAME2_TEST_DB_NAME: game2_test
+          GAME2_TEST_DB_USER: root
+          GAME2_TEST_DB_PASSWORD: root
+        run: php -r '$c=require getenv("GAME2_DATABASE_CONFIG");$p=new PDO($c["dsn"],$c["username"],$c["password"]);$p->exec("ALTER DATABASE game2_test CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");'
       - name: Build database and run engine baseline
         env:
-          GAME2_DATABASE_CONFIG: ${{ github.workspace }}/config/database.test.php
+          GAME2_DATABASE_CONFIG: ${{ github.workspace }}/config/database.test.php.example
+          GAME2_TEST_DB_HOST: 127.0.0.1
+          GAME2_TEST_DB_PORT: '3306'
+          GAME2_TEST_DB_NAME: game2_test
+          GAME2_TEST_DB_USER: root
+          GAME2_TEST_DB_PASSWORD: root
           GAME2_SIM_NPC_REASONER: weighted
         run: php tools/simulate.php --reset --runs=1 --plot=EMPTY_THRONE --strategy=no-action --npc-reasoner=weighted
       - name: Validate published story structures
         env:
-          GAME2_DATABASE_CONFIG: ${{ github.workspace }}/config/database.test.php
+          GAME2_DATABASE_CONFIG: ${{ github.workspace }}/config/database.test.php.example
+          GAME2_TEST_DB_HOST: 127.0.0.1
+          GAME2_TEST_DB_PORT: '3306'
+          GAME2_TEST_DB_NAME: game2_test
+          GAME2_TEST_DB_USER: root
+          GAME2_TEST_DB_PASSWORD: root
         run: |
           php tools/story_immersion_audit.php EMPTY_THRONE | tee /tmp/empty-throne-audit.txt
           php tools/story_immersion_audit.php CONCEALED_FAILURE | tee /tmp/concealed-failure-audit.txt
@@ -57,7 +74,12 @@ jobs:
           ! grep -q '^FAIL | P0 | Dependency and authoring structure' /tmp/concealed-failure-audit.txt
       - name: Validate story review safeguards and batch modes
         env:
-          GAME2_DATABASE_CONFIG: ${{ github.workspace }}/config/database.test.php
+          GAME2_DATABASE_CONFIG: ${{ github.workspace }}/config/database.test.php.example
+          GAME2_TEST_DB_HOST: 127.0.0.1
+          GAME2_TEST_DB_PORT: '3306'
+          GAME2_TEST_DB_NAME: game2_test
+          GAME2_TEST_DB_USER: root
+          GAME2_TEST_DB_PASSWORD: root
           GAME2_AI_PROVIDER: deterministic
           GAME2_SIM_NPC_REASONER: weighted
         run: |
@@ -79,8 +101,153 @@ jobs:
           php tools/inky_guide_contract_test.php
           php tools/inky_source_test.php
           php tools/inky_preferences_test.php
+          # Commerce
+          php tools/commerce_guard_test.php
+          php tools/commerce_checkout_guard_test.php
+          php tools/commerce_webhook_guard_test.php
+          # Page Builder
+          php tools/page_builder_contract_test.php
+          php tools/page_builder_custom_pages_guard_test.php
+          php tools/page_builder_hero_editor_guard_test.php
+          php tools/page_builder_recursive_contract_test.php
+          php tools/page_builder_section_guard_test.php
+          # Inky
+          php tools/inky_character_idempotency_test.php
+          php tools/inky_draft_dependency_test.php
+          php tools/inky_integrity_test.php
+          # Audit program (Oct 26)
+          php tools/shutdown_no_write_guard_test.php
+          php tools/authoring_runtime_guard_test.php
+          php tools/version_pinning_guard_test.php
+          php tools/decision_atomicity_guard_test.php
+          php tools/inky_draft_endpoint_guard_test.php
+          php tools/no_migrations_http_guard_test.php
+          php tools/deploy_manifest_guard_test.php
+          php tools/simulate_reset_guard_test.php
+          php tools/cast_gate_guard_test.php
+          php tools/retention_guard_test.php
+          php tools/prune_tokens_guard_test.php
+          php tools/batch_validity_guard_test.php
+          php tools/simulation_content_guard_test.php
+          # Other guard tests
+          php tools/admin_compact_ui_test.php
+          php tools/email_template_test.php
+          php tools/story_writer_dependency_test.php
+          php tools/story_writer_drag_order_test.php
+          php tools/story_writer_performance_test.php
+          php tools/writer_navigation_test.php
       - name: Test multiplayer lifecycle
         env:
-          GAME2_DATABASE_CONFIG: ${{ github.workspace }}/config/database.test.php
+          GAME2_DATABASE_CONFIG: ${{ github.workspace }}/config/database.test.php.example
+          GAME2_TEST_DB_HOST: 127.0.0.1
+          GAME2_TEST_DB_PORT: '3306'
+          GAME2_TEST_DB_NAME: game2_test
+          GAME2_TEST_DB_USER: root
+          GAME2_TEST_DB_PASSWORD: root
           GAME2_SIM_NPC_REASONER: weighted
         run: php tools/multiplayer_smoke.php
+  mariadb-10-6:
+    # MariaDB 10.6 coverage (audit task 14): the production MariaDB version is
+    # not recorded in the repo, and every other job tests 11.4 only. This job
+    # rebuilds the database from schema + seed + migrations on 10.6 and runs
+    # the guard-test suite plus the fresh-install smoke test against it.
+    runs-on: ubuntu-latest
+    services:
+      mysql106:
+        image: mariadb:10.6
+        env:
+          MARIADB_ROOT_PASSWORD: root
+          MARIADB_DATABASE: game2_test
+          MARIADB_USER: game2
+          MARIADB_PASSWORD: game2
+        ports:
+          - 3307:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: pdo_mysql
+      - name: Build database on MariaDB 10.6 (schema + seed + migrations)
+        env:
+          GAME2_DATABASE_CONFIG: ${{ github.workspace }}/config/database.test.php.example
+          GAME2_TEST_DB_HOST: 127.0.0.1
+          GAME2_TEST_DB_PORT: '3307'
+          GAME2_TEST_DB_NAME: game2_test
+          GAME2_TEST_DB_USER: game2
+          GAME2_TEST_DB_PASSWORD: game2
+          GAME2_SIM_NPC_REASONER: weighted
+        run: php tools/simulate.php --reset --runs=1 --plot=EMPTY_THRONE --strategy=no-action --npc-reasoner=weighted
+      - name: Run guard-test suite on MariaDB 10.6
+        env:
+          GAME2_DATABASE_CONFIG: ${{ github.workspace }}/config/database.test.php.example
+          GAME2_TEST_DB_HOST: 127.0.0.1
+          GAME2_TEST_DB_PORT: '3307'
+          GAME2_TEST_DB_NAME: game2_test
+          GAME2_TEST_DB_USER: game2
+          GAME2_TEST_DB_PASSWORD: game2
+          GAME2_AI_PROVIDER: deterministic
+          GAME2_SIM_NPC_REASONER: weighted
+        run: |
+          php tools/story_correction_guard_test.php
+          php tools/story_correction_v2_guard_test.php
+          php tools/simulation_mode_smoke.php
+          php tools/story_writer_stable_code_test.php
+          php tools/story_value_type_guard_test.php
+          php tools/story_media_attachment_edit_test.php
+          php tools/story_condition_status_test.php
+          php tools/story_writer_choice_test.php
+          php tools/story_choice_effect_status_test.php
+          php tools/dynamic_opportunity_mirror_sync_test.php
+          php tools/story_character_decision_status_test.php
+          php tools/story_simulation_batch_resume_test.php
+          php tools/story_focused_opportunity_simulation_test.php
+          php tools/human_biased_weighted_sampling_test.php
+          php tools/inky_contract_validation_test.php
+          php tools/inky_guide_contract_test.php
+          php tools/inky_source_test.php
+          php tools/inky_preferences_test.php
+          php tools/commerce_guard_test.php
+          php tools/commerce_checkout_guard_test.php
+          php tools/commerce_webhook_guard_test.php
+          php tools/page_builder_contract_test.php
+          php tools/page_builder_custom_pages_guard_test.php
+          php tools/page_builder_hero_editor_guard_test.php
+          php tools/page_builder_recursive_contract_test.php
+          php tools/inky_character_idempotency_test.php
+          php tools/inky_draft_dependency_test.php
+          php tools/inky_integrity_test.php
+          php tools/shutdown_no_write_guard_test.php
+          php tools/authoring_runtime_guard_test.php
+          php tools/version_pinning_guard_test.php
+          php tools/decision_atomicity_guard_test.php
+          php tools/inky_draft_endpoint_guard_test.php
+          php tools/no_migrations_http_guard_test.php
+          php tools/deploy_manifest_guard_test.php
+          php tools/simulate_reset_guard_test.php
+          php tools/page_builder_section_guard_test.php
+          php tools/cast_gate_guard_test.php
+          php tools/retention_guard_test.php
+          php tools/prune_tokens_guard_test.php
+          php tools/batch_validity_guard_test.php
+          php tools/simulation_content_guard_test.php
+          php tools/admin_compact_ui_test.php
+          php tools/email_template_test.php
+          php tools/story_writer_dependency_test.php
+          php tools/story_writer_drag_order_test.php
+          php tools/story_writer_performance_test.php
+          php tools/writer_navigation_test.php
+      - name: Fresh-install smoke test on MariaDB 10.6
+        env:
+          GAME2_DATABASE_CONFIG: ${{ github.workspace }}/config/database.test.php.example
+          GAME2_TEST_DB_HOST: 127.0.0.1
+          GAME2_TEST_DB_PORT: '3307'
+          GAME2_TEST_DB_NAME: game2_test
+          GAME2_TEST_DB_USER: game2
+          GAME2_TEST_DB_PASSWORD: game2
+        run: php tools/install_smoke_test.php
