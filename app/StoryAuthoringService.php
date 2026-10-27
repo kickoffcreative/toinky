@@ -26,12 +26,12 @@ final class StoryAuthoringService
         $title=trim((string)($input['title']??''));$code=self::code(trim((string)($input['code']??''))?:$title);
         if($title===''||$code==='')throw new RuntimeException('Enter a story title and code.');
         $genreId=(int)($input['genre_id']??0);$q=db()->prepare('SELECT label_text FROM story_genres WHERE genre_id=? AND active=1');$q->execute([$genreId]);$genre=(string)$q->fetchColumn();if($genre==='')throw new RuntimeException('Choose a genre.');
-        $pdo=db();$pdo->beginTransaction();
+        $pdo=db();$ownsTransaction=!$pdo->inTransaction();if($ownsTransaction)$pdo->beginTransaction();
         try{
             $q=$pdo->prepare('INSERT INTO plots(code,title,archetype,genre,genre_id,setting_name,max_players,max_npcs,status,workflow_status,author_user_id,scenario_text) VALUES(?,?,?,?,?,?,?,?,"draft","DRAFT",?,?)');
             $q->execute([$code,$title,trim((string)($input['archetype']??'Interactive Drama')),$genre,$genreId,trim((string)($input['setting_name']??'Unspecified setting')),max(1,(int)($input['max_players']??3)),max(0,(int)($input['max_npcs']??3)),(int)$user['user_id'],trim((string)($input['scenario_text']??''))]);
-            $plotId=(int)$pdo->lastInsertId();self::applyInkyProposals($user,$plotId,$input['inky_proposals']??null);$pdo->commit();return$plotId;
-        }catch(Throwable$e){if($pdo->inTransaction())$pdo->rollBack();throw$e;}
+            $plotId=(int)$pdo->lastInsertId();self::applyInkyProposals($user,$plotId,$input['inky_proposals']??null);if($ownsTransaction)$pdo->commit();return$plotId;
+        }catch(Throwable$e){if($ownsTransaction&&$pdo->inTransaction())$pdo->rollBack();throw$e;}
     }
 
     private static function applyInkyProposals(array $user,int $plotId,mixed$raw): void
@@ -327,12 +327,12 @@ final class StoryAuthoringService
     public static function deleteStory(array $user,int $plotId): void
     {
         self::guard($user,$plotId);$usage=self::storyCodeUsage($plotId);if($usage){$parts=[];foreach($usage as$keyword=>$count)$parts[]=$keyword.' '.$count;throw new RuntimeException('Cannot delete this story while it has linked records: '.implode(' · ',$parts));}
-        $pdo=db();$pdo->beginTransaction();try{$q=$pdo->prepare('DELETE FROM plots WHERE plot_id=?');$q->execute([$plotId]);if($q->rowCount()<1)throw new RuntimeException('Story not found.');$pdo->commit();}catch(Throwable$e){if($pdo->inTransaction())$pdo->rollBack();throw$e;}
+        $pdo=db();$ownsTransaction=!$pdo->inTransaction();if($ownsTransaction)$pdo->beginTransaction();try{$q=$pdo->prepare('DELETE FROM plots WHERE plot_id=?');$q->execute([$plotId]);if($q->rowCount()<1)throw new RuntimeException('Story not found.');if($ownsTransaction)$pdo->commit();}catch(Throwable$e){if($ownsTransaction&&$pdo->inTransaction())$pdo->rollBack();throw$e;}
     }
 
     public static function deleteDraft(array $user,int $plotId): void
     {
-        self::guard($user,$plotId);$q=db()->prepare('SELECT workflow_status FROM plots WHERE plot_id=? LIMIT 1');$q->execute([$plotId]);if((string)$q->fetchColumn()!=='DRAFT')throw new RuntimeException('Only draft stories can be deleted here.');$pdo=db();$pdo->beginTransaction();try{$q=$pdo->prepare('DELETE FROM plots WHERE plot_id=?');$q->execute([$plotId]);if($q->rowCount()<1)throw new RuntimeException('Story not found.');$pdo->commit();}catch(Throwable$e){if($pdo->inTransaction())$pdo->rollBack();throw$e;}
+        self::guard($user,$plotId);$q=db()->prepare('SELECT workflow_status FROM plots WHERE plot_id=? LIMIT 1');$q->execute([$plotId]);if((string)$q->fetchColumn()!=='DRAFT')throw new RuntimeException('Only draft stories can be deleted here.');$pdo=db();$ownsTransaction=!$pdo->inTransaction();if($ownsTransaction)$pdo->beginTransaction();try{$q=$pdo->prepare('DELETE FROM plots WHERE plot_id=?');$q->execute([$plotId]);if($q->rowCount()<1)throw new RuntimeException('Story not found.');if($ownsTransaction)$pdo->commit();}catch(Throwable$e){if($ownsTransaction&&$pdo->inTransaction())$pdo->rollBack();throw$e;}
     }
 
     public static function dependencyDetails(int $plotId,?array $workspace=null): array
@@ -705,7 +705,7 @@ final class StoryAuthoringService
 
     public static function submit(array $user,int $plotId): int
     {
-        self::guard($user,$plotId);$audit=self::audit($plotId);if($audit['errors'])throw new RuntimeException('Resolve the blocking validation errors before submission.');$pdo=db();$snapshot=json_encode(['plot'=>self::story($plotId),'content'=>$audit['workspace']],JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);$q=$pdo->prepare('SELECT COALESCE(MAX(version_no),0)+1 FROM plot_versions WHERE plot_id=?');$q->execute([$plotId]);$version=(int)$q->fetchColumn();$pdo->beginTransaction();try{$pdo->prepare('INSERT INTO plot_versions(plot_id,version_no,snapshot_json,submitted_by_user_id) VALUES(?,?,?,?)')->execute([$plotId,$version,$snapshot,$user['user_id']]);$id=(int)$pdo->lastInsertId();$pdo->prepare('UPDATE plots SET workflow_status="SUBMITTED" WHERE plot_id=?')->execute([$plotId]);$pdo->commit();return$id;}catch(Throwable$e){if($pdo->inTransaction())$pdo->rollBack();throw$e;}
+        self::guard($user,$plotId);$audit=self::audit($plotId);if($audit['errors'])throw new RuntimeException('Resolve the blocking validation errors before submission.');$pdo=db();$snapshot=json_encode(['plot'=>self::story($plotId),'content'=>$audit['workspace']],JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);$q=$pdo->prepare('SELECT COALESCE(MAX(version_no),0)+1 FROM plot_versions WHERE plot_id=?');$q->execute([$plotId]);$version=(int)$q->fetchColumn();$ownsTransaction=!$pdo->inTransaction();if($ownsTransaction)$pdo->beginTransaction();try{$pdo->prepare('INSERT INTO plot_versions(plot_id,version_no,snapshot_json,submitted_by_user_id) VALUES(?,?,?,?)')->execute([$plotId,$version,$snapshot,$user['user_id']]);$id=(int)$pdo->lastInsertId();$pdo->prepare('UPDATE plots SET workflow_status="SUBMITTED" WHERE plot_id=?')->execute([$plotId]);if($ownsTransaction)$pdo->commit();return$id;}catch(Throwable$e){if($ownsTransaction&&$pdo->inTransaction())$pdo->rollBack();throw$e;}
     }
 
     public static function saveAudit(int $plotId,int $userId,?int $versionId=null): array
