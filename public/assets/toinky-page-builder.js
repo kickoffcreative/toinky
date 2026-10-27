@@ -1468,3 +1468,27 @@ document.addEventListener('keydown',event=>{
         });
     }
 })();
+
+// Rich-text editor for Section Settings intro (data-rich-form). Same pattern
+// the old admin Pages editor used: toolbar buttons apply execCommand to the
+// contenteditable editor, the hidden source field carries the HTML on save.
+// Syncs on input and after every toolbar action so the AJAX save path (which
+// serializes the form) always reads the current value.
+document.querySelectorAll('[data-rich-form]').forEach(form=>{
+    const editor=form.querySelector('[data-rich-editor]');
+    const source=form.querySelector('[data-rich-source]');
+    const toolbar=form.querySelector('[data-editor-toolbar]');
+    if(!editor||!source||!toolbar)return;
+    const sync=()=>{source.value=editor.innerHTML.trim();};
+    editor.addEventListener('input',sync);
+    toolbar.addEventListener('mousedown',event=>event.preventDefault());
+    toolbar.addEventListener('click',event=>{
+        const button=event.target.closest('button');if(!button||button.disabled)return;
+        editor.focus();
+        if(button.dataset.command)document.execCommand(button.dataset.command,false,null);
+        if(button.dataset.block)document.execCommand('formatBlock',false,button.dataset.block);
+        if(button.hasAttribute('data-link')){const href=window.prompt('Link URL');if(href)document.execCommand('createLink',false,href);}
+        sync();
+    });
+    form.addEventListener('submit',sync);
+});
