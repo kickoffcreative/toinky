@@ -1,4 +1,5 @@
 <?php
+if(PHP_SAPI!=='cli'){http_response_code(403);exit('CLI only.');}
 $source=file_get_contents(__DIR__.'/../public/writer.php');
 if($source===false)throw new RuntimeException('Story Writer source could not be read.');
 foreach([

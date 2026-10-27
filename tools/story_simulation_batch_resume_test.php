@@ -1,5 +1,6 @@
 <?php
 declare(strict_types=1);
+if(PHP_SAPI!=='cli'){http_response_code(403);exit('CLI only.');}
 
 $root=dirname(__DIR__);
 require_once $root.'/app/bootstrap.php';

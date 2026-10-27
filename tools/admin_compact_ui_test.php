@@ -1,4 +1,5 @@
 <?php
+if(PHP_SAPI!=='cli'){http_response_code(403);exit('CLI only.');}
 $admin=file_get_contents(__DIR__.'/../public/admin.php');
 $css=file_get_contents(__DIR__.'/../public/assets/toinky-admin-workspace.css');
 foreach(['ai-settings.php','lab.php','writer.php','index.php']as$extra){${$extra==='ai-settings.php'?'ai':($extra==='lab.php'?'lab':($extra==='writer.php'?'writer':'index'))}=file_get_contents(__DIR__.'/../public/'.$extra);if(${$extra==='ai-settings.php'?'ai':($extra==='lab.php'?'lab':($extra==='writer.php'?'writer':'index'))}===false)throw new RuntimeException('Admin UI source could not be read: '.$extra);}

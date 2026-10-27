@@ -1,5 +1,6 @@
 <?php
 declare(strict_types=1);
+if(PHP_SAPI!=='cli'){http_response_code(403);exit('CLI only.');}
 require_once dirname(__DIR__).'/app/PageContentService.php';
 $required=['IMAGE_RIGHT','IMAGE_LEFT','TWO_COLUMN','THREE_COLUMN','FOUR_COLUMN','SOCIALS','TEXT_CENTER','TEXT_TOP','CARDS_ONLY','TEXT_BULLETS','CONTAINER','STORY_CARDS'];
 if(PageContentService::LAYOUTS!==$required)throw new RuntimeException('Page layout contract is incomplete.');

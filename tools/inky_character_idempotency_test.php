@@ -1,5 +1,6 @@
 <?php
 declare(strict_types=1);
+if(PHP_SAPI!=='cli'){http_response_code(403);exit('CLI only.');}
 
 $source=file_get_contents(dirname(__DIR__).'/app/StoryAuthoringService.php');
 if($source===false)throw new RuntimeException('Could not read StoryAuthoringService.php.');
