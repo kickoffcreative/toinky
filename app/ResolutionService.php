@@ -6,7 +6,10 @@ final class ResolutionService
         $pdo=db();$q=$pdo->prepare('SELECT s.plot_id,se.event_id,p.resolution_headline,p.include_factor_summary FROM simulations s JOIN plots p ON p.plot_id=s.plot_id JOIN simulation_events se ON se.simulation_id=s.simulation_id AND se.event_code="FINAL_STATE" WHERE s.simulation_id=? LIMIT 1');$q->execute([$sid]);$r=$q->fetch();if(!$r)return;
         // Task 5 Phase 2: a pinned simulation renders its ending headline
         // from the snapshot's plot row, not the live draft.
-        if(class_exists('SimulationContent')){$plot=SimulationContent::plotRow($sid);if($plot!==null){$r['resolution_headline']=$plot['resolution_headline']??$r['resolution_headline'];$r['include_factor_summary']=$plot['include_factor_summary']??$r['include_factor_summary'];}}
+        // A present-but-empty snapshot value wins: the engine default applies,
+        // not the live draft. Only a missing key (a snapshot predating the
+        // column) falls back to live.
+        if(class_exists('SimulationContent')){$plot=SimulationContent::plotRow($sid);if($plot!==null){if(array_key_exists('resolution_headline',$plot))$r['resolution_headline']=$plot['resolution_headline'];if(array_key_exists('include_factor_summary',$plot))$r['include_factor_summary']=$plot['include_factor_summary'];}}
         $sections=self::resolutionSections($sid,(int)$r['plot_id']);$parts=[];
         foreach($sections as $s){$fragment=self::pickFragment($sid,(int)$r['plot_id'],$s['section_code']);if($fragment!=='')$parts[]=$fragment;}
         $f=$pdo->prepare('SELECT label,current_value FROM simulation_factors WHERE simulation_id=? ORDER BY simulation_factor_id');$f->execute([$sid]);$summary=[];foreach($f->fetchAll() as $row)$summary[]=$row['label'].' '.$row['current_value'];
