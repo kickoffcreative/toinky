@@ -1,4 +1,9 @@
 <?php
+// Task 5 Phase 3: plot_triggered_transitions (+ conditions/effects) stay
+// live deliberately. They are not in the workspace snapshot and have no
+// studio editor (no PHP code writes them), so no draft edit can change
+// them; they are structural rule metadata, not story content. If they
+// ever gain a studio editor, they must move into the snapshot first.
 final class TriggeredTransitionService
 {
     public static function evaluate(int $sid,?int $second=null,?int $eventId=null): void
