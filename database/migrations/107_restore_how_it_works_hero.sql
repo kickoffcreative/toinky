@@ -14,7 +14,7 @@ INSERT INTO site_page_sections
     (site_page_id,section_code,label_text,title_text,content_html,layout_type,sort_order,active,is_default,updated_by_user_id)
 SELECT p.site_page_id,'HERO','Toinky','How It Works',
        '<p>One shared story. Different perspectives. Every choice changes what happens next.</p>',
-       'TEXT_CENTER',10,1,1,1
+       'TEXT_CENTER',10,1,1,NULL
 FROM site_pages p
 WHERE p.page_code='HOW_IT_WORKS'
   AND p.active=1
