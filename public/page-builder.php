@@ -190,7 +190,7 @@ $__hasRows=!empty($section['rows_json']);
 ?>
 <details class="section-settings" open>
 <summary><strong>Section Settings</strong><span class="builder-muted">Layout, image, text, background &amp; visibility</span></summary>
-<form method="post" class="section-add-form">
+<form method="post" class="section-add-form" data-rich-form>
 <input type="hidden" name="csrf_token" value="<?=htmlspecialchars(AuthService::csrfToken(),ENT_QUOTES,'UTF-8')?>"><input type="hidden" name="action" value="save_section"><input type="hidden" name="section_id" value="<?=(int)$section['site_page_section_id']?>"><input type="hidden" name="section_fingerprint" value="<?=builder_e(PageContentService::sectionFingerprint($section))?>">
 <?php if($__hasRows):?><p class="builder-muted">Eyebrow, title, intro and layout are shown from the row tree below — edit the rows to change them. They are kept here so they still apply if the rows are ever cleared.</p><?php endif;?>
 <label>Layout<select name="layout_type" <?=$__hasRows?'disabled':''?>><?php foreach(PageContentService::LAYOUTS as $__layout):?><option value="<?=builder_e($__layout)?>" <?=(string)($section['layout_type']??'')===$__layout?'selected':''?>><?=builder_e(ucwords(strtolower(str_replace('_',' ',$__layout))))?></option><?php endforeach;?></select></label>
@@ -200,7 +200,15 @@ $__hasRows=!empty($section['rows_json']);
 <?php if($__hasRows):?><input type="hidden" name="eyebrow_text" value="<?=builder_e($__sec('eyebrow_text'))?>"><?php endif;?>
 <label>Title<input name="title_text" maxlength="500" value="<?=builder_e($__sec('title_text'))?>" <?=$__hasRows?'disabled':''?>></label>
 <?php if($__hasRows):?><input type="hidden" name="title_text" value="<?=builder_e($__sec('title_text'))?>"><?php endif;?>
-<label>Intro<textarea name="content_html" rows="3" <?=$__hasRows?'disabled':''?>><?=builder_e($__sec('content_html'))?></textarea></label>
+<label>Intro</label>
+<div class="editor-toolbar" data-editor-toolbar>
+<button type="button" data-command="undo" title="Undo" <?=$__hasRows?'disabled':''?>>↶</button><button type="button" data-command="redo" title="Redo" <?=$__hasRows?'disabled':''?>>↷</button>
+<button type="button" data-command="bold" <?=$__hasRows?'disabled':''?>><b>B</b></button><button type="button" data-command="italic" <?=$__hasRows?'disabled':''?>><i>I</i></button><button type="button" data-command="underline" <?=$__hasRows?'disabled':''?>><u>U</u></button>
+<button type="button" data-block="h2" <?=$__hasRows?'disabled':''?>>Heading 2</button><button type="button" data-block="h3" <?=$__hasRows?'disabled':''?>>Heading 3</button><button type="button" data-block="p" <?=$__hasRows?'disabled':''?>>Paragraph</button>
+<button type="button" data-command="insertUnorderedList" <?=$__hasRows?'disabled':''?>>Bullets</button><button type="button" data-command="insertOrderedList" <?=$__hasRows?'disabled':''?>>Numbers</button><button type="button" data-link <?=$__hasRows?'disabled':''?>>Link</button><button type="button" data-command="removeFormat" <?=$__hasRows?'disabled':''?>>Clear</button>
+</div>
+<div class="rich-editor" contenteditable="<?=$__hasRows?'false':'true'?>" data-rich-editor><?=$__sec('content_html')?></div>
+<?php if(!$__hasRows):?><textarea name="content_html" data-rich-source hidden><?=builder_e($__sec('content_html'))?></textarea><?php endif;?>
 <?php if($__hasRows):?><input type="hidden" name="content_html" value="<?=builder_e($__sec('content_html'))?>"><?php endif;?>
 <label>Background<select name="background_mode"><option value="DEFAULT" <?=$__sec('background_mode')==='DEFAULT'?'selected':''?>>Default design</option><option value="COLOR" <?=$__sec('background_mode')==='COLOR'?'selected':''?>>Color</option><option value="MEDIA" <?=$__sec('background_mode')==='MEDIA'?'selected':''?>>Media image</option></select></label>
 <label>Background color<input type="color" name="background_color" value="<?=builder_e($__sec('background_color')!==''?$__sec('background_color'):'#F4EEE2')?>"></label>
