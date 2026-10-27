@@ -1,4 +1,4 @@
-name: Game2 Simulation Lab
+name: Toinky Simulation Lab
 
 on:
   workflow_dispatch:
@@ -91,7 +91,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: game2-simulation-report
+          name: toinky-simulation-report
           path: simulation-report.json
           if-no-files-found: warn
       - name: Fail on integrity warnings or harness errors
