@@ -2,6 +2,12 @@
 final class BehaviorService {
     public static function onWorldEvent(int $sid,int $eventId,string $eventCode,int $second): void {
         $pdo=db();$sim=self::simulation($sid);
+        // Task 5 Phase 3: perceptions stay live deliberately.
+        // plot_event_perceptions is not in the workspace snapshot and has
+        // no studio editor (no PHP code writes it; only data migrations
+        // ever touched it), so no draft edit can change what a running
+        // game perceives. If a studio editor is ever built for
+        // perceptions, they must move into the workspace snapshot first.
         $p=$pdo->prepare('SELECT pep.*,c.character_id,c.name,c.actor_type,c.slot_no FROM plot_event_perceptions pep JOIN plot_roles pr ON pr.plot_id=pep.plot_id AND pr.role_code=pep.role_code JOIN characters c ON c.simulation_id=? AND c.plot_role_id=pr.plot_role_id WHERE pep.plot_id=? AND pep.event_code=?');
         $p->execute([$sid,$sim['plot_id'],$eventCode]);
         foreach($p->fetchAll() as $r){
@@ -34,7 +40,10 @@ final class BehaviorService {
     // (the live mirror sync overwrites the template for the opportunity's
     // role), so a template for that role is replaced by the synthesized
     // opportunity row. Perceptions stay live: plot_event_perceptions is not
-    // part of the snapshot.
+    // part of the snapshot. Task 5 Phase 3: the cast lookup below has no
+    // pr.active=1 — the cast is frozen at creation, so the draft's current
+    // active flag must not silence a cast member in a pinned game. (The
+    // legacy branch keeps its live active filter.)
     private static function decisionTemplateRows(int $sid,string $eventCode): array {
         $pdo=db();$sim=self::simulation($sid);
         if(!class_exists('SimulationContent')||SimulationContent::forSimulation($sid)===null){
@@ -47,7 +56,7 @@ final class BehaviorService {
             $templates=array_values(array_filter($templates,static fn($t)=>(string)$t['role_code']!==(string)$opp['role_code']));
             $templates[]=['template_id'=>0,'prompt_text'=>$opp['prompt_text'],'decision_window_seconds'=>$opp['window_seconds'],'actor_type'=>$opp['actor_type'],'role_code'=>$opp['role_code'],'_pinned_opportunity_id'=>(int)$opp['dynamic_opportunity_id']];
         }
-        $chars=$pdo->prepare('SELECT pr.role_code,pr.plot_role_id,c.character_id,c.name,c.actor_type,c.controller_type,c.slot_no FROM characters c JOIN plot_roles pr ON pr.plot_role_id=c.plot_role_id WHERE c.simulation_id=? AND pr.active=1');$chars->execute([$sid]);$byRole=[];foreach($chars->fetchAll()as$c)$byRole[(string)$c['role_code']]=$c;
+        $chars=$pdo->prepare('SELECT pr.role_code,pr.plot_role_id,c.character_id,c.name,c.actor_type,c.controller_type,c.slot_no FROM characters c JOIN plot_roles pr ON pr.plot_role_id=c.plot_role_id WHERE c.simulation_id=?');$chars->execute([$sid]);$byRole=[];foreach($chars->fetchAll()as$c)$byRole[(string)$c['role_code']]=$c;
         $rows=[];foreach($templates as$t){$role=(string)$t['role_code'];if(!isset($byRole[$role]))continue;$rows[]=array_merge($t,$byRole[$role]);}return$rows;
     }
 
@@ -127,16 +136,20 @@ final class BehaviorService {
     }
 
     private static function decisionOption(int $sid,array $d,int $decisionId,string $optionCode,array $sim): array {
-        // Task 5 Phase 2: resolve from the snapshot when pinned. The live
-        // query below stays as a fallback when the pinned lookup misses
-        // (defensive — the option list a player sees is built from the same
-        // snapshot, so a miss means stale data, not a wrong option).
+        // Task 5 Phase 2: resolve from the snapshot when pinned.
+        // Task 5 Phase 3: the live query below is legacy-only. For a pinned
+        // simulation the snapshot is the whole option list — a miss means
+        // the option is not in this version, so it fails closed instead of
+        // reading the live draft.
         if(class_exists('SimulationContent')){
             $rows=SimulationContent::decisionOptionsForDecision($sid,$decisionId,(int)$d['character_id']);
-            if($rows!==null)foreach($rows as$candidate)if((string)$candidate['option_code']===$optionCode){
-                $opt=$candidate;
-                if(empty($opt['_pinned_dynamic_option_id'])&&class_exists('CausalService')&&!CausalService::optionAllowed($sid,(int)$opt['template_option_id']))throw new RuntimeException('That action is no longer possible because the world has changed.');
-                return$opt;
+            if($rows!==null){
+                foreach($rows as$candidate)if((string)$candidate['option_code']===$optionCode){
+                    $opt=$candidate;
+                    if(empty($opt['_pinned_dynamic_option_id'])&&class_exists('CausalService')&&!CausalService::optionAllowed($sid,(int)$opt['template_option_id']))throw new RuntimeException('That action is no longer possible because the world has changed.');
+                    return$opt;
+                }
+                throw new RuntimeException('Decision option not found.');
             }
         }
         $o=db()->prepare('SELECT pdto.* FROM decision_options do JOIN plot_decision_template_options pdto ON pdto.option_code=do.option_code AND pdto.active=1 JOIN plot_decision_templates pdt ON pdt.template_id=pdto.template_id JOIN characters c ON c.character_id=? JOIN plot_roles pr ON pr.plot_role_id=c.plot_role_id WHERE do.decision_id=? AND do.option_code=? AND pdt.plot_id=? AND pdt.role_code=pr.role_code AND pdt.event_code=(SELECT se.event_code FROM decisions dx JOIN simulation_events se ON se.event_id=dx.event_id WHERE dx.decision_id=?) LIMIT 1');
