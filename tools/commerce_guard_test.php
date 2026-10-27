@@ -48,20 +48,27 @@ try{
     $afterGrant=CommerceService::balance($hostId);
     $check($afterGrant['granted']===$before['granted'],'free first occasion is never granted twice');
 
+    // The whole flow runs on the single free-first occasion: return the held
+    // occasion via delete before spending it via start, or the second
+    // createGame fails closed in assertCanHost (as it should for a host with
+    // nothing available).
     $state=LobbyService::createGame($hostId,'EMPTY_THRONE',1800);
     $gameId=(int)$state['game']['game_id'];$gameIds[]=$gameId;
     $afterCreate=CommerceService::balance($hostId);
     $check($afterCreate['reserved']===$before['reserved']+1&&$afterCreate['available']===$afterGrant['available']-1,'lobby creation holds one occasion');
 
-    LobbyService::startGame($gameId,$hostId);
-    $afterStart=CommerceService::balance($hostId);
-    $check($afterStart['consumed']===$before['consumed']+1&&$afterStart['reserved']===$before['reserved'],'starting the game spends the held occasion');
+    LobbyService::deleteLobby($gameId,$hostId);
+    $afterDelete=CommerceService::balance($hostId);
+    $check($afterDelete['reserved']===$before['reserved']&&$afterDelete['available']===$afterGrant['available'],'deleting an unstarted lobby returns the occasion');
 
     $state=LobbyService::createGame($hostId,'EMPTY_THRONE',1800);
     $game2=(int)$state['game']['game_id'];$gameIds[]=$game2;
-    LobbyService::deleteLobby($game2,$hostId);
-    $afterDelete=CommerceService::balance($hostId);
-    $check($afterDelete['reserved']===$before['reserved']&&$afterDelete['available']===$afterStart['available'],'deleting an unstarted lobby returns the occasion');
+    $afterCreate2=CommerceService::balance($hostId);
+    $check($afterCreate2['reserved']===$before['reserved']+1&&$afterCreate2['available']===$afterGrant['available']-1,'lobby creation holds one occasion');
+
+    LobbyService::startGame($game2,$hostId);
+    $afterStart=CommerceService::balance($hostId);
+    $check($afterStart['consumed']===$before['consumed']+1&&$afterStart['reserved']===$before['reserved'],'starting the game spends the held occasion');
 }finally{
     foreach($gameIds as $gid){
         $pdo->prepare('DELETE FROM host_occasion_ledger WHERE game_id=?')->execute([$gid]);
