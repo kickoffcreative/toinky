@@ -96,13 +96,17 @@ final class FocusedOpportunitySimulationService
     {
         $values=[];foreach($conditions as$c){$compare=(string)($c['compare_value']??'');if(in_array($c['operator'],['EQ','NEQ'],true)&&$compare!=='')$values[]=$compare;foreach(array_filter(array_map('trim',explode(',',$compare)),static fn($v)=>$v!=='')as$v)$values[]=$v;if(is_numeric($compare)){for($n=(int)$compare-1;$n<=(int)$compare+1;$n++)$values[]=(string)$n;}}
         // Task 5 Phase 2: the state definition comes from the snapshot
-        // when pinned. plot_factors min/max/initial (the FACTOR branch below)
-        // stay live: factors are not in the workspace snapshot.
+        // when pinned. Task 5 Phase 3: the FACTOR bounds below come from
+        // the simulation's own frozen factor rows, not the live draft
+        // (plot_factors is not in the workspace snapshot).
         $pinned=class_exists('SimulationContent')?SimulationContent::forSimulation($sid):null;
         $definition=$pinned!==null?SimulationContent::stateDefinition($sid,$type,$key):null;
         if($definition===null&&$pinned===null){$q=db()->prepare('SELECT value_type,allowed_values_text,default_numeric_value FROM plot_state_definitions WHERE plot_id=? AND effect_scope=? AND target_code=? LIMIT 1');$q->execute([$opportunity['plot_id'],$type,$key]);$definition=$q->fetch();}
         if($definition){foreach(preg_split('/\r?\n/',trim((string)$definition['allowed_values_text']))?:[]as$v)if(trim($v)!=='')$values[]=trim($v);if($definition['default_numeric_value']!==null)$values[]=(string)$definition['default_numeric_value'];}
-        $min=null;$max=null;if($type==='FACTOR'){$q=db()->prepare('SELECT initial_value,min_value,max_value FROM plot_factors WHERE plot_id=? AND factor_code=?');$q->execute([$opportunity['plot_id'],$key]);if($r=$q->fetch()){$min=(int)$r['min_value'];$max=(int)$r['max_value'];$values=array_merge($values,[(string)$r['initial_value'],(string)$min,(string)$max]);}}elseif(in_array($type,['STAT','RELATIONSHIP'],true)){$min=0;$max=100;$values=array_merge($values,['0','50','100']);}
+        // Task 5 Phase 3: factor bounds come from the simulation's own
+        // (creation-frozen) factor rows, not the live draft. The initial
+        // value is already covered by currentValue() below.
+        $min=null;$max=null;if($type==='FACTOR'){$q=db()->prepare('SELECT current_value,min_value,max_value FROM simulation_factors WHERE simulation_id=? AND factor_code=?');$q->execute([$sid,$key]);if($r=$q->fetch()){$min=(int)$r['min_value'];$max=(int)$r['max_value'];$values=array_merge($values,[(string)$r['current_value'],(string)$min,(string)$max]);}}elseif(in_array($type,['STAT','RELATIONSHIP'],true)){$min=0;$max=100;$values=array_merge($values,['0','50','100']);}
         $current=self::currentValue($sid,$opportunity,$type,$key);if($current!==null)$values[]=$current;if(($definition['value_type']??null)==='TEXT')$values[]='FOCUS_TEST_VALUE';if(in_array($type,['WORLD_STATE','FACTOR','STAT','KNOWLEDGE','RELATIONSHIP'],true))$values[]=null;
         $values=array_values(array_unique($values,SORT_REGULAR));if($min!==null)$values=array_values(array_filter($values,static fn($value)=>$value===null||(is_numeric($value)&&(float)$value>=$min&&(float)$value<=$max)));return$values;
     }
@@ -175,6 +179,9 @@ final class FocusedOpportunitySimulationService
 
     private static function openedOpportunities(int $sid,string $exclude): array
     {
+        // Task 5 Phase 3: reporting-only. This maps the run's recorded
+        // opportunity rows to codes for the focus-test result; it decides
+        // nothing in the run.
         $q=db()->prepare('SELECT o.opportunity_code,sdo.status,COUNT(*) occurrence_count FROM simulation_dynamic_opportunities sdo JOIN plot_dynamic_opportunities o ON o.dynamic_opportunity_id=sdo.dynamic_opportunity_id WHERE sdo.simulation_id=? AND o.opportunity_code<>? GROUP BY o.opportunity_code,sdo.status ORDER BY o.opportunity_code,sdo.status');$q->execute([$sid,$exclude]);return$q->fetchAll();
     }
 
