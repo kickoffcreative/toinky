@@ -59,12 +59,16 @@ final class DynamicOpportunityService
     // (opportunity fields + the cast character + the plot cooldown), from
     // the snapshot when pinned. As in the live query, the character's
     // actor_type wins over the opportunity's when the keys collide.
+    // Task 5 Phase 3: the pinned cast lookup has no pr.active=1 — the cast
+    // is frozen at creation, so the draft's current active flag must not
+    // hide a cast member from a pinned game. (The legacy branch keeps its
+    // live active filter.)
     private static function ruleForFocused(int $sid,string $opportunityCode): ?array {
         $pdo=db();
         if(class_exists('SimulationContent')&&SimulationContent::forSimulation($sid)!==null){
             $opp=SimulationContent::opportunity($sid,$opportunityCode);if($opp===null)return null;
             $sim=$pdo->prepare('SELECT elapsed_seconds,current_phase,duration_seconds,status FROM simulations WHERE simulation_id=?');$sim->execute([$sid]);$s=$sim->fetch();if(!$s)return null;
-            $ch=$pdo->prepare('SELECT c.character_id,c.actor_type FROM characters c JOIN plot_roles pr ON pr.plot_role_id=c.plot_role_id WHERE c.simulation_id=? AND pr.role_code=? AND pr.active=1 LIMIT 1');$ch->execute([$sid,$opp['role_code']]);$c=$ch->fetch();if(!$c)return null;
+            $ch=$pdo->prepare('SELECT c.character_id,c.actor_type FROM characters c JOIN plot_roles pr ON pr.plot_role_id=c.plot_role_id WHERE c.simulation_id=? AND pr.role_code=? LIMIT 1');$ch->execute([$sid,$opp['role_code']]);$c=$ch->fetch();if(!$c)return null;
             return array_merge($opp,$s,$c,['npc_action_cooldown_seconds'=>SimulationContent::plotValue($sid,'npc_action_cooldown_seconds')]);
         }
         $q=$pdo->prepare('SELECT o.*,c.character_id,c.actor_type,p.npc_action_cooldown_seconds,s.elapsed_seconds,s.current_phase,s.duration_seconds,s.status FROM plot_dynamic_opportunities o JOIN simulations s ON s.plot_id=o.plot_id JOIN plot_roles pr ON pr.plot_id=o.plot_id AND pr.role_code=o.role_code AND pr.active=1 JOIN characters c ON c.simulation_id=s.simulation_id AND c.plot_role_id=pr.plot_role_id JOIN plots p ON p.plot_id=o.plot_id WHERE s.simulation_id=? AND o.opportunity_code=? AND o.active=1 LIMIT 1');
@@ -75,7 +79,7 @@ final class DynamicOpportunityService
         $pdo=db();
         if(class_exists('SimulationContent')&&SimulationContent::forSimulation($sid)!==null){
             $opps=SimulationContent::opportunities($sid)??[];
-            $chars=$pdo->prepare('SELECT pr.role_code,c.character_id,c.actor_type FROM characters c JOIN plot_roles pr ON pr.plot_role_id=c.plot_role_id WHERE c.simulation_id=? AND pr.active=1');$chars->execute([$sid]);$byRole=[];foreach($chars->fetchAll()as$c)$byRole[(string)$c['role_code']]=$c;
+            $chars=$pdo->prepare('SELECT pr.role_code,c.character_id,c.actor_type FROM characters c JOIN plot_roles pr ON pr.plot_role_id=c.plot_role_id WHERE c.simulation_id=?');$chars->execute([$sid]);$byRole=[];foreach($chars->fetchAll()as$c)$byRole[(string)$c['role_code']]=$c;
             $cooldown=SimulationContent::plotValue($sid,'npc_action_cooldown_seconds');
             $rows=[];foreach($opps as$o){$role=(string)$o['role_code'];if(!isset($byRole[$role]))continue;$rows[]=array_merge($o,$byRole[$role],['npc_action_cooldown_seconds'=>$cooldown]);}return$rows;
         }
@@ -119,6 +123,9 @@ final class DynamicOpportunityService
     {
         $pdo=db();$trace=getenv('GAME2_TRACE_OPPORTUNITIES')==='1';$traceLabel='';
         if($trace){
+            // Task 5 Phase 3: debug-only label read. This query runs only
+            // when GAME2_TRACE_OPPORTUNITIES=1 and only feeds the STDERR
+            // trace label; it never affects the pass/fail decision.
             $q=$pdo->prepare('SELECT d.opportunity_code,d.role_code,s.elapsed_seconds FROM plot_dynamic_opportunities d JOIN simulations s ON s.simulation_id=? WHERE d.dynamic_opportunity_id=?');
             $q->execute([$sid,$ruleId]);$meta=$q->fetch();
             $filter=strtoupper(trim((string)getenv('GAME2_TRACE_ROLE')));
