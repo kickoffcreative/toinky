@@ -236,7 +236,7 @@ final class InkyGuideService
         }elseif(in_array($type,['decision','opportunity'],true)){
             self::copyProposalAlias($value,'event_code',['code','event_key','key']);
             self::copyProposalAlias($value,'prompt',['prompt_text','decision_prompt','question']);
-            self::copyProposalAlias($value,'options',['choices','outcomes','branches','choice_list']);
+            self::copyProposalListAlias($value,'options',['choices','outcomes','branches','choice_list']);
             if(isset($value['options'])&&is_array($value['options'])){$options=[];foreach($value['options']as$option){if(is_array($option))$options[]=self::normalizeProposalOption($option);else$options[]=$option;}$value['options']=$options;}
         }
         return$value;
@@ -253,6 +253,12 @@ final class InkyGuideService
     {
         if(array_key_exists($canonical,$value)&&self::proposalScalar($value,[$canonical])!==null)return;
         $alias=self::proposalScalar($value,$aliases);if($alias!==null)$value[$canonical]=$alias;
+    }
+
+    private static function copyProposalListAlias(array&$value,string$canonical,array$aliases): void
+    {
+        if(isset($value[$canonical])&&is_array($value[$canonical])&&$value[$canonical]!==[])return;
+        foreach($aliases as$alias){if(isset($value[$alias])&&is_array($value[$alias])&&$value[$alias]!==[]){$value[$canonical]=$value[$alias];return;}}
     }
 
     private static function proposalScalar(array$value,array$keys): ?string
