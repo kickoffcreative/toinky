@@ -2,15 +2,20 @@
 final class BehaviorService {
     public static function onWorldEvent(int $sid,int $eventId,string $eventCode,int $second): void {
         $pdo=db();$sim=self::simulation($sid);
-        // Task 5 Phase 3: perceptions stay live deliberately.
-        // plot_event_perceptions is not in the workspace snapshot and has
-        // no studio editor (no PHP code writes it; only data migrations
-        // ever touched it), so no draft edit can change what a running
-        // game perceives. If a studio editor is ever built for
-        // perceptions, they must move into the workspace snapshot first.
-        $p=$pdo->prepare('SELECT pep.*,c.character_id,c.name,c.actor_type,c.slot_no FROM plot_event_perceptions pep JOIN plot_roles pr ON pr.plot_id=pep.plot_id AND pr.role_code=pep.role_code JOIN characters c ON c.simulation_id=? AND c.plot_role_id=pr.plot_role_id WHERE pep.plot_id=? AND pep.event_code=?');
-        $p->execute([$sid,$sim['plot_id'],$eventCode]);
-        foreach($p->fetchAll() as $r){
+        // Perceptions editor (Oct 27, 2026): plot_event_perceptions is in
+        // the workspace snapshot ('perceptions' key), so a pinned
+        // simulation reads its pinned rows; legacy simulations read live.
+        // Pinned rows carry no character fields, so resolve the cast by
+        // role code, mirroring decisionTemplateRows.
+        if(!class_exists('SimulationContent')||SimulationContent::forSimulation($sid)===null){
+            $p=$pdo->prepare('SELECT pep.*,c.character_id,c.name,c.actor_type,c.slot_no FROM plot_event_perceptions pep JOIN plot_roles pr ON pr.plot_id=pep.plot_id AND pr.role_code=pep.role_code JOIN characters c ON c.simulation_id=? AND c.plot_role_id=pr.plot_role_id WHERE pep.plot_id=? AND pep.event_code=?');
+            $p->execute([$sid,$sim['plot_id'],$eventCode]);$perceptions=$p->fetchAll();
+        }else{
+            $perceptions=SimulationContent::perceptions($sid,$eventCode)??[];
+            $chars=$pdo->prepare('SELECT pr.role_code,c.character_id,c.name,c.actor_type,c.slot_no FROM characters c JOIN plot_roles pr ON pr.plot_role_id=c.plot_role_id WHERE c.simulation_id=?');$chars->execute([$sid]);$byRole=[];foreach($chars->fetchAll() as$c)$byRole[(string)$c['role_code']]=$c;
+            $rows=[];foreach($perceptions as$per){$role=(string)$per['role_code'];if(!isset($byRole[$role]))continue;$rows[]=array_merge($per,$byRole[$role]);}$perceptions=$rows;
+        }
+        foreach($perceptions as $r){
             $deliverySecond=$second+self::deliveryOffset($sid,$r,'perception');
             $pdo->prepare('INSERT INTO character_history(simulation_id,character_id,event_id,event_second,history_type,title,detail_text) VALUES(?,?,?,?,?,?,?)')->execute([$sid,$r['character_id'],$eventId,$deliverySecond,$r['history_type'],$r['title'],$r['perception_text']]);
             if(!empty($r['location_after'])) self::setLocation($sid,(int)$r['character_id'],$r['location_after'],$second,$eventId,'Event movement');
