@@ -16,6 +16,14 @@ $host=$pdo->query('SELECT user_id FROM users WHERE is_admin=0 ORDER BY user_id L
 if(!$host){$pdo->prepare('INSERT INTO users(email,password_hash,display_name,is_admin,email_verified_at_utc) VALUES(?,?,?,0,UTC_TIMESTAMP())')->execute(['commerce-test-host@toinky.invalid','!','Commerce Test Host']);$host=['user_id'=>(int)$pdo->lastInsertId()];}
 if(!$host)throw new RuntimeException('Commerce test needs a non-admin user fixture.');
 $hostId=(int)$host['user_id'];
+// Task 5 Phase 1: hosted games run the PUBLISHED version, so createGame fails
+// closed when a story has no published pointer. Fresh builds seed the stories
+// as PUBLISHED with no version row, so publish EMPTY_THRONE here when it has
+// none, with the same snapshot submit() builds. Left in place so the later
+// atomicity test in this suite can host too; on a live install the pointer
+// already exists and this is a no-op.
+$plotQ=$pdo->prepare('SELECT plot_id,published_plot_version_id FROM plots WHERE code=? AND status="active"');$plotQ->execute(['EMPTY_THRONE']);$plotRow=$plotQ->fetch();
+if($plotRow&&empty($plotRow['published_plot_version_id'])){require_once $root.'/app/StoryAuthoringService.php';$plotId=(int)$plotRow['plot_id'];$snapshot=json_encode(['plot'=>StoryAuthoringService::story($plotId),'content'=>StoryAuthoringService::workspace($plotId)],JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);$vq=$pdo->prepare('SELECT COALESCE(MAX(version_no),0)+1 FROM plot_versions WHERE plot_id=?');$vq->execute([$plotId]);$versionNo=(int)$vq->fetchColumn();$adminId=(int)$admin['user_id'];$pdo->prepare('INSERT INTO plot_versions(plot_id,version_no,workflow_status,snapshot_json,submitted_by_user_id,reviewed_by_user_id,reviewed_at_utc) VALUES(?,?,'PUBLISHED',?,?,?,UTC_TIMESTAMP())')->execute([$plotId,$versionNo,$snapshot,$adminId,$adminId]);$pdo->prepare('UPDATE plots SET published_plot_version_id=?,workflow_status="PUBLISHED" WHERE plot_id=?')->execute([(int)$pdo->lastInsertId(),$plotId]);}
 
 $failures=[];
 $check=function(bool $ok,string $label)use(&$failures){echo ($ok?'PASS':'FAIL').' '.$label."\n";if(!$ok)$failures[]=$label;};
