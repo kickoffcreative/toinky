@@ -13,11 +13,14 @@
 // sort orders). Accessors filter them in place and preserve the workspace
 // ordering, which matches the live ORDER BY clauses.
 //
-// Fail-open rule: a missing snapshot, a bad decode, a version that does not
-// belong to the simulation's plot, or a snapshot key that predates the
-// workspace shape all fall back to the live query for that read (the
-// accessor returns null). Execution must never die on a stale snapshot;
-// drift is reported separately by SimulationService::checkVersionDrift().
+// Task 5 Phase 3 fail-closed rule: when a simulation IS pinned, a snapshot
+// that loads but lacks the requested content key throws (see content() /
+// versionContent()) instead of silently reading the live draft. Legacy
+// simulations (plot_version_id NULL) still get null from every accessor
+// and keep using the live queries untouched. A snapshot that cannot load
+// at all (missing version row, bad decode, wrong plot) still returns null
+// — a damaged version row is an ops fault, and the live fallback keeps
+// in-flight games alive while drift logging flags it.
 final class SimulationContent
 {
     private static array $cache=[];
@@ -54,7 +57,11 @@ final class SimulationContent
 
     public static function plotRow(int $sid): ?array
     {
-        $snap=self::forSimulation($sid);return $snap!==null&&is_array($snap['plot']??null)?$snap['plot']:null;
+        // Task 5 Phase 3: a pinned simulation whose snapshot has no plot
+        // row fails closed, like a missing content key.
+        $snap=self::forSimulation($sid);if($snap===null)return null;
+        if(!is_array($snap['plot']??null))throw new RuntimeException('Pinned simulation '.$sid.' is missing snapshot content "plot". The pinned version predates this content section — re-submit the story to re-pin it.');
+        return $snap['plot'];
     }
 
     public static function plotValue(int $sid,string $field): mixed
@@ -63,17 +70,23 @@ final class SimulationContent
     }
 
     // Raw workspace rows for one key, or null when the simulation is
-    // unpinned or the snapshot predates that key (caller falls back live).
+    // unpinned (caller falls back live). Task 5 Phase 3: when the
+    // simulation is pinned and the snapshot lacks the key, throw instead
+    // of reading the live draft — the pinned version predates this
+    // content section, so the fix is to re-submit the story, not to mix
+    // in current draft content.
     private static function content(int $sid,string $key): ?array
     {
         $snap=self::forSimulation($sid);if($snap===null)return null;
-        return is_array($snap['content'][$key]??null)?$snap['content'][$key]:null;
+        if(!is_array($snap['content'][$key]??null))throw new RuntimeException('Pinned simulation '.$sid.' is missing snapshot content "'.$key.'". The pinned version predates this content section — re-submit the story to re-pin it.');
+        return $snap['content'][$key];
     }
 
     private static function versionContent(int $versionId,string $key): ?array
     {
         $snap=self::forVersion($versionId);if($snap===null)return null;
-        return is_array($snap['content'][$key]??null)?$snap['content'][$key]:null;
+        if(!is_array($snap['content'][$key]??null))throw new RuntimeException('Pinned version '.$versionId.' is missing snapshot content "'.$key.'". The version predates this content section — re-submit the story to re-pin it.');
+        return $snap['content'][$key];
     }
 
     // (a) World events. Workspace order is trigger_percent, sort_order,
@@ -219,6 +232,14 @@ final class SimulationContent
         $rows=self::content($sid,'state_definitions');if($rows===null)return null;
         foreach($rows as$r)if((string)$r['effect_scope']===$scope&&(string)$r['target_code']===$code)return$r;
         return null;
+    }
+
+    // Raw state-definition rows, or null when the simulation is unpinned
+    // (callers keep their live query). A pinned simulation whose snapshot
+    // lacks the key throws via content() (Task 5 Phase 3 fail-closed).
+    public static function stateDefinitions(int $sid): ?array
+    {
+        return self::content($sid,'state_definitions');
     }
 
     // Resolve the playable options for one open decision from the pinned
