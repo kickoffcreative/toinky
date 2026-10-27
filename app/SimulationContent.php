@@ -103,6 +103,15 @@ final class SimulationContent
         return array_values(array_filter($rows,static fn($r)=>(string)$r['event_code']===$eventCode&&(int)($r['active']??1)===1));
     }
 
+    // Perceptions for one event. The table has no active flag, so no
+    // filtering beyond the event code. A pinned simulation reads its
+    // snapshot rows; the engine resolves the cast by role code.
+    public static function perceptions(int $sid,string $eventCode): ?array
+    {
+        $rows=self::content($sid,'perceptions');if($rows===null)return null;
+        return array_values(array_filter($rows,static fn($r)=>(string)$r['event_code']===$eventCode));
+    }
+
     public static function worldEventEffectConditions(int $sid,int $effectId): ?array
     {
         $rows=self::content($sid,'event_effect_conditions');if($rows===null)return null;
