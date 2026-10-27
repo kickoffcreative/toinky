@@ -7,11 +7,15 @@ declare(strict_types=1);
 // is rejected instead of silently reverting another admin's change.
 // Task 10: the old Pages editor is fully gone (dead initializers, $pageCode,
 // view=pages redirect, unknown POST actions rejected, no migrations on admin).
+// Empty (Oct 27, 2026): Add Section offers Empty (no rows); a row-less
+// section keeps its legacy fields enabled, and the Structure dialog cannot
+// materialize its fallback row into real rows by saving unchanged.
 if(PHP_SAPI!=='cli'){http_response_code(403);exit('CLI only.');}
 
 $root=dirname(__DIR__);
 require_once $root.'/app/bootstrap.php';
 require_once $root.'/app/PageContentService.php';
+require_once $root.'/app/PageBuilderService.php';
 
 $failures=[];
 $check=function(bool $ok,string $label)use(&$failures){echo ($ok?'PASS':'FAIL').' '.$label."\n";if(!$ok)$failures[]=$label;};
@@ -20,7 +24,8 @@ $adminPhp=file_get_contents($root.'/public/admin.php');
 $pcs=file_get_contents($root.'/app/PageContentService.php');
 
 // --- Task 8 (static) ------------------------------------------------------
-$check(strpos($pb,"\$__hasRows=!empty(\$section['rows_json']);")!==false,'Task 8: page-builder defines $__hasRows from rows_json');
+$check(strpos($pb,"\$__decodedRows=json_decode((string)(\$section['rows_json']??''),true);")!==false,'Task 8: page-builder decodes rows_json for $__hasRows');
+$check(strpos($pb,"\$__hasRows=is_array(\$__decodedRows)&&!empty(\$__decodedRows);")!==false,'Task 8: $__hasRows is true only when decoded rows are non-empty');
 $check(strpos($pb,'shown from the row tree')!==false,'Task 8: Section Settings explains the disabled controls');
 $check(strpos($pb,"<?=\$__hasRows?'disabled':''?>")!==false,'Task 8: dead controls carry a disabled attribute when rows exist');
 $check(strpos($pb,'<input type="hidden" name="layout_type"')!==false,'Task 8: layout is kept as a hidden input when disabled');
@@ -80,6 +85,45 @@ try{
 }finally{
     if($testSectionId){try{PageContentService::deleteSection($admin??[],$testSectionId);}catch(Throwable $ignored){$pdo->prepare('DELETE FROM site_page_sections WHERE site_page_section_id=?')->execute([$testSectionId]);}}
     echo "cleanup done.\n";
+}
+
+// --- Empty first-content option (Oct 27, 2026) ------------------------------
+// An Empty section has no rows: its legacy fields stay enabled (the rich-text
+// editor is reachable), and saving the Structure dialog unchanged must not
+// materialize the legacy fallback row into real rows.
+$check(strpos($pb,'<option value="EMPTY">Empty (no rows)</option>')!==false,'Empty: Add Section offers Empty (no rows)');
+$check(strpos($pb,"\$isEmpty=\$layout==='EMPTY'")!==false,'Empty: add_section handler recognises EMPTY');
+$check(strpos($pb,'if(!$isEmpty){')!==false,'Empty: add_section skips saveRows for EMPTY');
+$pbs=file_get_contents($root.'/app/PageBuilderService.php');
+$check(strpos($pbs,'function isUnchangedRowlessSection')!==false,'Empty: PageBuilderService::isUnchangedRowlessSection exists');
+$check(strpos($pb,'isUnchangedRowlessSection')!==false,'Empty: page-builder save consults the row-less guard');
+$idxPhp=file_get_contents($root.'/public/index.php');
+$check(strpos($idxPhp,'isUnchangedRowlessSection')!==false,'Empty: index.php save consults the row-less guard');
+$check(strpos($pb,'This section has no rows')!==false,'Empty: Section Settings explains the row-less state');
+
+$emptySectionId=0;
+try{
+    if(!$admin){echo "SKIP: no administrator fixture for the empty-section test.\n";}
+    else{
+        $admin=(array)$admin;
+        $emptySectionId=PageContentService::addSection($admin,'HOME',['label_text'=>'Guard Test Empty Section','layout_type'=>'CONTAINER']);
+        $erow=$pdo->prepare('SELECT * FROM site_page_sections WHERE site_page_section_id=?');$erow->execute([$emptySectionId]);$empty=$erow->fetch(PDO::FETCH_ASSOC);
+        $check($empty&&empty($empty['rows_json']),'Empty: addSection alone leaves rows_json empty (no rows seeded)');
+        $fallback=PageContentService::editorRows($empty);
+        $check(count($fallback)===1&&($fallback[0]['layout_type']??'')==='CONTAINER','Empty: editorRows falls back to one Container row');
+        $check(PageBuilderService::isUnchangedRowlessSection($emptySectionId,$fallback),'Empty: the unchanged fallback tree is recognised as row-less');
+        $real=[['layout_type'=>'TEXT_TOP','active'=>true,'label_text'=>'','title_text'=>'Hello','content_html'=>'<p>Hi</p>','bullets'=>[]]];
+        $check(!PageBuilderService::isUnchangedRowlessSection($emptySectionId,$real),'Empty: a real content tree is not the fallback');
+        PageBuilderService::saveRows($admin,$emptySectionId,$real);
+        $erow->execute([$emptySectionId]);$withRows=$erow->fetch(PDO::FETCH_ASSOC);
+        $check(!empty($withRows['rows_json']),'Empty: saveRows with a real tree stores rows');
+        $check(!PageBuilderService::isUnchangedRowlessSection($emptySectionId,$fallback),'Empty: the helper never fires once rows exist');
+    }
+}catch(Throwable $e){
+    $failures[]='empty-section exception: '.$e->getMessage();
+    echo 'FAIL empty-section exception: '.$e->getMessage()."\n";
+}finally{
+    if($emptySectionId){try{PageContentService::deleteSection($admin??[],$emptySectionId);}catch(Throwable $ignored){$pdo->prepare('DELETE FROM site_page_sections WHERE site_page_section_id=?')->execute([$emptySectionId]);}}
 }
 
 // --- Task 10 (static) -----------------------------------------------------
