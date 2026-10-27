@@ -3,6 +3,12 @@ require_once __DIR__.'/DynamicOpportunityService.php';
 require_once __DIR__.'/TriggeredTransitionService.php';
 require_once __DIR__.'/ConsequencePropagationService.php';
 
+// Task 5 Phase 3: plot_motive_lifecycle_rules (+ conditions) stay live
+// deliberately — not in the workspace snapshot, no studio editor (no PHP
+// code writes them), no draft-edit vector. The consequence and
+// triggered-transition rules evaluated here are likewise live by the same
+// reasoning (see those services). If any of these gain a studio editor,
+// they must move into the snapshot first.
 final class StateSyncService
 {
     public static function reconcile(int $sid): void
