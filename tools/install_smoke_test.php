@@ -38,7 +38,7 @@ try{
     $pdo->exec('SET FOREIGN_KEY_CHECKS=1');
 
     $_SERVER['REQUEST_METHOD']='POST';
-    $_POST=['db_host'=>$host,'db_name'=>$dbname,'db_user'=>$user,'db_password'=>$pass];
+    $_POST=['db_host'=>$host,'db_port'=>$port,'db_name'=>$dbname,'db_user'=>$user,'db_password'=>$pass];
     ob_start();
     require $root.'/install.php';
     ob_end_clean();
