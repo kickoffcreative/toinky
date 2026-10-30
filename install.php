@@ -85,6 +85,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$alreadyInstalled) {
     $name = trim((string)($_POST['db_name'] ?? ''));
     $user = trim((string)($_POST['db_user'] ?? ''));
     $pass = (string)($_POST['db_password'] ?? '');
+    $port = trim((string)($_POST['db_port'] ?? '3306'));
 
     try {
         if ($host === '' || $name === '' || $user === '') throw new RuntimeException('Database host, name, and username are required.');
