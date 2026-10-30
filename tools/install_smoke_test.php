@@ -19,6 +19,7 @@ if(!str_contains(basename($configPath),'test')){echo "SKIP: GAME2_DATABASE_CONFI
 $cfg=require $configPath;
 $dsn=(string)$cfg['dsn'];$user=(string)$cfg['username'];$pass=(string)$cfg['password'];
 preg_match('/host=([^;]+)/',$dsn,$m);$host=$m[1]??'127.0.0.1';
+preg_match('/port=([^;]+)/',$dsn,$mp);$port=$mp[1]??'3306';
 preg_match('/dbname=([^;]+)/',$dsn,$m);$dbname=$m[1]??'';
 if($dbname===''){echo "SKIP: could not parse a database name from the test config.\n";exit(0);}
 
