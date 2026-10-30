@@ -92,6 +92,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$alreadyInstalled) {
         if (!preg_match('/^[A-Za-z0-9_.-]+$/', $host)) throw new RuntimeException('Database host contains unsupported characters.');
         if (!preg_match('/^[A-Za-z0-9_$-]+$/', $name)) throw new RuntimeException('Database name contains unsupported characters.');
         if (!preg_match('/^[A-Za-z0-9_$@.-]+$/', $user)) throw new RuntimeException('Database username contains unsupported characters.');
+        if (!preg_match('/^\d+$/', $port) || (int)$port < 1 || (int)$port > 65535) throw new RuntimeException('Database port must be a number between 1 and 65535.');
 
         $dsn = 'mysql:host=' . $host . ';dbname=' . $name . ';charset=utf8mb4';
         $pdo = new PDO($dsn, $user, $pass, [
