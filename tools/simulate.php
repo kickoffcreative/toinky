@@ -88,9 +88,10 @@ else putenv('GAME2_SIM_PLAYER_REASONER=manual');
 try{
     if($opt['reset'])SimulationHarness::resetDatabase();else MigrationService::run();
     if($focus!==''){
-        $q=db()->prepare('SELECT COUNT(*) FROM plot_focus_profiles pfp JOIN plots p ON p.plot_id=pfp.plot_id WHERE p.code=? AND pfp.focus_code=? AND pfp.active=1');
-        $q->execute([(string)$opt['plot'],$focus]);
-        if((int)$q->fetchColumn()===0)throw new RuntimeException('Focus profile '.$focus.' is not configured for plot '.$opt['plot'].'.');
+        // Focus profiles were removed (migration 137): report the flag as
+        // unavailable instead of dying on the missing table.
+        try{$q=db()->prepare('SELECT COUNT(*) FROM plot_focus_profiles pfp JOIN plots p ON p.plot_id=pfp.plot_id WHERE p.code=? AND pfp.focus_code=? AND pfp.active=1');$q->execute([(string)$opt['plot'],$focus]);$configured=(int)$q->fetchColumn()>0;}catch(Throwable $e){$configured=false;}
+        if(!$configured)throw new RuntimeException('Focus profile '.$focus.' is not available for plot '.$opt['plot'].'.');
     }
     $results=[];$outcomes=[];$familyLabels=[];$warningCount=0;$factorRanges=[];$alignment=[];
     $totals=['player_actions'=>0,'npc_actions'=>0,'player_no_action'=>0];
