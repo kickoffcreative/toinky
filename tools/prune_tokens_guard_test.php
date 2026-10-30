@@ -4,7 +4,7 @@ declare(strict_types=1);
 // Static checks — the tool must be CLI-only, dry-run by default, use only
 // the safe expiry predicates, and remove media only through
 // MediaLibraryService::delete() (never a raw media DELETE). It must not
-// touch the empty feature tables or the tool-consumed audit/focus tables.
+// touch the empty feature table plot_event_perceptions.
 if(PHP_SAPI!=='cli'){http_response_code(403);exit('CLI only.');}
 
 $root=dirname(__DIR__);
