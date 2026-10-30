@@ -119,6 +119,7 @@ jobs:
           php tools/shutdown_no_write_guard_test.php
           php tools/authoring_runtime_guard_test.php
           php tools/version_pinning_guard_test.php
+          php tools/perception_editor_guard_test.php
           php tools/decision_atomicity_guard_test.php
           php tools/inky_draft_endpoint_guard_test.php
           php tools/no_migrations_http_guard_test.php
@@ -173,6 +174,15 @@ jobs:
         with:
           php-version: '8.4'
           extensions: pdo_mysql
+      - name: Normalize test database collation
+        env:
+          GAME2_DATABASE_CONFIG: ${{ github.workspace }}/config/database.test.php.example
+          GAME2_TEST_DB_HOST: 127.0.0.1
+          GAME2_TEST_DB_PORT: '3307'
+          GAME2_TEST_DB_NAME: game2_test
+          GAME2_TEST_DB_USER: game2
+          GAME2_TEST_DB_PASSWORD: game2
+        run: php -r '$c=require getenv("GAME2_DATABASE_CONFIG");$p=new PDO($c["dsn"],$c["username"],$c["password"]);$p->exec("ALTER DATABASE game2_test CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");'
       - name: Build database on MariaDB 10.6 (schema + seed + migrations)
         env:
           GAME2_DATABASE_CONFIG: ${{ github.workspace }}/config/database.test.php.example
@@ -225,6 +235,7 @@ jobs:
           php tools/shutdown_no_write_guard_test.php
           php tools/authoring_runtime_guard_test.php
           php tools/version_pinning_guard_test.php
+          php tools/perception_editor_guard_test.php
           php tools/decision_atomicity_guard_test.php
           php tools/inky_draft_endpoint_guard_test.php
           php tools/no_migrations_http_guard_test.php
