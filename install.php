@@ -151,6 +151,8 @@ body{font-family:Inter,system-ui,sans-serif;background:#f3f4f6;color:#111827;mar
 <form method="post" autocomplete="off">
 <label for="db_host">Database Host</label>
 <input id="db_host" name="db_host" value="<?=h((string)($_POST['db_host'] ?? 'localhost'))?>" required>
+<label for="db_port">Database Port</label>
+<input id="db_port" name="db_port" value="<?=h((string)($_POST['db_port'] ?? '3306'))?>" required>
 <label for="db_name">Database Name</label>
 <input id="db_name" name="db_name" value="<?=h((string)($_POST['db_name'] ?? 'sixpillarsadmin_game2'))?>" required>
 <label for="db_user">Database Username</label>
