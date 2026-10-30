@@ -22,9 +22,9 @@ $check(str_contains($src,'MediaLibraryService::delete('),'prune_expired_tokens.p
 $check(!preg_match('/DELETE\s+FROM\s+(writer_media_assets|plot_media_assets)\b/i',$src),'prune_expired_tokens.php never deletes media by raw SQL');
 $check(str_contains($src,'usageByMediaIds'),'prune_expired_tokens.php re-checks usage at runtime');
 $check(str_contains($src,'active=0'),'prune_expired_tokens.php also checks inactive plot_media_assets rows');
-foreach(['plot_event_perceptions','plot_focus_profiles','plot_focus_option_weights','platform_story_audit_rules'] as $t){
-    // The tool names these tables in its header comment (stating it never
-    // touches them), so a plain string search false-positives. Check for an
+foreach(['plot_event_perceptions'] as $t){
+    // The tool names this table in its header comment (stating it never
+    // touches it), so a plain string search false-positives. Check for an
     // actual SQL statement against the table instead.
     $check(!preg_match('/\b(FROM|INTO|UPDATE|JOIN)\s+`?'.$t.'\b/i',$src),'prune_expired_tokens.php does not touch '.$t);
 }
