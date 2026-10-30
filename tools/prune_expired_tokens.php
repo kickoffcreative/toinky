@@ -13,9 +13,7 @@ declare(strict_types=1);
 // MediaLibraryService::delete() when both checks are empty. A candidate
 // that is still referenced is reported and skipped, never forced.
 // This tool never drops a table and never touches the empty feature
-// tables or the tool-consumed audit/focus tables
-// (plot_event_perceptions, plot_focus_profiles, plot_focus_option_weights,
-// platform_story_audit_rules).
+// table plot_event_perceptions.
 if(PHP_SAPI!=='cli'){http_response_code(403);exit('CLI only.');}
 
 $root=dirname(__DIR__);
