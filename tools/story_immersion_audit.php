@@ -19,7 +19,5 @@ $q=db()->prepare('SELECT COUNT(*) FROM plot_integrity_rules WHERE plot_id=? AND 
 $authoring=StoryAuthoringService::audit((int)$plot['plot_id']);$add('P0','Dependency and authoring structure',!$authoring['errors'],$authoring['errors']?implode(' ',array_slice($authoring['errors'],0,6)):'All authored references and required dependencies passed structural validation.');
 $add('P1','Writer workflow',!empty($plot['workflow_status']),'Current workflow status: '.($plot['workflow_status']??'not assigned').'. Submissions are stored as fixed revisions for review.');
 $errors=0;echo"Toinky story immersion audit\nStory: {$plot['title']} ({$plot['code']})\n\n";foreach($checks as$c){echo($c['pass']?'PASS':'FAIL')." | {$c['priority']} | {$c['label']}\n  {$c['detail']}\n";if(!$c['pass']&&$c['priority']==='P0')$errors++;}
-echo"\nRequired manual validation, in priority order:\n";
-$q=db()->query('SELECT priority_no,severity,guidance_text FROM platform_story_audit_rules WHERE active=1 ORDER BY priority_no,audit_rule_id');foreach($q->fetchAll()as$r)echo"  {$r['priority_no']}. {$r['severity']}: {$r['guidance_text']}\n";
 exit($errors?1:0);
 }catch(Throwable $e){fwrite(STDERR,'Story immersion audit failed: '.$e->getMessage().PHP_EOL);exit(1);}
