@@ -1,22 +1,25 @@
 <?php
 require_once __DIR__.'/../app/GenericStateService.php';
+require_once __DIR__.'/../app/RecapService.php';
+require_once __DIR__.'/../app/RecapChecks.php';
 final class SimulationHarness
 {
     public static function resetDatabase(): void
     {
         $pdo=db();$pdo->exec('SET FOREIGN_KEY_CHECKS=0');$tables=$pdo->query('SHOW TABLES')->fetchAll(PDO::FETCH_COLUMN);foreach($tables as$table)$pdo->exec('DROP TABLE IF EXISTS `'.str_replace('`','``',(string)$table).'`');$pdo->exec('SET FOREIGN_KEY_CHECKS=1');self::runSqlFile($pdo,__DIR__.'/../database/schema.sql');self::runSqlFile($pdo,__DIR__.'/../database/seed.sql');MigrationService::run();
     }
-    public static function run(string $plotCode,string $strategy='no-action',int $duration=300,int $step=30,string $controllerMode='legacy',string $focus='',?int $plotVersionId=null): array
+    public static function run(string $plotCode,string $strategy='no-action',int $duration=300,int $step=30,string $controllerMode='legacy',string $focus='',?int $plotVersionId=null,?array $choiceScript=null,bool $withRecap=false): array
     {
         $controllerMode=strtolower(trim($controllerMode));$focus=strtoupper(trim($focus));putenv('GAME2_SIM_FOCUS='.$focus);
         $controllers=self::controllerAssignments($plotCode,$controllerMode);
+        $scriptState=$choiceScript!==null?['entries'=>self::normalizeChoiceScript($choiceScript),'fired'=>[]]:null;
         $aiCharacterIds=self::prepareAiCharacters($sid=SimulationService::create($plotCode,$duration,$controllers,$plotVersionId),$controllerMode);
         try{
-            SimulationService::start($sid);self::playAiDecisions($sid,$aiCharacterIds);
-            while(true){$sim=self::simulationRow($sid);if($sim['status']==='COMPLETE')break;if(in_array($controllerMode,['human-random','human-biased'],true))self::playOpenControlledDecisions($sid,$strategy,$aiCharacterIds);elseif($strategy!=='no-action')self::playOpenPlayerDecisions($sid,$strategy,$aiCharacterIds);self::playAiDecisions($sid,$aiCharacterIds);SimulationService::advance($sid,$step);self::playAiDecisions($sid,$aiCharacterIds);}
-            if(in_array($controllerMode,['human-random','human-biased'],true))self::playOpenControlledDecisions($sid,$strategy,$aiCharacterIds);elseif($strategy!=='no-action')self::playOpenPlayerDecisions($sid,$strategy,$aiCharacterIds);self::playAiDecisions($sid,$aiCharacterIds);
+            SimulationService::start($sid);self::playAiDecisions($sid,$aiCharacterIds,$scriptState);
+            while(true){$sim=self::simulationRow($sid);if($sim['status']==='COMPLETE')break;if(in_array($controllerMode,['human-random','human-biased'],true))self::playOpenControlledDecisions($sid,$strategy,$aiCharacterIds,$scriptState);elseif($strategy!=='no-action'||$scriptState!==null)self::playOpenPlayerDecisions($sid,$strategy,$aiCharacterIds,$scriptState);self::playAiDecisions($sid,$aiCharacterIds,$scriptState);SimulationService::advance($sid,$step);self::playAiDecisions($sid,$aiCharacterIds);}
+            if(in_array($controllerMode,['human-random','human-biased'],true))self::playOpenControlledDecisions($sid,$strategy,$aiCharacterIds,$scriptState);elseif($strategy!=='no-action'||$scriptState!==null)self::playOpenPlayerDecisions($sid,$strategy,$aiCharacterIds,$scriptState);self::playAiDecisions($sid,$aiCharacterIds,$scriptState);
         }finally{self::restoreAiCharacters($aiCharacterIds);}
-        StateSyncService::reconcile($sid);ResolutionService::refresh($sid);return self::result($sid,$focus);
+        StateSyncService::reconcile($sid);ResolutionService::refresh($sid);$result=self::result($sid,$focus);if($scriptState!==null){$unfired=[];foreach($scriptState['entries']as$i=>$entry)if(!isset($scriptState['fired'][$i]))$unfired[]=$entry;$result['choice_script']=['entries'=>$scriptState['entries'],'fired_count'=>count($scriptState['fired']),'unfired'=>$unfired];foreach($unfired as$entry)$result['warnings'][]='Scripted choice never fired: '.self::scriptLabel($entry);}if($withRecap){$recapSnapshot=SimulationService::snapshot($sid);$recapDuration=max(1,(int)($recapSnapshot['simulation']['duration_seconds']??$duration));$recaps=[];$allFindings=[];foreach($recapSnapshot['characters']as$ch){$tl=RecapService::timeline($recapSnapshot,$ch,$recapDuration);$text=RecapService::renderText($tl,$ch,$recapDuration);$recaps[(string)$ch['name']]=$text;$findings=RecapChecks::run($sid,$tl,$text,$ch);$allFindings[(string)$ch['name']]=$findings;foreach(RecapChecks::failures($findings)as$f)$result['warnings'][]='Recap check failed: '.$f['check'].' — '.$f['evidence'];foreach(RecapChecks::warnings($findings)as$f)$result['warnings'][]='Recap check warning: '.$f['check'].' — '.$f['evidence'];}$result['recaps']=$recaps;$result['recap_checks']=$allFindings;$result['warnings']=array_values(array_unique($result['warnings']));}return$result;
     }
     private static function controllerAssignments(string $plotCode,string $mode): array
     {
@@ -43,13 +46,13 @@ final class SimulationHarness
     {
         putenv('GAME2_SIM_AI_NPC_ID');
     }
-    private static function playAiDecisions(int $sid,array $characterIds): void
+    private static function playAiDecisions(int $sid,array $characterIds,?array &$scriptState=null): void
     {
         if(!$characterIds)return;$pdo=db();
         foreach($characterIds as$characterId){
             $cq=$pdo->prepare('SELECT actor_type,controller_type FROM characters WHERE simulation_id=? AND character_id=?');$cq->execute([$sid,$characterId]);$control=$cq->fetch();$actorType=(string)($control['actor_type']??'');$controllerType=(string)($control['controller_type']??'');if($actorType==='')continue;
             $q=$pdo->prepare('SELECT decision_id,event_id FROM decisions WHERE simulation_id=? AND character_id=? AND status="OPEN" ORDER BY opens_at_second,decision_id');$q->execute([$sid,$characterId]);
-            foreach($q->fetchAll()as$d){$decisionId=(int)$d['decision_id'];$options=self::aiDecisionOptions($sid,$decisionId,$characterId);if(!$options)continue;
+            foreach($q->fetchAll()as$d){$decisionId=(int)$d['decision_id'];$options=self::aiDecisionOptions($sid,$decisionId,$characterId);if(!$options)continue;if($scriptState!==null){$scripted=self::scriptedPick($sid,(int)$characterId,$d,$options,$scriptState);if($scripted!==null){try{if($controllerType==='AI')BehaviorService::chooseAutomated($sid,$decisionId,$scripted['option_code']);elseif($actorType==='NPC')BehaviorService::chooseNpcForSimulationLab($sid,$decisionId,$scripted['option_code']);else SimulationService::choose($sid,$decisionId,$scripted['option_code']);$scriptState['fired'][$scripted['entry']]=true;continue;}catch(Throwable $e){}}}
                 try{$context=AiReasoningContextService::forDecision($sid,$decisionId);$profile=self::focusProfile($sid,strtoupper(trim((string)getenv('GAME2_SIM_FOCUS'))));if($profile)$context['simulation_focus']=$profile;$context['purpose']='SIMULATION_LAB_'.strtoupper($actorType).'_OPTION_SELECTION';$result=StoryReasonerFactory::withFallback()->selectOption($context,$options);$selected=(string)($result['selected_action']??'');$pick=null;foreach($options as$o)if((string)$o['option_code']===$selected){$pick=$o;break;}if(!$pick)throw new RuntimeException('Reasoner returned no currently valid option.');
                     $detail='Provider: '.($result['provider']??'unknown').' | Selected: '.$selected.' | Confidence: '.($result['confidence']??'n/a').' | Reason: '.($result['reason']??'');if(!empty($result['fallback_used']))$detail.=' | Fallback: '.($result['fallback_error']??'yes');
                     $pdo->prepare('INSERT INTO character_history(simulation_id,character_id,event_id,event_second,history_type,title,detail_text) SELECT ?,?,?,elapsed_seconds,"INTERACTION","AI Options Considered",? FROM simulations WHERE simulation_id=?')->execute([$sid,$characterId,$d['event_id'],$detail,$sid]);
@@ -68,15 +71,15 @@ final class SimulationHarness
     {
         $focusActive=array_key_exists('focus_score',$options[0]??[]);$total=max(1,array_sum(array_map(fn($r)=>max(0,(int)($focusActive?($r['focus_score']??0):($r['npc_weight']??0))),$options)));$roll=random_int(1,$total);$cursor=0;foreach($options as$r){$cursor+=max(0,(int)($focusActive?($r['focus_score']??0):($r['npc_weight']??0)));if($roll<=$cursor)return$r;}return$options[0];
     }
-    private static function playOpenControlledDecisions(int $sid,string $strategy,array $excludeCharacterIds=[]): void
+    private static function playOpenControlledDecisions(int $sid,string $strategy,array $excludeCharacterIds=[],?array &$scriptState=null): void
     {
         $snapshot=SimulationService::snapshot($sid);
-        foreach($snapshot['characters']as$character){if(($character['controller_type']??'')!=='HUMAN'||in_array((int)$character['character_id'],$excludeCharacterIds,true))continue;foreach($character['open_decisions']as$decision){$options=self::applyFocusWeights($sid,$decision['options']??[],strtoupper(trim((string)getenv('GAME2_SIM_FOCUS'))));if(!$options)continue;$pick=$strategy==='first'?$options[0]:($strategy==='random'?$options[random_int(0,count($options)-1)]:self::weightedPick($options));try{BehaviorService::chooseControlled($sid,(int)$decision['decision_id'],(string)$pick['option_code']);}catch(Throwable $e){}}}
+        foreach($snapshot['characters']as$character){if(($character['controller_type']??'')!=='HUMAN'||in_array((int)$character['character_id'],$excludeCharacterIds,true))continue;foreach($character['open_decisions']as$decision){$options=self::applyFocusWeights($sid,$decision['options']??[],strtoupper(trim((string)getenv('GAME2_SIM_FOCUS'))));if(!$options)continue;if($scriptState!==null){$scripted=self::scriptedPick($sid,(int)$character['character_id'],$decision,$options,$scriptState);if($scripted!==null){try{BehaviorService::chooseControlled($sid,(int)$decision['decision_id'],$scripted['option_code']);$scriptState['fired'][$scripted['entry']]=true;continue;}catch(Throwable $e){}}if($strategy==='no-action')continue;}$pick=$strategy==='first'?$options[0]:($strategy==='random'?$options[random_int(0,count($options)-1)]:self::weightedPick($options));try{BehaviorService::chooseControlled($sid,(int)$decision['decision_id'],(string)$pick['option_code']);}catch(Throwable $e){}}}
     }
-    private static function playOpenPlayerDecisions(int $sid,string $strategy,array $excludeCharacterIds=[]): void
+    private static function playOpenPlayerDecisions(int $sid,string $strategy,array $excludeCharacterIds=[],?array &$scriptState=null): void
     {
         $snapshot=SimulationService::snapshot($sid);
-        foreach($snapshot['characters']as$character){if($character['actor_type']!=='PLAYER'||in_array((int)$character['character_id'],$excludeCharacterIds,true))continue;foreach($character['open_decisions']as$decision){$options=$decision['options']??[];if(!$options)continue;$pick=self::pickOption($character,$decision,$options,$strategy);try{SimulationService::choose($sid,(int)$decision['decision_id'],(string)$pick['option_code']);}catch(Throwable$e){}}}
+        foreach($snapshot['characters']as$character){if($character['actor_type']!=='PLAYER'||in_array((int)$character['character_id'],$excludeCharacterIds,true))continue;foreach($character['open_decisions']as$decision){$options=$decision['options']??[];if(!$options)continue;if($scriptState!==null){$scripted=self::scriptedPick($sid,(int)$character['character_id'],$decision,$options,$scriptState);if($scripted!==null){try{BehaviorService::chooseControlled($sid,(int)$decision['decision_id'],$scripted['option_code']);$scriptState['fired'][$scripted['entry']]=true;continue;}catch(Throwable $e){}}if($strategy==='no-action')continue;}$pick=self::pickOption($character,$decision,$options,$strategy);try{SimulationService::choose($sid,(int)$decision['decision_id'],(string)$pick['option_code']);}catch(Throwable$e){}}}
     }
     private static function pickOption(array $character,array $decision,array $options,string $strategy): array
     {
@@ -115,7 +118,7 @@ final class SimulationHarness
     }
     public static function result(int $sid,string $focus=''): array
     {
-        $pdo=db();$snapshot=SimulationService::snapshot($sid);$sim=$snapshot['simulation'];$state=[];try{$q=$pdo->prepare('SELECT state_key,state_value FROM simulation_state WHERE simulation_id=? ORDER BY state_key');$q->execute([$sid]);foreach($q->fetchAll()as$r)$state[$r['state_key']]=$r['state_value'];}catch(Throwable$e){}$meaningfulState=self::meaningfulState($state);$factors=[];foreach($snapshot['factors']as$f)$factors[$f['factor_code']]=(int)$f['current_value'];$characters=[];foreach($snapshot['characters']as$c)$characters[$c['name']]=['type'=>$c['actor_type'],'goal'=>$c['goal_text'],'fear'=>$c['fear_text'],'location'=>$c['current_location'],'stats'=>array_column($c['stats'],'current_value','stat_code')];$counts=['player_actions'=>0,'npc_actions'=>0,'player_no_action'=>0];$q=$pdo->prepare('SELECT c.actor_type,d.status,COUNT(*) n FROM decisions d JOIN characters c ON c.character_id=d.character_id WHERE d.simulation_id=? GROUP BY c.actor_type,d.status');$q->execute([$sid]);foreach($q->fetchAll()as$r){if($r['actor_type']==='PLAYER'&&$r['status']==='CHOSEN')$counts['player_actions']+=(int)$r['n'];if($r['actor_type']==='NPC'&&$r['status']==='CHOSEN')$counts['npc_actions']+=(int)$r['n'];if($r['actor_type']==='PLAYER'&&$r['status']==='NO_ACTION')$counts['player_no_action']+=(int)$r['n'];}$q=$pdo->prepare('SELECT event_text FROM simulation_events WHERE simulation_id=? AND event_code="FINAL_STATE" ORDER BY event_id DESC LIMIT 1');$q->execute([$sid]);$resolution=(string)($q->fetchColumn()?:'');$warnings=self::integrityWarnings($sid,$snapshot,$state,$resolution);$family=self::outcomeFamily($sid,$meaningfulState,$factors,$characters);$signature=hash('sha256',json_encode($family,JSON_UNESCAPED_UNICODE));return['simulation_id'=>$sid,'plot'=>$sim['title'],'status'=>$sim['status'],'factors'=>$factors,'state'=>$state,'meaningful_state'=>$meaningfulState,'characters'=>$characters,'counts'=>$counts,'ai_usage'=>self::aiUsage($sid),'resolution'=>$resolution,'warnings'=>$warnings,'outcome_family'=>$family,'outcome_family_label'=>self::familyLabel($family),'outcome_signature'=>substr($signature,0,12),'focus_alignment_percent'=>self::focusAlignment($sid,$focus)];
+        $pdo=db();$snapshot=SimulationService::snapshot($sid);$sim=$snapshot['simulation'];$state=[];try{$q=$pdo->prepare('SELECT state_key,state_value FROM simulation_state WHERE simulation_id=? ORDER BY state_key');$q->execute([$sid]);foreach($q->fetchAll()as$r)$state[$r['state_key']]=$r['state_value'];}catch(Throwable$e){}$meaningfulState=self::meaningfulState($state);$factors=[];foreach($snapshot['factors']as$f)$factors[$f['factor_code']]=(int)$f['current_value'];$characters=[];foreach($snapshot['characters']as$c)$characters[$c['name']]=['type'=>$c['actor_type'],'goal'=>$c['goal_text'],'fear'=>$c['fear_text'],'location'=>$c['current_location'],'stats'=>array_column($c['stats'],'current_value','stat_code')];$counts=['player_actions'=>0,'npc_actions'=>0,'player_no_action'=>0];$q=$pdo->prepare('SELECT c.actor_type,d.status,COUNT(*) n FROM decisions d JOIN characters c ON c.character_id=d.character_id WHERE d.simulation_id=? GROUP BY c.actor_type,d.status');$q->execute([$sid]);foreach($q->fetchAll()as$r){if($r['actor_type']==='PLAYER'&&$r['status']==='CHOSEN')$counts['player_actions']+=(int)$r['n'];if($r['actor_type']==='NPC'&&$r['status']==='CHOSEN')$counts['npc_actions']+=(int)$r['n'];if($r['actor_type']==='PLAYER'&&$r['status']==='NO_ACTION')$counts['player_no_action']+=(int)$r['n'];}$q=$pdo->prepare('SELECT event_text FROM simulation_events WHERE simulation_id=? AND event_code="FINAL_STATE" ORDER BY event_id DESC LIMIT 1');$q->execute([$sid]);$resolution=(string)($q->fetchColumn()?:'');$warnings=self::integrityWarnings($sid,$snapshot,$state,$resolution);$family=self::outcomeFamily($sid,$meaningfulState,$factors,$characters);$signature=hash('sha256',json_encode($family,JSON_UNESCAPED_UNICODE));return['simulation_id'=>$sid,'plot'=>$sim['title'],'status'=>$sim['status'],'plot_version_id'=>(int)($sim['plot_version_id']??0),'factors'=>$factors,'state'=>$state,'meaningful_state'=>$meaningfulState,'characters'=>$characters,'counts'=>$counts,'ai_usage'=>self::aiUsage($sid),'resolution'=>$resolution,'warnings'=>$warnings,'outcome_family'=>$family,'outcome_family_label'=>self::familyLabel($family),'outcome_signature'=>substr($signature,0,12),'focus_alignment_percent'=>self::focusAlignment($sid,$focus)];
     }
     private static function aiUsage(int$sid): array
     {
@@ -141,4 +144,86 @@ final class SimulationHarness
     private static function simulationRow(int$sid): array{$q=db()->prepare('SELECT s.*,p.plot_id FROM simulations s JOIN plots p ON p.plot_id=s.plot_id WHERE s.simulation_id=?');$q->execute([$sid]);$r=$q->fetch();if(!$r)throw new RuntimeException('Simulation not found.');return$r;}
     private static function runSqlFile(PDO$pdo,string$path): void{$sql=file_get_contents($path);if($sql===false)throw new RuntimeException('Unable to read '.basename($path));foreach(self::splitSql($sql)as$stmt)$pdo->exec($stmt);}
     private static function splitSql(string$sql): array{$out=[];$buf='';$quote=null;$escaped=false;$line=false;$block=false;$len=strlen($sql);for($i=0;$i<$len;$i++){$c=$sql[$i];$next=$i+1<$len?$sql[$i+1]:'';if($line){if($c==="\n"){$line=false;$buf.=$c;}continue;}if($block){if($c==='*'&&$next==='/'){$block=false;$i++;}continue;}if($quote===null){if(($c==='-'&&$next==='-'&&($i+2>=$len||ctype_space($sql[$i+2])))||$c==='#'){$line=true;if($c==='-')$i++;continue;}if($c==='/'&&$next==='*'){$block=true;$i++;continue;}if($c==="'"||$c==='"'||$c==='`'){$quote=$c;$buf.=$c;continue;}if($c===';'){$s=trim($buf);if($s!=='')$out[]=$s;$buf='';continue;}$buf.=$c;continue;}$buf.=$c;if($escaped){$escaped=false;continue;}if($c==='\\'&&$quote!=='`'){$escaped=true;continue;}if($c===$quote){if($next===$quote&&$quote!=='`'){$buf.=$next;$i++;continue;}$quote=null;}}$s=trim($buf);if($s!=='')$out[]=$s;return$out;}
+
+    // Lab version resolution: an explicit override wins; otherwise the
+    // PUBLISHED version (the one live games run) wins; otherwise the
+    // latest submitted version; otherwise null (unpinned draft). The
+    // published-or-latest fallback keeps fresh/CI databases — which have
+    // no published version — on today's path instead of failing closed.
+    // The resolved id + source are always recorded by callers.
+    public static function resolveLabVersion(string $plotCode,?int $override=null,bool $latestOnly=false): array
+    {
+        $pdo=db();$q=$pdo->prepare('SELECT plot_id,published_plot_version_id FROM plots WHERE code=?');$q->execute([$plotCode]);$plot=$q->fetch();
+        if(!$plot)throw new RuntimeException('Plot not found: '.$plotCode);
+        $plotId=(int)$plot['plot_id'];
+        if($override!==null){$vq=$pdo->prepare('SELECT plot_version_id FROM plot_versions WHERE plot_version_id=? AND plot_id=?');$vq->execute([$override,$plotId]);if(!$vq->fetchColumn())throw new RuntimeException('Version '.$override.' does not belong to '.$plotCode.'.');return['plot_version_id'=>$override,'source'=>'override'];}
+        if(!$latestOnly&&(int)($plot['published_plot_version_id']??0)>0)return['plot_version_id'=>(int)$plot['published_plot_version_id'],'source'=>'published'];
+        $lq=$pdo->prepare('SELECT plot_version_id FROM plot_versions WHERE plot_id=? ORDER BY version_no DESC LIMIT 1');$lq->execute([$plotId]);$latest=$lq->fetchColumn();
+        if($latest!==false)return['plot_version_id'=>(int)$latest,'source'=>'latest'];
+        return['plot_version_id'=>null,'source'=>'unpinned'];
+    }
+
+    // Normalize a choice-script document into a list of entries. Accepts
+    // {"choices":[{"role_code"|"character_name","event_code","option_code"}]}
+    // or the shorthand {"ROLE_CODE":{"EVENT_CODE":"OPTION_CODE"}}.
+    // Throws on malformed input so a bad script fails fast, before any
+    // simulation is created.
+    public static function normalizeChoiceScript(mixed $script): array
+    {
+        if(!is_array($script))throw new RuntimeException('Choice script must be a JSON object.');
+        $raw=$script;
+        if(isset($script['choices'])&&is_array($script['choices']))$raw=$script['choices'];
+        $entries=[];
+        if(array_is_list($raw)){
+            foreach($raw as$item){
+                if(!is_array($item))throw new RuntimeException('Each choice-script entry must be an object.');
+                $role=isset($item['role_code'])?strtoupper(trim((string)$item['role_code'])):null;
+                $name=isset($item['character_name'])?trim((string)$item['character_name']):null;
+                $event=strtoupper(trim((string)($item['event_code']??'')));
+                $option=strtoupper(trim((string)($item['option_code']??'')));
+                if($event===''||$option===''||(($role===null||$role==='')&&($name===null||$name==='')))throw new RuntimeException('Each choice-script entry needs event_code, option_code, and role_code or character_name.');
+                $entries[]=['role_code'=>($role!==''?$role:null),'character_name'=>($name!==''?$name:null),'event_code'=>$event,'option_code'=>$option];
+            }
+        }else{
+            foreach($raw as$role=>$events){
+                if(!is_array($events))throw new RuntimeException('Choice-script shorthand maps a role code to event/option pairs.');
+                foreach($events as$event=>$option)$entries[]=['role_code'=>strtoupper(trim((string)$role)),'character_name'=>null,'event_code'=>strtoupper(trim((string)$event)),'option_code'=>strtoupper(trim((string)$option))];
+            }
+        }
+        if(!$entries)throw new RuntimeException('Choice script contains no entries.');
+        return$entries;
+    }
+
+    // First unfired script entry matching this decision (role or
+    // character-name alias + event), whose option is actually offered.
+    // Returns ['entry' => index, 'option_code' => code] or null. Callers
+    // mark the entry fired only after their choose call succeeds, so a
+    // failed force stays unfired and is reported at the end of the run.
+    public static function scriptedPick(int $sid,int $characterId,array $decision,array $options,array $scriptState): ?array
+    {
+        $char=null;
+        try{$q=db()->prepare('SELECT c.name,pr.role_code FROM characters c JOIN plot_roles pr ON pr.plot_role_id=c.plot_role_id WHERE c.character_id=?');$q->execute([$characterId]);$char=$q->fetch();}catch(Throwable $e){}
+        if(!$char)return null;
+        $roleCode=strtoupper((string)($char['role_code']??''));
+        $charName=(string)($char['name']??'');
+        $eventCode='';
+        try{$q=db()->prepare('SELECT event_code FROM simulation_events WHERE event_id=?');$q->execute([(int)($decision['event_id']??0)]);$eventCode=strtoupper((string)($q->fetchColumn()?:''));}catch(Throwable $e){}
+        if($roleCode===''||$eventCode==='')return null;
+        $available=[];
+        foreach($options as$o)$available[strtoupper((string)($o['option_code']??''))]=true;
+        foreach($scriptState['entries']as$i=>$entry){
+            if(isset($scriptState['fired'][$i]))continue;
+            $roleMatch=($entry['role_code']!==null&&$entry['role_code']===$roleCode)||($entry['character_name']!==null&&strcasecmp((string)$entry['character_name'],$charName)===0);
+            if(!$roleMatch||$entry['event_code']!==$eventCode)continue;
+            if(!isset($available[$entry['option_code']]))continue;
+            return['entry'=>$i,'option_code'=>$entry['option_code']];
+        }
+        return null;
+    }
+
+    private static function scriptLabel(array $entry): string
+    {
+        return (string)($entry['role_code']??$entry['character_name']??'') . '/' . (string)$entry['event_code'] . ' -> ' . (string)$entry['option_code'];
+    }
+
 }

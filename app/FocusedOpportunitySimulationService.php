@@ -27,7 +27,7 @@ final class FocusedOpportunitySimulationService
         $q->execute([$plotId,strtoupper(trim($opportunityCode))]);return$q->fetchAll();
     }
 
-    public static function run(string $plotCode,string $opportunityCode,string $optionCode,int $duration=300,int $step=30,?int $plotVersionId=null): array
+    public static function run(string $plotCode,string $opportunityCode,string $optionCode,int $duration=300,int $step=30,?int $plotVersionId=null,?array $choiceScript=null): array
     {
         $pdo=db();$opportunityCode=strtoupper(trim($opportunityCode));$optionCode=strtoupper(trim($optionCode));
         // Task 5 Phase 2: a pinned focused run resolves its opportunity from
@@ -44,7 +44,7 @@ final class FocusedOpportunitySimulationService
 
         putenv('GAME2_SIM_NPC_REASONER=manual');putenv('GAME2_SIM_PLAYER_REASONER=manual');
         $controllers=[];$roles=$pdo->prepare('SELECT role_code FROM plot_roles WHERE plot_id=? AND active=1 AND simulation_active=1');$roles->execute([$opportunity['plot_id']]);foreach($roles->fetchAll()as$role)$controllers[(string)$role['role_code']]='HUMAN';
-        $sid=SimulationService::create($plotCode,$duration,$controllers,$plotVersionId);$setup=[];$focus=[];$focusError=null;$choiceApplied=false;$decisionDelivered=false;$available=[];$trace=[];
+        $sid=SimulationService::create($plotCode,$duration,$controllers,$plotVersionId);$scriptState=$choiceScript!==null?['entries'=>SimulationHarness::normalizeChoiceScript($choiceScript),'fired'=>[]]:null;$setup=[];$focus=[];$focusError=null;$choiceApplied=false;$decisionDelivered=false;$available=[];$trace=[];
         try{
             $phase=self::seedConditions($sid,$opportunity,$setup);
             $second=self::phaseSecond($phase,$duration);
@@ -60,9 +60,9 @@ final class FocusedOpportunitySimulationService
                     $q=$pdo->prepare('SELECT opens_at_second FROM decisions WHERE decision_id=?');$q->execute([$decisionId]);$opens=(int)$q->fetchColumn();if($opens>=$duration){$focusError='The target decision opens after the configured story duration.';$pdo->prepare('UPDATE decisions SET status="CLOSED",resolved_text=? WHERE decision_id=? AND status="OPEN"')->execute([$focusError,$decisionId]);}else{if($opens>$second){$second=$opens;$pdo->prepare('UPDATE simulations SET elapsed_seconds=? WHERE simulation_id=?')->execute([$second,$sid]);}BehaviorService::chooseControlled($sid,$decisionId,$optionCode);$choiceApplied=true;}
                 }else{$focusError='The target choice was removed by its own option prerequisites.';$pdo->prepare('UPDATE decisions SET status="CLOSED",resolved_text=? WHERE decision_id=? AND status="OPEN"')->execute([$focusError,$decisionId]);}
             }elseif($focusError===null)$focusError='The opportunity was eligible but no decision was delivered.';
-            self::completeDownstream($sid,$duration,$step);
-        }catch(Throwable $e){$focusError=$e->getMessage();self::completeDownstream($sid,$duration,$step);}
-        StateSyncService::reconcile($sid);ResolutionService::refresh($sid);$result=SimulationHarness::result($sid);
+            self::completeDownstream($sid,$duration,$step,$scriptState);
+        }catch(Throwable $e){$focusError=$e->getMessage();self::completeDownstream($sid,$duration,$step,$scriptState);}
+        StateSyncService::reconcile($sid);ResolutionService::refresh($sid);$result=SimulationHarness::result($sid);if($scriptState!==null){$unfired=[];foreach($scriptState['entries']as$i=>$entry)if(!isset($scriptState['fired'][$i]))$unfired[]=$entry;$result['choice_script']=['entries'=>$scriptState['entries'],'fired_count'=>count($scriptState['fired']),'unfired'=>$unfired];foreach($unfired as$entry)$result['warnings'][]='Scripted choice never fired: '.(string)($entry['role_code']??$entry['character_name']??'').'/'.$entry['event_code'].' -> '.$entry['option_code'];}
         if($focusError!==null)$result['warnings'][]='Focused test: '.$focusError;
         $result['warnings']=array_values(array_unique($result['warnings']));
         $result['focus_test']=['seeded'=>true,'opportunity_code'=>$opportunityCode,'role_code'=>(string)$opportunity['role_code'],'target_option_code'=>$optionCode,'available_option_codes'=>$available,'opportunity_eligible'=>!empty($focus['eligible']),'decision_delivered'=>$decisionDelivered,'choice_applied'=>$choiceApplied,'condition_trace'=>$trace,'setup'=>$setup,'error'=>$focusError,'downstream_opportunities'=>self::openedOpportunities($sid,$opportunityCode)];
@@ -167,14 +167,14 @@ final class FocusedOpportunitySimulationService
         if($events)$setup[]=['source_type'=>'PREHISTORY','source_key'=>null,'value'=>(string)count($events).' authored world event(s) already elapsed','method'=>'seeded checkpoint'];
     }
 
-    private static function completeDownstream(int $sid,int $duration,int $step): void
+    private static function completeDownstream(int $sid,int $duration,int $step,?array &$scriptState=null): void
     {
-        $guard=0;while($guard++<max(5,(int)ceil($duration/max(1,$step))+5)){$q=db()->prepare('SELECT status,elapsed_seconds FROM simulations WHERE simulation_id=?');$q->execute([$sid]);$sim=$q->fetch();if(!$sim||$sim['status']==='COMPLETE')break;self::playOpenDecisions($sid);SimulationService::advance($sid,$step);self::playOpenDecisions($sid);}self::playOpenDecisions($sid);
+        $guard=0;while($guard++<max(5,(int)ceil($duration/max(1,$step))+5)){$q=db()->prepare('SELECT status,elapsed_seconds FROM simulations WHERE simulation_id=?');$q->execute([$sid]);$sim=$q->fetch();if(!$sim||$sim['status']==='COMPLETE')break;self::playOpenDecisions($sid,$scriptState);SimulationService::advance($sid,$step);self::playOpenDecisions($sid,$scriptState);}self::playOpenDecisions($sid,$scriptState);
     }
 
-    private static function playOpenDecisions(int $sid): void
+    private static function playOpenDecisions(int $sid,?array &$scriptState=null): void
     {
-        $snapshot=SimulationService::snapshot($sid);foreach($snapshot['characters']as$character)foreach($character['open_decisions']as$decision){$options=$decision['options']??[];if(!$options)continue;$pick=$options[random_int(0,count($options)-1)];try{BehaviorService::chooseControlled($sid,(int)$decision['decision_id'],(string)$pick['option_code']);}catch(Throwable $ignored){}}
+        $snapshot=SimulationService::snapshot($sid);foreach($snapshot['characters']as$character)foreach($character['open_decisions']as$decision){$options=$decision['options']??[];if(!$options)continue;if($scriptState!==null){$scripted=SimulationHarness::scriptedPick($sid,(int)$character['character_id'],$decision,$options,$scriptState);if($scripted!==null){try{BehaviorService::chooseControlled($sid,(int)$decision['decision_id'],$scripted['option_code']);$scriptState['fired'][$scripted['entry']]=true;continue;}catch(Throwable $ignored){}}}$pick=$options[random_int(0,count($options)-1)];try{BehaviorService::chooseControlled($sid,(int)$decision['decision_id'],(string)$pick['option_code']);}catch(Throwable $ignored){}}
     }
 
     private static function openedOpportunities(int $sid,string $exclude): array

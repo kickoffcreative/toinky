@@ -14,7 +14,7 @@ $args=$argv;array_shift($args);
 $opt=[
     'plot'=>'EMPTY_THRONE','runs'=>10,'strategy'=>'no-action','duration'=>300,'step'=>30,
     'reset'=>false,'json'=>false,'npc-reasoner'=>'weighted','player-reasoner'=>'manual',
-    'ai-npc-role'=>'','controller-mode'=>'legacy','focus'=>''
+    'ai-npc-role'=>'','controller-mode'=>'legacy','focus'=>'','version'=>null,'choices'=>null,'recap'=>false
 ];
 $usage="Usage: php tools/simulate.php [options]\n"
     ."  --plot=CODE             Active plot code\n"
@@ -27,6 +27,9 @@ $usage="Usage: php tools/simulate.php [options]\n"
     ."  --ai-npc-role=CODE      Optional NPC role routed to the AI reasoner\n"
     ."  --controller-mode=MODE  legacy, all-ai, human-random, or human-biased\n"
     ."  --focus=CODE            Database focus profile, such as DOCUMENTS or RESCUE\n"
+    ."  --version=ID|latest|draft  Content version (default: published, else latest)\n"
+    ."  --choices=FILE          JSON choice script: force options per role/event\n"
+    ."  --recap                 Embed per-character player-view recaps + checks\n"
     ."  --json                  Print JSON output\n"
     ."  --reset                 Test-database reset only\n"
     ."  --help, -h              Show this help without running simulations\n";
@@ -34,6 +37,7 @@ foreach($args as $a){
     if($a==='--help'||$a==='-h'){echo $usage;exit(0);}
     if($a==='--reset'){$opt['reset']=true;continue;}
     if($a==='--json'){$opt['json']=true;continue;}
+    if($a==='--recap'){$opt['recap']=true;continue;}
     if(!preg_match('/^--([^=]+)=(.*)$/',$a,$m)){fwrite(STDERR,"Unknown argument: {$a}\n\n".$usage);exit(2);}
     $k=$m[1];$v=$m[2];
     if(!array_key_exists($k,$opt)){fwrite(STDERR,"Unknown option: --{$k}\n\n".$usage);exit(2);}
@@ -93,11 +97,12 @@ try{
         try{$q=db()->prepare('SELECT COUNT(*) FROM plot_focus_profiles pfp JOIN plots p ON p.plot_id=pfp.plot_id WHERE p.code=? AND pfp.focus_code=? AND pfp.active=1');$q->execute([(string)$opt['plot'],$focus]);$configured=(int)$q->fetchColumn()>0;}catch(Throwable $e){$configured=false;}
         if(!$configured)throw new RuntimeException('Focus profile '.$focus.' is not available for plot '.$opt['plot'].'.');
     }
+    $versionArg=trim((string)($opt['version']??''));if($versionArg==='')$resolvedVersion=SimulationHarness::resolveLabVersion((string)$opt['plot']);elseif(strtolower($versionArg)==='latest')$resolvedVersion=SimulationHarness::resolveLabVersion((string)$opt['plot'],null,true);elseif(strtolower($versionArg)==='draft'||strtolower($versionArg)==='unpinned')$resolvedVersion=['plot_version_id'=>null,'source'=>'unpinned'];elseif(ctype_digit($versionArg))$resolvedVersion=SimulationHarness::resolveLabVersion((string)$opt['plot'],(int)$versionArg);else throw new RuntimeException("--version must be a version id, 'latest', or 'draft'.");$labVersionId=$resolvedVersion['plot_version_id'];$choiceScript=null;$choiceScriptFile=trim((string)($opt['choices']??''));if($choiceScriptFile!==''){$rawChoice=file_get_contents($choiceScriptFile);if($rawChoice===false)throw new RuntimeException('Cannot read choice script file: '.$choiceScriptFile);$decodedChoice=json_decode($rawChoice,true);if(!is_array($decodedChoice))throw new RuntimeException('Choice script file is not valid JSON: '.$choiceScriptFile);$choiceScript=SimulationHarness::normalizeChoiceScript($decodedChoice);}
     $results=[];$outcomes=[];$familyLabels=[];$warningCount=0;$factorRanges=[];$alignment=[];
     $totals=['player_actions'=>0,'npc_actions'=>0,'player_no_action'=>0];
     $aiTotals=['calls'=>0,'successes'=>0,'failures'=>0,'prompt_tokens'=>0,'generated_tokens'=>0,'total_tokens'=>0,'latency_ms'=>0.0,'ollama_total_ms'=>0.0];
     for($i=1;$i<=(int)$opt['runs'];$i++){
-        $r=SimulationHarness::run((string)$opt['plot'],(string)$opt['strategy'],(int)$opt['duration'],(int)$opt['step'],$controllerMode,$focus);
+        $r=SimulationHarness::run((string)$opt['plot'],(string)$opt['strategy'],(int)$opt['duration'],(int)$opt['step'],$controllerMode,$focus,$labVersionId,$choiceScript,(bool)$opt['recap']);
         $results[]=$r;$label=(string)$r['outcome_family_label'];$sig=substr(hash('sha256',$label),0,12);
         $outcomes[$sig]=($outcomes[$sig]??0)+1;$familyLabels[$sig]=$label;$warningCount+=count($r['warnings']);
         if($r['focus_alignment_percent']!==null)$alignment[]=(float)$r['focus_alignment_percent'];
@@ -111,7 +116,7 @@ try{
     arsort($outcomes);$families=[];
     foreach($outcomes as$sig=>$n)$families[]=['signature'=>$sig,'count'=>$n,'percent'=>round($n*100/(int)$opt['runs'],1),'label'=>$familyLabels[$sig]];
     $summary=[
-        'plot'=>$opt['plot'],'runs'=>(int)$opt['runs'],'strategy'=>$opt['strategy'],
+        'plot'=>$opt['plot'],'plot_version_id'=>$labVersionId,'plot_version_source'=>$resolvedVersion['source'],'runs'=>(int)$opt['runs'],'strategy'=>$opt['strategy'],
         'npc_reasoner'=>$opt['npc-reasoner'],'player_reasoner'=>$opt['player-reasoner'],
         'ai_npc_role'=>$opt['ai-npc-role']?:null,'controller_mode'=>$controllerMode,'focus'=>$focus?:null,
         'average_focus_alignment_percent'=>$alignment?round(array_sum($alignment)/count($alignment),1):null,
@@ -131,7 +136,7 @@ try{
         'factor_ranges'=>$factorRanges,'warning_count'=>$warningCount,'runs_detail'=>$results
     ];
     if($opt['json']){echo json_encode($summary,JSON_PRETTY_PRINT|JSON_UNESCAPED_UNICODE).PHP_EOL;exit($warningCount?1:0);}
-    echo "Game2 simulation batch\nPlot: {$opt['plot']} | Runs: {$opt['runs']} | Strategy: {$opt['strategy']} | NPC reasoner: {$opt['npc-reasoner']} | Player reasoner: {$opt['player-reasoner']} | Controller mode: {$controllerMode}".($focus!==''?' | Focus: '.$focus:'').($opt['ai-npc-role']?' | AI NPC: '.$opt['ai-npc-role']:'')."\n";
+    echo "Game2 simulation batch\nPlot: {$opt['plot']} | Runs: {$opt['runs']} | Strategy: {$opt['strategy']} | NPC reasoner: {$opt['npc-reasoner']} | Player reasoner: {$opt['player-reasoner']} | Controller mode: {$controllerMode}".($focus!==''?' | Focus: '.$focus:'').($opt['ai-npc-role']?' | AI NPC: '.$opt['ai-npc-role']:'').($labVersionId!==null?' | Content version: '.$labVersionId.' ('.$resolvedVersion['source'].')':' | Content version: unpinned draft').($choiceScript!==null?' | Choice script: '.count($choiceScript).' entries':'').($opt['recap']?' | Recap: on':'')."\n";
     echo "Semantic outcome families: ".count($outcomes)."\n";
     foreach(array_slice($families,0,15)as$f)echo '  '.$f['count'].' ('.$f['percent'].'%) '.$f['label'].PHP_EOL;
     echo "Average player actions: {$summary['average_counts']['player_actions']}\nAverage NPC actions: {$summary['average_counts']['npc_actions']}\nAverage player no-actions: {$summary['average_counts']['player_no_action']}\n";
