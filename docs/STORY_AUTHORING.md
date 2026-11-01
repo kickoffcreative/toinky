@@ -238,4 +238,5 @@ B43. Headlines with zero decisions: check the pinned snapshot sections first. A 
 B44. Triage feedback against the game record as code defect, story defect (writer's verdict), trade-off, pinned-version artefact, or transient. Sim clock is story time.
 B45. Studio saves: never reload the Artwork page after a submit (it duplicates placement; navigate fresh); if bot protection blocks a save, wait and save again without leaving the unsaved form.
 B46. No control defaults to a substantive value. A rating select starts with a disabled placeholder and is required, never a pre-selected 5/5.
+B47. Changes are for all stories, not one. Engine, renderer, Lab, and documentation changes must work for every story: no plot names, character names, option codes, or special-case rules for one story in code or in method. Story data itself is per-story by nature, so a content edit stays scoped to the story authorised, but the fix, check, or rule behind it must generalise, and must be written so it can be applied to the next story without rewriting it.
 

@@ -6,6 +6,11 @@ of the Story Auditor instructions, updated Nov 1, 2026.
 
 # Story Auditor — Instructions (updated Nov 1, 2026)
 
+Amendment (Nov 1, 2026, per the writer): the Lab is never used by
+the Auditor. Section 5 was replaced with this rule; Lab evidence
+in any prior report is withdrawn unless re-established from a live
+game, a finished play page, or the studio inventory.
+
 The Story Auditor reviews a Toinky story for playability, cohesion, and
 correct rendering, and reports findings the writer can act on. The Auditor
 does not author story text, does not edit story data except through the
@@ -34,8 +39,14 @@ its audit method. Repo mirrors: `docs/STORY_AUDIT.md` (this file),
   game with claimed characters cannot be deleted until each claim is
   released through the lobby's own control.
 - Do not extend an audit, a verification, or a fix to other stories
-  unless the writer lifts that scope. "Whispers first" means Whispers
-  first.
+  unless the writer lifts that scope. A scope limit on application
+  (for example "Whispers first") limits which stories work is applied
+  to, never the method itself: engine, renderer, Lab, and
+  documentation changes must work for every story, with no plot
+  names, character names, option codes, or special-case rules for
+  one story (Guide B47, Nov 1, 2026). Story data itself is
+  per-story, so a content edit stays scoped to the story authorised,
+  but the fix, check, or rule behind it must generalise.
 - Quote story text only in short excerpts. Summarize or link to longer
   passages. A browser task's verbatim return is working material, not
   reply content.
@@ -47,8 +58,7 @@ Every audit starts with these facts, recorded before any judgement:
 - Story code, draft revision, and published version.
 - For every game or simulation cited: its id, lobby code if any,
   pinned content version, status, duration, and viewer character.
-- For every Lab run: simulation id, strategy, duration, step, version
-  override or published, choice script, and fired / never-fired counts.
+- No Lab runs are recorded or cited. The Lab is never used (section 5).
 
 Pinned versus live (the single most common misreading):
 
@@ -163,46 +173,30 @@ New checks from the Nov 1 player runs:
   choice blind. Any hint trades against the reveal; propose it, do
   not apply it, and let the writer choose.
 
-## 5. Lab verification
+## 5. Lab — never use
 
-Use the Lab in this order, and cite only what each mode proves:
+The Auditor never uses the Lab, in any form, for any story.
 
-- Web Batch Run (Lab home, admin only): story, runs 1–5, strategy,
-  duration, step, optional version override (blank = published),
-  recaps on, choice-script JSON. Results show simulation id, outcome,
-  player / NPC / no-action counts, fired / never-fired script
-  entries, warnings, and collapsible per-character recaps.
-  Never refresh a batch results page — refreshing re-runs the batch.
-- Choice scripts: a map of (role_code | character_name, event_code)
-  to option_code, consulted first. Never-fired entries are warnings,
-  not proof of a story defect, until conditions and timing are
-  checked.
-- Player-view recaps: the six RecapChecks are placeholder leaks,
-  empty beats, label artifacts, delivery counts, endings present,
-  and sidebar drift (heuristic warning). A COMPLETE game with zero
-  delivered decisions, or a decision still OPEN at COMPLETE, is a
-  delivery failure, not a content gap.
-- Lab limits, stated plainly in every report:
-  - Lab per-character recaps do not carry ending fragment prose.
-    Check endings in the World storyboard (Lab) or on the finished
-    play page (live), never from a Lab recap alone.
-  - Lab cast, factors, and display values are copied from the live
-    draft at creation, even for pinned sims.
-  - Focused (seeded) runs are fragments: scripts but no recaps or
-    checks. Never cite one as full-story evidence.
-  - A Lab-injected INTERACTION title never exists in a live human
-    game.
-- Branch matrix: every scripted branch must render as player-view
-  prose with zero check failures before it is called proven. Record
-  the script, the run, and the simulation id for each branch.
-- Pinned snapshot failure: if a hosted game completes with event
-  headlines but zero decisions, check the pinned version's snapshot
-  sections first. A snapshot section added after that version was
-  published (perceptions, added Oct 27, 2026) makes the pinned
-  branch fail closed before decision creation. The fix is re-submit
-  and publish to re-pin, not a content edit. Only one story needs
-  fresh live-game verification for a mechanism shared by all stories
-  if the writer has scoped it that way; record the gap as open.
+- Do not open the Lab, run a batch, run a simulation, or use a
+  choice script, Lab recap, Lab warning, Lab storyboard, or Lab
+  simulation id as evidence.
+- Do not cite a simulation id, a fired / never-fired count, or a
+  Lab check result in any audit report. If a prior report cited
+  Lab evidence, that evidence is withdrawn; the finding must be
+  re-established from a live game, a finished play page, or the
+  studio inventory, or it stays open and unverified.
+- Verification is by live games and finished play pages only,
+  plus the studio inventory in section 3. A live-game finding
+  that cannot be re-established that way is not a defect.
+- Pinned snapshot failure (live games only): if a hosted game
+  completes with event headlines but zero decisions, check the
+  pinned version's snapshot sections first. A snapshot section
+  added after that version was published (perceptions, added
+  Oct 27, 2026) makes the pinned branch fail closed before
+  decision creation. The fix is re-submit and publish to re-pin,
+  not a content edit. Only one story needs fresh live-game
+  verification for a mechanism shared by all stories if the
+  writer has scoped it that way; record the gap as open.
 
 ## 6. Live-game and player-feedback triage
 
@@ -275,7 +269,7 @@ as ENDING; Drive filename equals library title / alt.
   and ask before doing anything else. Never open multiple browser
   windows or pages in parallel when one window suffices.
 - An anchor replacement in code must re-emit everything it
-  consumes. The Oct 31 Lab runner scare was an unclosed `</script>`
+  consumes. Example from Oct 31: an unclosed `</script>`
   consumed by a batch insert, while the file was byte-current and
   caches were provably empty: when a committed section does not
   render but the file is proven current, check the HTML structure
@@ -288,17 +282,17 @@ as ENDING; Drive filename equals library title / alt.
 
 Every audit report states, in this order:
 
-1. Story, revision, published version, and every game / simulation
-   id cited, with its pinned version.
+1. Story, revision, published version, and every game id cited,
+   with its pinned version. No simulation ids are cited.
 2. Inventory counts (roles, events, decisions, opportunities,
    ending fragments and sections).
 3. Findings, each classified (code / story / trade-off /
    pinned-version artefact / transient), with the exact evidence:
-   game id, time, location history, or Lab simulation id.
+   game id, time, and location history. No Lab evidence.
 4. For story findings: the exact proposed text, awaiting the
    writer's verdict. For code findings: the exact change and its
    guard test.
-5. What was verified in play or in Lab, and what remains open,
+5. What was verified in live play, and what remains open,
    including any live-game verification held by scope.
 6. No completion claim ahead of verification. A successful tool
    call, a submitted form, or a worker's completion report confirms
