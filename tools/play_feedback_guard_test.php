@@ -21,7 +21,7 @@ $storyStart = $nowStart !== false ? strpos($play, '<section class="card story-ca
 $nowSeg = ($nowStart !== false && $storyStart !== false) ? substr($play, $nowStart, $storyStart - $nowStart) : '';
 $dpos = strpos($nowSeg, 'open_decisions');
 $ppos = strpos($nowSeg, 'now-event');
-$ipos = strpos($nowSeg, "$nowImage['file_path']");
+$ipos = $ppos !== false ? strpos($nowSeg, "['file_path']", $ppos) : false;
 $check($dpos !== false && $ppos !== false && $ipos !== false && $dpos < $ppos && $ppos < $ipos, 'Now card orders decisions before prose before image');
 $check(str_contains($play, '#game-live .now-card p{text-transform:none!important}'), 'Now card prose is never all-caps');
 $check(substr_count($play, 'played automatically') >= 2, 'People lists label automatic characters');
