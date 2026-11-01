@@ -76,7 +76,7 @@ $norm = static function (string $body) use ($interpSq): string {
     return (string)preg_replace('/\s+/', '', $body);
 };
 $fnBody = static function (string $text, string $name, bool $method) {
-    $pat = ($method ? '/private\s+static\s+function\s+' : '/function\s+/') . preg_quote($name, '/') . '\s*\(/';
+    $pat = ($method ? '/private\s+static\s+function\s+' : '/function\s+') . preg_quote($name, '/') . '\s*\(/';
     if (!preg_match($pat, $text, $m, PREG_OFFSET_CAPTURE)) return null;
     $i = strpos($text, '{', (int)$m[0][1]);
     if ($i === false) return null;
