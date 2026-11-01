@@ -32,6 +32,10 @@ $check($csrfPos !== false && $batchPos !== false && $batchPos > $csrfPos, 'batch
 $h = strpos($src, '<h1>Batch Run</h1>');
 $formEnd = $h !== false ? strpos($src, '</form>', $h) : false;
 $check($h !== false && $formEnd !== false && str_contains(substr($src, $h, $formEnd - $h), 'csrf_token'), 'batch form carries a CSRF token');
+$headingPos = strpos($src, '<h1>Batch Run</h1>');
+$lastOpen = $headingPos !== false ? strrpos(substr($src, 0, $headingPos), '<script') : false;
+$lastClose = $headingPos !== false ? strrpos(substr($src, 0, $headingPos), '</script>') : false;
+$check($headingPos !== false && $lastOpen !== false && $lastClose !== false && $lastClose > $lastOpen, 'controller script block closes before the Batch Run form');
 
 if ($failures) {
     echo 'FAILURES: ' . implode('; ', $failures) . "\n";
