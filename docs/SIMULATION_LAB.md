@@ -74,3 +74,30 @@ The harness automatically flags:
 - database-configured story contradictions and engine invariants
 
 Add future integrity rules only for actual contradictions or engine invariants. Story preferences should not be encoded as engine failures, and no PHP rule may be specific to a single story.
+
+## Web Batch Run and player-view recaps (Oct 31–Nov 1, 2026)
+
+The live Story Engine Lab also has a web Batch Run form (admin only):
+Story, runs 1–5, strategy, duration, step, optional version override
+(blank = published), recaps on, and a choice-script JSON textarea.
+Results show simulation id, outcome, player / NPC / no-action counts,
+scripted fired / never-fired entries, warnings, and collapsible
+per-character recaps. Never refresh a batch results page — refreshing
+re-runs the batch.
+
+Player-view recaps carry six checks: placeholder leaks, empty beats,
+label artifacts, delivery counts, endings present, and sidebar drift
+(heuristic warning). Lab per-character recaps do not carry ending
+fragment prose; check endings in the World storyboard (Lab) or on the
+finished play page (live). Focused (seeded) runs are fragments —
+scripts but no recaps or checks — and are never full-story evidence.
+Lab cast, factors, and display values are copied from the live draft
+at creation, even for pinned sims.
+
+A single blank results page is not a finding. Reproduce the exact
+spec once, check the Simulations list for the created run, and
+capture the HTTP status and server error log if it recurs. A
+headlines-with-zero-decisions game means check the pinned snapshot
+sections first: a section added after that version published fails
+closed before decision creation, and re-submit plus publish to
+re-pin is the fix.

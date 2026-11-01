@@ -45,3 +45,21 @@ Simulation batches are stored in the database and survive browser refreshes. Pro
 ```
 
 Manual queue processing is disabled to prevent overlapping workers. Configure the cron for unattended batches; a web request is not kept open while every simulation runs.
+
+## Pinned versions, ending views, and feedback triage (Nov 1, 2026)
+
+- Record the pinned content version for every game cited. Hosted games
+  pin the published version at creation; a pre-publish game does not
+  test a new revision. `recap_transition` lines are read live from the
+  draft table, so an old game's finished recap can show newer wording
+  than its live play — that divergence is expected, not a new defect.
+- Read ending Outcome Conditions in per-section filtered views only.
+  The expanded full-page Endings view under-renders those rows and has
+  produced a false "no conditions" finding.
+- Triage player feedback against the game record (id, pinned version,
+  decision times, location history) and classify it as a code defect,
+  a story defect (writer's verdict), a design trade-off, a
+  pinned-version artefact, or a transient, before proposing a fix.
+  Goals do not veto other characters' decisions; a viewpoint
+  character's fate must be stated in at least one ending path or be a
+  named, designed ambiguity.

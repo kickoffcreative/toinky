@@ -215,3 +215,27 @@ Then run the simulation and AI audit tools documented in [SIMULATION_LAB.md](SIM
 ## Current ownership
 
 Migration 063 assigns **The Empty Throne** and **Concealed Failure** to `goldwynlau@gmail.com` when that account exists. New stories must set their own writer's `author_user_id`; they must not inherit the administrator automatically.
+
+## Audit rules B31–B46 (Nov 1, 2026)
+
+Added to the Story Writer's Guide Nov 1, 2026, from the Oct 30–Nov 1
+Whispers cohesion, Lab, and player-run learnings. Full audit method:
+[STORY_AUDIT.md](STORY_AUDIT.md).
+
+B31. Record the pinned version per game. Hosted games pin the published version at creation; prose, decisions, opportunities, and endings are pinned. A pre-publish game does not test a new revision.
+B32. Recap transitions are live, pinned prose is not. Recap_transition is read from the live draft, so an old game's finished recap can show newer wording than its live play. That divergence is expected, not a new defect.
+B33. Read ending conditions in per-section filtered views only. The full-page Endings view under-renders Outcome Conditions and has produced a false "no conditions" finding.
+B34. Removing a named person means sweeping briefing, event prose and transitions, decision and opportunity prompts and results, goal, fear, private knowledge, and endings. Keep a needed relationship unnamed ("his sister"). Never rename internal codes. Re-verify by fresh-load sweep before submitting.
+B35. Goals do not veto other characters. AI characters act on their own decisions; gating another decision is a story-logic change needing the writer's verdict, not an engine bug.
+B36. Every playable character needs a stated fate in at least one ending path, or a named, designed ambiguity. Shared endings must not leave the viewpoint character's fate only implied by another's outcome.
+B37. Inventory decision slots before calling a run thin: templates, opportunities, and gates in the current draft, plus game duration. A restraint role may have fewer by design.
+B38. Check capitalisation per scope: Now card, timeline, and ending panel separately. A fix to one card does not fix the others; headings may stay uppercase.
+B39. Open decisions come before prose and image in the Now card, visible without scrolling on phone and desktop.
+B40. NPCs are labelled, not missing: no lobby card and claims refused by design; lists must say "played automatically". A named person with no role record is a separate defect.
+B41. One blank page is not a finding. Reproduce the exact spec once, check the Simulations list, and capture HTTP status and server error log if it recurs. Never refresh batch results; refreshing re-runs the batch.
+B42. Lab recaps carry no ending prose. Check endings in the World storyboard (Lab) or finished play page (live). Focused Lab runs are fragments, not full-story evidence.
+B43. Headlines with zero decisions: check the pinned snapshot sections first. A section added after that version published fails closed before decision creation; re-submit and publish to re-pin.
+B44. Triage feedback against the game record as code defect, story defect (writer's verdict), trade-off, pinned-version artefact, or transient. Sim clock is story time.
+B45. Studio saves: never reload the Artwork page after a submit (it duplicates placement; navigate fresh); if bot protection blocks a save, wait and save again without leaving the unsaved form.
+B46. No control defaults to a substantive value. A rating select starts with a disabled placeholder and is required, never a pre-selected 5/5.
+
