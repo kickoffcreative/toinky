@@ -151,7 +151,7 @@ final class BehaviorService {
             if($rows!==null){
                 foreach($rows as$candidate)if((string)$candidate['option_code']===$optionCode){
                     $opt=$candidate;
-                    if(empty($opt['_pinned_dynamic_option_id'])&&class_exists('CausalService')&&!CausalService::optionAllowed($sid,(int)$opt['template_option_id']))throw new RuntimeException('That action is no longer possible because the world has changed.');
+                    if(empty($opt['_pinned_dynamic_option_id'])&&class_exists('CausalService')&&!CausalService::optionAllowed($sid,(int)($opt['template_option_id']??0)))throw new RuntimeException('That action is no longer possible because the world has changed.');
                     return$opt;
                 }
                 throw new RuntimeException('Decision option not found.');
@@ -159,7 +159,7 @@ final class BehaviorService {
         }
         $o=db()->prepare('SELECT pdto.* FROM decision_options do JOIN plot_decision_template_options pdto ON pdto.option_code=do.option_code AND pdto.active=1 JOIN plot_decision_templates pdt ON pdt.template_id=pdto.template_id JOIN characters c ON c.character_id=? JOIN plot_roles pr ON pr.plot_role_id=c.plot_role_id WHERE do.decision_id=? AND do.option_code=? AND pdt.plot_id=? AND pdt.role_code=pr.role_code AND pdt.event_code=(SELECT se.event_code FROM decisions dx JOIN simulation_events se ON se.event_id=dx.event_id WHERE dx.decision_id=?) LIMIT 1');
         $o->execute([$d['character_id'],$decisionId,$optionCode,$sim['plot_id'],$decisionId]);$opt=$o->fetch();if(!$opt)throw new RuntimeException('Decision option not found.');
-        if(class_exists('CausalService')&&!CausalService::optionAllowed($sid,(int)$opt['template_option_id']))throw new RuntimeException('That action is no longer possible because the world has changed.');
+        if(class_exists('CausalService')&&!CausalService::optionAllowed($sid,(int)($opt['template_option_id']??0)))throw new RuntimeException('That action is no longer possible because the world has changed.');
         return$opt;
     }
 
@@ -253,14 +253,14 @@ $outcome=self::applyOption($sid,$d,$pick,$second,'NPC');
         try{
             $claim=$pdo->prepare('SELECT status,chosen_option_code,resolved_text FROM decisions WHERE decision_id=? AND simulation_id=? FOR UPDATE');$claim->execute([$d['decision_id'],$sid]);$current=$claim->fetch();
             if(!$current||$current['status']!=='OPEN'){if($ownsTransaction&&$pdo->inTransaction())$pdo->rollBack();return $current?:null;}
-            if(empty($opt['_pinned_dynamic_option_id'])&&class_exists('CausalService')&&!CausalService::optionAllowed($sid,(int)$opt['template_option_id']))throw new RuntimeException('Action invalidated by current world state.');
+            if(empty($opt['_pinned_dynamic_option_id'])&&class_exists('CausalService')&&!CausalService::optionAllowed($sid,(int)($opt['template_option_id']??0)))throw new RuntimeException('Action invalidated by current world state.');
             $upd=$pdo->prepare('UPDATE decisions SET status="CHOSEN",chosen_option_code=?,resolved_text=? WHERE decision_id=? AND status="OPEN"');$upd->execute([$opt['option_code'],$opt['result_text'],$d['decision_id']]);
             if($upd->rowCount()!==1){if($ownsTransaction&&$pdo->inTransaction())$pdo->rollBack();return self::readDecision($sid,(int)$d['decision_id']);}
             $pdo->prepare('INSERT INTO character_history(simulation_id,character_id,event_id,event_second,history_type,title,detail_text) VALUES(?,?,?,?,"DECISION",?,?)')->execute([$sid,$d['character_id'],$d['event_id'],$second,'Decision: '.$opt['label'],$opt['result_text']]);
             $effects=null;
             if(!empty($opt['_pinned_dynamic_option_id'])&&class_exists('SimulationContent'))$effects=SimulationContent::dynamicEffects($sid,(int)$opt['_pinned_dynamic_option_id']);
             elseif(class_exists('SimulationContent'))$effects=SimulationContent::optionEffects($sid,(int)($opt['template_option_id']??0));
-            if($effects===null){$q=$pdo->prepare('SELECT * FROM plot_option_effects WHERE template_option_id=? AND active=1 ORDER BY sort_order,effect_id');$q->execute([$opt['template_option_id']]);$effects=$q->fetchAll();}
+            if($effects===null){$q=$pdo->prepare('SELECT * FROM plot_option_effects WHERE template_option_id=? AND active=1 ORDER BY sort_order,effect_id');$q->execute([$opt['template_option_id']??0]);$effects=$q->fetchAll();}
             $changes=[];foreach($effects as $e){$changes[]=self::applyEffect($sid,(int)$d['character_id'],$d['event_id'],$second,$e,$actorType,(int)$d['decision_id']);}
             $cq=$pdo->prepare('SELECT name FROM characters WHERE character_id=?');$cq->execute([$d['character_id']]);$name=(string)$cq->fetchColumn();
             $changes=array_values(array_filter($changes,static fn($c)=>!preg_match('/^\s*[A-Z][A-Z0-9_]*\s*=\s*[^.!?]+\.?\s*$/u',(string)$c)));$resultText=trim((string)$opt['result_text']);$labelText=trim((string)$opt['label']);if($resultText===''||$resultText===$labelText||preg_match('/\byou\b|\byour\b|\byours\b|\byourself\b/i',$resultText))$worldText='chose to '.lcfirst(rtrim($labelText,'.')).'.';else $worldText=self::sentenceText($resultText);foreach($changes as$change){$change=self::sentenceText((string)$change);if($change!=='')$worldText.=' '.$change;}
