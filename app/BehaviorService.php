@@ -59,7 +59,7 @@ final class BehaviorService {
         $opp=SimulationContent::opportunity($sid,$eventCode);
         if($opp!==null){
             $templates=array_values(array_filter($templates,static fn($t)=>(string)$t['role_code']!==(string)$opp['role_code']));
-            $templates[]=['template_id'=>0,'prompt_text'=>$opp['prompt_text'],'decision_window_seconds'=>$opp['window_seconds'],'actor_type'=>$opp['actor_type'],'role_code'=>$opp['role_code'],'_pinned_opportunity_id'=>(int)$opp['dynamic_opportunity_id']];
+            $templates[]=['template_id'=>0,'prompt_text'=>$opp['prompt_text'],'decision_window_seconds'=>$opp['window_seconds'],'role_code'=>$opp['role_code'],'_pinned_opportunity_id'=>(int)$opp['dynamic_opportunity_id']];
         }
         $chars=$pdo->prepare('SELECT pr.role_code,pr.plot_role_id,c.character_id,c.name,c.actor_type,c.controller_type,c.slot_no FROM characters c JOIN plot_roles pr ON pr.plot_role_id=c.plot_role_id WHERE c.simulation_id=?');$chars->execute([$sid]);$byRole=[];foreach($chars->fetchAll()as$c)$byRole[(string)$c['role_code']]=$c;
         $rows=[];foreach($templates as$t){$role=(string)$t['role_code'];if(!isset($byRole[$role]))continue;$rows[]=array_merge($t,$byRole[$role]);}return$rows;
@@ -208,11 +208,32 @@ final class BehaviorService {
         self::resolveNpcFromOptions($sid,$decisionId,$filtered,$second);
     }
 
-    private static function resolveNpcFromOptions(int $sid,int $decisionId,array $options,int $second): void {
+        // Lab-only choice-script steering for NPC auto-resolve. The harness
+    // sets GAME2_SIM_CHOICE_SCRIPT (JSON entries) in its own CLI process;
+    // web processes never set it, so live games are unaffected. Returns
+    // the scripted option row when an entry matches this decision's role
+    // (or character name) + event and the option is actually offered.
+    private static function labScriptPick(int $sid,int $decisionId,array $options): ?array {
+        $raw=trim((string)getenv('GAME2_SIM_CHOICE_SCRIPT'));if($raw==='')return null;
+        $entries=json_decode($raw,true);if(!is_array($entries))return null;
+        $pdo=db();$q=$pdo->prepare('SELECT se.event_code,pr.role_code,c.name FROM decisions d JOIN simulation_events se ON se.event_id=d.event_id JOIN characters c ON c.character_id=d.character_id JOIN plot_roles pr ON pr.plot_role_id=c.plot_role_id WHERE d.decision_id=? AND d.simulation_id=?');$q->execute([$decisionId,$sid]);$d=$q->fetch();if(!$d)return null;
+        $eventCode=strtoupper((string)($d['event_code']??''));$roleCode=strtoupper((string)($d['role_code']??''));$charName=(string)($d['name']??'');if($eventCode===''||($roleCode===''&&$charName===''))return null;
+        foreach($entries as$entry){if(!is_array($entry))continue;
+            $roleMatch=(isset($entry['role_code'])&&$entry['role_code']!==null&&strtoupper((string)$entry['role_code'])===$roleCode)||(isset($entry['character_name'])&&$entry['character_name']!==null&&strcasecmp((string)$entry['character_name'],$charName)===0);
+            if(!$roleMatch)continue;
+            if(strtoupper((string)($entry['event_code']??''))!==$eventCode)continue;
+            $want=strtoupper((string)($entry['option_code']??''));if($want==='')continue;
+            foreach($options as$o)if(strtoupper((string)($o['option_code']??''))===$want)return$o;
+        }
+        return null;
+    }
+
+private static function resolveNpcFromOptions(int $sid,int $decisionId,array $options,int $second): void {
         $pdo=db();$q=$pdo->prepare('SELECT d.*,c.name,c.character_id FROM decisions d JOIN characters c ON c.character_id=d.character_id WHERE d.decision_id=?');$q->execute([$decisionId]);$d=$q->fetch();if(!$d||$d['status']!=='OPEN')return;
         if(!$options){$pdo->prepare('UPDATE decisions SET status="CLOSED",resolved_text="No valid NPC action remained in the current world state." WHERE decision_id=? AND status="OPEN"')->execute([$decisionId]);return;}
-        $total=max(1,array_sum(array_map(fn($r)=>max(0,(int)$r['npc_weight']),$options)));$roll=random_int(1,$total);$pick=$options[0];$cursor=0;
-        foreach($options as $r){$cursor+=max(0,(int)$r['npc_weight']);if($roll<=$cursor){$pick=$r;break;}}
+        $scripted=self::labScriptPick($sid,$decisionId,$options);
+        $total=max(1,array_sum(array_map(fn($r)=>max(0,(int)$r['npc_weight']),$options)));$roll=random_int(1,$total);$pick=$scripted??$options[0];$cursor=0;
+        if($scripted===null){foreach($options as $r){$cursor+=max(0,(int)$r['npc_weight']);if($roll<=$cursor){$pick=$r;break;}}}
         $considered=[];$remaining=100;$lastIndex=count($options)-1;
         foreach($options as $i=>$r){$chance=$i===$lastIndex?$remaining:(int)round((max(0,(int)$r['npc_weight'])/$total)*100);$chance=max(0,min($remaining,$chance));$remaining-=$chance;$considered[]=$r['label'].' ['.$chance.'%]'.($r['rationale_text']?' — '.$r['rationale_text']:'');}
 $outcome=self::applyOption($sid,$d,$pick,$second,'NPC');

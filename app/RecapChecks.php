@@ -183,7 +183,18 @@ final class RecapChecks
             $lastLoc = ($v === false || $v === null) ? null : (int)$v;
         } catch (Throwable $e) {}
         if ($lastLoc === null) return ['check' => 'sidebar final location', 'status' => 'pass', 'evidence' => 'no mechanic moves recorded; heuristic needs a move baseline'];
+        // Epilogue prose: scene lines after the character's final decision
+        // cannot mislead later play, so they do not flag. Only mid-story
+        // moves (after the last mechanic move but before play ends) flag.
+        $lastDecision = null;
+        try {
+            $dq = db()->prepare('SELECT MAX(opens_at_second) FROM decisions WHERE simulation_id=? AND character_id=?');
+            $dq->execute([$sid, $cid]);
+            $dv = $dq->fetchColumn();
+            $lastDecision = ($dv === false || $dv === null) ? null : (int)$dv;
+        } catch (Throwable $e) {}
         foreach ($timeline as $second => $row) {
+            if ($lastDecision !== null && (int)$second > $lastDecision) continue;
             if ((int)$second <= $lastLoc) continue;
             foreach (($row['scene_lines'] ?? []) as $sceneLine) {
                 if (preg_match(self::MOVE_WORDS, (string)$sceneLine)) {

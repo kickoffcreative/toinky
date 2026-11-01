@@ -351,8 +351,12 @@
         let imported=Array.isArray(parsed)?parsed:parsed?.rows;
         if(!Array.isArray(imported)&&parsed?.layout_type)imported=[parsed];
         if(!Array.isArray(imported))throw new Error('JSON must be an array, a row object, or an object with a rows array.');
+        const explicitlyEmpty=(Array.isArray(parsed)&&parsed.length===0)||(Array.isArray(parsed?.rows)&&parsed.rows.length===0);
         imported=imported.map(item=>sanitizeImportNode(item)).filter(Boolean);
-        if(!imported.length)throw new Error('No valid rows were found.');
+        if(!imported.length){
+            if(explicitlyEmpty)return[{layout_type:'CONTAINER',active:true,content_width:'FULL',padding_mode:'ALL',padding_all_px:0,children:[]}];
+            throw new Error('No valid rows were found.');
+        }
         if(imported[0].layout_type!=='CONTAINER'){
             imported=[{layout_type:'CONTAINER',active:true,content_width:'FULL',padding_mode:'ALL',padding_all_px:0,children:imported}];
         }
