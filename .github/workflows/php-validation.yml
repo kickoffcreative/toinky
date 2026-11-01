@@ -21,6 +21,8 @@ jobs:
         run: php tools/deploy_htaccess_test.php
       - name: Guard RecapService helper parity
         run: php tools/recap_service_guard_test.php
+      - name: Guard Lab batch runner contract
+        run: php tools/lab_batch_runner_guard_test.php
   multiplayer-smoke:
     runs-on: ubuntu-latest
     services:
