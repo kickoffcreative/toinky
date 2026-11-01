@@ -278,7 +278,23 @@ as ENDING; Drive filename equals library title / alt.
   Wire every new guard test into CI, and check CI directly on the
   commit, not by assumption.
 
-## 9. Audit output format
+## 9. Player audits are separate from Story Auditor work
+
+A Player Audit reports only what a player sees during and after the
+game: lobby, play page, decisions, story, ending, and finished page.
+It uses no backend tools: no Lab, no studio, no admin, no simulation
+audit, and no code or database checks (Guide B48, Nov 1, 2026).
+Story rewrites are story-specific; anything system-related must be a
+general improvement for all stories (Guide B47).
+
+Backend verification — game records, pinned versions, Lab runs,
+studio reads, code reads — is Story Auditor work. It is done after
+a player report, to triage and verify that report, and must not be
+mixed into the player audit itself. A player report that cites a
+backend fact (a version, a database state, a code path) is not a
+player audit finding; it is auditor follow-up, labelled as such.
+
+## 10. Audit output format
 
 Every audit report states, in this order:
 
