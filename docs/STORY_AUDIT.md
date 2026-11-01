@@ -56,7 +56,7 @@ its audit method. Repo mirrors: `docs/STORY_AUDIT.md` (this file),
 Every audit starts with these facts, recorded before any judgement:
 
 - Story code, draft revision, and published version.
-- For every game or simulation cited: its id, lobby code if any,
+- For every game cited: its id, lobby code if any,
   pinned content version, status, duration, and viewer character.
 - No Lab runs are recorded or cited. The Lab is never used (section 5).
 
@@ -287,14 +287,36 @@ audit, and no code or database checks (Guide B48, Nov 1, 2026).
 Story rewrites are story-specific; anything system-related must be a
 general improvement for all stories (Guide B47).
 
-Backend verification — game records, pinned versions, Lab runs,
-studio reads, code reads — is Story Auditor work. It is done after
+Backend verification — game records, pinned versions, studio
+reads, code reads — is Story Auditor work. It is done after
 a player report, to triage and verify that report, and must not be
 mixed into the player audit itself. A player report that cites a
 backend fact (a version, a database state, a code path) is not a
 player audit finding; it is auditor follow-up, labelled as such.
+The Lab is never used in that verification (section 5).
 
-## 10. Audit output format
+## 10. Game 4 checks (Guide B49–B54, Nov 1, 2026)
+
+- B49 counts in prose must match the cast after a removal: check
+  every number word (briefing count, opening prose, ending counts),
+  not just names.
+- B50 finished-page location must match the last tracked location;
+  a silent label change at the finish is a defect.
+- B51 Now time and timeline story times must not contradict; the
+  Now card must not sit ahead of the last logged beat, and beats
+  in clusters with long unchanged stretches are a pacing flag.
+  Check pacing at compressed and full durations.
+- B52 stat and factor moves the player can see must be traceable
+  to a choice or event in the prose, or be clearly ambient.
+- B53 capitalisation is verified live, per scope, on a finished
+  play page — Now, timeline, and ending paragraphs each in normal
+  case. A code note does not close the finding.
+- B54 do not promise a replay difference the structure cannot
+  deliver: same choices on a redo play almost identically, and a
+  longer duration stretches the same structure, it does not add
+  agency.
+
+## 11. Audit output format
 
 Every audit report states, in this order:
 

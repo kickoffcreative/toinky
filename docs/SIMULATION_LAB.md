@@ -1,5 +1,12 @@
 # Game2 Simulation Lab
 
+> Note (Nov 1, 2026): this file documents the Simulation Lab tool for
+> engineering use. It is NOT a verification route for the Writer's
+> Guide or the Story Auditor. Guide and Auditor verification is by
+> live games, finished play pages, and the studio inventory only —
+> Lab batches and Lab recaps are never cited as audit evidence.
+
+
 The Simulation Lab runs the real Game2 PHP engine against a disposable MariaDB database. It never needs the production Game2 database.
 
 ## Web interface

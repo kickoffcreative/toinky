@@ -63,3 +63,12 @@ Manual queue processing is disabled to prevent overlapping workers. Configure th
   Goals do not veto other characters' decisions; a viewpoint
   character's fate must be stated in at least one ending path or be a
   named, designed ambiguity.
+
+## Lab and review batches are not Auditor evidence (Nov 1, 2026)
+
+The review batches and focused seeded runs in this workflow are admin
+review tooling, not Lab batches, but the Story Auditor does not cite
+them as evidence either. Auditor verification is by live games,
+finished play pages, and the studio inventory only (Guide B48 and the
+Story Auditor instructions). Player Audits use the player interface
+only and no backend tools at all.
