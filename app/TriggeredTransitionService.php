@@ -1,40 +1,48 @@
 <?php
-// Task 5 Phase 3: plot_triggered_transitions (+ conditions/effects) stay
-// live deliberately. They are not in the workspace snapshot and have no
-// studio editor (no PHP code writes them), so no draft edit can change
-// them; they are structural rule metadata, not story content. If they
-// ever gain a studio editor, they must move into the snapshot first.
+// Task 5 Phase 4: plot_triggered_transitions (+ conditions/effects)
+// are pinned in the version snapshot's state_metadata section. A pinned
+// game whose snapshot carries that section reads its transitions only
+// from the snapshot; a pre-Phase 4 snapshot keeps the live-table
+// behaviour it always had. They have no studio editor (no PHP code
+// writes them) and are structural rule metadata, not story content.
 final class TriggeredTransitionService
 {
     public static function evaluate(int $sid,?int $second=null,?int $eventId=null): void
     {
         if($sid<=0)return;$pdo=db();GenericStateService::initializePlotState($sid);
         $simQ=$pdo->prepare('SELECT plot_id,elapsed_seconds,current_phase FROM simulations WHERE simulation_id=?');$simQ->execute([$sid]);$sim=$simQ->fetch();if(!$sim)return;$second=$second??(int)$sim['elapsed_seconds'];
+        $snap=class_exists('SimulationContent')?SimulationContent::stateMetadata($sid):null;
         for($pass=0;$pass<20;$pass++){
-            $fired=false;$q=$pdo->prepare('SELECT * FROM plot_triggered_transitions WHERE plot_id=? AND active=1 ORDER BY priority,transition_id');$q->execute([(int)$sim['plot_id']]);
-            foreach($q->fetchAll() as $tr){
+            $fired=false;
+            if($snap!==null){$trs=array_values(array_filter($snap['triggered_transitions']??[],static fn($t)=>(int)($t['active']??1)===1));usort($trs,static fn($a,$b)=>((int)$a['priority']<=>(int)$b['priority'])?:((int)$a['transition_id']<=>(int)$b['transition_id']));}
+            else{$q=$pdo->prepare('SELECT * FROM plot_triggered_transitions WHERE plot_id=? AND active=1 ORDER BY priority,transition_id');$q->execute([(int)$sim['plot_id']]);$trs=$q->fetchAll();}
+            foreach($trs as $tr){
                 $marker='TRANSITION_FIRED_'.$tr['transition_id'];if((int)$tr['once_only']===1 && GenericStateService::getByKey($sid,$marker)['exists'])continue;
-                if(!self::conditionsPass($sid,(int)$tr['transition_id'],(string)$sim['current_phase']))continue;
-                self::applyTransition($sid,$tr,$second,$eventId);GenericStateService::setByKey($sid,$marker,'YES',$second);$fired=true;
+                if(!self::conditionsPass($sid,(int)$tr['transition_id'],(string)$sim['current_phase'],$snap['triggered_transition_conditions']??null))continue;
+                self::applyTransition($sid,$tr,$second,$eventId,$snap['triggered_transition_effects']??null);GenericStateService::setByKey($sid,$marker,'YES',$second);$fired=true;
             }
             if(!$fired)break;$simQ->execute([$sid]);$sim=$simQ->fetch();if(!$sim)break;
         }
     }
 
-    private static function conditionsPass(int $sid,int $transitionId,string $phase): bool
+    private static function conditionsPass(int $sid,int $transitionId,string $phase,?array $snapshotConditions=null): bool
     {
-        $q=db()->prepare('SELECT * FROM plot_triggered_transition_conditions WHERE transition_id=? ORDER BY sort_order,transition_condition_id');$q->execute([$transitionId]);
-        foreach($q->fetchAll() as $c){
+        if($snapshotConditions!==null){$conds=array_values(array_filter($snapshotConditions,static fn($c)=>(int)($c['transition_id']??0)===$transitionId));usort($conds,static fn($a,$b)=>((int)$a['sort_order']<=>(int)$b['sort_order'])?:((int)$a['transition_condition_id']<=>(int)$b['transition_condition_id']));}
+        else{$q=db()->prepare('SELECT * FROM plot_triggered_transition_conditions WHERE transition_id=? ORDER BY sort_order,transition_condition_id');$q->execute([$transitionId]);$conds=$q->fetchAll();}
+        foreach($conds as $c){
             if($c['state_key']==='STORY_PHASE'){$value=$phase;$compare=(string)$c['compare_value'];$list=array_values(array_filter(array_map('trim',explode(',',$compare)),fn($v)=>$v!==''));$ok=match($c['operator']){'EQ'=>$value===$compare,'NEQ'=>$value!==$compare,'IN'=>in_array($value,$list,true),'NOT_IN'=>!in_array($value,$list,true),default=>true,};}
             else $ok=GenericStateService::conditionPasses($sid,$c['state_key'],$c['operator'],$c['compare_value']);
             if(!$ok)return false;
         }return true;
     }
 
-    private static function applyTransition(int $sid,array $tr,int $second,?int $eventId): void
+    private static function applyTransition(int $sid,array $tr,int $second,?int $eventId,?array $snapshotEffects=null): void
     {
-        $pdo=db();$effects=$pdo->prepare('SELECT * FROM plot_triggered_transition_effects WHERE transition_id=? ORDER BY sort_order,transition_effect_id');$effects->execute([$tr['transition_id']]);$changes=[];
-        foreach($effects->fetchAll() as $e){$c=self::applyEffect($sid,$e,$second,$eventId);if($c!=='')$changes[]=$c;}if(!$changes)return;
+        $pdo=db();
+        if($snapshotEffects!==null){$effs=array_values(array_filter($snapshotEffects,static fn($e)=>(int)($e['transition_id']??0)===(int)$tr['transition_id']));usort($effs,static fn($a,$b)=>((int)$a['sort_order']<=>(int)$b['sort_order'])?:((int)$a['transition_effect_id']<=>(int)$b['transition_effect_id']));}
+        else{$effects=$pdo->prepare('SELECT * FROM plot_triggered_transition_effects WHERE transition_id=? ORDER BY sort_order,transition_effect_id');$effects->execute([$tr['transition_id']]);$effs=$effects->fetchAll();}
+        $changes=[];
+        foreach($effs as $e){$c=self::applyEffect($sid,$e,$second,$eventId);if($c!=='')$changes[]=$c;}if(!$changes)return;
         $phaseQ=$pdo->prepare('SELECT current_phase FROM simulations WHERE simulation_id=?');$phaseQ->execute([$sid]);$phase=(string)$phaseQ->fetchColumn();
         $pdo->prepare('INSERT INTO simulation_events(simulation_id,event_second,phase,event_type,event_code,headline,event_text,visibility,caused_by_event_id) VALUES(?,?,?,?,?,?,?,"WORLD",?)')->execute([$sid,$second,$phase,'SYSTEM','TRANSITION_'.$tr['transition_code'].'_'.$second,$tr['label'],implode(' ',$changes),$eventId]);
     }

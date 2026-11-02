@@ -29,6 +29,8 @@ jobs:
         run: php tools/theme_font_guard_test.php
       - name: Guard Now heading chapter
         run: php tools/now_heading_guard_test.php
+      - name: Guard Task 5 Phase 4 state metadata pinning
+        run: php tools/state_metadata_guard_test.php
   multiplayer-smoke:
     runs-on: ubuntu-latest
     services:

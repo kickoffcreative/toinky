@@ -727,9 +727,37 @@ final class StoryAuthoringService
         $errors=array_values(array_unique($errors));$warnings=array_values(array_unique($warnings));return[$errors,$warnings];
     }
 
+    // Task 5 Phase 4: state-machine metadata snapshot. This is kept OUT
+    // of workspace() on purpose: workspace() feeds the stored content
+    // checksum and the drift check, and auditVersion() requires every
+    // workspace key to be present in a snapshot, so adding sections
+    // there would make every already-published version report drift and
+    // fail its completeness check. state_metadata travels in a separate
+    // snapshot field, so old snapshots keep their exact checksum, drift,
+    // and audit behaviour, and new snapshots pin the metadata. No
+    // schema migration is needed: the tables already exist and only the
+    // snapshot shape changes.
+    public static function stateMetadata(int $plotId): array
+    {
+        $tables=[
+            'state_entities'=>['SELECT * FROM plot_entities WHERE plot_id=? ORDER BY entity_code,plot_entity_id',[$plotId]],
+            'state_entity_properties'=>['SELECT p.*,e.entity_code FROM plot_entity_properties p JOIN plot_entities e ON e.plot_entity_id=p.plot_entity_id WHERE e.plot_id=? ORDER BY e.entity_code,p.property_code,p.property_id',[$plotId]],
+            'state_property_transitions'=>['SELECT t.*,e.entity_code,p.property_code FROM plot_property_transitions t JOIN plot_entity_properties p ON p.property_id=t.property_id JOIN plot_entities e ON e.plot_entity_id=p.plot_entity_id WHERE e.plot_id=? ORDER BY e.entity_code,p.property_code,t.property_transition_id',[$plotId]],
+            'state_aliases'=>['SELECT * FROM plot_state_aliases WHERE plot_id=? ORDER BY state_key',[$plotId]],
+            'triggered_transitions'=>['SELECT * FROM plot_triggered_transitions WHERE plot_id=? ORDER BY priority,transition_id',[$plotId]],
+            'triggered_transition_conditions'=>['SELECT c.* FROM plot_triggered_transition_conditions c JOIN plot_triggered_transitions t ON t.transition_id=c.transition_id WHERE t.plot_id=? ORDER BY c.transition_id,c.sort_order,c.transition_condition_id',[$plotId]],
+            'triggered_transition_effects'=>['SELECT e.* FROM plot_triggered_transition_effects e JOIN plot_triggered_transitions t ON t.transition_id=e.transition_id WHERE t.plot_id=? ORDER BY e.transition_id,e.sort_order,e.transition_effect_id',[$plotId]],
+            'consequence_rules'=>['SELECT * FROM plot_consequence_rules WHERE plot_id=? ORDER BY priority,consequence_rule_id',[$plotId]],
+            'consequence_conditions'=>['SELECT c.* FROM plot_consequence_conditions c JOIN plot_consequence_rules r ON r.consequence_rule_id=c.consequence_rule_id WHERE r.plot_id=? ORDER BY c.consequence_rule_id,c.sort_order,c.consequence_condition_id',[$plotId]],
+            'consequence_effects'=>['SELECT e.* FROM plot_consequence_effects e JOIN plot_consequence_rules r ON r.consequence_rule_id=e.consequence_rule_id WHERE r.plot_id=? ORDER BY e.consequence_rule_id,e.sort_order,e.consequence_effect_id',[$plotId]],
+            'motive_lifecycle_rules'=>['SELECT * FROM plot_motive_lifecycle_rules WHERE plot_id=? ORDER BY priority,motive_rule_id',[$plotId]],
+            'motive_lifecycle_conditions'=>['SELECT c.* FROM plot_motive_lifecycle_conditions c JOIN plot_motive_lifecycle_rules r ON r.motive_rule_id=c.motive_rule_id WHERE r.plot_id=? ORDER BY c.motive_rule_id,c.sort_order,c.motive_condition_id',[$plotId]],
+        ];$out=[];foreach($tables as$key=>$spec){$q=db()->prepare($spec[0]);$q->execute($spec[1]);$out[$key]=$q->fetchAll();}return$out;
+    }
+
     public static function submit(array $user,int $plotId): int
     {
-        self::guard($user,$plotId);$audit=self::audit($plotId);if($audit['errors'])throw new RuntimeException('Resolve the blocking validation errors before submission.');$pdo=db();$snapshot=json_encode(['plot'=>self::story($plotId),'content'=>$audit['workspace']],JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);$q=$pdo->prepare('SELECT COALESCE(MAX(version_no),0)+1 FROM plot_versions WHERE plot_id=?');$q->execute([$plotId]);$version=(int)$q->fetchColumn();$ownsTransaction=!$pdo->inTransaction();if($ownsTransaction)$pdo->beginTransaction();try{$pdo->prepare('INSERT INTO plot_versions(plot_id,version_no,snapshot_json,submitted_by_user_id) VALUES(?,?,?,?)')->execute([$plotId,$version,$snapshot,$user['user_id']]);$id=(int)$pdo->lastInsertId();$pdo->prepare('UPDATE plots SET workflow_status="SUBMITTED" WHERE plot_id=?')->execute([$plotId]);if($ownsTransaction)$pdo->commit();return$id;}catch(Throwable$e){if($ownsTransaction&&$pdo->inTransaction())$pdo->rollBack();throw$e;}
+        self::guard($user,$plotId);$audit=self::audit($plotId);if($audit['errors'])throw new RuntimeException('Resolve the blocking validation errors before submission.');$pdo=db();$snapshot=json_encode(['plot'=>self::story($plotId),'content'=>$audit['workspace'],'state_metadata'=>self::stateMetadata($plotId)],JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);$q=$pdo->prepare('SELECT COALESCE(MAX(version_no),0)+1 FROM plot_versions WHERE plot_id=?');$q->execute([$plotId]);$version=(int)$q->fetchColumn();$ownsTransaction=!$pdo->inTransaction();if($ownsTransaction)$pdo->beginTransaction();try{$pdo->prepare('INSERT INTO plot_versions(plot_id,version_no,snapshot_json,submitted_by_user_id) VALUES(?,?,?,?)')->execute([$plotId,$version,$snapshot,$user['user_id']]);$id=(int)$pdo->lastInsertId();$pdo->prepare('UPDATE plots SET workflow_status="SUBMITTED" WHERE plot_id=?')->execute([$plotId]);if($ownsTransaction)$pdo->commit();return$id;}catch(Throwable$e){if($ownsTransaction&&$pdo->inTransaction())$pdo->rollBack();throw$e;}
     }
 
     public static function saveAudit(int $plotId,int $userId,?int $versionId=null): array

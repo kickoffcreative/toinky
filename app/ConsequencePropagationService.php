@@ -1,8 +1,9 @@
 <?php
-// Task 5 Phase 3: plot_consequence_rules (+ conditions/effects) stay live
-// deliberately — not in the workspace snapshot, no studio editor (no PHP
-// code writes them), no draft-edit vector. If they ever gain a studio
-// editor, they must move into the snapshot first.
+// Task 5 Phase 4: plot_consequence_rules (+ conditions/effects) are
+// pinned in the version snapshot's state_metadata section. A pinned game
+// whose snapshot carries that section reads its rules only from the
+// snapshot; a pre-Phase 4 snapshot keeps the live-table behaviour it
+// always had. They have no studio editor (no PHP code writes them).
 final class ConsequencePropagationService
 {
     public static function evaluate(int $sid,?int $second=null): void
@@ -12,14 +13,16 @@ final class ConsequencePropagationService
         $q=$pdo->prepare('SELECT plot_id,elapsed_seconds,current_phase FROM simulations WHERE simulation_id=?');$q->execute([$sid]);$sim=$q->fetch();if(!$sim)return;
         $second=$second??(int)$sim['elapsed_seconds'];
 
+        $snap=class_exists('SimulationContent')?SimulationContent::stateMetadata($sid):null;
         for($pass=0;$pass<20;$pass++){
             $changed=false;
-            $r=$pdo->prepare('SELECT * FROM plot_consequence_rules WHERE plot_id=? AND active=1 ORDER BY priority,consequence_rule_id');$r->execute([(int)$sim['plot_id']]);
-            foreach($r->fetchAll() as $rule){
+            if($snap!==null){$rules=array_values(array_filter($snap['consequence_rules']??[],static fn($r)=>(int)($r['active']??1)===1));usort($rules,static fn($a,$b)=>((int)$a['priority']<=>(int)$b['priority'])?:((int)$a['consequence_rule_id']<=>(int)$b['consequence_rule_id']));}
+            else{$r=$pdo->prepare('SELECT * FROM plot_consequence_rules WHERE plot_id=? AND active=1 ORDER BY priority,consequence_rule_id');$r->execute([(int)$sim['plot_id']]);$rules=$r->fetchAll();}
+            foreach($rules as $rule){
                 $marker='CONSEQUENCE_FIRED_'.$rule['consequence_rule_id'];
                 if((int)$rule['once_only']===1 && GenericStateService::getByKey($sid,$marker)['exists'])continue;
-                if(!self::conditionsPass($sid,(int)$rule['consequence_rule_id'],(string)$sim['current_phase']))continue;
-                $changes=self::applyEffects($sid,$rule,$second);
+                if(!self::conditionsPass($sid,(int)$rule['consequence_rule_id'],(string)$sim['current_phase'],$snap['consequence_conditions']??null))continue;
+                $changes=self::applyEffects($sid,$rule,$second,$snap['consequence_effects']??null);
                 GenericStateService::setByKey($sid,$marker,'YES',$second);
                 if($changes){self::logWorld($sid,$rule,$second,$changes);$changed=true;}
             }
@@ -28,10 +31,11 @@ final class ConsequencePropagationService
         }
     }
 
-    private static function conditionsPass(int $sid,int $ruleId,string $phase): bool
+    private static function conditionsPass(int $sid,int $ruleId,string $phase,?array $snapshotConditions=null): bool
     {
-        $q=db()->prepare('SELECT * FROM plot_consequence_conditions WHERE consequence_rule_id=? ORDER BY sort_order,consequence_condition_id');$q->execute([$ruleId]);
-        foreach($q->fetchAll() as $c){
+        if($snapshotConditions!==null){$conds=array_values(array_filter($snapshotConditions,static fn($c)=>(int)($c['consequence_rule_id']??0)===$ruleId));usort($conds,static fn($a,$b)=>((int)$a['sort_order']<=>(int)$b['sort_order'])?:((int)$a['consequence_condition_id']<=>(int)$b['consequence_condition_id']));}
+        else{$q=db()->prepare('SELECT * FROM plot_consequence_conditions WHERE consequence_rule_id=? ORDER BY sort_order,consequence_condition_id');$q->execute([$ruleId]);$conds=$q->fetchAll();}
+        foreach($conds as $c){
             $key=(string)$c['state_key'];
             if($key==='STORY_PHASE'){
                 $value=$phase;$compare=(string)$c['compare_value'];$list=array_values(array_filter(array_map('trim',explode(',',$compare)),fn($v)=>$v!==''));
@@ -42,10 +46,13 @@ final class ConsequencePropagationService
         return true;
     }
 
-    private static function applyEffects(int $sid,array $rule,int $second): array
+    private static function applyEffects(int $sid,array $rule,int $second,?array $snapshotEffects=null): array
     {
-        $pdo=db();$q=$pdo->prepare('SELECT * FROM plot_consequence_effects WHERE consequence_rule_id=? ORDER BY sort_order,consequence_effect_id');$q->execute([$rule['consequence_rule_id']]);$changes=[];
-        foreach($q->fetchAll() as $e){
+        $pdo=db();
+        if($snapshotEffects!==null){$effs=array_values(array_filter($snapshotEffects,static fn($e)=>(int)($e['consequence_rule_id']??0)===(int)$rule['consequence_rule_id']));usort($effs,static fn($a,$b)=>((int)$a['sort_order']<=>(int)$b['sort_order'])?:((int)$a['consequence_effect_id']<=>(int)$b['consequence_effect_id']));}
+        else{$q=$pdo->prepare('SELECT * FROM plot_consequence_effects WHERE consequence_rule_id=? ORDER BY sort_order,consequence_effect_id');$q->execute([$rule['consequence_rule_id']]);$effs=$q->fetchAll();}
+        $changes=[];
+        foreach($effs as $e){
             $scope=(string)$e['effect_scope'];$detail=(string)($e['detail_text']??'');
             if($scope==='WORLD_STATE'){$c=GenericStateService::setByKey($sid,(string)$e['target_code'],(string)($e['set_value']??''),$second,$detail);if($c!=='')$changes[]=$c;continue;}
             if($scope==='FACTOR'){

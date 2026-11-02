@@ -1,13 +1,17 @@
 <?php
-// Task 5 Phase 3: the state-machine metadata tables
+// Task 5 Phase 4: the state-machine metadata tables
 // (plot_state_aliases, plot_entities, plot_entity_properties,
-// plot_property_transitions) stay live deliberately. They are not in the
-// workspace snapshot, have no studio editor (no PHP code writes them),
-// and are structural metadata rather than story content, so no draft edit
-// can change them. If they ever gain a studio editor, they must move into
-// the snapshot first. plot_state_definitions IS a workspace key
-// ('state_definitions'), so the pinned path reads it from the snapshot
-// (see resolvesManaged() and initializePlotState()).
+// plot_property_transitions) are pinned in the version snapshot's
+// separate 'state_metadata' section (see StoryAuthoringService::
+// stateMetadata()). A pinned game whose snapshot carries that section
+// reads its metadata only from the snapshot, never from the live draft
+// tables, so a draft edit cannot change what a running game does.
+// Snapshots predating Phase 4 have no state_metadata section and keep
+// the old live-table behaviour exactly: their content checksum, drift
+// check, and auditVersion behaviour are untouched, because the metadata
+// lives outside the workspace 'content' array. plot_state_definitions
+// IS a workspace key ('state_definitions'), so the pinned path reads it
+// from the snapshot (see resolvesManaged() and initializePlotState()).
 final class GenericStateService
 {
     public static function getByKey(int $sid,string $key): array
@@ -38,7 +42,7 @@ final class GenericStateService
         $current=self::getByKey($sid,$key);$old=$current['exists']?(string)$current['value']:null;
         if($old===$value)return '';
         if(!self::valueAllowed($meta,$value))return '';
-        if(!self::transitionAllowed((int)$meta['property_id'],$old,$value))return '';
+        if(!self::transitionAllowed((int)$meta['property_id'],$old,$value,self::snapshotMetadata($sid)['state_property_transitions']??null))return '';
 
         $pdo->prepare('INSERT INTO simulation_entity_state(simulation_id,entity_code,property_code,state_value,updated_at_second) VALUES(?,?,?,?,?) ON DUPLICATE KEY UPDATE state_value=VALUES(state_value),updated_at_second=VALUES(updated_at_second)')->execute([$sid,$meta['entity_code'],$meta['property_code'],$value,$second]);
         // Compatibility mirror while older plot rules still use state_key.
@@ -80,18 +84,21 @@ final class GenericStateService
 
     public static function initializePlotState(int $sid): void
     {
-        $pdo=db();$q=$pdo->prepare('SELECT pe.entity_code,p.property_code,p.initial_value FROM simulations s JOIN plot_entities pe ON pe.plot_id=s.plot_id JOIN plot_entity_properties p ON p.plot_entity_id=pe.plot_entity_id WHERE s.simulation_id=? AND p.initial_value IS NOT NULL');$q->execute([$sid]);
-        foreach($q->fetchAll() as $r)$pdo->prepare('INSERT IGNORE INTO simulation_entity_state(simulation_id,entity_code,property_code,state_value,updated_at_second) VALUES(?,?,?,?,0)')->execute([$sid,$r['entity_code'],$r['property_code'],$r['initial_value']]);
-        // Task 5 Phase 3: WORLD_STATE defaults come from the snapshot when
+        $pdo=db();$snap=self::snapshotMetadata($sid);
+        if($snap!==null){foreach($snap['state_entity_properties']??[] as $r)if(($r['initial_value']??null)!==null)$pdo->prepare('INSERT IGNORE INTO simulation_entity_state(simulation_id,entity_code,property_code,state_value,updated_at_second) VALUES(?,?,?,?,0)')->execute([$sid,$r['entity_code'],$r['property_code'],$r['initial_value']]);}
+        else{$q=$pdo->prepare('SELECT pe.entity_code,p.property_code,p.initial_value FROM simulations s JOIN plot_entities pe ON pe.plot_id=s.plot_id JOIN plot_entity_properties p ON p.plot_entity_id=pe.plot_entity_id WHERE s.simulation_id=? AND p.initial_value IS NOT NULL');$q->execute([$sid]);
+        foreach($q->fetchAll() as $r)$pdo->prepare('INSERT IGNORE INTO simulation_entity_state(simulation_id,entity_code,property_code,state_value,updated_at_second) VALUES(?,?,?,?,0)')->execute([$sid,$r['entity_code'],$r['property_code'],$r['initial_value']]);}
+        // Task 5 Phase 4: WORLD_STATE defaults come from the snapshot when
         // pinned (plot_state_definitions IS a workspace key). The entity
-        // initial values above stay live — plot_entities /
-        // plot_entity_properties / plot_state_aliases are not in the
-        // snapshot and have no studio editor (see the file header).
+        // initial values and alias keys above come from the snapshot's
+        // state_metadata section when present, and from the live tables
+        // only for unpinned or pre-Phase 4 snapshots (see the header).
         $defaults=null;
         if(class_exists('SimulationContent'))$defaults=SimulationContent::stateDefinitions($sid);
         if($defaults!==null){
-            $pq=$pdo->prepare('SELECT plot_id FROM simulations WHERE simulation_id=?');$pq->execute([$sid]);$plotId=(int)$pq->fetchColumn();
-            $aq=$pdo->prepare('SELECT state_key FROM plot_state_aliases WHERE plot_id=?');$aq->execute([$plotId]);$aliases=array_fill_keys($aq->fetchAll(PDO::FETCH_COLUMN),true);
+            if($snap!==null)$aliases=array_fill_keys(array_column($snap['state_aliases']??[],'state_key'),true);
+            else{$pq=$pdo->prepare('SELECT plot_id FROM simulations WHERE simulation_id=?');$pq->execute([$sid]);$plotId=(int)$pq->fetchColumn();
+            $aq=$pdo->prepare('SELECT state_key FROM plot_state_aliases WHERE plot_id=?');$aq->execute([$plotId]);$aliases=array_fill_keys($aq->fetchAll(PDO::FETCH_COLUMN),true);}
             foreach($defaults as $d){
                 if((string)($d['effect_scope']??'')!=='WORLD_STATE'||(int)($d['active']??1)!==1)continue;
                 $code=(string)($d['target_code']??'');$value=(string)($d['default_text_value']??'');
@@ -104,8 +111,26 @@ final class GenericStateService
         foreach($q->fetchAll() as $r)$pdo->prepare('INSERT IGNORE INTO simulation_state(simulation_id,state_key,state_value,updated_at_second) VALUES(?,?,?,0)')->execute([$sid,$r['target_code'],$r['default_text_value']]);
     }
 
+    // Pinned snapshot metadata for one simulation, or null when the
+    // simulation is unpinned or its snapshot predates Phase 4. Callers
+    // fall back to the live tables on null, which is exactly the old
+    // behaviour for those games.
+    private static function snapshotMetadata(int $sid): ?array
+    {
+        if(!class_exists('SimulationContent'))return null;
+        return SimulationContent::stateMetadata($sid);
+    }
+
     private static function metadataForKey(int $sid,string $key): ?array
     {
+        $snap=self::snapshotMetadata($sid);
+        if($snap!==null){
+            foreach($snap['state_aliases']??[] as $a)if((string)($a['state_key']??'')===$key)foreach($snap['state_entity_properties']??[] as $prop)if((string)($prop['entity_code']??'')===(string)($a['entity_code']??'')&&(string)($prop['property_code']??'')===(string)($a['property_code']??''))return $prop;
+            if(str_contains($key,'.')){
+                [$entity,$property]=explode('.',$key,2);foreach($snap['state_entity_properties']??[] as $prop)if((string)($prop['entity_code']??'')===$entity&&(string)($prop['property_code']??'')===$property)return $prop;
+            }
+            return null;
+        }
         $pdo=db();$q=$pdo->prepare('SELECT a.entity_code,a.property_code,p.property_id,p.label,p.value_type,p.initial_value,p.allowed_values,p.min_value,p.max_value FROM simulations s JOIN plot_state_aliases a ON a.plot_id=s.plot_id AND a.state_key=? JOIN plot_entities e ON e.plot_id=s.plot_id AND e.entity_code=a.entity_code JOIN plot_entity_properties p ON p.plot_entity_id=e.plot_entity_id AND p.property_code=a.property_code WHERE s.simulation_id=? LIMIT 1');$q->execute([$key,$sid]);$r=$q->fetch();if($r)return$r;
         if(str_contains($key,'.')){
             [$entity,$property]=explode('.',$key,2);$q=$pdo->prepare('SELECT e.entity_code,p.property_code,p.property_id,p.label,p.value_type,p.initial_value,p.allowed_values,p.min_value,p.max_value FROM simulations s JOIN plot_entities e ON e.plot_id=s.plot_id AND e.entity_code=? JOIN plot_entity_properties p ON p.plot_entity_id=e.plot_entity_id AND p.property_code=? WHERE s.simulation_id=? LIMIT 1');$q->execute([$entity,$property,$sid]);$r=$q->fetch();if($r)return$r;
@@ -139,8 +164,14 @@ final class GenericStateService
         return !$allowed || in_array($value,$allowed,true);
     }
 
-    private static function transitionAllowed(int $propertyId,?string $old,string $new): bool
+    private static function transitionAllowed(int $propertyId,?string $old,string $new,?array $snapshotTransitions=null): bool
     {
+        if($snapshotTransitions!==null){
+            $rows=array_values(array_filter($snapshotTransitions,static fn($t)=>(int)($t['property_id']??0)===$propertyId&&(int)($t['active']??1)===1));
+            if(!$rows)return true;
+            foreach($rows as $t){$from=$t['from_value']??null;if(($from===null&&$old===null)||($from!==null&&(string)$from===(string)$old))if((string)($t['to_value']??'')===$new)return true;}
+            return false;
+        }
         $pdo=db();$q=$pdo->prepare('SELECT COUNT(*) FROM plot_property_transitions WHERE property_id=? AND active=1');$q->execute([$propertyId]);$count=(int)$q->fetchColumn();
         if($count===0)return true;
         $q=$pdo->prepare('SELECT 1 FROM plot_property_transitions WHERE property_id=? AND active=1 AND ((from_value IS NULL AND ? IS NULL) OR from_value=?) AND to_value=? LIMIT 1');$q->execute([$propertyId,$old,$old,$new]);return(bool)$q->fetchColumn();

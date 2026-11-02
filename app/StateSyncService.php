@@ -3,12 +3,12 @@ require_once __DIR__.'/DynamicOpportunityService.php';
 require_once __DIR__.'/TriggeredTransitionService.php';
 require_once __DIR__.'/ConsequencePropagationService.php';
 
-// Task 5 Phase 3: plot_motive_lifecycle_rules (+ conditions) stay live
-// deliberately — not in the workspace snapshot, no studio editor (no PHP
-// code writes them), no draft-edit vector. The consequence and
-// triggered-transition rules evaluated here are likewise live by the same
-// reasoning (see those services). If any of these gain a studio editor,
-// they must move into the snapshot first.
+// Task 5 Phase 4: plot_motive_lifecycle_rules (+ conditions) are pinned
+// in the version snapshot's state_metadata section. A pinned game whose
+// snapshot carries that section reads its motive rules only from the
+// snapshot; a pre-Phase 4 snapshot keeps the live-table behaviour it
+// always had. The consequence and triggered-transition rules evaluated
+// here are likewise pinned by their own services (see those services).
 final class StateSyncService
 {
     public static function reconcile(int $sid): void
@@ -52,14 +52,22 @@ final class StateSyncService
     private static function evaluateMotiveLifecycle(int $sid): void
     {
         $pdo=db();$s=$pdo->prepare('SELECT plot_id,elapsed_seconds,current_phase FROM simulations WHERE simulation_id=?');$s->execute([$sid]);$sim=$s->fetch();if(!$sim)return;
-        $rules=$pdo->prepare('SELECT r.*,c.character_id,c.goal_text,c.fear_text FROM plot_motive_lifecycle_rules r JOIN plot_roles pr ON pr.plot_id=r.plot_id AND pr.role_code=r.role_code AND pr.active=1 JOIN characters c ON c.simulation_id=? AND c.plot_role_id=pr.plot_role_id WHERE r.plot_id=? AND r.active=1 ORDER BY r.priority,r.motive_rule_id');$rules->execute([$sid,$sim['plot_id']]);
-        foreach($rules->fetchAll() as $r){$current=$r['motive_type']==='GOAL'?(string)$r['goal_text']:(string)$r['fear_text'];if($r['match_text']!==null && (string)$r['match_text']!==$current)continue;if(!self::ruleConditionsPass($sid,(int)$r['motive_rule_id'],(string)$sim['current_phase']))continue;self::applyLifecycleRule($sid,(int)$r['character_id'],$r,(int)$sim['elapsed_seconds']);}
+        $snap=class_exists('SimulationContent')?SimulationContent::stateMetadata($sid):null;
+        if($snap!==null){
+            $chars=$pdo->prepare('SELECT c.character_id,c.goal_text,c.fear_text,pr.role_code,pr.active FROM characters c JOIN plot_roles pr ON pr.plot_role_id=c.plot_role_id WHERE c.simulation_id=?');$chars->execute([$sid]);$byRole=[];foreach($chars->fetchAll() as $ch)if((int)($ch['active']??1)===1)$byRole[(string)$ch['role_code']]=$ch;
+            $ruleRows=[];foreach($snap['motive_lifecycle_rules']??[] as $rule)if((int)($rule['active']??1)===1&&isset($byRole[(string)($rule['role_code']??'')]))$ruleRows[]=array_merge($rule,$byRole[(string)$rule['role_code']]);
+            usort($ruleRows,static fn($a,$b)=>((int)$a['priority']<=>(int)$b['priority'])?:((int)$a['motive_rule_id']<=>(int)$b['motive_rule_id']));
+        } else {
+            $rules=$pdo->prepare('SELECT r.*,c.character_id,c.goal_text,c.fear_text FROM plot_motive_lifecycle_rules r JOIN plot_roles pr ON pr.plot_id=r.plot_id AND pr.role_code=r.role_code AND pr.active=1 JOIN characters c ON c.simulation_id=? AND c.plot_role_id=pr.plot_role_id WHERE r.plot_id=? AND r.active=1 ORDER BY r.priority,r.motive_rule_id');$rules->execute([$sid,$sim['plot_id']]);$ruleRows=$rules->fetchAll();
+        }
+        foreach($ruleRows as $r){$current=$r['motive_type']==='GOAL'?(string)$r['goal_text']:(string)$r['fear_text'];if($r['match_text']!==null && (string)$r['match_text']!==$current)continue;if(!self::ruleConditionsPass($sid,(int)$r['motive_rule_id'],(string)$sim['current_phase'],$snap['motive_lifecycle_conditions']??null))continue;self::applyLifecycleRule($sid,(int)$r['character_id'],$r,(int)$sim['elapsed_seconds']);}
     }
 
-    private static function ruleConditionsPass(int $sid,int $ruleId,string $phase): bool
+    private static function ruleConditionsPass(int $sid,int $ruleId,string $phase,?array $snapshotConditions=null): bool
     {
-        $q=db()->prepare('SELECT state_key,operator,compare_value FROM plot_motive_lifecycle_conditions WHERE motive_rule_id=? ORDER BY sort_order,motive_condition_id');$q->execute([$ruleId]);
-        foreach($q->fetchAll() as $c){
+        if($snapshotConditions!==null){$conds=array_values(array_filter($snapshotConditions,static fn($c)=>(int)($c['motive_rule_id']??0)===$ruleId));usort($conds,static fn($a,$b)=>((int)$a['sort_order']<=>(int)$b['sort_order'])?:((int)$a['motive_condition_id']<=>(int)$b['motive_condition_id']));}
+        else{$q=db()->prepare('SELECT state_key,operator,compare_value FROM plot_motive_lifecycle_conditions WHERE motive_rule_id=? ORDER BY sort_order,motive_condition_id');$q->execute([$ruleId]);$conds=$q->fetchAll();}
+        foreach($conds as $c){
             if($c['state_key']==='STORY_PHASE'){$compare=(string)$c['compare_value'];$list=array_values(array_filter(array_map('trim',explode(',',$compare)),fn($v)=>$v!==''));$ok=match($c['operator']){'EQ'=>$phase===$compare,'NEQ'=>$phase!==$compare,'IN'=>in_array($phase,$list,true),'NOT_IN'=>!in_array($phase,$list,true),default=>true,};}
             else $ok=GenericStateService::conditionPasses($sid,$c['state_key'],$c['operator'],$c['compare_value']);
             if(!$ok)return false;

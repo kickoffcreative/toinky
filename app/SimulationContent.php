@@ -21,6 +21,17 @@
 // at all (missing version row, bad decode, wrong plot) still returns null
 // — a damaged version row is an ops fault, and the live fallback keeps
 // in-flight games alive while drift logging flags it.
+//
+// Task 5 Phase 4 exception: state-machine metadata travels in a separate
+// snapshot section, 'state_metadata', not in 'content', and its accessor
+// (stateMetadata()) is deliberately NOT fail-closed. Snapshots predating
+// Phase 4 have no such section, and those games keep the live-table
+// behaviour they always had; making them throw would break every
+// already-published version. New snapshots carry the section, and
+// callers must use it exclusively when present, never mixing in live
+// draft rows. Keeping metadata out of 'content' also keeps the stored
+// content checksum, the drift check, and auditVersion's completeness
+// check byte-identical for old snapshots.
 final class SimulationContent
 {
     private static array $cache=[];
@@ -249,6 +260,21 @@ final class SimulationContent
     public static function stateDefinitions(int $sid): ?array
     {
         return self::content($sid,'state_definitions');
+    }
+
+    // Task 5 Phase 4: state-machine metadata for one simulation, or null
+    // when the simulation is unpinned (callers keep their live query) or
+    // when its snapshot predates Phase 4 (callers keep the live-table
+    // behaviour those games always had). When present, the section has
+    // twelve keys: state_entities, state_entity_properties,
+    // state_property_transitions, state_aliases, triggered_transitions,
+    // triggered_transition_conditions, triggered_transition_effects,
+    // consequence_rules, consequence_conditions, consequence_effects,
+    // motive_lifecycle_rules, motive_lifecycle_conditions.
+    public static function stateMetadata(int $sid): ?array
+    {
+        $snap=self::forSimulation($sid);if($snap===null)return null;
+        return is_array($snap['state_metadata']??null)?$snap['state_metadata']:null;
     }
 
     // Resolve the playable options for one open decision from the pinned
