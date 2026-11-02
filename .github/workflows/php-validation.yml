@@ -27,6 +27,8 @@ jobs:
         run: php tools/play_feedback_guard_test.php
       - name: Guard theme font options
         run: php tools/theme_font_guard_test.php
+      - name: Guard Now heading chapter
+        run: php tools/now_heading_guard_test.php
   multiplayer-smoke:
     runs-on: ubuntu-latest
     services:
