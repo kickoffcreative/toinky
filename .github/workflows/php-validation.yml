@@ -25,6 +25,8 @@ jobs:
         run: php tools/lab_batch_runner_guard_test.php
       - name: Guard Game 2 playtest feedback fixes
         run: php tools/play_feedback_guard_test.php
+      - name: Guard theme font options
+        run: php tools/theme_font_guard_test.php
   multiplayer-smoke:
     runs-on: ubuntu-latest
     services:
