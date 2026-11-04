@@ -261,3 +261,5 @@ B59 Qualify not-knowing in endings. An ending fragment must not say a character 
 B60 Check option results, not just event prose, for consistency. Reveals, trades, and identity lines can live in option results while event prose and recaps carry none of them. An inventory that reads only events and endings will miss them.
 
 B61 Check heading, prose, and timeline together. A Now heading can match the timeline's latest chapter and still run ahead of the Now prose. At a beat, all three must agree; checking any two alone is not a pass.
+
+B62 Departure needs a location, not just prose. If the final beat moves the group off a location — rowing away, sailing, leaving — add a departure location value and a whole-group location effect on the final-state event, so the location display and the finished page move off the last shore. Prose saying the group leaves does not move the display. If the new value does not appear in the effect's preset list, add it to the Character Location story value's Allowed Preset Values as well.
