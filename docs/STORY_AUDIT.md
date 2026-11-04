@@ -2,9 +2,9 @@
 
 The Story Writer's Guide (Google Doc) is the primary writer-facing
 documentation source. This repository file is the synchronized mirror
-of the Story Auditor instructions, updated Nov 1, 2026.
+of the Story Auditor instructions, updated Nov 4, 2026.
 
-# Story Auditor — Instructions (updated Nov 1, 2026)
+# Story Auditor — Instructions (updated Nov 4, 2026)
 
 Amendment (Nov 1, 2026, per the writer): the Lab is never used by
 the Auditor. Section 5 was replaced with this rule; Lab evidence
@@ -88,8 +88,11 @@ Read the story in the studio, in this order, and record counts:
 2. Locations: every location a move names must exist before the
    effect is authored (Guide B19).
 3. Events: code, trigger, prose, recap transition, effects. Read
-   event effects and decision effects separately; world-event effects
-   are WORLD_STATE / FACTOR only and never move a character directly.
+   event effects and decision effects separately; a world-event
+   LOCATION effect moves characters only when its Scope actually
+   reads LOCATION (reload-verify it, Guide B63) — a WORLD_STATE-
+   scoped effect never moves a character, whatever its summary
+   heading says.
 4. Decisions: every template, prompt, option, option result, option
    effect, and condition. One decision per character per event.
 5. Opportunities: prompt, owner, window, priority, conditions, and
@@ -229,6 +232,30 @@ classifying it:
     error log at that moment (server errors are hidden on the live
     site; the cPanel Terminal check is the next step, and it needs
     the writer's machine).
+
+Verification rules from the Nov 4 runs (Guide B63–B66):
+
+- A save that shows no error and looks right pre-reload is not
+  saved until a reload read-back confirms it. If a studio value
+  reverts on reload, stop repeating the same save and escalate;
+  a fourth identical attempt proves nothing.
+- An option absent from a run is not automatically a defect:
+  check its conditions against that run's story values first.
+  A conditioned option is correctly absent when its conditions
+  fail; a condition-less option should always appear.
+- A player report's paraphrase of card text, option lists, or
+  briefing wording is evidence of the experience, not a verbatim
+  record. Verify the exact text in the studio and on the
+  finished page before calling a wording difference a defect.
+- Finished-page location is judged against the finished
+  timeline's last location move, not the story's thematic end.
+  A move at or after the final decision (for example back to
+  the shore) explains a finished location that differs from
+  the last decision's location.
+- Conflicting studio read-backs are resolved by a reload-
+  verified candidate comparison: present both candidates and
+  require the re-read after reload. The version matching live
+  play wins; a version matching no live game is a misread row.
 
 Named-person removal sweep (when a name is removed from a story):
 
