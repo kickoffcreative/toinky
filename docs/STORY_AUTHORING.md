@@ -251,3 +251,13 @@ B54. Do not promise a replay difference the structure cannot deliver. If a chara
 B55. The Now chapter heading must match the timeline's latest chapter. In Game 5 the Now card's chapter heading ran ahead of the timeline's latest logged chapter for stretches, so the 'now' label and the last logged chapter did not match. Check the Now heading and the timeline together on a live game, not just the Now timestamp against timeline times (B51).
 
 B56. A capitalisation fix in one scope does not close the others. Game 5 confirmed all-caps prose in the Now card, the timeline, and the ending panel, even after a Now-only fix had shipped. A caps fix must cover every prose paragraph, with scene titles and headings staying uppercase, and each scope must be verified live in normal case before the finding closes (see B53).
+
+B57 One reveal, once. If a story plans a true reveal beat, earlier beats may hint but must not name or identify. A reveal given early in an option result and again at the planned meeting reads as a repeat and dilutes the meeting. Keep the first naming for the planned beat.
+
+B58 Name the price of any trade. A bargain outcome that says a price is taken must say what was taken, and any later release must reference that same price. A trade with an unnamed cost followed by freedom reads as a contradiction, not a resolution.
+
+B59 Qualify not-knowing in endings. An ending fragment must not say a character does not get her answer when an earlier beat already gave her that knowledge. Name what remains unknown and what is now known, per path.
+
+B60 Check option results, not just event prose, for consistency. Reveals, trades, and identity lines can live in option results while event prose and recaps carry none of them. An inventory that reads only events and endings will miss them.
+
+B61 Check heading, prose, and timeline together. A Now heading can match the timeline's latest chapter and still run ahead of the Now prose. At a beat, all three must agree; checking any two alone is not a pass.
