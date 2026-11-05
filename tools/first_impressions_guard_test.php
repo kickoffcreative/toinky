@@ -61,4 +61,14 @@ if ($failures) {
     fwrite(STDERR, 'FAILED: ' . implode('; ', $failures) . "\n");
     exit(1);
 }
+preg_match_all('/([A-Z][A-Za-z0-9]+Service)::/', $index, $usedServices);
+$usedServices = array_values(array_unique($usedServices[1]));
+$missingRequires = [];
+foreach ($usedServices as $svc) {
+    if (!str_contains($index, "require_once \$root.'/app/" . $svc . ".php'")) {
+        $missingRequires[] = $svc;
+    }
+}
+$check(empty($missingRequires), 'Every service class used in index.php is required at the top' . (empty($missingRequires) ? '' : ' (missing require: ' . implode(', ', $missingRequires) . ')'));
+
 echo "OK first impressions guard\n";
