@@ -31,7 +31,7 @@ $check(!str_contains($index, 'Your stories are waiting.'), 'Old dashboard welcom
 $check(str_contains($index, 'if($isPublicSite||$user){$publicStories='), 'Public story list loads for signed-in users too');
 $check(str_contains($index, 'foreach($games as$g)') && str_contains($index, "['LOBBY','RUNNING']"), 'Continue playing picks the newest unfinished game');
 $check(str_contains($index, '$continueUrl=$continueGame?') && str_contains($index, 'lobby.php?game=') && str_contains($index, 'play.php?game='), 'Continue playing links to the lobby or the play page by status');
-$check(strpos($index, 'Continue playing') !== false && strpos($index, 'Continue playing') < strpos($index, 'Choose a story') && strpos($index, 'Choose a story') < strpos($index, 'id="host-a-game"'), 'Order is Continue playing, then story cards, then hosting');
+$check(strpos($index, '<h2>Continue playing</h2>') !== false && strpos($index, '<h2>Continue playing</h2>') < strpos($index, '<h2>Choose a story</h2>') && strpos($index, '<h2>Choose a story</h2>') < strpos($index, 'id="host-a-game"'), 'Order is Continue playing, then story cards, then hosting');
 $check(str_contains($index, "render_story_cards_row();"), 'Dashboard renders the shared story cards row');
 
 $hostStart = strpos($index, '<div class="card" id="host-a-game">');
