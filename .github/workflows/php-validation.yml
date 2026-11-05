@@ -35,6 +35,8 @@ jobs:
         run: php tools/dashboard_story_links_guard_test.php
       - name: Guard effect scope ENUMs
         run: php tools/effect_scope_guard_test.php
+      - name: Guard first-impressions discovery
+        run: php tools/first_impressions_guard_test.php
   multiplayer-smoke:
     runs-on: ubuntu-latest
     services:
