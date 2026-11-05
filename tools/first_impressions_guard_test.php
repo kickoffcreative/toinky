@@ -44,6 +44,7 @@ $check(str_contains($hostCard, 'id="host-duration-label"') && str_contains($host
 $check(strpos($index, '$buyFreeFirst') !== false && strpos($index, '$buyFreeFirst') < strpos($index, '$buyBalance='), 'Buy page reads free-first eligibility before balance()');
 
 $check(str_contains($index, "'FORGOTTEN_SHORE'=>'Eerie · Suspenseful'") && str_contains($index, "'A_NUT_TO_CRACK'=>'Absurd · Mischievous'"), 'Mood test labels exist for Whispers and Nut');
+$check(str_contains($index, '/* Editorial mood test') && !str_contains($index, '// Editorial mood test'), 'Mood comment is a block comment, so it cannot swallow the code after it on the same line');
 $check(str_contains($index, 'Your choices—and the moments you let pass—shape how the story unfolds.'), 'Detail page carries the consequential-choices line');
 $detailStart = strpos($index, '<div class="type-public-intro">');
 $detail = $detailStart !== false ? substr($index, $detailStart, 9000) : '';
