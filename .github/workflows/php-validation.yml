@@ -37,6 +37,8 @@ jobs:
         run: php tools/effect_scope_guard_test.php
       - name: Guard first-impressions discovery
         run: php tools/first_impressions_guard_test.php
+      - name: Guard admin view-as preview
+        run: php tools/view_as_guard_test.php
   multiplayer-smoke:
     runs-on: ubuntu-latest
     services:

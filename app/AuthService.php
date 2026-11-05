@@ -160,6 +160,31 @@ final class AuthService
         $q=db()->prepare('SELECT 1 FROM user_platform_roles ur JOIN platform_roles r ON r.platform_role_id=ur.platform_role_id WHERE ur.user_id=? AND r.role_code=? AND r.scope_type="PLATFORM"');
         $q->execute([$userId,strtoupper(trim($roleCode))]);return(bool)$q->fetchColumn();
     }
+    /* View-as preview: an admin may preview the site as a Player or a
+    Writer. Presentation only -- the session flag changes what menus and
+    data the templates show, never the real role. Every authorization
+    check (requireAdmin, requireWriter, hasRole, deactivateAccount) keeps
+    reading the real user row, so a preview cannot grant or remove access. */
+    public static function viewAsMode(): ?string
+    {
+        self::boot();$mode=(string)($_SESSION['view_as']??'');return in_array($mode,['PLAYER','WRITER'],true)?$mode:null;
+    }
+    public static function setViewAs(string $mode): void
+    {
+        self::boot();$mode=strtoupper(trim($mode));if(in_array($mode,['PLAYER','WRITER'],true)){$_SESSION['view_as']=$mode;}else{unset($_SESSION['view_as']);}
+    }
+    public static function displayIsAdmin(array $user): bool
+    {
+        return (int)($user['is_admin']??0)===1&&self::viewAsMode()===null;
+    }
+    public static function displayIsWriter(array $user): bool
+    {
+        return ((int)($user['is_admin']??0)===1||self::hasRole((int)$user['user_id'],'WRITER'))&&self::viewAsMode()!=='PLAYER';
+    }
+    public static function displayIsSuperAdmin(array $user): bool
+    {
+        return (int)($user['is_super_admin']??0)===1&&self::viewAsMode()===null;
+    }
     public static function requireWriter(): array
     {
         $u=self::requireLogin();if((int)$u['is_admin']!==1&&!self::hasRole((int)$u['user_id'],'WRITER')){http_response_code(403);exit('Story Writer access is required.');}return$u;
