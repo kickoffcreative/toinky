@@ -33,6 +33,8 @@ jobs:
         run: php tools/state_metadata_guard_test.php
       - name: Guard dashboard story links
         run: php tools/dashboard_story_links_guard_test.php
+      - name: Guard effect scope ENUMs
+        run: php tools/effect_scope_guard_test.php
   multiplayer-smoke:
     runs-on: ubuntu-latest
     services:
