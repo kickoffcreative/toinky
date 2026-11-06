@@ -81,12 +81,25 @@ final class RecapService
         } catch (Throwable $e) {}
 
         // Shared timeline: everyone else's beats (play.php line 15).
+        /* Decision outcomes are stamped with the second the choice was
+           applied, which can be minutes after the beat that caused them.
+           Key them to the causing event's second instead, so one article
+           covers one beat whatever the click time was. World-event rows
+           carry no cause, so they keep their own second. */
+        $eventSecondById = [];
+        foreach (($snap['world'] ?? []) as $w) {
+            $eventSecondById[(int)($w['event_id'] ?? 0)] = (int)($w['event_second'] ?? 0);
+        }
+        $causeSecond = static function (int $rowSecond, int $causeId) use ($eventSecondById): int {
+            if ($causeId > 0 && isset($eventSecondById[$causeId])) return $eventSecondById[$causeId];
+            return $rowSecond;
+        };
         $timeline = [];
         foreach ($snap['world'] as $w) {
             if (($w['event_code'] ?? '') === 'FINAL_STATE') continue;
             $actorId = (int)($w['actor_character_id'] ?? 0);
             if ($character && $actorId === (int)$character['character_id']) continue;
-            $second = (int)$w['event_second'];
+            $second = $causeSecond((int)$w['event_second'], (int)($w['caused_by_event_id'] ?? 0));
             $timeline[$second] ??= ['phase' => self::story_phase_for_second($second, $storyDuration), 'public' => [], 'personal' => [], 'seen' => [], 'authored' => [], 'move' => null];
             $rt = $recapTransitions[(string)($w['event_code'] ?? '')] ?? '';
             if ($rt !== '' && !in_array($rt, $timeline[$second]['authored'], true)) $timeline[$second]['authored'][] = $rt;
@@ -114,7 +127,21 @@ final class RecapService
             }
             $fingerprint = self::timeline_fingerprint($detail);
             if ($fingerprint !== '' && !isset($timeline[$second]['seen'][$fingerprint])) {
-                $timeline[$second]['public'][] = ['lead' => $lead, 'detail' => $detail, 'headline' => (string)$w['headline'], 'prose' => $isProse];
+                /* One entry per actor per beat: a second outcome by the
+                   same actor joins the first entry instead of opening
+                   another article. Prose beats never merge. */
+                $merged = false;
+                if ($lead !== '' && !$isProse && !empty($timeline[$second]['public'])) {
+                    foreach ($timeline[$second]['public'] as &$existing) {
+                        if ((string)($existing['lead'] ?? '') === $lead && empty($existing['prose'])) {
+                            $existing['detail'] = trim((string)$existing['detail'] . ' ' . $detail);
+                            $merged = true;
+                            break;
+                        }
+                    }
+                    unset($existing);
+                }
+                if (!$merged) $timeline[$second]['public'][] = ['lead' => $lead, 'detail' => $detail, 'headline' => (string)$w['headline'], 'prose' => $isProse];
                 $timeline[$second]['seen'][$fingerprint] = true;
             }
         }
@@ -127,7 +154,7 @@ final class RecapService
             $wa = (int)($w['actor_character_id'] ?? 0);
             $wn = (string)($charactersById[$wa]['name'] ?? '');
             $wh = (string)($w['headline'] ?? '');
-            if ($wa > 0 && $wn !== '' && str_starts_with($wh, $wn . ': ')) $worldDecisionText[$wa . '_' . (int)($w['event_second'] ?? 0) . '_' . trim(substr($wh, strlen($wn) + 2))] = (string)($w['event_text'] ?? '');
+            if ($wa > 0 && $wn !== '' && str_starts_with($wh, $wn . ': ')) $worldDecisionText[$wa . '_' . $causeSecond((int)($w['event_second'] ?? 0), (int)($w['caused_by_event_id'] ?? 0)) . '_' . trim(substr($wh, strlen($wn) + 2))] = (string)($w['event_text'] ?? '');
         }
         if ($character) foreach ($character['history'] as $h) {
             $type = (string)$h['history_type'];
@@ -137,6 +164,7 @@ final class RecapService
             // recaps. The engine-real "Options Considered" title is kept.
             if ($playerView && $type === 'INTERACTION' && in_array((string)$h['title'], self::LAB_TITLES, true)) continue;
             $second = (int)$h['event_second'];
+            if (($type === 'DECISION' || $type === 'NO_ACTION' || $type === 'LOCATION') && (int)($h['event_id'] ?? 0) > 0) $second = $causeSecond($second, (int)$h['event_id']);
             $timeline[$second] ??= ['phase' => self::story_phase_for_second($second, $storyDuration), 'public' => [], 'personal' => [], 'seen' => [], 'authored' => [], 'move' => null];
             $title = (string)$h['title'];
             $detail = self::player_pov_narrative($character, self::player_visible_text((string)$h['detail_text']));
