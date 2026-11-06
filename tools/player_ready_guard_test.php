@@ -52,8 +52,8 @@ $check(str_contains($svcSrc, '$second = $causeSecond((int)$w[\'event_second\'], 
     'timeline keys world rows to the causing event second');
 $check(str_contains($svcSrc, '$causeSecond((int)($w[\'event_second\'] ?? 0), (int)($w[\'caused_by_event_id\'] ?? 0))'),
     'timeline keys the decision-outcome index to the causing event second');
-$check(str_contains($svcSrc, "if ((\$type === 'DECISION' || \$type === 'NO_ACTION' || \$type === 'LOCATION') && (int)(\$h['event_id'] ?? 0) > 0) \$second = \$causeSecond(\$second, (int)\$h['event_id']);"),
-    'timeline keys personal decision, no-action and location rows to the causing event second');
+$check(str_contains($svcSrc, "if ((\$type === 'DECISION' || \$type === 'NO_ACTION' || \$type === 'LOCATION' || \$type === 'KNOWLEDGE' || \$type === 'CONSEQUENCE') && (int)(\$h['event_id'] ?? 0) > 0) \$second = \$causeSecond(\$second, (int)\$h['event_id']);"),
+    'timeline keys personal decision, no-action, location, knowledge and consequence rows to the causing event second');
 
 if ($failures) {
     echo 'FAILURES: ' . implode('; ', $failures) . "\n";

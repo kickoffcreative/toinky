@@ -166,6 +166,23 @@ $causePos = $catchPos === false ? false : strpos($svcSrc, '$causeSecond = static
 $check($mergePos !== false && $catchPos !== false && $causePos !== false && $catchPos < $causePos && ($causePos - $catchPos) < 60,
     'missing-cause resolution is failure-tolerant and runs before the cause-second closure');
 
+/* Knowledge/consequence re-key (Nov 6, 2026): KNOWLEDGE ("Knowledge
+   Gained") and CONSEQUENCE ("What Changed for You") rows carry the
+   causing event id but kept their own (click) second, so they landed
+   as standalone articles minutes after their beat (game 89: a
+   KNOWLEDGE row at 23:43 after its 22:30 beat; game 87: a CONSEQUENCE
+   row at 23:49 after its 23:00 beat). Both type lists must include
+   them: the missing-cause collection (so an opportunity-caused row
+   gets its PRIVATE cause id resolved) and the re-key itself. A
+   behavioural case cannot run in this harness: timeline() with a
+   character runs the unguarded missed-option query, and db() is
+   MySQL-only, so no character call is possible without a live
+   database; the live re-key is verified by a game run. */
+$check(str_contains($svcSrc, "\$htype === 'KNOWLEDGE'") && str_contains($svcSrc, "\$htype === 'CONSEQUENCE'"),
+    'timeline collects missing cause ids from knowledge and consequence rows too');
+$check(str_contains($svcSrc, "\$type === 'KNOWLEDGE'") && str_contains($svcSrc, "\$type === 'CONSEQUENCE'"),
+    'timeline re-keys knowledge and consequence rows to the causing event second');
+
 /* Without a database the missing-cause query cannot run, so timeline()
    must still build and fall back to the row's own second instead of
    failing: an opportunity-style outcome whose cause row is absent from

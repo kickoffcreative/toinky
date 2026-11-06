@@ -108,7 +108,7 @@ final class RecapService
             if ($character) {
                 foreach (($character['history'] ?? []) as $h) {
                     $htype = (string)($h['history_type'] ?? '');
-                    if (($htype === 'DECISION' || $htype === 'NO_ACTION' || $htype === 'LOCATION') && (int)($h['event_id'] ?? 0) > 0) {
+                    if (($htype === 'DECISION' || $htype === 'NO_ACTION' || $htype === 'LOCATION' || $htype === 'KNOWLEDGE' || $htype === 'CONSEQUENCE') && (int)($h['event_id'] ?? 0) > 0) {
                         $hid = (int)$h['event_id'];
                         if (!isset($eventSecondById[$hid])) $missingCauseIds[$hid] = true;
                     }
@@ -195,7 +195,7 @@ final class RecapService
             // recaps. The engine-real "Options Considered" title is kept.
             if ($playerView && $type === 'INTERACTION' && in_array((string)$h['title'], self::LAB_TITLES, true)) continue;
             $second = (int)$h['event_second'];
-            if (($type === 'DECISION' || $type === 'NO_ACTION' || $type === 'LOCATION') && (int)($h['event_id'] ?? 0) > 0) $second = $causeSecond($second, (int)$h['event_id']);
+            if (($type === 'DECISION' || $type === 'NO_ACTION' || $type === 'LOCATION' || $type === 'KNOWLEDGE' || $type === 'CONSEQUENCE') && (int)($h['event_id'] ?? 0) > 0) $second = $causeSecond($second, (int)$h['event_id']);
             $timeline[$second] ??= ['phase' => self::story_phase_for_second($second, $storyDuration), 'public' => [], 'personal' => [], 'seen' => [], 'authored' => [], 'move' => null];
             $title = (string)$h['title'];
             $detail = self::player_pov_narrative($character, self::player_visible_text((string)$h['detail_text']));
