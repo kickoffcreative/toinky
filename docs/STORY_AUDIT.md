@@ -2,9 +2,9 @@
 
 The Story Writer's Guide (Google Doc) is the primary writer-facing
 documentation source. This repository file is the synchronized mirror
-of the Story Auditor instructions, updated Nov 4, 2026.
+of the Story Auditor instructions, updated Nov 5, 2026.
 
-# Story Auditor — Instructions (updated Nov 4, 2026)
+# Story Auditor — Instructions (updated Nov 5, 2026)
 
 Amendment (Nov 1, 2026, per the writer): the Lab is never used by
 the Auditor. Section 5 was replaced with this rule; Lab evidence
@@ -103,7 +103,12 @@ Read the story in the studio, in this order, and record counts:
 6. Endings: every fragment, per section, in per-section filtered
    views. The expanded full-page Endings view under-renders Outcome
    Conditions rows and has produced a false "no conditions" finding.
-   Never judge conditions from the full-page view alone. A section
+   Never judge conditions from the full-page view alone. (Nov 5, 2026
+   correction: the per-section filtered views can under-render too —
+   both views showed no conditions on BRIANNAS orders 10/20/30/40
+   while a direct DB dump proved each has exactly one. When path
+   coverage depends on a fragment's conditions, confirm them with a
+   read-only DB dump, not the studio views.) A section
    with no matching fragment renders nothing; a condition-less
    fragment passes vacuously; the lowest-priority matching fragment
    wins.
