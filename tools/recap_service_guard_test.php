@@ -144,6 +144,47 @@ $check(count($testTimeline[720]['public'] ?? []) === 2, 'timeline merges same-ac
 $check(($testTimeline[720]['public'][1]['lead'] ?? '') === 'Vivian', 'merged public entry keeps the actor lead');
 $check(str_contains((string)($testTimeline[720]['public'][1]['detail'] ?? ''), 'chose the delay'), 'merged public entry carries both outcomes');
 
+/* Opportunity-split fix (Nov 6, 2026): a decision caused by a dynamic
+   opportunity points at the opportunity's PRIVATE "A New Opportunity
+   Opens" row, which never reaches the snapshot, so timeline() resolves
+   any cause id missing from the snapshot map with one query (any
+   visibility) merged into the map. The query itself needs a live
+   database, which this harness does not have, so the re-key is covered
+   here by source assertions plus the no-database degradation check
+   below; the live behaviour is verified by a game run. */
+$check(str_contains($svcSrc, "SELECT event_id,event_second FROM simulation_events WHERE simulation_id=? AND event_id IN ("),
+    'timeline resolves missing cause ids with one simulation_events query');
+$check(str_contains($svcSrc, '$missingCauseIds[$cid] = true;')
+    && str_contains($svcSrc, '$missingCauseIds[$hid] = true;'),
+    'timeline collects missing cause ids from world rows and personal decision, no-action and location rows');
+$check(str_contains($svcSrc, '$eventSecondById[(int)$crow[' . chr(39) . 'event_id' . chr(39) . ']] = (int)$crow[' . chr(39) . 'event_second' . chr(39) . '];')
+    && str_contains($svcSrc, 'if ($sid > 0 && $missingCauseIds) {'),
+    'timeline merges resolved cause seconds into the map only for a real simulation');
+$mergePos = strpos($svcSrc, '$eventSecondById[(int)$crow[' . chr(39) . 'event_id' . chr(39) . ']');
+$catchPos = $mergePos === false ? false : strpos($svcSrc, '} catch (Throwable $e) {}', $mergePos);
+$causePos = $catchPos === false ? false : strpos($svcSrc, '$causeSecond = static function', $catchPos);
+$check($mergePos !== false && $catchPos !== false && $causePos !== false && $catchPos < $causePos && ($causePos - $catchPos) < 60,
+    'missing-cause resolution is failure-tolerant and runs before the cause-second closure');
+
+/* Without a database the missing-cause query cannot run, so timeline()
+   must still build and fall back to the row's own second instead of
+   failing: an opportunity-style outcome whose cause row is absent from
+   the snapshot degrades to snapshot-only behaviour. */
+$noDbSnap = [
+    'simulation' => ['simulation_id' => 0, 'plot_id' => 0],
+    'characters' => [
+        ['character_id' => 2, 'name' => 'Vivian'],
+    ],
+    'world' => [
+        ['event_id' => 100, 'event_second' => 720, 'event_code' => 'BEACH_GIVES_UP', 'actor_character_id' => 0, 'actor_name' => '', 'headline' => 'The Beach Gives Up Its Dead', 'event_text' => 'The beach gives up its dead.', 'caused_by_event_id' => null, 'phase' => 'RISING_ACTION'],
+        ['event_id' => 101, 'event_second' => 1020, 'event_code' => 'PLAYER_ACTION_1020_ab', 'actor_character_id' => 2, 'actor_name' => 'Vivian', 'headline' => 'Vivian: Choose the review', 'event_text' => 'Vivian chose the review. The room went quiet.', 'caused_by_event_id' => 999, 'phase' => 'RISING_ACTION'],
+    ],
+    'factors' => [],
+];
+$noDbTimeline = RecapService::timeline($noDbSnap, null, 1800);
+$check(isset($noDbTimeline[720]) && isset($noDbTimeline[1020]), 'timeline without a database still builds and falls back to the row second for an unresolvable cause');
+$check(($noDbTimeline[1020]['public'][0]['lead'] ?? '') === 'Vivian', 'degraded opportunity outcome keeps its actor lead');
+
 if ($failures) {
     echo 'FAILURES: ' . implode('; ', $failures) . "\n";
     exit(1);

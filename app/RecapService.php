@@ -90,6 +90,37 @@ final class RecapService
         foreach (($snap['world'] ?? []) as $w) {
             $eventSecondById[(int)($w['event_id'] ?? 0)] = (int)($w['event_second'] ?? 0);
         }
+        /* A decision caused by a dynamic opportunity points at the
+           opportunity's "A New Opportunity Opens" row, which is PRIVATE
+           and therefore never reaches the snapshot: the map above has no
+           entry for it, so the outcome would fall back to its own
+           (click) second and split from its prompt across two articles.
+           Resolve any such missing cause id in one query, any
+           visibility, so the outcome keys to the opportunity's open
+           second. Failure-tolerant: a fabricated snapshot (no database)
+           keeps snapshot-only behaviour. */
+        try {
+            $missingCauseIds = [];
+            foreach (($snap['world'] ?? []) as $w) {
+                $cid = (int)($w['caused_by_event_id'] ?? 0);
+                if ($cid > 0 && !isset($eventSecondById[$cid])) $missingCauseIds[$cid] = true;
+            }
+            if ($character) {
+                foreach (($character['history'] ?? []) as $h) {
+                    $htype = (string)($h['history_type'] ?? '');
+                    if (($htype === 'DECISION' || $htype === 'NO_ACTION' || $htype === 'LOCATION') && (int)($h['event_id'] ?? 0) > 0) {
+                        $hid = (int)$h['event_id'];
+                        if (!isset($eventSecondById[$hid])) $missingCauseIds[$hid] = true;
+                    }
+                }
+            }
+            if ($sid > 0 && $missingCauseIds) {
+                $placeholders = implode(',', array_fill(0, count($missingCauseIds), '?'));
+                $cq = db()->prepare('SELECT event_id,event_second FROM simulation_events WHERE simulation_id=? AND event_id IN (' . $placeholders . ')');
+                $cq->execute(array_merge([$sid], array_keys($missingCauseIds)));
+                foreach ($cq->fetchAll() as $crow) $eventSecondById[(int)$crow['event_id']] = (int)$crow['event_second'];
+            }
+        } catch (Throwable $e) {}
         $causeSecond = static function (int $rowSecond, int $causeId) use ($eventSecondById): int {
             if ($causeId > 0 && isset($eventSecondById[$causeId])) return $eventSecondById[$causeId];
             return $rowSecond;
