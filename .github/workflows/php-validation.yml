@@ -41,6 +41,8 @@ jobs:
         run: php tools/view_as_guard_test.php
       - name: Guard player-ready fixes
         run: php tools/player_ready_guard_test.php
+      - name: Guard option-choice-count condition form
+        run: php tools/option_choice_count_guard_test.php
   multiplayer-smoke:
     runs-on: ubuntu-latest
     services:
