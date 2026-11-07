@@ -126,7 +126,7 @@ final class SimulationService {
                 $key=(string)$effect['target_code'];
                 if($key==='')continue;
                 foreach(self::resolveWorldEventTargetCharacters($sid,$effect) as $cid){
-                    $pdo->prepare('INSERT INTO character_knowledge(character_id,knowledge_key,knowledge_text,state,confidence,learned_at_second) VALUES(?,?,?,"KNOWN",100,?) ON DUPLICATE KEY UPDATE knowledge_text=VALUES(knowledge_text),state="KNOWN",confidence=100,learned_at_second=VALUES(learned_at_second)')->execute([$cid,$key,$effect['set_value']?:$detail,$second]);
+                    $pdo->prepare('INSERT INTO character_knowledge(character_id,knowledge_key,knowledge_text,state,confidence,learned_at_second) VALUES(?,?,?,"KNOWN",100,?) ON DUPLICATE KEY UPDATE knowledge_text=VALUES(knowledge_text),state="KNOWN",confidence=100,learned_at_second=VALUES(learned_at_second)')->execute([$cid,$key,$effect['set_value']?:$detail,$second]);$pdo->prepare('INSERT INTO character_history(simulation_id,character_id,event_id,event_second,history_type,title,detail_text) VALUES(?,?,?,?,"KNOWLEDGE",?,?)')->execute([$sid,$cid,$eventId,$second,'Knowledge Gained',$detail?:($effect['set_value']?:$key)]);
                 }
                 continue;
             }
