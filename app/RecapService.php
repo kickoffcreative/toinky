@@ -108,7 +108,7 @@ final class RecapService
             if ($character) {
                 foreach (($character['history'] ?? []) as $h) {
                     $htype = (string)($h['history_type'] ?? '');
-                    if (($htype === 'DECISION' || $htype === 'NO_ACTION' || $htype === 'LOCATION' || $htype === 'KNOWLEDGE' || $htype === 'CONSEQUENCE') && (int)($h['event_id'] ?? 0) > 0) {
+                    if (($htype === 'DECISION' || $htype === 'NO_ACTION' || $htype === 'LOCATION' || $htype === 'KNOWLEDGE' || $htype === 'CONSEQUENCE' || $htype === 'STAT_CHANGE') && (int)($h['event_id'] ?? 0) > 0) {
                         $hid = (int)$h['event_id'];
                         if (!isset($eventSecondById[$hid])) $missingCauseIds[$hid] = true;
                     }
@@ -189,16 +189,30 @@ final class RecapService
         }
         if ($character) foreach ($character['history'] as $h) {
             $type = (string)$h['history_type'];
-            if ($type === 'STAT_CHANGE' || strcasecmp((string)$h['title'], 'Initial State') === 0) continue;
+            if (strcasecmp((string)$h['title'], 'Initial State') === 0) continue;
             // Player view only: Lab-injected INTERACTION rows never exist
             // in live human games, so they must not appear in player-view
             // recaps. The engine-real "Options Considered" title is kept.
             if ($playerView && $type === 'INTERACTION' && in_array((string)$h['title'], self::LAB_TITLES, true)) continue;
             $second = (int)$h['event_second'];
-            if (($type === 'DECISION' || $type === 'NO_ACTION' || $type === 'LOCATION' || $type === 'KNOWLEDGE' || $type === 'CONSEQUENCE') && (int)($h['event_id'] ?? 0) > 0) $second = $causeSecond($second, (int)$h['event_id']);
+            if (($type === 'DECISION' || $type === 'NO_ACTION' || $type === 'LOCATION' || $type === 'KNOWLEDGE' || $type === 'CONSEQUENCE' || $type === 'STAT_CHANGE') && (int)($h['event_id'] ?? 0) > 0) $second = $causeSecond($second, (int)$h['event_id']);
             $timeline[$second] ??= ['phase' => self::story_phase_for_second($second, $storyDuration), 'public' => [], 'personal' => [], 'seen' => [], 'authored' => [], 'move' => null];
             $title = (string)$h['title'];
             $detail = self::player_pov_narrative($character, self::player_visible_text((string)$h['detail_text']));
+            if ($type === 'STAT_CHANGE') {
+                $statLabel = trim((string)preg_replace('/\s+changed\s*$/i', '', $title));
+                $rawDetail = (string)$h['detail_text'];
+                if (preg_match('/^\s*(\d+)\s*→\s*(\d+)(?:\s*·\s*(.*))?$/u', $rawDetail, $sm)) {
+                    $from = (int)$sm[1]; $to = (int)$sm[2];
+                    $verb = $to > $from ? 'rose' : ($to < $from ? 'fell' : 'stayed at');
+                    $detail = ($statLabel !== '' ? $statLabel . ' ' : '') . $verb . ($verb === 'stayed at' ? ' ' . $from : ' from ' . $from . ' to ' . $to);
+                    $extra = trim((string)($sm[3] ?? ''));
+                    if ($extra !== '') $detail .= ' · ' . $extra;
+                    if ($statLabel !== '') $title = $statLabel;
+                } else {
+                    $detail = $rawDetail;
+                }
+            }
             // If this decision's shared-timeline text adds effect details
             // to the result, show them in the personal beat too; otherwise
             // keep the stored result.
@@ -429,7 +443,7 @@ final class RecapService
 
     private static function personal_experience_label(string $type): string
     {
-        return ['DECISION' => 'What You Did', 'NO_ACTION' => 'What You Left Undone', 'LOCATION' => 'Where You Went', 'KNOWLEDGE' => 'What You Learned', 'CONSEQUENCE' => 'What Changed for You', 'INTERACTION' => 'What You Considered', 'EXPERIENCED' => 'Your Point of View'][$type] ?? 'Your Point of View';
+        return ['DECISION' => 'What You Did', 'NO_ACTION' => 'What You Left Undone', 'LOCATION' => 'Where You Went', 'KNOWLEDGE' => 'What You Learned', 'CONSEQUENCE' => 'What Changed for You', 'STAT_CHANGE' => 'How Things Changed', 'INTERACTION' => 'What You Considered', 'EXPERIENCED' => 'Your Point of View'][$type] ?? 'Your Point of View';
     }
 
     private static function timeline_fingerprint(string $text): string
