@@ -1,10 +1,12 @@
 <?php
 require_once __DIR__ . '/CommerceService.php';
+require_once __DIR__ . '/AuthService.php';
 
 final class LobbyService
 {
     public static function createGame(int $hostUserId,string $plotCode,int $duration=300,?string $idempotencyKey=null): array
     {
+        AccountSecurityService::requireVerifiedEmail($hostUserId);
         $pdo=db();$adm=$pdo->prepare('SELECT is_admin FROM users WHERE user_id=?');$adm->execute([$hostUserId]);$isAdmin=(int)$adm->fetchColumn()===1;$q=$pdo->prepare('SELECT active FROM platform_game_durations WHERE duration_seconds=?');$q->execute([$duration]);$durActive=$q->fetchColumn();if($durActive===false||(!$isAdmin&&(int)$durActive!==1))throw new RuntimeException('That story duration is not available.');
         $q=$pdo->prepare('SELECT plot_id,published_plot_version_id FROM plots WHERE code=? AND status="active"');$q->execute([$plotCode]);$plotRow=$q->fetch();
         // Task 5 Phase 1: hosted games run the PUBLISHED version, never the live
