@@ -662,15 +662,15 @@ final class StoryAuthoringService
 
     public static function audit(int $plotId): array
     {
-        return self::auditWorkspace(self::story($plotId),self::workspace($plotId));
+        return self::auditWorkspace(self::story($plotId),self::workspace($plotId),self::stateMetadata($plotId));
     }
 
     public static function auditVersion(int $versionId): array
     {
-        $q=db()->prepare('SELECT v.snapshot_json,v.workflow_status,v.version_no,p.plot_id,p.code,p.title,p.genre,p.workflow_status current_workflow,u.display_name author_name,g.label_text genre_label FROM plot_versions v JOIN plots p ON p.plot_id=v.plot_id LEFT JOIN users u ON u.user_id=p.author_user_id LEFT JOIN story_genres g ON g.genre_id=p.genre_id WHERE v.plot_version_id=?');$q->execute([$versionId]);$version=$q->fetch();if(!$version)throw new RuntimeException('Submitted revision not found.');$snapshot=json_decode((string)$version['snapshot_json'],true);if(!is_array($snapshot)||!is_array($snapshot['content']??null))throw new RuntimeException('The submitted revision snapshot is invalid.');$plot=is_array($snapshot['plot']??null)?$snapshot['plot']:[];$plot=array_merge($version,$plot,['workflow_status'=>$version['workflow_status']]);$workspace=$snapshot['content'];/* Task 5 Phase 2: a submitted revision snapshot must be complete. Backfilling a missing section with live workspace data would let a review silently mix current content into an old revision, so a missing key is a hard failure naming the key. */$current=self::workspace((int)$version['plot_id']);foreach($current as$key=>$rows)if(!array_key_exists($key,$workspace))throw new RuntimeException('The submitted revision snapshot is missing the "'.$key.'" section. Re-submit the story to regenerate it.');return self::auditWorkspace($plot,$workspace);
+        $q=db()->prepare('SELECT v.snapshot_json,v.workflow_status,v.version_no,p.plot_id,p.code,p.title,p.genre,p.workflow_status current_workflow,u.display_name author_name,g.label_text genre_label FROM plot_versions v JOIN plots p ON p.plot_id=v.plot_id LEFT JOIN users u ON u.user_id=p.author_user_id LEFT JOIN story_genres g ON g.genre_id=p.genre_id WHERE v.plot_version_id=?');$q->execute([$versionId]);$version=$q->fetch();if(!$version)throw new RuntimeException('Submitted revision not found.');$snapshot=json_decode((string)$version['snapshot_json'],true);if(!is_array($snapshot)||!is_array($snapshot['content']??null))throw new RuntimeException('The submitted revision snapshot is invalid.');$plot=is_array($snapshot['plot']??null)?$snapshot['plot']:[];$plot=array_merge($version,$plot,['workflow_status'=>$version['workflow_status']]);$workspace=$snapshot['content'];/* Task 5 Phase 2: a submitted revision snapshot must be complete. Backfilling a missing section with live workspace data would let a review silently mix current content into an old revision, so a missing key is a hard failure naming the key. */$current=self::workspace((int)$version['plot_id']);foreach($current as$key=>$rows)if(!array_key_exists($key,$workspace))throw new RuntimeException('The submitted revision snapshot is missing the "'.$key.'" section. Re-submit the story to regenerate it.');return self::auditWorkspace($plot,$workspace,is_array($snapshot['state_metadata']??null)?$snapshot['state_metadata']:null);
     }
 
-    private static function auditWorkspace(array $plot,array $workspace): array
+    private static function auditWorkspace(array $plot,array $workspace,?array $stateMetadata=null): array
     {
         $errors=[];$warnings=[];
         if(mb_strlen(trim((string)($plot['scenario_text']??'')))<80)$errors[]='The scenario briefing must contain at least 80 characters.';
@@ -682,7 +682,7 @@ final class StoryAuthoringService
         foreach($workspace['events']as$event)if((int)($event['active']??1)===1&&$endsWithComma($event['event_text']??''))$warnings[]=$event['event_code'].' event_text appears truncated at a comma.';
         foreach($workspace['options']as$option)if((int)($option['active']??1)===1&&$endsWithComma($option['result_text']??''))$warnings[]=$option['option_code'].' result_text appears truncated at a comma.';
         foreach($workspace['resolutions']as$resolution)if((int)($resolution['active']??1)===1&&$endsWithComma($resolution['fragment_text']??''))$warnings[]=$resolution['section_code'].' fragment_text appears truncated at a comma.';
-        [$integrityErrors,$integrityWarnings]=self::auditManagedReferences($workspace);$errors=array_merge($errors,$integrityErrors);$warnings=array_merge($warnings,$integrityWarnings);
+        [$integrityErrors,$integrityWarnings]=self::auditManagedReferences($workspace,$stateMetadata);$errors=array_merge($errors,$integrityErrors);$warnings=array_merge($warnings,$integrityWarnings);
         $warnings=array_merge($warnings,EndingCoverageAudit::warnings($workspace));
         if(!$workspace['events'])$errors[]='Add a chronological world-event schedule.';
         if(!$activeDecisions)$errors[]='Add at least one active decision opportunity.';
@@ -708,10 +708,20 @@ final class StoryAuthoringService
         return['errors'=>$errors,'warnings'=>$warnings,'text'=>implode("\n",$lines),'workspace'=>$workspace];
     }
 
-    private static function auditManagedReferences(array $workspace): array
+    private static function auditManagedReferences(array $workspace,?array $stateMetadata=null): array
     {
         $errors=[];$warnings=[];$definitions=[];$definitionsByCode=[];$locationValues=[];$phaseValues=[];
         foreach($workspace['state_definitions']??[]as$definition){if((int)($definition['active']??1)!==1)continue;$scope=strtoupper(trim((string)($definition['effect_scope']??'')));$code=self::code((string)($definition['target_code']??''));if($scope===''||$code==='')continue;$definitions[$scope.'|'.$code]=$definition;$definitionsByCode[$code][]=$definition;}
+        $legacyDefinitions = [];
+        foreach ($stateMetadata['state_entity_properties'] ?? [] as $property) {
+            $propertyKey = (string)$property['entity_code'].'.'.(string)$property['property_code'];
+            $allowed = array_values(array_filter(array_map('trim', explode(',', (string)($property['allowed_values'] ?? ''))), static fn(string $v): bool => $v !== ''));
+            $definition = ['effect_scope' => 'WORLD_STATE', 'value_type' => $property['value_type'] === 'NUMBER' ? 'NUMERIC' : ($allowed ? 'PRESET' : 'TEXT'), 'allowed_values_text' => implode("\n", $allowed)];
+            $legacyDefinitions[self::code($propertyKey)] = $definition;
+            foreach ($stateMetadata['state_aliases'] ?? [] as $alias) {
+                if ($alias['entity_code'] === $property['entity_code'] && $alias['property_code'] === $property['property_code']) $legacyDefinitions[self::code((string)$alias['state_key'])] = $definition;
+            }
+        }
         foreach($workspace['locations']??[]as$location){if((int)($location['active']??1)!==1)continue;foreach(['label_text','location_code']as$field){$value=trim((string)($location[$field]??''));if($value!=='')$locationValues[$value]=true;}}
         foreach($workspace['events']??[]as$event){if((int)($event['active']??1)!==1)continue;$phase=trim((string)($event['phase']??''));if($phase!=='')$phaseValues[$phase]=true;}
         $checkCondition=static function(array$row,string$label,?array$definition=null)use(&$errors,$locationValues,$phaseValues):void{
@@ -723,9 +733,56 @@ final class StoryAuthoringService
             if(($problem=self::conditionValueProblem((string)$definition['value_type'],(string)($definition['allowed_values_text']??''),$operator,$compare))!==null)$errors[]=$label.' '.$opportunity.' has an invalid '.$source.'|'.self::code($sourceKey).' condition: '.$problem;
         };
         foreach($workspace['dynamic_conditions']??[]as$row){if((int)($row['active']??1)!==1)continue;$source=strtoupper(trim((string)($row['source_type']??'')));$key=self::code((string)($row['source_key']??''));$definition=$definitions[$source.'|'.$key]??null;$checkCondition($row,'Condition',$definition);}
-        foreach($workspace['resolution_conditions']??[]as$row){if((int)($row['active']??1)!==1)continue;$key=self::code((string)($row['state_key']??''));$definition=$definitionsByCode[$key][0]??null;$checkCondition(['source_type'=>$definition['effect_scope']??'WORLD_STATE','source_key'=>$key,'operator'=>$row['operator']??'','compare_value'=>$row['compare_value']??null,'section_code'=>$row['section_code']??''],'Ending condition',$definition);if(!$definition)$errors[]='Ending condition '.($row['section_code']??'').' references undefined Story Value '.$key.'.';}
+        foreach ([
+            ['resolution_conditions', 'Ending condition', ['section_code']],
+            ['option_conditions', 'Option condition', ['option_code']],
+            ['event_effect_conditions', 'Event condition', ['event_code']],
+            ['no_action_conditions', 'No-action condition', ['event_code', 'role_code']],
+        ] as [$table, $label, $fields]) {
+            foreach ($workspace[$table] ?? [] as $row) {
+                if ((int)($row['active'] ?? 1) !== 1) continue;
+                $rawKey = (string)($row['state_key'] ?? '');
+                $factor = str_starts_with($rawKey, 'FACTOR:');
+                $key = self::code($factor ? substr($rawKey, 7) : $rawKey);
+                $definition = $factor ? ($definitions['FACTOR|'.$key] ?? null) : ($definitionsByCode[$key][0] ?? $legacyDefinitions[$key] ?? null);
+                $owner = implode('|', array_map(static fn(string $field): string => (string)($row[$field] ?? ''), $fields));
+                if (!$factor && isset($definitionsByCode[$key][0], $legacyDefinitions[$key])) {
+                    $managed = $definitionsByCode[$key][0]; $legacy = $legacyDefinitions[$key];
+                    $managedValues = preg_split('/\r?\n/', trim((string)($managed['allowed_values_text'] ?? ''))) ?: [];
+                    $legacyValues = preg_split('/\r?\n/', trim((string)$legacy['allowed_values_text'])) ?: [];
+                    if ($managed['value_type'] !== $legacy['value_type'] || ($managed['value_type'] === 'PRESET' && (array_diff($managedValues, $legacyValues) || array_diff($legacyValues, $managedValues)))) $warnings[] = 'Story Value '.$key.' differs from its entity-state metadata; verify runtime compatibility. The authoring audit uses the managed definition.';
+                }
+                if (!$definition && !$factor && $stateMetadata === null && $table !== 'resolution_conditions') {
+                    $warnings[] = $label.' '.$owner.' cannot verify '.$rawKey.': this version has no entity-state metadata snapshot.';
+                    continue;
+                }
+                $errorCount = count($errors);
+                $checkCondition(['source_type' => $factor ? 'FACTOR' : ($definition['effect_scope'] ?? 'WORLD_STATE'),
+                    'source_key' => $key, 'operator' => $row['operator'] ?? '',
+                    'compare_value' => $row['compare_value'] ?? null, 'section_code' => $owner], $label, $definition);
+                // These paths were never audited before. Surface legacy debt
+                // without introducing new publication blockers on deployment.
+                if ($table !== 'resolution_conditions') $warnings = array_merge($warnings, array_splice($errors, $errorCount));
+            }
+        }
         $checkEffect=static function(array$row,string$label)use(&$errors,$definitions):void{$scope=strtoupper(trim((string)($row['effect_scope']??'')));$code=self::code((string)($row['target_code']??''));$key=$scope.'|'.$code;$definition=$definitions[$key]??null;$owner=trim((string)($row['event_code']??$row['opportunity_code']??$label)).'|'.trim((string)($row['option_code']??''));if(!$definition){$errors[]=$label.' '.$owner.' references undefined Story Value '.$key.'.';return;}$type=(string)$definition['value_type'];$delta=$row['delta_value']??null;$set=self::nullable($row['set_value']??null);if($type==='NUMERIC'){if($delta===null||$delta===''||!is_numeric((string)$delta))$errors[]=$label.' '.$owner.' must change Numerical Story Value '.$key.' with a numeric delta.';return;}if($set===null){$errors[]=$label.' '.$owner.' must set '.$type.' Story Value '.$key.' to a value.';return;}if($type==='PRESET'){$allowed=preg_split('/\r?\n/',trim((string)($definition['allowed_values_text']??'')))?:[];if(!in_array($set,$allowed,true))$errors[]=$label.' '.$owner.' sets '.$key.' to unavailable Preset Value “'.$set.'”.';}};
         foreach($workspace['effects']??[]as$row)if((int)($row['active']??1)===1)$checkEffect($row,'Option effect');foreach($workspace['dynamic_effects']??[]as$row)if((int)($row['active']??1)===1)$checkEffect($row,'Opportunity effect');
+        $newEffectErrorCount = count($errors);
+        foreach ($workspace['event_effects'] ?? [] as $row) {
+            if ((int)($row['active'] ?? 1) !== 1) continue;
+            // Event LOCATION effects target characters, not a managed value code.
+            // The destination must nevertheless be an authored story location.
+            if (($row['effect_scope'] ?? '') === 'LOCATION') {
+                $destination = trim((string)($row['set_value'] ?? ''));
+                if ($destination === '' || !isset($locationValues[$destination])) $errors[] = 'Event effect '.($row['event_code'] ?? '').' sets LOCATION to an unavailable story location.';
+            } else $checkEffect($row, 'Event effect');
+        }
+        foreach ($workspace['no_action_effects'] ?? [] as $row) {
+            if ((int)($row['active'] ?? 1) !== 1) continue;
+            $row['event_code'] = ($row['event_code'] ?? '').'|'.($row['role_code'] ?? '');
+            $checkEffect($row, 'No-action effect');
+        }
+        $warnings = array_merge($warnings, array_splice($errors, $newEffectErrorCount));
         $errors=array_values(array_unique($errors));$warnings=array_values(array_unique($warnings));return[$errors,$warnings];
     }
 
