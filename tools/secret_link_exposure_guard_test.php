@@ -15,7 +15,9 @@ require_once $root.'/app/bootstrap.php';require_once $root.'/app/MigrationServic
 $pdo=db();$name=(string)$pdo->query('SELECT DATABASE()')->fetchColumn();
 if(!str_ends_with($name,'_test'))throw new RuntimeException('Use an isolated database ending in _test.');
 MigrationService::run();
-$dir=(string)getenv('TOINKY_ACCOUNT_LINK_TEST_DIR');$users=[];$sid=0;$server=null;$results=[];$stamp=bin2hex(random_bytes(6));
+$dir=(string)getenv('TOINKY_ACCOUNT_LINK_TEST_DIR');$users=[];$sid=0;$server=null;$results=[];$stamp=bin2hex(random_bytes(6));$_SERVER['REMOTE_ADDR']='2001:db8::'.substr($stamp,0,4);$_SERVER['SERVER_ADDR']='127.0.0.1';
+$a01ThrottleBefore=$pdo->query('SELECT throttle_key FROM auth_throttle')->fetchAll(PDO::FETCH_COLUMN);
+$testClientIp='127.'.hexdec(substr($stamp,0,2)).'.'.hexdec(substr($stamp,2,2)).'.'.hexdec(substr($stamp,4,2));
 $failed=false;
 $check=static function(bool $ok,string $label)use(&$results):void{if(!$ok)throw new RuntimeException($label);$results[]=$label;};
 $reject=static function(callable $fn)use($check):void{$denied=false;try{$fn();}catch(RuntimeException $e){$denied=true;}$check($denied,'Unauthorized or invalid operation refused');};
@@ -82,18 +84,19 @@ try{
     ] as $producer){[$result,$mail]=$capture($producer);$check($result===['sent'=>false],'Failed delivery returns no secret');}
     [$result,$mail]=$capture(static fn()=>AccountSecurityService::adminPasswordReset($users[2],$users[1]));
     $check($result===['sent'=>false]&&str_contains($mail,'administrator requested'),'Administrator reset notice attempted even when reset delivery fails');
-    [$result,$mail]=$capture(static fn()=>AuthService::createPasswordResetForEmail($email(0)));$failedToken=$token($mail,'token');$reject(static fn()=>AuthService::resetPassword($failedToken,'Failed-Mail-Password'));
+    [$result,$mail]=$capture(static fn()=>AuthService::createPasswordResetForEmail($email(3)));$failedToken=$token($mail,'token');$reject(static fn()=>AuthService::resetPassword($failedToken,'Failed-Mail-Password'));
     [$result,$mail]=$capture(static fn()=>AuthService::createInvitation('a01-undelivered-'.$stamp.'@example.invalid',$users[1]));$undeliveredInvite=$token($mail,'invite');
+    $_SERVER['REMOTE_ADDR']='2001:db8:1::'.substr($stamp,0,4);
     $reject(static fn()=>AuthService::register('a01-undelivered-'.$stamp.'@example.invalid','Undelivered Fixture','Undelivered-Password',$undeliveredInvite));
     // HTTP regression checks render the real admin, profile and lobby response paths.
     $socket=stream_socket_server('tcp://127.0.0.1:0',$errno,$errstr);$address=stream_socket_get_name($socket,false);fclose($socket);
     $transport=escapeshellarg(PHP_BINARY).' '.escapeshellarg(__DIR__.'/fixtures/account_link_test_mail.php');
     $server=proc_open([PHP_BINARY,'-d','sendmail_path='.$transport,'-d','session.save_path='.$dir,'-S',$address,'-t',$root.'/public'],[0=>['pipe','r'],1=>['file',$dir.'/server.log','a'],2=>['file',$dir.'/server.log','a']],$pipes,$root);fclose($pipes[0]);
     $ready=false;for($i=0;$i<50;$i++){$probe=@stream_socket_client('tcp://'.$address,$errno,$errstr,0.1);if($probe){fclose($probe);$ready=true;break;}usleep(100000);}$check($ready,'Local HTTP server starts');
-    $http=static function(string $path,string $cookie,array $data=[])use($address):array{
+    $http=static function(string $path,string $cookie,array $data=[])use($address,$testClientIp):array{
         $headers='Cookie: PHPSESSID='.$cookie."\r\n";$options=['ignore_errors'=>true,'follow_location'=>0,'timeout'=>20,'header'=>$headers];
         if($data){$options['method']='POST';$options['header'].="Content-Type: application/x-www-form-urlencoded\r\n";$options['content']=http_build_query($data);}
-        $body=file_get_contents('http://'.$address.$path,false,stream_context_create(['http'=>$options]));return [$body===false?'':$body,$http_response_header??[]];
+        $body=file_get_contents('http://'.$address.$path,false,stream_context_create(['http'=>$options,'socket'=>['bindto'=>$testClientIp.':0']]));return [$body===false?'':$body,$http_response_header??[]];
     };
     foreach([
         ['/admin.php?view=accounts',$users[1],['action'=>'reset_user','user_id'=>$users[0]]],
@@ -110,6 +113,12 @@ try{
     $check(str_contains($headers[0]??'','302'),'Lobby failure uses redirect');[$body]=$http('/lobby.php?game='.$gid,$cookie);$check(str_contains($body,'Email could not be sent. Try again later.')&&!str_contains($body,'Share these secure links'),'Lobby failure renders fixed notice without invitation link');
     [$cookie]=$makeSession($users[0],1);[$body,$headers]=$http('/profile.php',$cookie);$check(str_contains($headers[0]??'','302'),'Second-browser HTTP request after reset redirects to login');
     [$cookie]=$makeSession($users[1]);[$body,$headers]=$http('/?view=reset&token='.$firstToken,$cookie);$check(str_contains($headers[0]??'','302')&&!str_contains($body,$firstToken),'Incoming reset token redirects without response exposure');[$body]=$http('/?view=reset',$cookie);$check(!str_contains($body,$firstToken),'Reset form contains no hidden bearer token');
+    // Account existence and throttle state must not change the forgot-password response.
+    [$cookie,$csrf]=$makeSession(0,null);$forgot=['action'=>'forgot','email'=>'a01-forgot-'.$stamp.'@example.invalid','csrf_token'=>$csrf];
+    [$ordinaryForgot]=$http('/?view=forgot',$cookie,$forgot);for($i=0;$i<3;$i++)[$limitedForgot]=$http('/?view=forgot',$cookie,$forgot);
+    $check($ordinaryForgot===$limitedForgot,'Forgot-password response is identical when email throttle is exhausted');
+    $forgot['email']='a01-other-forgot-'.$stamp.'@example.invalid';[$unknownForgot]=$http('/?view=forgot',$cookie,$forgot);
+    $check($ordinaryForgot===$unknownForgot,'Forgot-password response is identical across unknown account addresses');
     unlink($dir.'/fail-mail');
     [$cookie,$csrf]=$makeSession($users[1]);[$body,$headers]=$http('/profile.php',$cookie,['action'=>'change_password','current_password'=>'Original-Test-Password','new_password'=>'Http-Replacement-Password','csrf_token'=>$csrf]);
     $check(str_contains($headers[0]??'','302')&&str_contains(implode(' ', $headers),'password_changed=1'),'Profile changes password with current password and signs out');
@@ -121,6 +130,7 @@ finally{
     if(is_resource($server)){proc_terminate($server);proc_close($server);}
     if(session_status()===PHP_SESSION_ACTIVE)session_write_close();
     if($sid)$pdo->prepare('DELETE FROM simulations WHERE simulation_id=?')->execute([$sid]);
+    foreach(array_diff($pdo->query('SELECT throttle_key FROM auth_throttle')->fetchAll(PDO::FETCH_COLUMN),$a01ThrottleBefore) as $key)$pdo->prepare('DELETE FROM auth_throttle WHERE throttle_key=?')->execute([$key]);
     foreach($users as $id){$pdo->prepare('DELETE FROM user_invitations WHERE invited_by_user_id=?')->execute([$id]);$pdo->prepare('DELETE FROM account_security_audit WHERE actor_user_id=? OR target_user_id=?')->execute([$id,$id]);$pdo->prepare('DELETE FROM users WHERE user_id=?')->execute([$id]);}
 }
 

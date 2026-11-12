@@ -11,6 +11,7 @@ final class AccountSecurityService
 
     public static function requestPasswordReset(string $email): array
     {
+        try{RateLimitService::resetRequest($email);}catch(RateLimitException $e){return ['sent'=>false];}
         $q=db()->prepare('SELECT user_id,email FROM users WHERE email=? AND status="ACTIVE"');
         $q->execute([strtolower(trim($email))]);$user=$q->fetch();
         if(!$user)return ['sent'=>false];
@@ -38,6 +39,7 @@ final class AccountSecurityService
 
     public static function adminPasswordReset(int $actorId,int $targetId): array
     {
+        try{RateLimitService::adminReset($actorId);}catch(RateLimitException $e){self::audit($actorId,$targetId,'ADMIN_PASSWORD_RESET','THROTTLED');throw $e;}
         $pdo=db();$pdo->beginTransaction();
         try{
             // Lock both roles in a stable order. The audit and permission decision commit together.
@@ -63,7 +65,7 @@ final class AccountSecurityService
 
     public static function resetPassword(string $token,string $password): void
     {
-        self::validatePassword($password);$pdo=db();
+        RateLimitService::resetAttempt($token);self::validatePassword($password);$pdo=db();
         $q=$pdo->prepare('SELECT user_id FROM password_reset_tokens WHERE token_hash=?');$q->execute([hash('sha256',$token)]);$id=(int)$q->fetchColumn();
         if($id<1)throw new RuntimeException('This reset link is invalid or expired.');
         $pdo->beginTransaction();
@@ -110,6 +112,7 @@ final class AccountSecurityService
 
     public static function requestVerification(int $userId): array
     {
+        try{RateLimitService::verification($userId);}catch(RateLimitException $e){return ['sent'=>false];}
         $q=db()->prepare('SELECT email,email_verified_at_utc FROM users WHERE user_id=? AND status="ACTIVE"');$q->execute([$userId]);$user=$q->fetch();
         if(!$user||$user['email_verified_at_utc']!==null)return ['sent'=>false];
         $token=bin2hex(random_bytes(24));
