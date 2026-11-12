@@ -2,6 +2,7 @@
 require_once __DIR__.'/EmailTemplateService.php';
 require_once __DIR__.'/AccountSecurityService.php';
 require_once __DIR__.'/RateLimitService.php';
+require_once __DIR__.'/BotProtectionService.php';
 final class AuthService
 {
     public static function boot(): void
@@ -23,24 +24,6 @@ final class AuthService
     public static function setting(string $key,string $default=''): string
     {
         try{$q=db()->prepare('SELECT setting_value FROM platform_settings WHERE setting_key=?');$q->execute([$key]);$value=$q->fetchColumn();return$value===false?$default:(string)$value;}catch(Throwable $ignored){return$default;}
-    }
-    public static function captchaMode(): string
-    {
-        $mode=strtoupper(self::setting('SECURITY_CAPTCHA_MODE','BUILTIN'));return in_array($mode,['BUILTIN','VISUAL','GOOGLE','OFF'],true)?$mode:'BUILTIN';
-    }
-    public static function builtInCaptchaQuestion(): string
-    {
-        self::boot();if(!isset($_SESSION['login_captcha_answer'])){$a=random_int(2,9);$b=random_int(1,9);$_SESSION['login_captcha_answer']=$a+$b;$_SESSION['login_captcha_question']='What is '.$a.' + '.$b.'?';}return(string)$_SESSION['login_captcha_question'];
-    }
-    public static function visualCaptchaCode(): string
-    {
-        self::boot();if(!empty($_GET['captcha_refresh']))unset($_SESSION['visual_captcha_code'],$_SESSION['visual_captcha_created']);if(empty($_SESSION['visual_captcha_code'])||empty($_SESSION['visual_captcha_created'])||time()-(int)$_SESSION['visual_captcha_created']>600){$alphabet='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';$code='';for($i=0;$i<6;$i++)$code.=$alphabet[random_int(0,strlen($alphabet)-1)];$_SESSION['visual_captcha_code']=$code;$_SESSION['visual_captcha_created']=time();}return(string)$_SESSION['visual_captcha_code'];
-    }
-    public static function verifyLoginCaptcha(array $post): void
-    {
-        $mode=self::captchaMode();if($mode==='OFF')return;if($mode==='BUILTIN'){self::boot();$expected=(string)($_SESSION['login_captcha_answer']??'');unset($_SESSION['login_captcha_answer'],$_SESSION['login_captcha_question']);if($expected===''||!hash_equals($expected,trim((string)($post['captcha_answer']??''))))throw new RuntimeException('The security answer was incorrect. Try the new question.');return;}if($mode==='VISUAL'){self::boot();$expected=strtoupper((string)($_SESSION['visual_captcha_code']??''));unset($_SESSION['visual_captcha_code'],$_SESSION['visual_captcha_created']);$answer=strtoupper(preg_replace('/\s+/','',trim((string)($post['captcha_answer']??''))));if($expected===''||!hash_equals($expected,$answer))throw new RuntimeException('The image security code was incorrect. Try the new image.');return;}
-        $token=trim((string)($post['g-recaptcha-response']??''));$secret=self::setting('GOOGLE_RECAPTCHA_SECRET_KEY');if($token===''||$secret==='')throw new RuntimeException('Google reCAPTCHA is not fully configured or was not completed.');
-        $payload=http_build_query(['secret'=>$secret,'response'=>$token,'remoteip'=>$_SERVER['REMOTE_ADDR']??'']);$response=false;if(function_exists('curl_init')){$curl=curl_init('https://www.google.com/recaptcha/api/siteverify');curl_setopt_array($curl,[CURLOPT_POST=>true,CURLOPT_POSTFIELDS=>$payload,CURLOPT_RETURNTRANSFER=>true,CURLOPT_TIMEOUT=>10]);$response=curl_exec($curl);curl_close($curl);}else{$response=@file_get_contents('https://www.google.com/recaptcha/api/siteverify',false,stream_context_create(['http'=>['method'=>'POST','header'=>'Content-Type: application/x-www-form-urlencoded','content'=>$payload,'timeout'=>10]]));}$result=is_string($response)?json_decode($response,true):null;if(empty($result['success']))throw new RuntimeException('Google reCAPTCHA verification failed. Please try again.');
     }
     public static function currentUser(): ?array
     {
