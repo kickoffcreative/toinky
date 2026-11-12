@@ -825,6 +825,54 @@ final class StoryAuthoringService
     private static function validateManagedValue(int $plotId,?string $scope,string $code,?int $delta,?string $set,bool $requireEffect=true):void{$sql='SELECT * FROM plot_state_definitions WHERE plot_id=? AND target_code=?'.($scope!==null?' AND effect_scope=?':'').' LIMIT 1';$q=db()->prepare($sql);$args=[$plotId,$code];if($scope!==null)$args[]=$scope;$q->execute($args);$definition=$q->fetch();if(!$definition)throw new RuntimeException('Choose a story value managed in Story Framework; '.$code.' is not defined for '.($scope?:'this story').'.');if(!$requireEffect)return;$usesDelta=$definition['value_type']==='NUMERIC';if($usesDelta&&$delta===null)throw new RuntimeException($definition['label_text'].' needs a numerical Change By value.');if(!$usesDelta&&$set===null)throw new RuntimeException($definition['label_text'].' needs a '.($definition['value_type']==='TEXT'?'Free Text Value':'Set To value').'.');if($definition['value_type']==='PRESET'){$allowed=preg_split('/\r?\n/',trim((string)$definition['allowed_values_text']))?:[];if(!in_array((string)$set,$allowed,true))throw new RuntimeException('Choose an allowed value for '.$definition['label_text'].'.');}}
     private static function validateManagedCondition(int$plotId,?string$scope,string$code,string$operator,?string$compare):void{$sql='SELECT * FROM plot_state_definitions WHERE plot_id=? AND target_code=?'.($scope!==null?' AND effect_scope=?':'').' LIMIT 1';$q=db()->prepare($sql);$args=[$plotId,$code];if($scope!==null)$args[]=$scope;$q->execute($args);$definition=$q->fetch();if(!$definition)throw new RuntimeException('Choose a story value managed in Story Framework; '.$code.' is not defined.');$problem=self::conditionValueProblem((string)$definition['value_type'],(string)($definition['allowed_values_text']??''),$operator,$compare);if($problem!==null)throw new RuntimeException($definition['label_text'].' condition is invalid: '.$problem);}
     private static function conditionValueProblem(string$type,string$allowedText,string$operator,?string$compare):?string{if(in_array($operator,['EXISTS','NOT_EXISTS'],true))return null;if($compare===null||trim($compare)==='')return $operator.' needs a comparison value.';$parts=in_array($operator,['IN','NOT_IN'],true)?array_values(array_filter(array_map('trim',explode(',',$compare)),static fn($value)=>$value!=='')):[trim($compare)];if($type==='NUMERIC'){foreach($parts as$value)if(!is_numeric($value))return 'use only numerical values for '.$operator.'.';return null;}if(in_array($operator,['LT','LTE','GT','GTE'],true))return $operator.' is only available for Numerical Story Values.';if($type==='PRESET'){$allowed=preg_split('/\r?\n/',trim($allowedText))?:[];foreach($parts as$value)if(!in_array($value,$allowed,true))return '“'.$value.'” is not an allowed Preset Value.';}return null;}
-    private static function assertStateDefinitionCompatibility(int$plotId,string$scope,string$code,string$type,?string$allowed,string$label):void{$w=self::workspace($plotId);$problems=[];$effectProblem=static function(array$row,string$key)use($type,$allowed,&$problems):void{if($type==='NUMERIC'&&$row['delta_value']===null)$problems[]=$key.' needs Change By';elseif($type!=='NUMERIC'&&$row['set_value']===null)$problems[]=$key.' needs Set To';elseif($type==='PRESET'&&!in_array((string)$row['set_value'],preg_split('/\r?\n/',trim((string)$allowed))?:[],true))$problems[]=$key.' has “'.$row['set_value'].'”';};foreach($w['effects']as$row)if((int)($row['active']??1)===1&&$row['effect_scope']===$scope&&$row['target_code']===$code)$effectProblem($row,'OPTION '.$row['event_code'].'|'.$row['role_code'].'|'.$row['option_code']);foreach($w['dynamic_effects']as$row)if((int)($row['active']??1)===1&&$row['effect_scope']===$scope&&$row['target_code']===$code)$effectProblem($row,'OPTION '.$row['opportunity_code'].'|'.$row['option_code']);foreach($w['dynamic_conditions']as$row)if((int)($row['active']??1)===1&&$row['source_type']===$scope&&$row['source_key']===$code){$problem=self::conditionValueProblem($type,(string)$allowed,(string)$row['operator'],$row['compare_value']);if($problem!==null)$problems[]='CONDITION '.$row['opportunity_code'].' ('.$problem.')';}foreach($w['resolution_conditions']as$row)if((int)($row['active']??1)===1&&$row['state_key']===$code){$problem=self::conditionValueProblem($type,(string)$allowed,(string)$row['operator'],$row['compare_value']);if($problem!==null)$problems[]='ENDING '.$row['section_code'].' ('.$problem.')';}if($problems)throw new RuntimeException('Cannot change '.$label.' to '.$type.'. Update these uses first: '.implode(' · ',$problems));}
+    private static function assertStateDefinitionCompatibility(int $plotId, string $scope, string $code, string $type, ?string $allowed, string $label): void
+    {
+        $problems = self::stateDefinitionCompatibilityProblems(self::workspace($plotId), $scope, $code, $type, $allowed);
+        if ($problems) throw new RuntimeException('Cannot change '.$label.' to '.$type.'. Update these uses first: '.implode(' · ', $problems));
+    }
+
+    /** Check all workspace consumers before saving a changed type or preset list. */
+    private static function stateDefinitionCompatibilityProblems(array $workspace, string $scope, string $code, string $type, ?string $allowed): array
+    {
+        $problems = [];
+        $presets = preg_split('/\r?\n/', trim((string)$allowed)) ?: [];
+        foreach ([
+            ['effects', 'OPTION', ['event_code', 'role_code', 'option_code']],
+            ['dynamic_effects', 'OPTION', ['opportunity_code', 'option_code']],
+            ['event_effects', 'EVENT', ['event_code']],
+            ['no_action_effects', 'NO ACTION', ['event_code', 'role_code']],
+        ] as [$table, $label, $fields]) {
+            foreach ($workspace[$table] ?? [] as $row) {
+                if ((int)($row['active'] ?? 1) !== 1 || $row['effect_scope'] !== $scope || $row['target_code'] !== $code) continue;
+                $key = $label.' '.implode('|', array_map(static fn(string $field): string => (string)($row[$field] ?? ''), $fields));
+                if ($type === 'NUMERIC' && ($row['delta_value'] ?? null) === null) $problems[] = $key.' needs Change By';
+                elseif ($type !== 'NUMERIC' && ($row['set_value'] ?? null) === null) $problems[] = $key.' needs Set To';
+                elseif ($type === 'PRESET' && !in_array((string)$row['set_value'], $presets, true)) $problems[] = $key.' has “'.$row['set_value'].'”';
+            }
+        }
+        foreach ([
+            ['dynamic_conditions', 'CONDITION', ['opportunity_code']],
+            ['resolution_conditions', 'ENDING', ['section_code']],
+            ['option_conditions', 'OPTION CONDITION', ['option_code']],
+            ['event_effect_conditions', 'EVENT CONDITION', ['event_code']],
+            ['no_action_conditions', 'NO ACTION CONDITION', ['event_code', 'role_code']],
+        ] as [$table, $label, $fields]) {
+            foreach ($workspace[$table] ?? [] as $row) {
+                if ((int)($row['active'] ?? 1) !== 1) continue;
+                if ($table === 'dynamic_conditions') {
+                    if ($row['source_type'] !== $scope || $row['source_key'] !== $code) continue;
+                } else {
+                    $key = (string)$row['state_key'];
+                    if ($key !== $code && !($scope === 'FACTOR' && $key === 'FACTOR:'.$code)) continue;
+                }
+                $problem = self::conditionValueProblem($type, (string)$allowed, (string)$row['operator'], $row['compare_value']);
+                if ($problem !== null) {
+                    $key = $label.' '.implode('|', array_map(static fn(string $field): string => (string)($row[$field] ?? ''), $fields));
+                    $problems[] = $key.' ('.$problem.')';
+                }
+            }
+        }
+        return $problems;
+    }
     private static function assertParent(string $table,string $key,int $id,int $plotId):void{$q=db()->prepare('SELECT 1 FROM '.$table.' WHERE '.$key.'=? AND plot_id=?');$q->execute([$id,$plotId]);if(!$q->fetchColumn())throw new RuntimeException('The selected parent record does not belong to this story.');}
 }
