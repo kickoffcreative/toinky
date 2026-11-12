@@ -26,7 +26,7 @@ final class OllamaStoryReasoner implements StoryReasoner
             $basicUser=$this->value('GAME2_AI_BASIC_USER',$cfg,'basic_user');$basicPassword=$this->value('GAME2_AI_BASIC_PASSWORD',$cfg,'basic_password');
             $ch=curl_init($endpoint);$curlOptions=[CURLOPT_POST=>true,CURLOPT_RETURNTRANSFER=>true,CURLOPT_HTTPHEADER=>$headers,CURLOPT_POSTFIELDS=>$json,CURLOPT_CONNECTTIMEOUT=>min(5,$timeout),CURLOPT_TIMEOUT=>$timeout]+$secureOptions;
             if($basicUser!==''&&$basicPassword!==''){$curlOptions[CURLOPT_HTTPAUTH]=CURLAUTH_BASIC;$curlOptions[CURLOPT_USERPWD]=$basicUser.':'.$basicPassword;}
-            curl_setopt_array($ch,$curlOptions);
+            if(!curl_setopt_array($ch,$curlOptions)){curl_close($ch);throw new RuntimeException('AI transport settings could not be applied.');}
             $raw=(string)curl_exec($ch);$status=(int)curl_getinfo($ch,CURLINFO_HTTP_CODE);$curlError=curl_error($ch);curl_close($ch);
             if($raw===''&&$curlError!=='')throw new RuntimeException($curlError);if($status<200||$status>=300)throw new RuntimeException('Ollama HTTP '.$status.'.');
             $outer=json_decode($raw,true,512,JSON_THROW_ON_ERROR);$content=(string)($outer['message']['content']??'');$parsed=json_decode($content,true,512,JSON_THROW_ON_ERROR);
