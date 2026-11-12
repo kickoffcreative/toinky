@@ -12,7 +12,7 @@ jobs:
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.4'
-          extensions: pdo_mysql, mbstring
+          extensions: pdo_mysql, mbstring, curl
       - name: Lint PHP
         run: |
           find app public tools config -type f -name '*.php' -print0 | xargs -0 -n1 php -l
@@ -71,7 +71,7 @@ jobs:
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.4'
-          extensions: pdo_mysql, mbstring
+          extensions: pdo_mysql, mbstring, curl
       - name: Normalize test database collation
         env:
           GAME2_DATABASE_CONFIG: ${{ github.workspace }}/config/database.test.php.example
@@ -155,6 +155,7 @@ jobs:
           php tools/secret_link_exposure_guard_test.php
           php tools/rate_limit_guard_test.php
           php tools/bot_protection_guard_test.php
+          php tools/ai_endpoint_guard_test.php
           php tools/perception_editor_guard_test.php
           php tools/decision_atomicity_guard_test.php
           php tools/inky_draft_endpoint_guard_test.php
@@ -209,7 +210,7 @@ jobs:
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.4'
-          extensions: pdo_mysql, mbstring
+          extensions: pdo_mysql, mbstring, curl
       - name: Normalize test database collation
         env:
           GAME2_DATABASE_CONFIG: ${{ github.workspace }}/config/database.test.php.example
@@ -275,6 +276,7 @@ jobs:
           php tools/secret_link_exposure_guard_test.php
           php tools/rate_limit_guard_test.php
           php tools/bot_protection_guard_test.php
+          php tools/ai_endpoint_guard_test.php
           php tools/perception_editor_guard_test.php
           php tools/decision_atomicity_guard_test.php
           php tools/inky_draft_endpoint_guard_test.php
