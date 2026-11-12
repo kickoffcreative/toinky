@@ -756,13 +756,18 @@ final class StoryAuthoringService
                     $warnings[] = $label.' '.$owner.' cannot verify '.$rawKey.': this version has no entity-state metadata snapshot.';
                     continue;
                 }
+                $errorCount = count($errors);
                 $checkCondition(['source_type' => $factor ? 'FACTOR' : ($definition['effect_scope'] ?? 'WORLD_STATE'),
                     'source_key' => $key, 'operator' => $row['operator'] ?? '',
                     'compare_value' => $row['compare_value'] ?? null, 'section_code' => $owner], $label, $definition);
+                // These paths were never audited before. Surface legacy debt
+                // without introducing new publication blockers on deployment.
+                if ($table !== 'resolution_conditions') $warnings = array_merge($warnings, array_splice($errors, $errorCount));
             }
         }
         $checkEffect=static function(array$row,string$label)use(&$errors,$definitions):void{$scope=strtoupper(trim((string)($row['effect_scope']??'')));$code=self::code((string)($row['target_code']??''));$key=$scope.'|'.$code;$definition=$definitions[$key]??null;$owner=trim((string)($row['event_code']??$row['opportunity_code']??$label)).'|'.trim((string)($row['option_code']??''));if(!$definition){$errors[]=$label.' '.$owner.' references undefined Story Value '.$key.'.';return;}$type=(string)$definition['value_type'];$delta=$row['delta_value']??null;$set=self::nullable($row['set_value']??null);if($type==='NUMERIC'){if($delta===null||$delta===''||!is_numeric((string)$delta))$errors[]=$label.' '.$owner.' must change Numerical Story Value '.$key.' with a numeric delta.';return;}if($set===null){$errors[]=$label.' '.$owner.' must set '.$type.' Story Value '.$key.' to a value.';return;}if($type==='PRESET'){$allowed=preg_split('/\r?\n/',trim((string)($definition['allowed_values_text']??'')))?:[];if(!in_array($set,$allowed,true))$errors[]=$label.' '.$owner.' sets '.$key.' to unavailable Preset Value “'.$set.'”.';}};
         foreach($workspace['effects']??[]as$row)if((int)($row['active']??1)===1)$checkEffect($row,'Option effect');foreach($workspace['dynamic_effects']??[]as$row)if((int)($row['active']??1)===1)$checkEffect($row,'Opportunity effect');
+        $newEffectErrorCount = count($errors);
         foreach ($workspace['event_effects'] ?? [] as $row) {
             if ((int)($row['active'] ?? 1) !== 1) continue;
             // Event LOCATION effects target characters, not a managed value code.
@@ -777,6 +782,7 @@ final class StoryAuthoringService
             $row['event_code'] = ($row['event_code'] ?? '').'|'.($row['role_code'] ?? '');
             $checkEffect($row, 'No-action effect');
         }
+        $warnings = array_merge($warnings, array_splice($errors, $newEffectErrorCount));
         $errors=array_values(array_unique($errors));$warnings=array_values(array_unique($warnings));return[$errors,$warnings];
     }
 

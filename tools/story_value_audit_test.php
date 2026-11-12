@@ -6,7 +6,10 @@ set_error_handler(static function(int $severity, string $message, string $file, 
     throw new ErrorException($message, 0, $severity, $file, $line);
 });
 $audit = new ReflectionMethod(StoryAuthoringService::class, 'auditManagedReferences');
-$errors = static fn(array $w): array => $audit->invoke(null, $w, [])[0];
+$errors = static function(array $w) use ($audit): array {
+    [$errors, $warnings] = $audit->invoke(null, $w, []);
+    return array_merge($errors, $warnings);
+};
 $count = 0;
 $check = static function(bool $pass, string $label) use (&$count): void {
     if (!$pass) throw new RuntimeException($label);
@@ -66,17 +69,22 @@ $legacy = ['state_entity_properties' => [['entity_code' => 'PERSON', 'property_c
 $w = ['option_conditions' => [array_merge($condition, ['state_key' => 'LEGACY_KNOWLEDGE', 'compare_value' => 'KNOWN'])]];
 $check($audit->invoke(null, $w, $legacy)[0] === [], 'legacy entity alias is a defined condition source');
 $w['option_conditions'][0]['compare_value'] = 'INVALID';
-$check(count($audit->invoke(null, $w, $legacy)[0]) === 1, 'legacy alias still validates preset comparisons');
+$check(count($audit->invoke(null, $w, $legacy)[1]) === 1, 'legacy alias still validates preset comparisons');
 $w['option_conditions'][0] = array_merge($condition, ['state_key' => 'PERSON.knowledge', 'compare_value' => 'KNOWN']);
 $check($audit->invoke(null, $w, $legacy)[0] === [], 'direct entity property reference is supported');
 $w['option_conditions'][0]['state_key'] = 'LEGACY_KNOWLEDGE';
 $result = $audit->invoke(null, $w, null);
 $check($result[0] === [] && count($result[1]) === 1, 'pre-metadata snapshots report uncertainty without live fallback');
-$check(count($audit->invoke(null, $w, [])[0]) === 1, 'complete snapshot with missing alias reports undefined reference');
+$check(count($audit->invoke(null, $w, [])[1]) === 1, 'complete snapshot with missing alias reports undefined reference');
 $w['state_definitions'] = [['effect_scope' => 'WORLD_STATE', 'target_code' => 'LEGACY_KNOWLEDGE',
     'value_type' => 'PRESET', 'allowed_values_text' => "UNKNOWN\nKNOWN\nEXTENDED", 'active' => 1]];
 $w['option_conditions'][0]['compare_value'] = 'EXTENDED';
 $result = $audit->invoke(null, $w, $legacy);
 $check($result[0] === [], 'managed definition retains existing authoring precedence');
 $check(count($result[1]) === 1 && str_contains($result[1][0], 'differs from its entity-state metadata'), 'different managed and legacy domains produce a compatibility warning');
+$w = $base; $w['option_conditions'] = [array_merge($condition, ['compare_value' => 'BAD'])];
+$result = $audit->invoke(null, $w, []);
+$check($result[0] === [] && count($result[1]) === 1, 'newly covered condition defects are advisory for legacy compatibility');
+$w['resolution_conditions'] = $w['option_conditions']; unset($w['option_conditions']);
+$check(count($audit->invoke(null, $w, [])[0]) === 1, 'existing ending validation remains a hard error');
 echo "Story value audit: {$count} checks passed.\n";

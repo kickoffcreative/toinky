@@ -2,9 +2,12 @@
 
 Draft and submitted-version audits check managed values used by decision,
 opportunity, event, and no-action effects, plus option, opportunity, event,
-no-action, and ending conditions. Invalid references and preset assignments
-are authoring errors. They must be repaired before submission, including when
-they originate in older or imported content.
+no-action, and ending conditions. Findings from the newly covered event and
+no-action effects and option/event/no-action conditions are advisory warnings.
+Existing decision/dynamic-effect and ending/dynamic-condition checks retain
+their hard-error behavior. This staged rollout exposes legacy vocabulary gaps
+without turning them into unexpected publication blockers. Save-time validation
+and the dependency-change guard remain strict.
 
 FACTOR-prefixed keys resolve only against FACTOR definitions. Bare keys also
 resolve legacy entity aliases and direct entity-property references. Drafts
