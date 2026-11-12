@@ -24,6 +24,7 @@ deployment:
     - /bin/cp -Rf tools $DEPLOYPATH
     - /bin/mkdir -p $DEPLOYPATH/config
     - /bin/cp -f config/database.example.php $DEPLOYPATH/config/database.example.php
+    - /bin/cp -f config/ai-policy.php $DEPLOYPATH/config/ai-policy.php
     # Verify the deploy against the repo manifest and delete stale files
     # (code first, migrations last). The manifest never deletes
     # config/database.php, .installed, or public/uploads/.

@@ -23,6 +23,7 @@ if (PHP_SAPI !== 'cli') {
 // .installed is the installer marker; public/uploads/ is user content.
 const DEPLOY_ALLOWLIST = [
     'config/database.php',
+    'config/ai.php',
     '.installed',
     'public/uploads/',
 ];
@@ -76,6 +77,7 @@ function buildManifest(string $repoRoot): array
     $walk($repoRoot . '/database', function (string $rel) use ($add) { $add('database/' . $rel, 'database/' . $rel); });
     $walk($repoRoot . '/tools', function (string $rel) use ($add) { $add('tools/' . $rel, 'tools/' . $rel); });
     $add('config/database.example.php', 'config/database.example.php');
+    $add('config/ai-policy.php', 'config/ai-policy.php');
     return $manifest;
 }
 

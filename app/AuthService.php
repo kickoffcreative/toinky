@@ -137,6 +137,10 @@ final class AuthService
     {
         $u=self::requireLogin();if((int)$u['is_admin']!==1){http_response_code(403);exit('Administrator access is required.');}return$u;
     }
+    public static function requireSuperAdmin(): array
+    {
+        $user=self::requireLogin();if((int)$user['is_super_admin']!==1){http_response_code(403);exit('Super Admin access is required.');}return $user;
+    }
     public static function createInvitation(string $email,int $adminId): array
     {
         AccountSecurityService::requireVerifiedEmail($adminId);RateLimitService::invitation($adminId,$email);

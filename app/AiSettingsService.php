@@ -1,21 +1,22 @@
 <?php
+require_once __DIR__.'/AiEndpointPolicy.php';
 final class AiSettingsService
 {
     public static function settings(): array
     {
         return [
             'provider'=>AiInteractionLogger::setting('provider','ollama')?:'ollama',
-            'endpoint'=>AiInteractionLogger::setting('ollama_endpoint','https://endurable-cleft-wildlife.ngrok-free.dev/')?:'https://endurable-cleft-wildlife.ngrok-free.dev/',
+            'endpoint'=>AiEndpointPolicy::configuredEndpoint((string)AiInteractionLogger::setting('ollama_endpoint','')),
             'model'=>AiInteractionLogger::setting('ollama_model','qwen3:8b')?:'qwen3:8b',
             'timeout_seconds'=>AiInteractionLogger::setting('timeout_seconds','45')?:'45',
         ];
     }
 
-    public static function save(array $input): void
+    public static function save(int $actorId,array $input): void
     {
-        $endpoint=trim((string)($input['ai_endpoint']??''));
-        if($endpoint===''||!filter_var($endpoint,FILTER_VALIDATE_URL))throw new RuntimeException('Enter a valid AI connection URL.');
-        $parts=parse_url($endpoint);if(!in_array(strtolower((string)($parts['scheme']??'')),['http','https'],true))throw new RuntimeException('AI connection URL must use HTTP or HTTPS.');
+        $q=db()->prepare('SELECT 1 FROM users WHERE user_id=? AND status="ACTIVE" AND is_super_admin=1');$q->execute([$actorId]);if(!$q->fetchColumn())throw new RuntimeException('Super Admin access is required.');
+        $target=AiEndpointPolicy::resolve(trim((string)($input['ai_endpoint']??'')));$endpoint=$target['url'];
+        $serverEndpoint=AiEndpointPolicy::configuredEndpoint();if($serverEndpoint!==''&&$endpoint!==AiEndpointPolicy::validateUrl($serverEndpoint)['url'])throw new RuntimeException('The AI endpoint is managed by server configuration.');
         $model=trim((string)($input['ai_model']??'qwen3:8b'));if($model==='')$model='qwen3:8b';
         $timeout=max(10,min(120,(int)($input['ai_timeout_seconds']??45)));
         self::set('provider','ollama');self::set('ollama_endpoint',rtrim($endpoint,'/'));self::set('ollama_model',$model);self::set('timeout_seconds',(string)$timeout);
