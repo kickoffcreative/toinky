@@ -6,7 +6,7 @@ set_error_handler(static function(int $severity, string $message, string $file, 
     throw new ErrorException($message, 0, $severity, $file, $line);
 });
 $audit = new ReflectionMethod(StoryAuthoringService::class, 'auditManagedReferences');
-$errors = static fn(array $w): array => $audit->invoke(null, $w)[0];
+$errors = static fn(array $w): array => $audit->invoke(null, $w, [])[0];
 $count = 0;
 $check = static function(bool $pass, string $label) use (&$count): void {
     if (!$pass) throw new RuntimeException($label);
@@ -60,4 +60,17 @@ $check(str_contains(implode(' ', $errors($w)), 'BEAT|ROLE'), 'missed-choice diag
 $before = $w; $errors($w);
 $check($w === $before, 'audit never mutates authored rows');
 $check($errors([]) === [], 'empty workspace is safe');
+$legacy = ['state_entity_properties' => [['entity_code' => 'PERSON', 'property_code' => 'knowledge',
+    'value_type' => 'TEXT', 'allowed_values' => 'UNKNOWN,KNOWN']],
+    'state_aliases' => [['entity_code' => 'PERSON', 'property_code' => 'knowledge', 'state_key' => 'LEGACY_KNOWLEDGE']]];
+$w = ['option_conditions' => [array_merge($condition, ['state_key' => 'LEGACY_KNOWLEDGE', 'compare_value' => 'KNOWN'])]];
+$check($audit->invoke(null, $w, $legacy)[0] === [], 'legacy entity alias is a defined condition source');
+$w['option_conditions'][0]['compare_value'] = 'INVALID';
+$check(count($audit->invoke(null, $w, $legacy)[0]) === 1, 'legacy alias still validates preset comparisons');
+$w['option_conditions'][0] = array_merge($condition, ['state_key' => 'PERSON.knowledge', 'compare_value' => 'KNOWN']);
+$check($audit->invoke(null, $w, $legacy)[0] === [], 'direct entity property reference is supported');
+$w['option_conditions'][0]['state_key'] = 'LEGACY_KNOWLEDGE';
+$result = $audit->invoke(null, $w, null);
+$check($result[0] === [] && count($result[1]) === 1, 'pre-metadata snapshots report uncertainty without live fallback');
+$check(count($audit->invoke(null, $w, [])[0]) === 1, 'complete snapshot with missing alias reports undefined reference');
 echo "Story value audit: {$count} checks passed.\n";

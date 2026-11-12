@@ -6,8 +6,12 @@ no-action, and ending conditions. Invalid references and preset assignments
 are authoring errors. They must be repaired before submission, including when
 they originate in older or imported content.
 
-FACTOR-prefixed keys resolve only against FACTOR definitions; bare keys retain
-the existing code lookup behavior. Event LOCATION effects are a special case:
+FACTOR-prefixed keys resolve only against FACTOR definitions. Bare keys also
+resolve legacy entity aliases and direct entity-property references. Drafts
+use current metadata; submitted versions use their own state_metadata snapshot.
+For a pre-metadata snapshot, an unknown option/event/no-action condition source
+produces a verification warning rather than silently consulting live metadata.
+Event LOCATION effects are a special case:
 their target codes identify characters, so the audit validates their authored
 destination rather than requiring a Story Value with the character's code.
 
