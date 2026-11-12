@@ -73,4 +73,10 @@ $w['option_conditions'][0]['state_key'] = 'LEGACY_KNOWLEDGE';
 $result = $audit->invoke(null, $w, null);
 $check($result[0] === [] && count($result[1]) === 1, 'pre-metadata snapshots report uncertainty without live fallback');
 $check(count($audit->invoke(null, $w, [])[0]) === 1, 'complete snapshot with missing alias reports undefined reference');
+$w['state_definitions'] = [['effect_scope' => 'WORLD_STATE', 'target_code' => 'LEGACY_KNOWLEDGE',
+    'value_type' => 'PRESET', 'allowed_values_text' => "UNKNOWN\nKNOWN\nEXTENDED", 'active' => 1]];
+$w['option_conditions'][0]['compare_value'] = 'EXTENDED';
+$result = $audit->invoke(null, $w, $legacy);
+$check($result[0] === [], 'managed definition retains existing authoring precedence');
+$check(count($result[1]) === 1 && str_contains($result[1][0], 'differs from its entity-state metadata'), 'different managed and legacy domains produce a compatibility warning');
 echo "Story value audit: {$count} checks passed.\n";

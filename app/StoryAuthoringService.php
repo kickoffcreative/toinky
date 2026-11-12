@@ -744,8 +744,14 @@ final class StoryAuthoringService
                 $rawKey = (string)($row['state_key'] ?? '');
                 $factor = str_starts_with($rawKey, 'FACTOR:');
                 $key = self::code($factor ? substr($rawKey, 7) : $rawKey);
-                $definition = $factor ? ($definitions['FACTOR|'.$key] ?? null) : ($legacyDefinitions[$key] ?? $definitionsByCode[$key][0] ?? null);
+                $definition = $factor ? ($definitions['FACTOR|'.$key] ?? null) : ($definitionsByCode[$key][0] ?? $legacyDefinitions[$key] ?? null);
                 $owner = implode('|', array_map(static fn(string $field): string => (string)($row[$field] ?? ''), $fields));
+                if (!$factor && isset($definitionsByCode[$key][0], $legacyDefinitions[$key])) {
+                    $managed = $definitionsByCode[$key][0]; $legacy = $legacyDefinitions[$key];
+                    $managedValues = preg_split('/\r?\n/', trim((string)($managed['allowed_values_text'] ?? ''))) ?: [];
+                    $legacyValues = preg_split('/\r?\n/', trim((string)$legacy['allowed_values_text'])) ?: [];
+                    if ($managed['value_type'] !== $legacy['value_type'] || ($managed['value_type'] === 'PRESET' && (array_diff($managedValues, $legacyValues) || array_diff($legacyValues, $managedValues)))) $warnings[] = 'Story Value '.$key.' differs from its entity-state metadata; verify runtime compatibility. The authoring audit uses the managed definition.';
+                }
                 if (!$definition && !$factor && $stateMetadata === null && $table !== 'resolution_conditions') {
                     $warnings[] = $label.' '.$owner.' cannot verify '.$rawKey.': this version has no entity-state metadata snapshot.';
                     continue;

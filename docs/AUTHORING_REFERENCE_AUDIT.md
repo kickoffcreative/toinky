@@ -9,6 +9,10 @@ they originate in older or imported content.
 FACTOR-prefixed keys resolve only against FACTOR definitions. Bare keys also
 resolve legacy entity aliases and direct entity-property references. Drafts
 use current metadata; submitted versions use their own state_metadata snapshot.
+Where both registries define a key, the managed definition retains its existing
+authoring precedence. A differing type or preset domain produces a runtime
+compatibility warning rather than changing that precedence or rejecting the
+content solely because the registries disagree.
 For a pre-metadata snapshot, an unknown option/event/no-action condition source
 produces a verification warning rather than silently consulting live metadata.
 Event LOCATION effects are a special case:
