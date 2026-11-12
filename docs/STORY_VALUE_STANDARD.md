@@ -101,3 +101,12 @@ The existing diagnostics cover many references and some finite preset ending
 partitions. They do not prove multi-value coverage, emotional continuity,
 balanced agency or an earned ending. Those still require authored reasoning
 and fresh gameplay.
+
+## Conditional Scene Ownership
+
+Conditional Opportunities owns its prompt, choices and effects. The matching
+Decisions entry is a runtime copy. Edit the authoritative Opportunity record;
+reloading a saved copy alone does not prove the change will survive synchronization.
+The Decisions view retains owner-only editing. Source safeguards reject generated
+content edits and link to the proper editor. The Story Values runtime comparison
+is read-only; it exposes legacy domains and transitions without changing them.

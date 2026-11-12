@@ -28,7 +28,7 @@ finished games remain pinned evidence, not tests of a newly published revision.
 | D2 | Single-option prompts presented as meaningful alternatives | Single-option heading and take-action-or-wait explanation implemented; legal gates preserved |
 | P1 | Long solo idle periods | Optional solo Skip Quiet Time implemented with clock offset; 16 database checks and multiplayer regression pass; live verification pending |
 | P2 | Tomas's oath conflict never tested after first choice | Fixed late Tomas decision authored and reload-verified with three choices and six factor effects; fresh-version play pending |
-| P3 | Sparse Elian, Soren, Jerome, Ghost paths | Inventory current gates and add meaningful participation where justified |
+| P3 | Sparse Elian, Soren, Jerome, Ghost paths | Soren fixed governing decision, Elian two final alternatives, and Ghost/Jerome late scenes authored and reload-verified; fresh-version role play pending |
 | B1 | Rescue completed, then guest again needs carrying | Canonical rescue status synchronized in draft, completed-guest aftercare added; reload-verified; fresh-version play pending |
 | B2 | Second helper repeatedly requested after commitment | Five helper/rescue prose fields revised and reload-verified; fresh-version play pending |
 | B3 | Leila omitted from aftermath | Fallback aftermath now names Leila; saved and reload-verified |
@@ -40,16 +40,16 @@ finished games remain pinned evidence, not tests of a newly published revision.
 | S6 | Exorcised cave reappears as active in teaser | Condition teaser or write a compatible closing invitation |
 | S7 | Known truth and remaining mystery contradict | Qualify knowledge per path |
 | S8 | Departure prose and displayed locations disagree | Verify final-state conditions and group movement |
-| S9 | Storm repetition, missing charm/footage transitions | Edit exact current passages after inventory |
+| S9 | Storm repetition, missing charm/footage transitions | Storm, charm route and token, phone origin and watcher frame revised; two authoritative charm movement effects reload-verified |
 | N1 | Comedy action labels/results combine or contradict | Generic recap action-heading merge repaired and tested; live code deployment pending |
 | N2 | Study recognition follows an already-open door | Vivian recognition result reframed as a recurring remembered sound; saved and reload-verified; event sequencing remains unchanged |
 | N3 | First Nuts announcement after earlier awards | Score-neutral house announcement saved and reload-verified |
-| W1 | Confessions, mimes, reunion summarized rather than enacted | Add dialogue and character reactions while preserving branch meaning |
+| W1 | Confessions, mimes, reunion summarized rather than enacted | Ten charades, Vivian disclosure, Jerome confessions, Ghost watch, mother reunion and Throne closing scenes dramatized; fresh player judgment pending |
 | W2 | Administrative/engine language interrupts prose | Separate or revise mechanics-heavy story text |
 | W3 | Vivian's ending uses a reductive label | Vivian priority 10 ending uses her name instead of reductive label; saved and reload-verified |
 | T1 | Throne status report lacks personal aftermath | Shared Throne aftermath adds enacted Tomas and Soren closing exchanges; reload-verified; political outcome fragments preserved |
-| V1 | Managed and legacy state vocabularies disagree | Diagnostics delivered in PR 91; underlying data repair pending backup and inventory |
-| V2 | Ending compatibility across sections | Diagnostics delivered in PR 89; actual story outcomes still need repair |
+| V1 | Managed and legacy state vocabularies disagree | Read-only runtime comparison added to source; live domain/transition inventory and data repair await deployment |
+| V2 | Ending compatibility across sections | Shore lit-fire/low-safety missing branch authored with two exact guards; broader fresh-path compatibility verification pending |
 | V3 | Future authoring standard | Working authoring standard documented in STORY_VALUE_STANDARD.md; distinct from validator enforcement |
 | Q1 | Regression for every selectable role | Pending fresh-version gameplay and code checks |
 | Q2 | Consolidated release evidence and rollback | Pending final CI, content revision ledger, and report |
@@ -170,3 +170,44 @@ finished games remain pinned evidence, not tests of a newly published revision.
   already supplies this feature; no pagination patch is needed.
 - Throne AFTERMATH original preserved and revised personal scene reload-verified.
 - Source checkpoint is for CI review, not a claim that all story gaps are closed.
+
+## Authoritative Content And Editor Safeguards
+
+- Source checkpoint 4 is mirrored remotely at 1b8bd4d5634f7d6aab24b0f3895bd6c9f3b2eace
+  in draft PR 92. Full CI passed on both MariaDB versions. Later safeguards
+  in this checkpoint require a refreshed run before merging.
+- Conditional-scene results edited in Decisions can be overwritten by Opportunity
+  synchronization. Vivian’s disclosure was initially saved only to that copy,
+  then corrected in the authoritative Opportunity record and reload-verified.
+  The Study recognition is a fixed decision, not a conditional scene. Its earlier
+  save was already authoritative. Do not call both edits conditional.
+- New server guards reject edits/deletion of generated prompt/choice/effect
+  copies and direct writers to Conditional Opportunities. Owner-only edits are
+  preserved. Targeted synchronization, choice-insertion and active-state tests pass.
+  The standalone authoring-runtime guard skipped because its seeded fixture has
+  no free NPC slot; do not count that skip as a pass.
+- Story Values now includes a read-only comparison of managed world definitions
+  with legacy aliases, property types, defaults, allowed values and active
+  transitions. It performs no repairs. A direct request context renders no data;
+  isolated database rendering passed. Live inspection requires this code deployment.
+- Shore GROUPS_FATE missing Lit + SAFETY below 30 branch is saved with SIGNAL_FIRE
+  EQ Lit and SAFETY LT 30; both exact persisted text values verified after reload.
+  It does not claim a death, rescue or departure.
+- Additional Shore fixed-choice prose and prompt repairs remove unconditional
+  rescue/homecoming, active-spirit teaser and life-for-life assertions. Token
+  result names the actual carved charm. Early appearance label no longer promises
+  an identity disclosure. Fixed fields were reload-verified.
+- Authoritative carved-charm route and phone opportunity prompts/results saved
+  and reload-verified. Both charm choices now have active LOCATION LOCATION
+  Tree Hut effects targeting SELF. The watcher frame matches its existing effects.
+- New fixed scenes: COUNCIL_DIVIDES / HAND (id 125), LONG_NIGHT / GHOST (126),
+  LONG_NIGHT / JEROME (127). All player-owned, 90 seconds. Soren has three choices;
+  Ghost and Jerome two each. Elian CORONATION_HOUR adds two alternatives and a
+  state-neutral prompt. All nine new results and their effects reload-verified.
+- Jerome’s original wealth confession now contains spoken dialogue; existing
+  trust and location effects preserved. Source/content rollback originals saved.
+- Local player report archived and appended with a separate November 12 backend
+  remediation appendix. Original twelve-game observations and ratings preserved.
+- No new content revision published and no fresh production game claimed. Source
+  deployment, live compatibility reconciliation and fresh-version play remain
+  necessary before the whole remediation can be called complete.
