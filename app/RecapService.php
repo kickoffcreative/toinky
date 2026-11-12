@@ -158,13 +158,14 @@ final class RecapService
             }
             $fingerprint = self::timeline_fingerprint($detail);
             if ($fingerprint !== '' && !isset($timeline[$second]['seen'][$fingerprint])) {
-                /* One entry per actor per beat: a second outcome by the
-                   same actor joins the first entry instead of opening
-                   another article. Prose beats never merge. */
+                /* Combine details only for the same actor and action heading.
+                   Different choices at one beat retain their own headings;
+                   otherwise a later action appears to be the first result.
+                   Prose beats never merge. */
                 $merged = false;
                 if ($lead !== '' && !$isProse && !empty($timeline[$second]['public'])) {
                     foreach ($timeline[$second]['public'] as &$existing) {
-                        if ((string)($existing['lead'] ?? '') === $lead && empty($existing['prose'])) {
+                        if ((string)($existing['lead'] ?? '') === $lead && (string)($existing['headline'] ?? '') === (string)$w['headline'] && empty($existing['prose'])) {
                             $existing['detail'] = trim((string)$existing['detail'] . ' ' . $detail);
                             $merged = true;
                             break;

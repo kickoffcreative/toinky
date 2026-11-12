@@ -25,6 +25,8 @@ jobs:
         run: php tools/story_value_dependency_test.php
       - name: Check complete authoring reference audit
         run: php tools/story_value_audit_test.php
+      - name: Check decision interactions during polling
+        run: node tools/player_interaction_test.js
       - name: Guard RecapService helper parity
         run: php tools/recap_service_guard_test.php
       - name: Guard Lab batch runner contract
@@ -149,6 +151,7 @@ jobs:
           php tools/shutdown_no_write_guard_test.php
           php tools/authoring_runtime_guard_test.php
           php tools/version_pinning_guard_test.php
+          php tools/solo_advance_test.php
           php tools/perception_editor_guard_test.php
           php tools/decision_atomicity_guard_test.php
           php tools/inky_draft_endpoint_guard_test.php
@@ -265,6 +268,7 @@ jobs:
           php tools/shutdown_no_write_guard_test.php
           php tools/authoring_runtime_guard_test.php
           php tools/version_pinning_guard_test.php
+          php tools/solo_advance_test.php
           php tools/perception_editor_guard_test.php
           php tools/decision_atomicity_guard_test.php
           php tools/inky_draft_endpoint_guard_test.php

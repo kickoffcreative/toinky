@@ -126,10 +126,56 @@ final class LobbyService
     public static function tick(int $gameId): void
     {
         $pdo=db();$lock='toinky_game_'.$gameId;$q=$pdo->prepare('SELECT GET_LOCK(?,0)');$q->execute([$lock]);if((int)$q->fetchColumn()!==1)return;
-        try{$q=$pdo->prepare('SELECT g.status,g.started_at_utc,g.play_duration_seconds,g.simulation_id,s.elapsed_seconds,s.duration_seconds FROM games g JOIN simulations s ON s.simulation_id=g.simulation_id WHERE g.game_id=?');$q->execute([$gameId]);$g=$q->fetch();if(!$g||$g['status']!=='RUNNING')return;
-            $playDuration=max(1,(int)($g['play_duration_seconds']??$g['duration_seconds']));$storyDuration=max(1,(int)$g['duration_seconds']);$wallElapsed=min($playDuration,max(0,time()-strtotime((string)$g['started_at_utc'].' UTC')));$target=min($storyDuration,(int)floor($wallElapsed*$storyDuration/$playDuration));$elapsed=(int)$g['elapsed_seconds'];
+        try{$q=$pdo->prepare('SELECT g.status,g.started_at_utc,g.play_duration_seconds,g.solo_time_offset_seconds,g.simulation_id,s.elapsed_seconds,s.duration_seconds FROM games g JOIN simulations s ON s.simulation_id=g.simulation_id WHERE g.game_id=?');$q->execute([$gameId]);$g=$q->fetch();if(!$g||$g['status']!=='RUNNING')return;
+            $playDuration=max(1,(int)($g['play_duration_seconds']??$g['duration_seconds']));$storyDuration=max(1,(int)$g['duration_seconds']);$wallElapsed=min($playDuration,max(0,time()-strtotime((string)$g['started_at_utc'].' UTC')+(int)($g['solo_time_offset_seconds']??0)));$target=min($storyDuration,(int)floor($wallElapsed*$storyDuration/$playDuration));$elapsed=(int)$g['elapsed_seconds'];
             while($elapsed<$target){$step=min(30,$target-$elapsed);SimulationService::advance((int)$g['simulation_id'],$step);CharacterAutomationService::process((int)$g['simulation_id']);$elapsed+=$step;}
             if($wallElapsed>=$playDuration||$elapsed>=$storyDuration)$pdo->prepare('UPDATE games SET status="COMPLETE",completed_at_utc=UTC_TIMESTAMP() WHERE game_id=?')->execute([$gameId]);
+        }finally{$pdo->prepare('SELECT RELEASE_LOCK(?)')->execute([$lock]);}
+    }
+    private static function soloGame(int $gameId,int $userId): ?array
+    {
+        $q=db()->prepare('SELECT g.*,s.elapsed_seconds,s.duration_seconds,gp.character_id FROM games g JOIN simulations s ON s.simulation_id=g.simulation_id JOIN game_players gp ON gp.game_id=g.game_id AND gp.user_id=? JOIN characters c ON c.character_id=gp.character_id AND c.simulation_id=g.simulation_id WHERE g.game_id=? AND g.host_user_id=? AND g.status="RUNNING" AND s.status="RUNNING" AND g.deleted_at_utc IS NULL AND g.deactivated_at_utc IS NULL AND c.controller_type="HUMAN" AND (SELECT COUNT(*) FROM game_players p WHERE p.game_id=g.game_id)=1 AND (SELECT COUNT(*) FROM characters h WHERE h.simulation_id=g.simulation_id AND h.controller_type="HUMAN")=1');
+        $q->execute([$userId,$gameId,$userId]);return $q->fetch()?:null;
+    }
+    public static function canAdvanceSolo(int $gameId,int $userId): bool
+    {
+        return self::soloGame($gameId,$userId)!==null;
+    }
+    public static function advanceSolo(int $gameId,int $userId): void
+    {
+        $pdo=db();$lock='toinky_game_'.$gameId;$q=$pdo->prepare('SELECT GET_LOCK(?,5)');$q->execute([$lock]);
+        if((int)$q->fetchColumn()!==1)throw new RuntimeException('The game is busy. Please try again.');
+        try{
+            $g=self::soloGame($gameId,$userId);
+            if(!$g)throw new RuntimeException('Quiet time can only be skipped by the host of a running game with one player.');
+            $sid=(int)$g['simulation_id'];$cid=(int)$g['character_id'];
+            $open=$pdo->prepare('SELECT 1 FROM decisions WHERE simulation_id=? AND character_id=? AND status="OPEN" LIMIT 1');
+            $hasOpen=static function()use($open,$sid,$cid):bool{$open->execute([$sid,$cid]);return(bool)$open->fetchColumn();};
+            if($hasOpen())throw new RuntimeException('A choice is open. Decide what to do before skipping quiet time.');
+            $visible=$pdo->prepare('SELECT (SELECT COALESCE(MAX(event_id),0) FROM simulation_events WHERE simulation_id=? AND visibility="WORLD") AS world_id,(SELECT COALESCE(MAX(history_id),0) FROM character_history WHERE simulation_id=? AND character_id=?) AS personal_id');
+            $stamp=static function()use($visible,$sid,$cid):array{$visible->execute([$sid,$sid,$cid]);return $visible->fetch();};
+            $before=$stamp();$duration=max(1,(int)$g['duration_seconds']);$playDuration=max(1,(int)($g['play_duration_seconds']??$g['duration_seconds']));
+            $simQuery=$pdo->prepare('SELECT status,elapsed_seconds FROM simulations WHERE simulation_id=?');
+            $readSimulation=static function()use($simQuery,$sid):array{$simQuery->execute([$sid]);return $simQuery->fetch();};
+            // Bounded work: stop at the first new public/personal beat or choice.
+            // Reconcile before advancing, so a newly eligible choice cannot be
+            // opened and expired within the same skipped interval.
+            for($step=0;$step<120;$step++){
+                DynamicOpportunityService::reconcile($sid);
+                if($hasOpen()||$stamp()!==$before)return;
+                $sim=$readSimulation();
+                if($sim['status']!=='RUNNING')return;
+                SimulationService::advance($sid,min(30,max(1,$duration-(int)$sim['elapsed_seconds'])));
+                $sim=$readSimulation();
+                $wall=max(0,time()-strtotime((string)$g['started_at_utc'].' UTC'));
+                $offset=max(0,(int)ceil((int)$sim['elapsed_seconds']*$playDuration/$duration)-$wall);
+                $pdo->prepare('UPDATE games SET solo_time_offset_seconds=GREATEST(solo_time_offset_seconds,?) WHERE game_id=?')->execute([$offset,$gameId]);
+                CharacterAutomationService::process($sid);
+                if($sim['status']==='COMPLETE'){
+                    $pdo->prepare('UPDATE games SET status="COMPLETE",completed_at_utc=UTC_TIMESTAMP() WHERE game_id=?')->execute([$gameId]);return;
+                }
+                if($hasOpen()||$stamp()!==$before)return;
+            }
         }finally{$pdo->prepare('SELECT RELEASE_LOCK(?)')->execute([$lock]);}
     }
     public static function choose(int $gameId,int $userId,int $decisionId,string $optionCode): void
