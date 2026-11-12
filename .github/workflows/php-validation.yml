@@ -19,6 +19,8 @@ jobs:
           find . -maxdepth 1 -type f -name '*.php' -print0 | xargs -0 -n1 php -l
       - name: Verify deployment preserves cPanel PHP configuration
         run: php tools/deploy_htaccess_test.php
+      - name: Check ending coverage diagnostics
+        run: php tools/ending_coverage_test.php
       - name: Guard RecapService helper parity
         run: php tools/recap_service_guard_test.php
       - name: Guard Lab batch runner contract
