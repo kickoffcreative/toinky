@@ -154,6 +154,7 @@ jobs:
           php tools/solo_advance_test.php
           php tools/secret_link_exposure_guard_test.php
           php tools/rate_limit_guard_test.php
+          php tools/bot_protection_guard_test.php
           php tools/perception_editor_guard_test.php
           php tools/decision_atomicity_guard_test.php
           php tools/inky_draft_endpoint_guard_test.php
@@ -273,6 +274,7 @@ jobs:
           php tools/solo_advance_test.php
           php tools/secret_link_exposure_guard_test.php
           php tools/rate_limit_guard_test.php
+          php tools/bot_protection_guard_test.php
           php tools/perception_editor_guard_test.php
           php tools/decision_atomicity_guard_test.php
           php tools/inky_draft_endpoint_guard_test.php

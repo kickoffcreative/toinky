@@ -114,7 +114,7 @@ try{
     [$cookie]=$makeSession($users[0],1);[$body,$headers]=$http('/profile.php',$cookie);$check(str_contains($headers[0]??'','302'),'Second-browser HTTP request after reset redirects to login');
     [$cookie]=$makeSession($users[1]);[$body,$headers]=$http('/?view=reset&token='.$firstToken,$cookie);$check(str_contains($headers[0]??'','302')&&!str_contains($body,$firstToken),'Incoming reset token redirects without response exposure');[$body]=$http('/?view=reset',$cookie);$check(!str_contains($body,$firstToken),'Reset form contains no hidden bearer token');
     // Account existence and throttle state must not change the forgot-password response.
-    [$cookie,$csrf]=$makeSession(0,null);$forgot=['action'=>'forgot','email'=>'a01-forgot-'.$stamp.'@example.invalid','csrf_token'=>$csrf];
+    [$cookie,$csrf]=$makeSession(0,null);[$forgotPage]=$http('/?view=forgot',$cookie);if(!preg_match('/name="auth_form_token" value="([^"]+)"/',$forgotPage,$formMatch))throw new RuntimeException('Forgot-password form protection field missing');$formToken=html_entity_decode($formMatch[1],ENT_QUOTES,'UTF-8');usleep(2100000);$forgot=['auth_form_token'=>$formToken,'action'=>'forgot','email'=>'a01-forgot-'.$stamp.'@example.invalid','csrf_token'=>$csrf];
     [$ordinaryForgot]=$http('/?view=forgot',$cookie,$forgot);for($i=0;$i<3;$i++)[$limitedForgot]=$http('/?view=forgot',$cookie,$forgot);
     $check($ordinaryForgot===$limitedForgot,'Forgot-password response is identical when email throttle is exhausted');
     $forgot['email']='a01-other-forgot-'.$stamp.'@example.invalid';[$unknownForgot]=$http('/?view=forgot',$cookie,$forgot);
