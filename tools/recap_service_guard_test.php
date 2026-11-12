@@ -121,7 +121,7 @@ $check(RecapService::LAB_TITLES === ['Simulation Lab AI Control', 'AI Options Co
     'RecapService filters exactly the three Lab-injected INTERACTION titles');
 
 /* Player-ready fix (Nov 6, 2026): decision outcomes key to their causing
-   event's second, and public entries merge by actor within a second.
+   event's second, and public entries merge only for the same actor and action.
    timeline() with a null character needs no database: the location and
    recap-transition queries are failure-tolerant, and the missed-option
    query only runs for a character. */
@@ -134,15 +134,20 @@ $testSnap = [
         ['event_id' => 100, 'event_second' => 720, 'event_code' => 'BEACH_GIVES_UP', 'actor_character_id' => 0, 'actor_name' => '', 'headline' => 'The Beach Gives Up Its Dead', 'event_text' => 'The beach gives up its dead.', 'caused_by_event_id' => null, 'phase' => 'RISING_ACTION'],
         ['event_id' => 101, 'event_second' => 1020, 'event_code' => 'PLAYER_ACTION_1020_ab', 'actor_character_id' => 2, 'actor_name' => 'Vivian', 'headline' => 'Vivian: Choose the review', 'event_text' => 'Vivian chose the review. The room went quiet.', 'caused_by_event_id' => 100, 'phase' => 'RISING_ACTION'],
         ['event_id' => 102, 'event_second' => 1080, 'event_code' => 'PLAYER_ACTION_1080_cd', 'actor_character_id' => 2, 'actor_name' => 'Vivian', 'headline' => 'Vivian: Choose the delay', 'event_text' => 'Vivian chose the delay. The room waited.', 'caused_by_event_id' => 100, 'phase' => 'RISING_ACTION'],
+        ['event_id' => 103, 'event_second' => 1080, 'event_code' => 'PLAYER_ACTION_1080_effect', 'actor_character_id' => 2, 'actor_name' => 'Vivian', 'headline' => 'Vivian: Choose the delay', 'event_text' => 'The pause gave everyone time to listen.', 'caused_by_event_id' => 100, 'phase' => 'RISING_ACTION'],
     ],
     'factors' => [],
 ];
 $testTimeline = RecapService::timeline($testSnap, null, 1800);
 $check(!isset($testTimeline[1020]) && !isset($testTimeline[1080]), 'timeline keys decision outcomes to the causing event second, not the apply second');
 $check(isset($testTimeline[720]), 'timeline keeps the causing event beat');
-$check(count($testTimeline[720]['public'] ?? []) === 2, 'timeline merges same-actor outcomes into one public entry per beat');
-$check(($testTimeline[720]['public'][1]['lead'] ?? '') === 'Vivian', 'merged public entry keeps the actor lead');
-$check(str_contains((string)($testTimeline[720]['public'][1]['detail'] ?? ''), 'chose the delay'), 'merged public entry carries both outcomes');
+$check(count($testTimeline[720]['public'] ?? []) === 3, 'different actions by the same actor retain separate entries');
+$review = $testTimeline[720]['public'][1] ?? [];
+$delay = $testTimeline[720]['public'][2] ?? [];
+$check(($review['lead'] ?? '') === 'Vivian' && ($delay['lead'] ?? '') === 'Vivian', 'separate actions retain their actor lead');
+$check(($review['headline'] ?? '') === 'Vivian: Choose the review' && ($delay['headline'] ?? '') === 'Vivian: Choose the delay', 'each result retains the heading of its own action');
+$check(str_contains((string)($review['detail'] ?? ''), 'chose the review') && !str_contains((string)($review['detail'] ?? ''), 'chose the delay'), 'later choice cannot appear under the earlier choice heading');
+$check(str_contains((string)($delay['detail'] ?? ''), 'chose the delay') && str_contains((string)($delay['detail'] ?? ''), 'time to listen'), 'same-action details still combine without a duplicate heading');
 
 /* Opportunity-split fix (Nov 6, 2026): a decision caused by a dynamic
    opportunity points at the opportunity's PRIVATE "A New Opportunity

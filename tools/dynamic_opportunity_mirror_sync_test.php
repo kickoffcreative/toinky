@@ -43,6 +43,29 @@ try{
     $effectQuery->execute([$mirror['template_option_id'],$definition['effect_scope'],$definition['target_code']]);$effect=$effectQuery->fetch();
     if(!$effect||(int)$effect['active']!==1||$effect['detail_text']!=='Mirrored test consequence.')throw new RuntimeException('Saving a conditional Effect did not synchronize its behavior mirror.');
 
+    $blocked=static function(callable $write):void{$caught=false;try{$write();}catch(RuntimeException $e){$caught=str_contains($e->getMessage(),'Conditional Opportunities');}if(!$caught)throw new RuntimeException('Generated conditional records accepted a direct content edit.');};
+    $plotId=(int)$opportunity['plot_id'];$templateId=(int)$opportunity['template_id'];$mirrorId=(int)$mirror['template_option_id'];
+    $blocked(static fn()=>StoryAuthoringService::saveOption($writer,$plotId,['template_id'=>$templateId,'template_option_id'=>$mirrorId,'option_code'=>$code,'label'=>'Incorrect direct edit','result_text'=>'Incorrect direct edit','active'=>1]));
+    $blocked(static fn()=>StoryAuthoringService::saveOptionEffect($writer,$plotId,['template_option_id'=>$mirrorId,'effect_scope'=>$definition['effect_scope'],'target_code'=>$definition['target_code'],'delta_value'=>$delta,'set_value'=>$setValue,'active'=>1]));
+    $blocked(static fn()=>StoryAuthoringService::saveOptionCondition($writer,$plotId,['template_option_id'=>$mirrorId,'source_key'=>$definition['target_code'],'condition_scope'=>'WORLD_STATE','operator'=>'EXISTS']));
+    $blocked(static fn()=>StoryAuthoringService::deleteEntity($writer,$plotId,'option',$mirrorId));
+    $blocked(static fn()=>StoryAuthoringService::deleteEntity($writer,$plotId,'effect',(int)$effect['effect_id']));
+    $blocked(static fn()=>StoryAuthoringService::deleteEntity($writer,$plotId,'decision',$templateId));
+    $borrow=$pdo->prepare('SELECT t.template_id,x.template_option_id FROM plot_decision_templates t JOIN plot_decision_template_options x ON x.template_id=t.template_id WHERE t.plot_id=? AND NOT EXISTS(SELECT 1 FROM plot_dynamic_opportunities o WHERE o.plot_id=t.plot_id AND o.opportunity_code=t.event_code AND o.role_code=t.role_code) LIMIT 1');$borrow->execute([$plotId]);$ordinary=$borrow->fetch();if(!$ordinary)throw new RuntimeException('Direct-edit guard fixture needs a normal decision.');
+    $blocked(static fn()=>StoryAuthoringService::saveOption($writer,$plotId,['template_id'=>$ordinary['template_id'],'template_option_id'=>$mirrorId,'option_code'=>$code,'label'=>'Borrowed parent edit','result_text'=>'Borrowed parent edit','active'=>1]));
+    $blocked(static fn()=>StoryAuthoringService::saveOptionEffect($writer,$plotId,['template_option_id'=>$ordinary['template_option_id'],'effect_id'=>$effect['effect_id'],'effect_scope'=>$definition['effect_scope'],'target_code'=>$definition['target_code'],'delta_value'=>$delta,'set_value'=>$setValue,'active'=>1]));
+    $pdo->prepare('INSERT INTO plot_option_conditions(template_option_id,state_key,operator) VALUES(?,?,?)')->execute([$mirrorId,$definition['target_code'],'EXISTS']);$conditionId=(int)$pdo->lastInsertId();
+    $blocked(static fn()=>StoryAuthoringService::saveOptionCondition($writer,$plotId,['template_option_id'=>$ordinary['template_option_id'],'option_condition_id'=>$conditionId,'source_key'=>$definition['target_code'],'condition_scope'=>'WORLD_STATE','operator'=>'EXISTS']));
+    $decisionInput=['template_id'=>$templateId,'event_code'=>$opportunity['opportunity_code'],'role_code'=>$opportunity['role_code'],'actor_type'=>$opportunity['template_actor_type'],'prompt_text'=>$opportunity['prompt_text'].' Changed directly.','decision_window_seconds'=>$opportunity['window_seconds'],'active'=>$opportunity['active']];
+    $blocked(static fn()=>StoryAuthoringService::saveDecision($writer,$plotId,$decisionInput));
+    $decisionInput['prompt_text']=$opportunity['prompt_text'];$decisionInput['actor_type']=$opportunity['template_actor_type']==='PLAYER'?'NPC':'PLAYER';
+    StoryAuthoringService::saveDecision($writer,$plotId,$decisionInput);
+    DynamicOpportunityService::syncBehaviorTemplateById((int)$opportunity['dynamic_opportunity_id']);
+    $aq=$pdo->prepare('SELECT actor_type FROM plot_decision_templates WHERE template_id=?');$aq->execute([$templateId]);
+    if($aq->fetchColumn()!==$decisionInput['actor_type'])throw new RuntimeException('Conditional decision owner is no longer editable or was overwritten.');
+    $mirrorQuery->execute([$plotId,$opportunity['opportunity_code'],$opportunity['role_code'],$code]);
+    if($mirrorQuery->fetch()['result_text']!=='The test choice is applied.')throw new RuntimeException('Rejected direct edits changed the generated result.');
+
     $pdo->prepare('DELETE FROM plot_decision_template_options WHERE template_option_id=?')->execute([$mirror['template_option_id']]);
     DynamicOpportunityService::syncBehaviorTemplateById((int)$opportunity['dynamic_opportunity_id']);
     $mirrorQuery->execute([$opportunity['plot_id'],$opportunity['opportunity_code'],$opportunity['role_code'],$code]);$repaired=$mirrorQuery->fetch();
@@ -61,4 +84,4 @@ try{
     $pdo->rollBack();
 }catch(Throwable $error){if($pdo->inTransaction())$pdo->rollBack();throw$error;}
 
-echo "Dynamic opportunity Choice and Effect mirror synchronization passed.\n";
+echo "Dynamic opportunity synchronization, direct-edit guards and owner changes passed.\n";

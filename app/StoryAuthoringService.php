@@ -176,27 +176,43 @@ final class StoryAuthoringService
         $q=db()->prepare('INSERT INTO plot_event_perceptions(plot_id,event_code,role_code,history_type,title,perception_text,location_after) VALUES(?,?,?,?,?,?,?)');$q->execute([$plotId,$eventCode,$roleCode,$type,$title,$text,$location==='' ?null:$location]);return(int)db()->lastInsertId();
     }
 
+    private static function conditionalDecisionSource(int $plotId,int $templateId): ?array
+    {
+        $q=db()->prepare('SELECT o.* FROM plot_decision_templates t JOIN plot_dynamic_opportunities o ON o.plot_id=t.plot_id AND o.opportunity_code=t.event_code AND o.role_code=t.role_code WHERE t.template_id=? AND t.plot_id=?');$q->execute([$templateId,$plotId]);return $q->fetch()?:null;
+    }
+    private static function assertStandaloneDecision(int $plotId,int $templateId): void
+    {
+        if(self::conditionalDecisionSource($plotId,$templateId))throw new RuntimeException('Edit this conditional scene in Map, Dependencies, Opportunities → Conditional Opportunities. Its prompt, choices and effects are managed there.');
+    }
+    private static function assertStandaloneOption(int $plotId,int $optionId): void
+    {
+        $q=db()->prepare('SELECT o.template_id FROM plot_decision_template_options o JOIN plot_decision_templates t ON t.template_id=o.template_id WHERE o.template_option_id=? AND t.plot_id=?');$q->execute([$optionId,$plotId]);$templateId=(int)$q->fetchColumn();if(!$templateId)throw new RuntimeException('The option does not belong to this story.');self::assertStandaloneDecision($plotId,$templateId);
+    }
     public static function saveDecision(array $user,int $plotId,array $input): int
     {
         self::guard($user,$plotId);$id=(int)($input['template_id']??0);$values=[self::code((string)$input['event_code']),self::code((string)$input['role_code']),in_array(($input['actor_type']??''),['PLAYER','NPC'],true)?$input['actor_type']:'PLAYER',trim((string)$input['prompt_text']),max(5,self::durationSeconds($input,'decision_window_value','decision_window_unit','decision_window_seconds',30)),(int)!empty($input['active'])];
         if(!$values[0]||!$values[1]||!$values[3])throw new RuntimeException('A decision needs an event, character, and prompt.');
+        if($id&&($source=self::conditionalDecisionSource($plotId,$id))){
+            if($values[0]!==$source['opportunity_code']||$values[1]!==$source['role_code']||$values[3]!==trim((string)$source['prompt_text'])||$values[4]!==max(5,(int)$source['window_seconds'])||$values[5]!==((int)$source['active']))self::assertStandaloneDecision($plotId,$id);
+            db()->prepare('UPDATE plot_decision_templates SET actor_type=? WHERE template_id=? AND plot_id=?')->execute([$values[2],$id,$plotId]);return$id;
+        }
         if($id){$q=db()->prepare('UPDATE plot_decision_templates SET event_code=?,role_code=?,actor_type=?,prompt_text=?,decision_window_seconds=?,active=? WHERE template_id=? AND plot_id=?');$q->execute(array_merge($values,[$id,$plotId]));return$id;}
         $q=db()->prepare('INSERT INTO plot_decision_templates(plot_id,event_code,role_code,actor_type,prompt_text,decision_window_seconds,active) VALUES(?,?,?,?,?,?,?)');$q->execute(array_merge([$plotId],$values));return(int)db()->lastInsertId();
     }
 
     public static function saveOption(array $user,int $plotId,array $input): int
     {
-        self::guard($user,$plotId);$templateId=(int)$input['template_id'];self::assertParent('plot_decision_templates','template_id',$templateId,$plotId);
+        self::guard($user,$plotId);$templateId=(int)$input['template_id'];self::assertParent('plot_decision_templates','template_id',$templateId,$plotId);self::assertStandaloneDecision($plotId,$templateId);
         $id=(int)($input['template_option_id']??0);$values=[self::code((string)$input['option_code']),trim((string)$input['label']),(int)($input['npc_weight']??0),self::nullable($input['rationale_text']??null),trim((string)$input['result_text']),(int)($input['sort_order']??0),(int)!empty($input['active'])];
         if(!$values[0]||!$values[1]||!$values[4])throw new RuntimeException('An option needs a code, label, and result.');
-        if($id){$existing=db()->prepare('SELECT o.option_code FROM plot_decision_template_options o JOIN plot_decision_templates t ON t.template_id=o.template_id WHERE o.template_option_id=? AND t.plot_id=?');$existing->execute([$id,$plotId]);$current=$existing->fetchColumn();if($current===false)throw new RuntimeException('Option not found.');self::assertStableCodeChange($plotId,'option',$id,(string)$current,$values[0]);$q=db()->prepare('UPDATE plot_decision_template_options o JOIN plot_decision_templates t ON t.template_id=o.template_id SET o.option_code=?,o.label=?,o.npc_weight=?,o.rationale_text=?,o.result_text=?,o.sort_order=?,o.active=? WHERE o.template_option_id=? AND t.plot_id=?');$q->execute(array_merge($values,[$id,$plotId]));return$id;}
+        if($id){$existing=db()->prepare('SELECT o.option_code,o.template_id FROM plot_decision_template_options o JOIN plot_decision_templates t ON t.template_id=o.template_id WHERE o.template_option_id=? AND t.plot_id=?');$existing->execute([$id,$plotId]);$current=$existing->fetch();if(!$current)throw new RuntimeException('Option not found.');self::assertStandaloneDecision($plotId,(int)$current['template_id']);if((int)$current['template_id']!==$templateId)throw new RuntimeException('The option does not belong to this decision.');self::assertStableCodeChange($plotId,'option',$id,(string)$current['option_code'],$values[0]);$q=db()->prepare('UPDATE plot_decision_template_options o JOIN plot_decision_templates t ON t.template_id=o.template_id SET o.option_code=?,o.label=?,o.npc_weight=?,o.rationale_text=?,o.result_text=?,o.sort_order=?,o.active=? WHERE o.template_option_id=? AND t.plot_id=?');$q->execute(array_merge($values,[$id,$plotId]));return$id;}
         $q=db()->prepare('INSERT INTO plot_decision_template_options(template_id,option_code,label,npc_weight,rationale_text,result_text,sort_order,active) VALUES(?,?,?,?,?,?,?,?)');$q->execute(array_merge([$templateId],$values));return(int)db()->lastInsertId();
     }
 
     public static function saveOptionEffect(array $user,int $plotId,array $input): int
     {
-        self::guard($user,$plotId);$optionId=(int)$input['template_option_id'];$q=db()->prepare('SELECT 1 FROM plot_decision_template_options o JOIN plot_decision_templates t ON t.template_id=o.template_id WHERE o.template_option_id=? AND t.plot_id=?');$q->execute([$optionId,$plotId]);if(!$q->fetchColumn())throw new RuntimeException('The option does not belong to this story.');
-        $id=(int)($input['effect_id']??0);$scope=in_array(($input['effect_scope']??''),['FACTOR','STAT','LOCATION','KNOWLEDGE','RELATIONSHIP','WORLD_STATE','GOAL','FEAR'],true)?$input['effect_scope']:'WORLD_STATE';$values=[$scope,self::code((string)$input['target_code']),self::integerOrNull($input['delta_value']??null),self::nullable($input['set_value']??null),self::nullable($input['detail_text']??null),(int)($input['sort_order']??0),(int)!empty($input['active']),self::normalizeTargetRoles($input['target_role_code']??null)];if($values[1]==='')throw new RuntimeException('An effect needs a target code.');self::validateManagedValue($plotId,$scope,$values[1],$values[2],$values[3]);
+        self::guard($user,$plotId);$optionId=(int)$input['template_option_id'];$q=db()->prepare('SELECT 1 FROM plot_decision_template_options o JOIN plot_decision_templates t ON t.template_id=o.template_id WHERE o.template_option_id=? AND t.plot_id=?');$q->execute([$optionId,$plotId]);if(!$q->fetchColumn())throw new RuntimeException('The option does not belong to this story.');self::assertStandaloneOption($plotId,$optionId);
+        $id=(int)($input['effect_id']??0);if($id){$owner=db()->prepare('SELECT template_option_id FROM plot_option_effects WHERE effect_id=?');$owner->execute([$id]);$actualOption=(int)$owner->fetchColumn();self::assertStandaloneOption($plotId,$actualOption);if($actualOption!==$optionId)throw new RuntimeException('The effect does not belong to this option.');}$scope=in_array(($input['effect_scope']??''),['FACTOR','STAT','LOCATION','KNOWLEDGE','RELATIONSHIP','WORLD_STATE','GOAL','FEAR'],true)?$input['effect_scope']:'WORLD_STATE';$values=[$scope,self::code((string)$input['target_code']),self::integerOrNull($input['delta_value']??null),self::nullable($input['set_value']??null),self::nullable($input['detail_text']??null),(int)($input['sort_order']??0),(int)!empty($input['active']),self::normalizeTargetRoles($input['target_role_code']??null)];if($values[1]==='')throw new RuntimeException('An effect needs a target code.');self::validateManagedValue($plotId,$scope,$values[1],$values[2],$values[3]);
         if($id){$q=db()->prepare('UPDATE plot_option_effects e JOIN plot_decision_template_options o ON o.template_option_id=e.template_option_id JOIN plot_decision_templates t ON t.template_id=o.template_id SET e.effect_scope=?,e.target_code=?,e.delta_value=?,e.set_value=?,e.detail_text=?,e.sort_order=?,e.active=?,e.target_role_code=? WHERE e.effect_id=? AND t.plot_id=?');$q->execute(array_merge($values,[$id,$plotId]));return$id;}
         $q=db()->prepare('INSERT INTO plot_option_effects(template_option_id,effect_scope,target_code,delta_value,set_value,detail_text,sort_order,active,target_role_code) VALUES(?,?,?,?,?,?,?,?,?)');$q->execute(array_merge([$optionId],$values));return(int)db()->lastInsertId();
     }
@@ -204,8 +220,8 @@ final class StoryAuthoringService
 
     public static function saveOptionCondition(array $user,int $plotId,array $input): int
     {
-        self::guard($user,$plotId);$optionId=(int)($input['template_option_id']??0);$q=db()->prepare('SELECT 1 FROM plot_decision_template_options o JOIN plot_decision_templates t ON t.template_id=o.template_id WHERE o.template_option_id=? AND t.plot_id=?');$q->execute([$optionId,$plotId]);if(!$q->fetchColumn())throw new RuntimeException('The option does not belong to this story.');
-        $id=(int)($input['option_condition_id']??0);$scope=in_array(($input['condition_scope']??''),['WORLD_STATE','FACTOR'],true)?$input['condition_scope']:'WORLD_STATE';$code=self::code((string)($input['source_key']??''));$operator=in_array(($input['operator']??''),['EQ','NEQ','IN','NOT_IN','EXISTS','NOT_EXISTS','LT','LTE','GT','GTE'],true)?$input['operator']:'EQ';$compare=self::nullable($input['compare_value']??null);if($code==='')throw new RuntimeException('A condition needs a story value.');self::validateManagedCondition($plotId,$scope,$code,$operator,$compare);$values=[$scope==='FACTOR'?'FACTOR:'.$code:$code,$operator,$compare,self::nullable($input['reason_text']??null),(int)($input['sort_order']??0)];
+        self::guard($user,$plotId);$optionId=(int)($input['template_option_id']??0);$q=db()->prepare('SELECT 1 FROM plot_decision_template_options o JOIN plot_decision_templates t ON t.template_id=o.template_id WHERE o.template_option_id=? AND t.plot_id=?');$q->execute([$optionId,$plotId]);if(!$q->fetchColumn())throw new RuntimeException('The option does not belong to this story.');self::assertStandaloneOption($plotId,$optionId);
+        $id=(int)($input['option_condition_id']??0);if($id){$owner=db()->prepare('SELECT template_option_id FROM plot_option_conditions WHERE option_condition_id=?');$owner->execute([$id]);$actualOption=(int)$owner->fetchColumn();self::assertStandaloneOption($plotId,$actualOption);if($actualOption!==$optionId)throw new RuntimeException('The condition does not belong to this option.');}$scope=in_array(($input['condition_scope']??''),['WORLD_STATE','FACTOR'],true)?$input['condition_scope']:'WORLD_STATE';$code=self::code((string)($input['source_key']??''));$operator=in_array(($input['operator']??''),['EQ','NEQ','IN','NOT_IN','EXISTS','NOT_EXISTS','LT','LTE','GT','GTE'],true)?$input['operator']:'EQ';$compare=self::nullable($input['compare_value']??null);if($code==='')throw new RuntimeException('A condition needs a story value.');self::validateManagedCondition($plotId,$scope,$code,$operator,$compare);$values=[$scope==='FACTOR'?'FACTOR:'.$code:$code,$operator,$compare,self::nullable($input['reason_text']??null),(int)($input['sort_order']??0)];
         if($id){$q=db()->prepare('UPDATE plot_option_conditions c JOIN plot_decision_template_options o ON o.template_option_id=c.template_option_id JOIN plot_decision_templates t ON t.template_id=o.template_id SET c.state_key=?,c.operator=?,c.compare_value=?,c.reason_text=?,c.sort_order=? WHERE c.option_condition_id=? AND t.plot_id=?');$q->execute(array_merge($values,[$id,$plotId]));return$id;}
         $q=db()->prepare('INSERT INTO plot_option_conditions(template_option_id,state_key,operator,compare_value,reason_text,sort_order) VALUES(?,?,?,?,?,?)');$q->execute(array_merge([$optionId],$values));return(int)db()->lastInsertId();
     }
@@ -605,6 +621,10 @@ final class StoryAuthoringService
     public static function deleteEntity(array $user,int $plotId,string $entity,int $id): void
     {
         self::guard($user,$plotId);$entity=trim($entity);$id=(int)$id;
+        if($entity==='decision')self::assertStandaloneDecision($plotId,$id);
+        if($entity==='option')self::assertStandaloneOption($plotId,$id);
+        foreach(['effect'=>['plot_option_effects','effect_id'],'option_condition'=>['plot_option_conditions','option_condition_id']]as$type=>[$table,$key])if($entity===$type){$q=db()->prepare('SELECT template_option_id FROM '.$table.' WHERE '.$key.'=?');$q->execute([$id]);$optionId=(int)$q->fetchColumn();if($optionId)self::assertStandaloneOption($plotId,$optionId);}
+
         $deleteSql=[
             'location'=>['DELETE FROM plot_locations WHERE plot_location_id=? AND plot_id=?'],
             'state_definition'=>['DELETE FROM plot_state_definitions WHERE plot_state_definition_id=? AND plot_id=?'],
