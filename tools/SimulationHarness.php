@@ -7,6 +7,8 @@ final class SimulationHarness
     public static function resetDatabase(): void
     {
         $pdo=db();$pdo->exec('SET FOREIGN_KEY_CHECKS=0');$tables=$pdo->query('SHOW TABLES')->fetchAll(PDO::FETCH_COLUMN);foreach($tables as$table)$pdo->exec('DROP TABLE IF EXISTS `'.str_replace('`','``',(string)$table).'`');$pdo->exec('SET FOREIGN_KEY_CHECKS=1');self::runSqlFile($pdo,__DIR__.'/../database/schema.sql');self::runSqlFile($pdo,__DIR__.'/../database/seed.sql');MigrationService::run();
+        // Only the destructive, isolated test reset marks its seeded fixture accounts verified.
+        $pdo->exec('UPDATE users SET email_verified_at_utc=UTC_TIMESTAMP() WHERE email_verified_at_utc IS NULL');
     }
     public static function run(string $plotCode,string $strategy='no-action',int $duration=300,int $step=30,string $controllerMode='legacy',string $focus='',?int $plotVersionId=null,?array $choiceScript=null,bool $withRecap=false): array
     {

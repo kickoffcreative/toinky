@@ -4,7 +4,7 @@ $root=dirname(__DIR__);require_once $root.'/app/bootstrap.php';require_once $roo
 $pdo=db();$stamp=bin2hex(random_bytes(5));$ids=[];$simulationId=0;
 try{
     $plot=trim((string)($argv[1]??''));if($plot===''){$q=$pdo->query('SELECT p.code FROM plots p JOIN plot_roles pr ON pr.plot_id=p.plot_id AND pr.active=1 AND pr.simulation_active=1 WHERE p.status="active" GROUP BY p.plot_id HAVING COUNT(*)>=2 ORDER BY p.plot_id LIMIT 1');$plot=(string)$q->fetchColumn();}if($plot==='')throw new RuntimeException('No active story with at least two playable roles is available.');
-    foreach(['Host','Guest']as$i=>$name){$email="toinky-smoke-{$stamp}-{$i}@example.invalid";$pdo->prepare('INSERT INTO users(email,password_hash,display_name) VALUES(?,?,?)')->execute([$email,password_hash(bin2hex(random_bytes(12)),PASSWORD_DEFAULT),"Smoke {$name}"]);$ids[]=(int)$pdo->lastInsertId();}
+    foreach(['Host','Guest']as$i=>$name){$email="toinky-smoke-{$stamp}-{$i}@example.invalid";$pdo->prepare('INSERT INTO users(email,password_hash,display_name,email_verified_at_utc) VALUES(?,?,?,UTC_TIMESTAMP())')->execute([$email,password_hash(bin2hex(random_bytes(12)),PASSWORD_DEFAULT),"Smoke {$name}"]);$ids[]=(int)$pdo->lastInsertId();}
     // Task 5 Phase 1: hosted games run the PUBLISHED version, so createGame fails
 // closed when a story has no published pointer. Fresh builds seed the stories
 // as PUBLISHED with no version row, so publish the smoke story here when it

@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__.'/EmailTemplateService.php';
+require_once __DIR__.'/AccountSecurityService.php';
 final class AuthService
 {
     public static function boot(): void
@@ -43,8 +44,8 @@ final class AuthService
     public static function currentUser(): ?array
     {
         self::boot();$id=(int)($_SESSION['user_id']??0);if($id<=0)return null;
-        $q=db()->prepare('SELECT user_id,email,display_name,is_admin,is_super_admin,status,created_at_utc,last_login_at_utc FROM users WHERE user_id=?');$q->execute([$id]);$u=$q->fetch();
-        if(!$u||$u['status']!=='ACTIVE'){self::logout();return null;}return$u;
+        $q=db()->prepare('SELECT user_id,email,display_name,is_admin,is_super_admin,status,email_verified_at_utc,session_version,created_at_utc,last_login_at_utc FROM users WHERE user_id=?');$q->execute([$id]);$u=$q->fetch();
+        if(!$u||$u['status']!=='ACTIVE'||(int)($_SESSION['session_version']??0)!==(int)$u['session_version']){self::logout();return null;}return$u;
     }
     public static function register(string $email,string $name,string $password,?string $inviteToken=null,?string $gameInviteToken=null): array
     {
@@ -54,12 +55,13 @@ final class AuthService
         if(strlen($password)<10)throw new RuntimeException('Password must contain at least 10 characters.');
         $pdo=db();$invite=null;$gameInvite=null;
         if($inviteToken){
-            $q=$pdo->prepare('SELECT * FROM user_invitations WHERE token_hash=? AND accepted_at_utc IS NULL AND expires_at_utc>UTC_TIMESTAMP()');$q->execute([hash('sha256',$inviteToken)]);$invite=$q->fetch();
+            $q=$pdo->prepare('SELECT * FROM user_invitations WHERE token_hash=? AND delivered_at_utc IS NOT NULL AND accepted_at_utc IS NULL AND expires_at_utc>UTC_TIMESTAMP()');$q->execute([hash('sha256',$inviteToken)]);$invite=$q->fetch();
             if(!$invite||strtolower((string)$invite['email'])!==$email)throw new RuntimeException('The invitation is invalid, expired, or belongs to another email.');
         }
-        if($gameInviteToken){$q=$pdo->prepare('SELECT gi.game_invitation_id,gi.game_id,gi.email,g.status,p.max_players,(SELECT COUNT(*) FROM game_players gp WHERE gp.game_id=g.game_id) player_count FROM game_invitations gi JOIN games g ON g.game_id=gi.game_id JOIN simulations s ON s.simulation_id=g.simulation_id JOIN plots p ON p.plot_id=s.plot_id WHERE gi.token_hash=? AND gi.accepted_at_utc IS NULL AND gi.expires_at_utc>UTC_TIMESTAMP() AND g.deleted_at_utc IS NULL');$q->execute([hash('sha256',$gameInviteToken)]);$gameInvite=$q->fetch();if(!$gameInvite||strtolower((string)$gameInvite['email'])!==$email||$gameInvite['status']!=='LOBBY')throw new RuntimeException('The game invitation is invalid, expired, or belongs to another email.');if((int)$gameInvite['player_count']>=(int)$gameInvite['max_players'])throw new RuntimeException('That game lobby is already full.');}
+        if($gameInviteToken){$q=$pdo->prepare('SELECT gi.game_invitation_id,gi.game_id,gi.email,g.status,p.max_players,(SELECT COUNT(*) FROM game_players gp WHERE gp.game_id=g.game_id) player_count FROM game_invitations gi JOIN games g ON g.game_id=gi.game_id JOIN simulations s ON s.simulation_id=g.simulation_id JOIN plots p ON p.plot_id=s.plot_id WHERE gi.token_hash=? AND gi.delivered_at_utc IS NOT NULL AND gi.accepted_at_utc IS NULL AND gi.expires_at_utc>UTC_TIMESTAMP() AND g.deleted_at_utc IS NULL');$q->execute([hash('sha256',$gameInviteToken)]);$gameInvite=$q->fetch();if(!$gameInvite||strtolower((string)$gameInvite['email'])!==$email||$gameInvite['status']!=='LOBBY')throw new RuntimeException('The game invitation is invalid, expired, or belongs to another email.');if((int)$gameInvite['player_count']>=(int)$gameInvite['max_players'])throw new RuntimeException('That game lobby is already full.');}
+        // Only a successfully emailed, address-matched invitation proves mailbox ownership.
         $pdo->beginTransaction();try{$pdo->prepare('INSERT INTO users(email,password_hash,display_name,email_verified_at_utc) VALUES(?,?,?,?)')->execute([$email,password_hash($password,PASSWORD_DEFAULT),$name,($invite||$gameInvite)?gmdate('Y-m-d H:i:s'):null]);$id=(int)$pdo->lastInsertId();if($invite)$pdo->prepare('UPDATE user_invitations SET accepted_at_utc=UTC_TIMESTAMP() WHERE invitation_id=?')->execute([$invite['invitation_id']]);$gameId=0;if($gameInvite){$gameId=(int)$gameInvite['game_id'];$pdo->prepare('INSERT INTO game_players(game_id,user_id) VALUES(?,?)')->execute([$gameId,$id]);$pdo->prepare('UPDATE game_invitations SET accepted_by_user_id=?,accepted_at_utc=UTC_TIMESTAMP() WHERE game_invitation_id=?')->execute([$id,$gameInvite['game_invitation_id']]);}$pdo->commit();}catch(Throwable$e){if($pdo->inTransaction())$pdo->rollBack();throw$e;}
-        self::loginUserId($id);$u=self::currentUser()??[];$u['_game_id']=$gameId;self::sendTemplatedMessage($email,'WELCOME',['recipient_name'=>$name,'action_url'=>self::baseUrl().'/?view=login','action_label'=>'Sign in to Toinky','message'=>'Your Toinky account is ready. Explore stories, host a game, and build shared worlds.'],null,$id);$u['_game_id']=$gameId;return$u;
+        self::loginUserId($id,1);if(!$invite&&!$gameInvite)AccountSecurityService::requestVerification($id);$u=self::currentUser()??[];$u['_game_id']=$gameId;self::sendTemplatedMessage($email,'WELCOME',['recipient_name'=>$name,'action_url'=>self::baseUrl().'/?view=login','action_label'=>'Sign in to Toinky','message'=>'Your Toinky account is ready. Explore stories, host a game, and build shared worlds.'],null,$id);$u['_game_id']=$gameId;return$u;
     }
     public static function login(string $email,string $password): array
     {
@@ -67,9 +69,9 @@ final class AuthService
         if(!$u||!password_verify($password,(string)$u['password_hash']))throw new RuntimeException('Email or password is incorrect.');
         if($u['status']==='DISABLED')throw new RuntimeException('This account has been deactivated. Contact support if you would like to reactivate it.');
         if($u['status']!=='ACTIVE')throw new RuntimeException('Email or password is incorrect.');
-        if(password_needs_rehash((string)$u['password_hash'],PASSWORD_DEFAULT))db()->prepare('UPDATE users SET password_hash=? WHERE user_id=?')->execute([password_hash($password,PASSWORD_DEFAULT),$u['user_id']]);
-        if(self::superAdminNeedsTwoFactor($u)){self::issueTwoFactorCode((int)$u['user_id']);self::boot();$_SESSION['two_factor_pending_user_id']=(int)$u['user_id'];return ['two_factor_required'=>true,'user_id'=>(int)$u['user_id'],'email'=>(string)$u['email']];}
-        self::loginUserId((int)$u['user_id']);return self::currentUser()??[];
+        if(password_needs_rehash((string)$u['password_hash'],PASSWORD_DEFAULT))db()->prepare('UPDATE users SET password_hash=? WHERE user_id=? AND password_hash=? AND session_version=?')->execute([password_hash($password,PASSWORD_DEFAULT),$u['user_id'],$u['password_hash'],$u['session_version']]);
+        if(self::superAdminNeedsTwoFactor($u)){self::issueTwoFactorCode((int)$u['user_id']);self::boot();$_SESSION['two_factor_pending_user_id']=(int)$u['user_id'];$_SESSION['two_factor_pending_version']=(int)$u['session_version'];return ['two_factor_required'=>true,'user_id'=>(int)$u['user_id'],'email'=>(string)$u['email']];}
+        self::loginUserId((int)$u['user_id'],(int)$u['session_version']);return self::currentUser()??[];
     }
     public static function isSuperAdmin(int $userId): bool
     {
@@ -85,7 +87,9 @@ final class AuthService
     }
     public static function pendingTwoFactorUserId(): int
     {
-        self::boot();return (int)($_SESSION['two_factor_pending_user_id']??0);
+        self::boot();$id=(int)($_SESSION['two_factor_pending_user_id']??0);
+        $q=db()->prepare('SELECT session_version FROM users WHERE user_id=? AND status="ACTIVE"');$q->execute([$id]);$version=$q->fetchColumn();
+        if($version===false||(int)$version!==(int)($_SESSION['two_factor_pending_version']??0)){unset($_SESSION['two_factor_pending_user_id'],$_SESSION['two_factor_pending_version']);return 0;}return $id;
     }
     public static function issueTwoFactorCode(int $userId): void
     {
@@ -105,17 +109,21 @@ final class AuthService
     }
     public static function verifyTwoFactorCode(int $userId,string $code): array
     {
+        if(self::pendingTwoFactorUserId()!==$userId)throw new RuntimeException('Your sign-in session expired. Sign in again.');
+        $expectedVersion=(int)$_SESSION['two_factor_pending_version'];
         $code=(string)preg_replace('/\D/','',trim($code));
         if(strlen($code)!==6)throw new RuntimeException('Enter the 6-digit code sent to your email.');
         $q=db()->prepare('SELECT user_two_factor_code_id,code_hash FROM user_two_factor_codes WHERE user_id=? AND used_at_utc IS NULL AND expires_at_utc>UTC_TIMESTAMP() ORDER BY user_two_factor_code_id DESC LIMIT 1');$q->execute([$userId]);$row=$q->fetch();
         if(!$row||!hash_equals((string)$row['code_hash'],hash('sha256',$code)))throw new RuntimeException('That code is incorrect or expired. Request a new code and try again.');
         db()->prepare('UPDATE user_two_factor_codes SET used_at_utc=UTC_TIMESTAMP() WHERE user_two_factor_code_id=?')->execute([(int)$row['user_two_factor_code_id']]);
-        self::boot();unset($_SESSION['two_factor_pending_user_id']);
-        self::loginUserId($userId);return self::currentUser()??[];
+        self::boot();unset($_SESSION['two_factor_pending_user_id'],$_SESSION['two_factor_pending_version']);
+        self::loginUserId($userId,$expectedVersion);return self::currentUser()??[];
     }
-    private static function loginUserId(int $id): void
+    private static function loginUserId(int $id,int $expectedVersion): void
     {
-        self::boot();session_regenerate_id(true);$_SESSION['user_id']=$id;$_SESSION['csrf_token']=bin2hex(random_bytes(24));db()->prepare('UPDATE users SET last_login_at_utc=UTC_TIMESTAMP() WHERE user_id=?')->execute([$id]);
+        $q=db()->prepare('SELECT session_version FROM users WHERE user_id=? AND status="ACTIVE"');$q->execute([$id]);$version=$q->fetchColumn();
+        if($version===false||(int)$version!==$expectedVersion)throw new RuntimeException('Your sign-in session expired. Sign in again.');
+        self::boot();session_regenerate_id(true);$_SESSION['user_id']=$id;$_SESSION['session_version']=$expectedVersion;$_SESSION['csrf_token']=bin2hex(random_bytes(24));db()->prepare('UPDATE users SET last_login_at_utc=UTC_TIMESTAMP() WHERE user_id=?')->execute([$id]);
     }
     public static function logout(): void
     {
@@ -139,21 +147,18 @@ final class AuthService
     }
     public static function createInvitation(string $email,int $adminId): array
     {
+        AccountSecurityService::requireVerifiedEmail($adminId);
         $email=strtolower(trim($email));if(!filter_var($email,FILTER_VALIDATE_EMAIL))throw new RuntimeException('Enter a valid email address.');
         $token=bin2hex(random_bytes(24));db()->prepare('INSERT INTO user_invitations(email,token_hash,invited_by_user_id,expires_at_utc) VALUES(?,?,?,DATE_ADD(UTC_TIMESTAMP(),INTERVAL 7 DAY))')->execute([$email,hash('sha256',$token),$adminId]);
-        $url=self::baseUrl().'/?view=register&invite='.rawurlencode($token);$sent=self::sendTemplatedMessage($email,'INVITATION',['recipient_name'=>'there','action_url'=>$url,'action_label'=>'Create your account','message'=>'An administrator invited you to create a Toinky account.','expiry_text'=>'This link expires in 7 days.'],null,$adminId);return['url'=>$url,'sent'=>$sent];
+        $id=(int)db()->lastInsertId();$url=self::baseUrl().'/?view=register&invite='.rawurlencode($token);$sent=self::sendTemplatedMessage($email,'INVITATION',['recipient_name'=>'there','action_url'=>$url,'action_label'=>'Create your account','message'=>'An administrator invited you to create a Toinky account.','expiry_text'=>'This link expires in 7 days.'],null,$adminId);if($sent)db()->prepare('UPDATE user_invitations SET delivered_at_utc=UTC_TIMESTAMP() WHERE invitation_id=?')->execute([$id]);return['sent'=>$sent];
     }
-    public static function createPasswordResetForEmail(string $email): ?array
+    public static function createPasswordResetForEmail(string $email): array
     {
-        $q=db()->prepare('SELECT user_id,email FROM users WHERE email=? AND status="ACTIVE"');$q->execute([strtolower(trim($email))]);$u=$q->fetch();if(!$u)return null;
-        $token=bin2hex(random_bytes(24));db()->prepare('INSERT INTO password_reset_tokens(user_id,token_hash,expires_at_utc) VALUES(?,?,DATE_ADD(UTC_TIMESTAMP(),INTERVAL 2 HOUR))')->execute([$u['user_id'],hash('sha256',$token)]);
-        $url=self::baseUrl().'/?view=reset&token='.rawurlencode($token);$sent=self::sendTemplatedMessage((string)$u['email'],'PASSWORD_RESET',['recipient_name'=>'there','action_url'=>$url,'action_label'=>'Reset your password','message'=>'Use the button below to choose a new password.','expiry_text'=>'This link expires in 2 hours.']);return['url'=>$url,'sent'=>$sent];
+        return AccountSecurityService::requestPasswordReset($email);
     }
     public static function resetPassword(string $token,string $password): void
     {
-        if(strlen($password)<10)throw new RuntimeException('Password must contain at least 10 characters.');
-        $pdo=db();$q=$pdo->prepare('SELECT * FROM password_reset_tokens WHERE token_hash=? AND used_at_utc IS NULL AND expires_at_utc>UTC_TIMESTAMP()');$q->execute([hash('sha256',$token)]);$r=$q->fetch();if(!$r)throw new RuntimeException('This reset link is invalid or expired.');
-        $pdo->beginTransaction();try{$pdo->prepare('UPDATE users SET password_hash=? WHERE user_id=?')->execute([password_hash($password,PASSWORD_DEFAULT),$r['user_id']]);$pdo->prepare('UPDATE password_reset_tokens SET used_at_utc=UTC_TIMESTAMP() WHERE password_reset_id=?')->execute([$r['password_reset_id']]);$pdo->commit();}catch(Throwable$e){if($pdo->inTransaction())$pdo->rollBack();throw$e;}
+        AccountSecurityService::resetPassword($token,$password);
     }
     public static function hasRole(int $userId,string $roleCode): bool
     {
@@ -205,7 +210,8 @@ final class AuthService
     }
     public static function createGameInvitation(string $email,int $gameId,int $senderUserId): array
     {
-        $email=strtolower(trim($email));if(!filter_var($email,FILTER_VALIDATE_EMAIL))throw new RuntimeException('Enter a valid email address.');$q=db()->prepare('SELECT g.join_code,g.status,p.title,p.max_players,u.display_name host_name,(SELECT COUNT(*) FROM game_players gp WHERE gp.game_id=g.game_id) player_count FROM games g JOIN simulations s ON s.simulation_id=g.simulation_id JOIN plots p ON p.plot_id=s.plot_id JOIN users u ON u.user_id=g.host_user_id WHERE g.game_id=? AND g.host_user_id=? AND g.deleted_at_utc IS NULL');$q->execute([$gameId,$senderUserId]);$game=$q->fetch();if(!$game||$game['status']!=='LOBBY')throw new RuntimeException('Only the host can invite players while the lobby is open.');if((int)$game['player_count']>=(int)$game['max_players'])throw new RuntimeException('The lobby is already full.');$token=bin2hex(random_bytes(24));db()->prepare('INSERT INTO game_invitations(game_id,email,token_hash,invited_by_user_id,expires_at_utc) VALUES(?,?,?,?,DATE_ADD(UTC_TIMESTAMP(),INTERVAL 7 DAY))')->execute([$gameId,$email,hash('sha256',$token),$senderUserId]);$url=self::baseUrl().'/?view=register&game_invite='.rawurlencode($token);$sent=self::sendTemplatedMessage($email,'GAME_INVITATION',['recipient_name'=>'there','action_url'=>$url,'action_label'=>'Join the story','message'=>$game['host_name'].' invited you to play “'.$game['title'].'” on Toinky. Game code: '.$game['join_code'].'.','story_title'=>$game['title'],'game_code'=>$game['join_code'],'expiry_text'=>'This link expires in 7 days.'],$gameId,$senderUserId);return['url'=>$url,'sent'=>$sent];
+        AccountSecurityService::requireVerifiedEmail($senderUserId);
+        $email=strtolower(trim($email));if(!filter_var($email,FILTER_VALIDATE_EMAIL))throw new RuntimeException('Enter a valid email address.');$q=db()->prepare('SELECT g.join_code,g.status,p.title,p.max_players,u.display_name host_name,(SELECT COUNT(*) FROM game_players gp WHERE gp.game_id=g.game_id) player_count FROM games g JOIN simulations s ON s.simulation_id=g.simulation_id JOIN plots p ON p.plot_id=s.plot_id JOIN users u ON u.user_id=g.host_user_id WHERE g.game_id=? AND g.host_user_id=? AND g.deleted_at_utc IS NULL');$q->execute([$gameId,$senderUserId]);$game=$q->fetch();if(!$game||$game['status']!=='LOBBY')throw new RuntimeException('Only the host can invite players while the lobby is open.');if((int)$game['player_count']>=(int)$game['max_players'])throw new RuntimeException('The lobby is already full.');$token=bin2hex(random_bytes(24));db()->prepare('INSERT INTO game_invitations(game_id,email,token_hash,invited_by_user_id,expires_at_utc) VALUES(?,?,?,?,DATE_ADD(UTC_TIMESTAMP(),INTERVAL 7 DAY))')->execute([$gameId,$email,hash('sha256',$token),$senderUserId]);$id=(int)db()->lastInsertId();$url=self::baseUrl().'/?view=register&game_invite='.rawurlencode($token);$sent=self::sendTemplatedMessage($email,'GAME_INVITATION',['recipient_name'=>'there','action_url'=>$url,'action_label'=>'Join the story','message'=>$game['host_name'].' invited you to play “'.$game['title'].'” on Toinky. Game code: '.$game['join_code'].'.','story_title'=>$game['title'],'game_code'=>$game['join_code'],'expiry_text'=>'This link expires in 7 days.'],$gameId,$senderUserId);if($sent)db()->prepare('UPDATE game_invitations SET delivered_at_utc=UTC_TIMESTAMP() WHERE game_invitation_id=?')->execute([$id]);return['sent'=>$sent];
     }
     public static function baseUrl(): string
     {

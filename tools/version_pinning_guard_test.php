@@ -14,7 +14,7 @@ require_once $root.'/app/LobbyService.php';
 $pdo=db();
 $failures=[];
 $check=function(bool $ok,string $label)use(&$failures){echo ($ok?'PASS':'FAIL').' '.$label."\n";if(!$ok)$failures[]=$label;};
-$admin=$pdo->query('SELECT * FROM users WHERE is_admin=1 ORDER BY user_id LIMIT 1')->fetch();
+$admin=$pdo->query('SELECT * FROM users WHERE is_admin=1 AND email_verified_at_utc IS NOT NULL ORDER BY user_id LIMIT 1')->fetch();
 if(!$admin)throw new RuntimeException('Version pinning test needs an administrator fixture.');
 $adminId=(int)$admin['user_id'];
 
