@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__.'/StoryMediaService.php';
 require_once __DIR__.'/DynamicOpportunityService.php';
+require_once __DIR__.'/EndingCoverageAudit.php';
 
 final class StoryAuthoringService
 {
@@ -682,6 +683,7 @@ final class StoryAuthoringService
         foreach($workspace['options']as$option)if((int)($option['active']??1)===1&&$endsWithComma($option['result_text']??''))$warnings[]=$option['option_code'].' result_text appears truncated at a comma.';
         foreach($workspace['resolutions']as$resolution)if((int)($resolution['active']??1)===1&&$endsWithComma($resolution['fragment_text']??''))$warnings[]=$resolution['section_code'].' fragment_text appears truncated at a comma.';
         [$integrityErrors,$integrityWarnings]=self::auditManagedReferences($workspace);$errors=array_merge($errors,$integrityErrors);$warnings=array_merge($warnings,$integrityWarnings);
+        $warnings=array_merge($warnings,EndingCoverageAudit::warnings($workspace));
         if(!$workspace['events'])$errors[]='Add a chronological world-event schedule.';
         if(!$activeDecisions)$errors[]='Add at least one active decision opportunity.';
         foreach($activeDecisions as$d)if((int)$d['option_count']<2)$errors[]=$d['event_code'].' / '.$d['role_code'].' needs at least two active options.';
