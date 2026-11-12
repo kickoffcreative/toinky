@@ -324,22 +324,22 @@ function writer_definition_picker(array$definitions,array$usage=[]):string{$html
 ><summary><?=empty($d['template_id'])?'Add Decision':e($d['event_code'].' · '.$d['role_code']).' · '.(int)$d['option_count'].' options'?>
 </summary><?php if($conditionalSource):?><p class="help">This is a conditional scene. <a href="?plot=<?=$plotId?>&amp;tab=map&amp;subtab=opportunities">Edit its prompt, choices and effects in Conditional Opportunities</a>. You can change the Decision Owner here.</p><?php endif;?><form method="post" class="grid"><?=writer_form_context($plotId,$tab,'decision')?>
 <input type="hidden" name="template_id" value="<?=(int)$d['template_id']?>
-"><label class="field">Event<select name="event_code">
+"><label class="field">Event<select name="event_code" <?=$conditionalSource?'disabled':''?>><?php if($conditionalSource):?><option value="<?=e($d['event_code'])?>" selected><?=e($d['event_code'])?> · Conditional Scene</option><?php endif;?>
 <?php foreach($w['events']as$ev):?>
 <option value="<?=e($ev['event_code'])?>
 " <?=$d['event_code']===$ev['event_code']?'selected':''?>
 ><?=e($ev['headline'])?>
 </option>
 <?php endforeach;?>
-</select></label><label class="field">Character<select name="role_code">
+</select><?php if($conditionalSource):?><input type="hidden" name="event_code" value="<?=e($d['event_code'])?>"><?php endif;?></label><label class="field">Character<select name="role_code" <?=$conditionalSource?'disabled':''?>>
 <?php foreach($w['characters']as$c):?>
 <option value="<?=e($c['role_code'])?>
 " <?=$d['role_code']===$c['role_code']?'selected':''?>
 ><?=e($c['name'])?>
 </option>
 <?php endforeach;?>
-</select></label><label class="field">Decision Owner<select name="actor_type"><option value="PLAYER" <?=$d['actor_type']==='PLAYER'?'selected':''?>>Person Playing This Character</option><option value="NPC" <?=$d['actor_type']==='NPC'?'selected':''?>>AI Character</option></select><?=writer_hint('Who normally makes this choice during a game.')?></label><label class="field">Decision Window<div class="time-control"><input type="number" min="1" step="any" name="decision_window_value" value="<?=e($decisionTime[0])?>"><select name="decision_window_unit"><?php foreach(['seconds','minutes','hours','days']as$unit):?><option <?=$decisionTime[1]===$unit?'selected':''?>><?=ucfirst($unit)?></option><?php endforeach;?></select></div><?=writer_hint('How long the choice remains open before its no-action path runs.')?></label><label class="field wide">Prompt<textarea name="prompt_text" rows="4" required><?=e($d['prompt_text'])?>
-</textarea></label><label class="field"><input style="width:auto;display:inline" type="checkbox" name="active" value="1" <?=((int)($d['active']??1)===1)?'checked':''?><?=writer_usage_alert($decisionDeps)?>> Active</label><button class="btn"><?=empty($d['template_id'])?'Add':'Save'?>
+</select><?php if($conditionalSource):?><input type="hidden" name="role_code" value="<?=e($d['role_code'])?>"><?php endif;?></label><label class="field">Decision Owner<select name="actor_type"><option value="PLAYER" <?=$d['actor_type']==='PLAYER'?'selected':''?>>Person Playing This Character</option><option value="NPC" <?=$d['actor_type']==='NPC'?'selected':''?>>AI Character</option></select><?=writer_hint('Who normally makes this choice during a game.')?></label><label class="field">Decision Window<div class="time-control"><input type="number" min="1" step="any" name="decision_window_value" value="<?=e($decisionTime[0])?>" <?=$conditionalSource?'disabled':''?>><select name="decision_window_unit" <?=$conditionalSource?'disabled':''?>><?php foreach(['seconds','minutes','hours','days']as$unit):?><option <?=$decisionTime[1]===$unit?'selected':''?>><?=ucfirst($unit)?></option><?php endforeach;?></select></div><?php if($conditionalSource):?><input type="hidden" name="decision_window_seconds" value="<?=(int)$d['decision_window_seconds']?>"><?php endif;?><?=writer_hint('How long the choice remains open before its no-action path runs.')?></label><label class="field wide">Prompt<textarea name="prompt_text" rows="4" required <?=$conditionalSource?'readonly':''?>><?=e($d['prompt_text'])?>
+</textarea></label><label class="field"><input style="width:auto;display:inline" type="checkbox" name="active" value="1" <?=((int)($d['active']??1)===1)?'checked':''?><?=writer_usage_alert($decisionDeps)?> <?=$conditionalSource?'disabled':''?>> Active<?php if($conditionalSource):?><input type="hidden" name="active" value="<?=(int)($d['active']??1)?>"><?php endif;?></label><button class="btn"><?=empty($d['template_id'])?'Add':'Save'?>
  Decision</button></form>
 <?php if(!empty($d['template_id'])):?>
 
