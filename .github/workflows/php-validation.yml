@@ -23,6 +23,8 @@ jobs:
         run: php tools/ending_coverage_test.php
       - name: Check story value dependency compatibility
         run: php tools/story_value_dependency_test.php
+      - name: Check complete authoring reference audit
+        run: php tools/story_value_audit_test.php
       - name: Guard RecapService helper parity
         run: php tools/recap_service_guard_test.php
       - name: Guard Lab batch runner contract

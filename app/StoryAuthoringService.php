@@ -723,9 +723,40 @@ final class StoryAuthoringService
             if(($problem=self::conditionValueProblem((string)$definition['value_type'],(string)($definition['allowed_values_text']??''),$operator,$compare))!==null)$errors[]=$label.' '.$opportunity.' has an invalid '.$source.'|'.self::code($sourceKey).' condition: '.$problem;
         };
         foreach($workspace['dynamic_conditions']??[]as$row){if((int)($row['active']??1)!==1)continue;$source=strtoupper(trim((string)($row['source_type']??'')));$key=self::code((string)($row['source_key']??''));$definition=$definitions[$source.'|'.$key]??null;$checkCondition($row,'Condition',$definition);}
-        foreach($workspace['resolution_conditions']??[]as$row){if((int)($row['active']??1)!==1)continue;$key=self::code((string)($row['state_key']??''));$definition=$definitionsByCode[$key][0]??null;$checkCondition(['source_type'=>$definition['effect_scope']??'WORLD_STATE','source_key'=>$key,'operator'=>$row['operator']??'','compare_value'=>$row['compare_value']??null,'section_code'=>$row['section_code']??''],'Ending condition',$definition);if(!$definition)$errors[]='Ending condition '.($row['section_code']??'').' references undefined Story Value '.$key.'.';}
+        foreach ([
+            ['resolution_conditions', 'Ending condition', ['section_code']],
+            ['option_conditions', 'Option condition', ['option_code']],
+            ['event_effect_conditions', 'Event condition', ['event_code']],
+            ['no_action_conditions', 'No-action condition', ['event_code', 'role_code']],
+        ] as [$table, $label, $fields]) {
+            foreach ($workspace[$table] ?? [] as $row) {
+                if ((int)($row['active'] ?? 1) !== 1) continue;
+                $rawKey = (string)($row['state_key'] ?? '');
+                $factor = str_starts_with($rawKey, 'FACTOR:');
+                $key = self::code($factor ? substr($rawKey, 7) : $rawKey);
+                $definition = $factor ? ($definitions['FACTOR|'.$key] ?? null) : ($definitionsByCode[$key][0] ?? null);
+                $owner = implode('|', array_map(static fn(string $field): string => (string)($row[$field] ?? ''), $fields));
+                $checkCondition(['source_type' => $factor ? 'FACTOR' : ($definition['effect_scope'] ?? 'WORLD_STATE'),
+                    'source_key' => $key, 'operator' => $row['operator'] ?? '',
+                    'compare_value' => $row['compare_value'] ?? null, 'section_code' => $owner], $label, $definition);
+            }
+        }
         $checkEffect=static function(array$row,string$label)use(&$errors,$definitions):void{$scope=strtoupper(trim((string)($row['effect_scope']??'')));$code=self::code((string)($row['target_code']??''));$key=$scope.'|'.$code;$definition=$definitions[$key]??null;$owner=trim((string)($row['event_code']??$row['opportunity_code']??$label)).'|'.trim((string)($row['option_code']??''));if(!$definition){$errors[]=$label.' '.$owner.' references undefined Story Value '.$key.'.';return;}$type=(string)$definition['value_type'];$delta=$row['delta_value']??null;$set=self::nullable($row['set_value']??null);if($type==='NUMERIC'){if($delta===null||$delta===''||!is_numeric((string)$delta))$errors[]=$label.' '.$owner.' must change Numerical Story Value '.$key.' with a numeric delta.';return;}if($set===null){$errors[]=$label.' '.$owner.' must set '.$type.' Story Value '.$key.' to a value.';return;}if($type==='PRESET'){$allowed=preg_split('/\r?\n/',trim((string)($definition['allowed_values_text']??'')))?:[];if(!in_array($set,$allowed,true))$errors[]=$label.' '.$owner.' sets '.$key.' to unavailable Preset Value “'.$set.'”.';}};
         foreach($workspace['effects']??[]as$row)if((int)($row['active']??1)===1)$checkEffect($row,'Option effect');foreach($workspace['dynamic_effects']??[]as$row)if((int)($row['active']??1)===1)$checkEffect($row,'Opportunity effect');
+        foreach ($workspace['event_effects'] ?? [] as $row) {
+            if ((int)($row['active'] ?? 1) !== 1) continue;
+            // Event LOCATION effects target characters, not a managed value code.
+            // The destination must nevertheless be an authored story location.
+            if (($row['effect_scope'] ?? '') === 'LOCATION') {
+                $destination = trim((string)($row['set_value'] ?? ''));
+                if ($destination === '' || !isset($locationValues[$destination])) $errors[] = 'Event effect '.($row['event_code'] ?? '').' sets LOCATION to an unavailable story location.';
+            } else $checkEffect($row, 'Event effect');
+        }
+        foreach ($workspace['no_action_effects'] ?? [] as $row) {
+            if ((int)($row['active'] ?? 1) !== 1) continue;
+            $row['event_code'] = ($row['event_code'] ?? '').'|'.($row['role_code'] ?? '');
+            $checkEffect($row, 'No-action effect');
+        }
         $errors=array_values(array_unique($errors));$warnings=array_values(array_unique($warnings));return[$errors,$warnings];
     }
 
