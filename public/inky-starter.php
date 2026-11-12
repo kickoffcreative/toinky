@@ -19,6 +19,7 @@ try{
     if((int)$writer['is_admin']!==1&&!AuthService::hasRole((int)$writer['user_id'],'WRITER'))throw new RuntimeException('Story Writer access is required.');
     if($_SERVER['REQUEST_METHOD']!=='POST')throw new RuntimeException('POST is required.');
     AuthService::requireCsrf();
+    RateLimitService::ai((int)$writer['user_id']);
     $plotId=(int)($_POST['plot_id']??0);
     if($mode==='guide')$result=['ok'=>true]+InkyGuideService::guide($writer,$_POST);
     elseif($mode==='suggest_content')$result=['ok'=>true]+InkyGuideService::suggestContent($writer,$_POST);
@@ -35,6 +36,7 @@ try{
     $normalized=strtolower($detail);
     $malformed=$e instanceof JsonException||str_contains($normalized,'json')||str_contains($normalized,'structured response')||str_contains($normalized,'syntax error')||str_contains($normalized,'incomplete');
     $message=str_contains($normalized,'timed out')||str_contains($normalized,'timeout')?'Inky’s conversation took too long. Please try again.':($malformed?'Inky returned an incomplete conversation response. Please try again.':(str_contains($normalized,'offline')||str_contains($normalized,'not available')||str_contains($normalized,'cannot be reached')||str_contains($normalized,'curl')||preg_match('/ai http (404|408|429|5[0-9]{2})/i',$detail)?'Inky’s assistant service is unavailable right now. Check the AI connection and try again.':($e instanceof RuntimeException&&!$e instanceof PDOException?$detail:'Inky could not continue the conversation. Check the AI connection and try again.')));
-    http_response_code(422);
+    if($e instanceof RateLimitException)$message=$e->getMessage();
+    http_response_code($e instanceof RateLimitException?429:422);
     echo json_encode(['ok'=>false,'message'=>$message],JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES|JSON_INVALID_UTF8_SUBSTITUTE);
 }

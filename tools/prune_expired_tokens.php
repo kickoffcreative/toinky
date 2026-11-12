@@ -24,6 +24,7 @@ $apply=in_array('--apply',$argv,true);
 $pdo=db();
 
 $counts=[];
+$counts['auth_throttle']=$pdo->query('SELECT COUNT(*) FROM auth_throttle WHERE window_start_utc<DATE_SUB(UTC_TIMESTAMP(),INTERVAL 30 DAY) AND (locked_until_utc IS NULL OR locked_until_utc<=UTC_TIMESTAMP())')->fetchColumn();
 $counts['password_reset_tokens']=$pdo->query("SELECT COUNT(*) FROM password_reset_tokens WHERE expires_at_utc <= UTC_TIMESTAMP() OR used_at_utc IS NOT NULL")->fetchColumn();
 $counts['user_invitations']=$pdo->query("SELECT COUNT(*) FROM user_invitations WHERE expires_at_utc <= UTC_TIMESTAMP() OR accepted_at_utc IS NOT NULL")->fetchColumn();
 $counts['game_invitations']=$pdo->query("SELECT COUNT(*) FROM game_invitations WHERE expires_at_utc <= UTC_TIMESTAMP() OR accepted_at_utc IS NOT NULL")->fetchColumn();
@@ -44,6 +45,7 @@ foreach($mediaPlan as $mid=>$plan)echo "  media {$mid}: usage_refs={$plan['usage
 if(!$apply){echo "Dry run — no rows changed. Re-run with --apply to apply.\n";exit(0);}
 
 $deleted=[];
+$deleted['auth_throttle']=$pdo->exec('DELETE FROM auth_throttle WHERE window_start_utc<DATE_SUB(UTC_TIMESTAMP(),INTERVAL 30 DAY) AND (locked_until_utc IS NULL OR locked_until_utc<=UTC_TIMESTAMP())');
 $d=$pdo->prepare("DELETE FROM password_reset_tokens WHERE expires_at_utc <= UTC_TIMESTAMP() OR used_at_utc IS NOT NULL");$d->execute();$deleted['password_reset_tokens']=$d->rowCount();
 $d=$pdo->prepare("DELETE FROM user_invitations WHERE expires_at_utc <= UTC_TIMESTAMP() OR accepted_at_utc IS NOT NULL");$d->execute();$deleted['user_invitations']=$d->rowCount();
 $d=$pdo->prepare("DELETE FROM game_invitations WHERE expires_at_utc <= UTC_TIMESTAMP() OR accepted_at_utc IS NOT NULL");$d->execute();$deleted['game_invitations']=$d->rowCount();

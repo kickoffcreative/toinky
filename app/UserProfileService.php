@@ -19,6 +19,7 @@ final class UserProfileService
 
     public static function requestEmailChange(array $user,string $newEmail): array
     {
+        RateLimitService::emailChange((int)$user['user_id']);
         $newEmail=strtolower(trim($newEmail));if(!filter_var($newEmail,FILTER_VALIDATE_EMAIL))throw new RuntimeException('Enter a valid email address.');if($newEmail===strtolower((string)$user['email']))throw new RuntimeException('That is already your account email.');$q=db()->prepare('SELECT 1 FROM users WHERE email=? AND user_id<>?');$q->execute([$newEmail,$user['user_id']]);if($q->fetchColumn())throw new RuntimeException('That email address is already in use.');
         $token=bin2hex(random_bytes(24));db()->prepare('UPDATE user_email_change_tokens SET expires_at_utc=UTC_TIMESTAMP() WHERE user_id=? AND verified_at_utc IS NULL')->execute([$user['user_id']]);db()->prepare('INSERT INTO user_email_change_tokens(user_id,new_email,token_hash,expires_at_utc) VALUES(?,?,?,DATE_ADD(UTC_TIMESTAMP(),INTERVAL 2 HOUR))')->execute([$user['user_id'],$newEmail,hash('sha256',$token)]);
         $id=(int)db()->lastInsertId();$url=AuthService::baseUrl().'/profile.php?verify_email='.rawurlencode($token);$sent=AuthService::sendTemplatedMessage($newEmail,'EMAIL_CHANGE',['recipient_name'=>$user['display_name']??'there','action_url'=>$url,'action_label'=>'Verify email address','message'=>'Confirm this email address for your Toinky account.','expiry_text'=>'This link expires in 2 hours.'],null,(int)$user['user_id']);if($sent)db()->prepare('UPDATE user_email_change_tokens SET delivered_at_utc=UTC_TIMESTAMP() WHERE email_change_token_id=?')->execute([$id]);return['sent'=>$sent];
@@ -32,7 +33,7 @@ final class UserProfileService
 
     public static function requestFriend(int $userId,string $email): void
     {
-        AccountSecurityService::requireVerifiedEmail($userId);
+        AccountSecurityService::requireVerifiedEmail($userId);RateLimitService::friendRequest($userId);
         $email=strtolower(trim($email));if(!filter_var($email,FILTER_VALIDATE_EMAIL))throw new RuntimeException('Enter a valid email address.');$q=db()->prepare('SELECT user_id FROM users WHERE email=? AND status="ACTIVE"');$q->execute([$email]);$friendId=(int)$q->fetchColumn();if($friendId<1)throw new RuntimeException('That person does not have an active Toinky account yet. Invite them first.');if($friendId===$userId)throw new RuntimeException('You cannot add yourself as a friend.');[$low,$high]=self::pair($userId,$friendId);
         $q=db()->prepare('SELECT status FROM user_friendships WHERE user_low_id=? AND user_high_id=?');$q->execute([$low,$high]);$status=$q->fetchColumn();if($status==='ACCEPTED')throw new RuntimeException('That player is already your friend.');db()->prepare('INSERT INTO user_friendships(user_low_id,user_high_id,requested_by_user_id,status) VALUES(?,?,?,"PENDING") ON DUPLICATE KEY UPDATE requested_by_user_id=VALUES(requested_by_user_id),status="PENDING",responded_at_utc=NULL')->execute([$low,$high,$userId]);
     }
