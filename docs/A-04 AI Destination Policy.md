@@ -6,7 +6,8 @@ Implemented November 12, 2026. Baseline/rollback: A-03 merge
 
 ## Result
 
-- The owner approved `toinky.com` as the destination hostname in this chat.
+- The owner confirmed `endurable-cleft-wildlife.ngrok-free.dev` as the
+  intended AI destination. The earlier website-host approval was clarified.
   `config/ai-policy.php` contains that non-secret, versioned allowlist and is
   copied and hash-verified during deployment. This separate configuration file
   provides the same server-controlled approval as the work order's suggested
@@ -36,12 +37,29 @@ the HTTPS-only protocol bitmask. No TLS verification is disabled.
 
 ## Deployment Configuration
 
-Approving the website hostname does not establish an AI API there. Before AI can
-connect, configure the actual HTTPS AI API base URL on `toinky.com`, ending before
-the clients' `/api/chat` and `/api/tags` suffixes. No AI route or reverse proxy was
-created, and no live endpoint was tested. Do not point it at the website homepage
-unless those API routes are genuinely served there. Legacy saved endpoints on
-another host will be refused after deployment.
+The confirmed AI API base URL is:
+`https://endurable-cleft-wildlife.ngrok-free.dev`.
+Keep this explicitly configured in the existing server-owned AI configuration,
+environment or saved AI Settings. It is approved deployment configuration, not
+an implicit fallback in the application code. No tunnel or AI route was created
+by this code change.
+
+A credential-free GET to `/api/tags` on November 12 returned HTTP 401 with
+`WWW-Authenticate: Basic realm="ngrok"`. This confirms that the endpoint is
+reachable and enforces Basic Authentication. It does not verify authenticated
+Ollama responses or that hosted Toinky has matching credentials. The user also
+provided local Ollama output listing `qwen3:8b` and a successful local tags request.
+
+ngrok documents its assigned dev domains as static and account-owned; using this
+ngrok domain is compatible with the exact-host policy. See
+[ngrok domain ownership](https://ngrok.com/docs/gateway/domains). The security
+change removes implicit destinations, insecure transport and redirect behavior;
+it does not require moving the AI service onto the website's domain.
+
+Preserve the existing private `basic_user` / `basic_password` values in
+`config/ai.php`, or their corresponding environment variables. No password was
+read, copied into Git or submitted in the endpoint check. If a server-owned
+`allowed_hosts` override exists, it must include this exact confirmed hostname.
 
 Use `GAME2_AI_ENDPOINT` or ignored, server-owned `config/ai.php` for the endpoint.
 For example, that file can return an array containing `endpoint` and optionally
