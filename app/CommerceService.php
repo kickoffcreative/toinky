@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__.'/UserFacingException.php';
 require_once __DIR__ . '/StripeService.php';
 
 final class CommerceService
@@ -48,7 +49,7 @@ final class CommerceService
             $occ = (int)($input['occasions_' . $b['key']] ?? $b['occasions']);
             $dollars = (string)($input['price_' . $b['key']] ?? '');
             $price = $dollars === '' ? $b['price_cents'] : (int)round(((float)$dollars) * 100);
-            if ($occ < 1 || $occ > 50) throw new RuntimeException('Each bundle must hold between 1 and 50 occasions.');
+            if ($occ < 1 || $occ > 50) throw new UserFacingException('Each bundle must hold between 1 and 50 occasions.');
             if ($price < 50 || $price > 100000) throw new RuntimeException('Bundle prices must be between $0.50 and $1,000.');
             $bundles[] = ['key' => $b['key'], 'occasions' => $occ, 'price_cents' => $price];
         }
@@ -94,7 +95,7 @@ final class CommerceService
     {
         if (self::isAdmin($userId)) return;
         self::grantFreeFirst($userId);
-        if (self::balance($userId)['available'] < 1) throw new RuntimeException('You have no occasions available. Buy more occasions to host another game.');
+        if (self::balance($userId)['available'] < 1) throw new UserFacingException('You have no occasions available. Buy more occasions to host another game.');
     }
 
     public static function reserveForGame(int $userId, int $gameId): void
@@ -113,7 +114,7 @@ final class CommerceService
             $q = $pdo->prepare("SELECT COUNT(*) FROM host_occasion_ledger WHERE game_id=? AND entry_type='RESERVE'");
             $q->execute([$gameId]);
             if ((int)$q->fetchColumn() === 0) {
-                if (self::balance($userId)['available'] < 1) throw new RuntimeException('You have no occasions available. Buy more occasions to host another game.');
+                if (self::balance($userId)['available'] < 1) throw new UserFacingException('You have no occasions available. Buy more occasions to host another game.');
                 $pdo->prepare("INSERT INTO host_occasion_ledger(user_id,entry_type,occasions,game_id,note) VALUES(?,'RESERVE',1,?,'Held for this lobby.')")->execute([$userId, $gameId]);
             }
             if($ownsTransaction)$pdo->commit();
@@ -152,14 +153,14 @@ public static function releaseForGame(int $gameId): void
 
 public static function adminAdjust(int $adminId, int $userId, int $occasions, string $note): void
     {
-        if ($userId < 1) throw new RuntimeException('Choose a valid user.');
-        if ($occasions === 0 || abs($occasions) > 100) throw new RuntimeException('Enter an adjustment between -100 and 100 occasions.');
+        if ($userId < 1) throw new UserFacingException('Choose a valid user.');
+        if ($occasions === 0 || abs($occasions) > 100) throw new UserFacingException('Enter an adjustment between -100 and 100 occasions.');
         $q = db()->prepare('SELECT COUNT(*) FROM users WHERE user_id=?');
         $q->execute([$userId]);
-        if ((int)$q->fetchColumn() === 0) throw new RuntimeException('That user does not exist.');
+        if ((int)$q->fetchColumn() === 0) throw new UserFacingException('That user does not exist.');
         if ($occasions < 0) {
             $b = self::balance($userId);
-            if ($b['granted'] + $occasions < $b['consumed'] + $b['reserved']) throw new RuntimeException('That would revoke occasions the user has already spent or holds.');
+            if ($b['granted'] + $occasions < $b['consumed'] + $b['reserved']) throw new UserFacingException('That would revoke occasions the user has already spent or holds.');
         }
         $note = trim($note);
         if ($note === '') $note = 'Admin adjustment.';
@@ -183,10 +184,10 @@ public static function adminAdjust(int $adminId, int $userId, int $occasions, st
 
     public static function startPurchase(int $userId, string $bundleKey): string
     {
-        if (!self::enabled()) throw new RuntimeException('Purchases are not open yet.');
+        if (!self::enabled()) throw new UserFacingException('Purchases are not open yet.');
         $bundle = self::bundle($bundleKey);
-        if ($bundle === null) throw new RuntimeException('That bundle is not available.');
-        if (!StripeService::configured()) throw new RuntimeException('Stripe is not configured yet. Add the Stripe keys in Commerce settings.');
+        if ($bundle === null) throw new UserFacingException('That bundle is not available.');
+        if (!StripeService::configured()) throw new UserFacingException('Stripe is not configured yet. Add the Stripe keys in Commerce settings.');
         $settings = self::settings();
         $pdo = db();
         $pdo->prepare("INSERT INTO host_purchases(user_id,bundle_key,occasions_granted,amount_cents,currency,status) VALUES(?,?,?,?,?,'PENDING')")->execute([$userId, $bundle['key'], $bundle['occasions'], $bundle['price_cents'], $settings['currency']]);
@@ -215,7 +216,7 @@ public static function adminAdjust(int $adminId, int $userId, int $occasions, st
         }
         $pdo->prepare('UPDATE host_purchases SET stripe_checkout_session_id=? WHERE purchase_id=?')->execute([(string)($session['id'] ?? ''), $purchaseId]);
         $url = (string)($session['url'] ?? '');
-        if ($url === '') throw new RuntimeException('Stripe did not return a checkout link.');
+        if ($url === '') throw new UserFacingException('Stripe did not return a checkout link.');
         return $url;
     }
 

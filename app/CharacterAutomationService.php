@@ -28,12 +28,12 @@ final class CharacterAutomationService
                         BehaviorService::chooseAutomated($sid,(int)$d['decision_id'],(string)$pick['option_code']);
                         // Record the fallback only once it actually resolved
                         // the decision.
-                        self::logFailure($sid,$d,$e->getMessage(),(string)$pick['option_code']);$summary['chosen']++;$progress=true;
+                        self::logFailure($sid,$d,public_error($e),(string)$pick['option_code']);$summary['chosen']++;$progress=true;
                     }catch(Throwable $e2){
                         // The weighted fallback also failed and the decision
                         // is still OPEN: a real failure, not a race. Log it
                         // visibly instead of swallowing it.
-                        error_log('Toinky AI automation failed for simulation '.$sid.' decision '.$d['decision_id'].': '.$e2->getMessage());
+                        Logger::warning('Toinky AI automation failed for simulation '.$sid.' decision '.$d['decision_id'].': '.public_error($e2));
                         $summary['failed']++;
                     }
                 }

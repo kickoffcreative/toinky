@@ -57,9 +57,9 @@ final class SimulationService {
             $plotId=(int)$sim['plot_id'];
             $live=hash('sha256',json_encode(StoryAuthoringService::audit($plotId)['workspace'],JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES));
             if($live===(string)$sim['content_checksum'])return null;
-            error_log('Toinky version drift: simulation '.$sid.' plot '.$plotId.' pinned to version '.$sim['plot_version_id'].' but the live draft no longer matches its checksum.');
+            Logger::warning('Toinky version drift: simulation '.$sid.' plot '.$plotId.' pinned to version '.$sim['plot_version_id'].' but the live draft no longer matches its checksum.');
             return ['simulation_id'=>$sid,'plot_id'=>$plotId,'plot_version_id'=>(int)$sim['plot_version_id'],'stored_checksum'=>(string)$sim['content_checksum'],'live_checksum'=>$live];
-        }catch(Throwable $e){error_log('Toinky version drift check failed for simulation '.$sid.': '.$e->getMessage());return null;}
+        }catch(Throwable $e){Logger::warning('Toinky version drift check failed for simulation '.$sid.': '.public_error($e));return null;}
     }
     public static function advance(int $sid,int $seconds=30): void {
         $pdo=db();$sim=self::simulation($sid);if($sim['status']==='READY'){self::start($sid);$sim=self::simulation($sid);}if($sim['status']!=='RUNNING')return;

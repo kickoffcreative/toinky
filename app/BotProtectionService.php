@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__.'/UserFacingException.php';
 /** A quiet form check, backed by RateLimitService; it is not a bot-proof challenge. */
 final class BotProtectionService
 {
@@ -29,10 +30,10 @@ final class BotProtectionService
     {
         self::validateAction($action);AuthService::boot();
         $token=$post['auth_form_token']??'';$trap=$post['company_website']??'';
-        if(!is_string($token)||!is_string($trap)||trim($trap)!==''||!self::validSignature($action,$token))throw new RuntimeException('This form expired. Refresh the page and try again.');
+        if(!is_string($token)||!is_string($trap)||trim($trap)!==''||!self::validSignature($action,$token))throw new UserFacingException('This form expired. Refresh the page and try again.');
         $age=self::now()-(int)explode('.',$token)[0];
-        if($age<0||$age>=self::LIFETIME_MS)throw new RuntimeException('This form expired. Refresh the page and try again.');
-        if($age<2000)throw new RuntimeException('Please wait a moment, then submit this form again.');
+        if($age<0||$age>=self::LIFETIME_MS)throw new UserFacingException('This form expired. Refresh the page and try again.');
+        if($age<2000)throw new UserFacingException('Please wait a moment, then submit this form again.');
         // The token may be reused during this form's lifetime. Rate limits remain
         // mandatory; this is not a substitute for them or the separate CSRF check.
     }

@@ -44,7 +44,7 @@ final class SimulationContent
         try{
             $q=db()->prepare('SELECT plot_id,plot_version_id FROM simulations WHERE simulation_id=?');$q->execute([$sid]);$sim=$q->fetch();
             if($sim&&!empty($sim['plot_version_id']))$snap=self::loadVersion((int)$sim['plot_version_id'],(int)$sim['plot_id']);
-        }catch(Throwable $e){error_log('Toinky SimulationContent: could not load pinned content for simulation '.$sid.': '.$e->getMessage());}
+        }catch(Throwable $e){Logger::warning('Toinky SimulationContent: could not load pinned content for simulation '.$sid.': '.public_error($e));}
         self::$cache[$sid]=$snap;return$snap;
     }
 
@@ -59,11 +59,11 @@ final class SimulationContent
         try{
             $q=db()->prepare('SELECT plot_id,snapshot_json FROM plot_versions WHERE plot_version_id=?');$q->execute([$versionId]);$row=$q->fetch();
             if(!$row)return null;
-            if($plotId!==null&&(int)$row['plot_id']!==$plotId){error_log('Toinky SimulationContent: version '.$versionId.' does not belong to plot '.$plotId.'.');return null;}
+            if($plotId!==null&&(int)$row['plot_id']!==$plotId){Logger::warning('Toinky SimulationContent: version '.$versionId.' does not belong to plot '.$plotId.'.');return null;}
             $snap=json_decode((string)$row['snapshot_json'],true);
             if(!is_array($snap)||!is_array($snap['content']??null))return null;
             return $snap;
-        }catch(Throwable $e){error_log('Toinky SimulationContent: could not load version '.$versionId.': '.$e->getMessage());return null;}
+        }catch(Throwable $e){Logger::warning('Toinky SimulationContent: could not load version '.$versionId.': '.public_error($e));return null;}
     }
 
     public static function plotRow(int $sid): ?array

@@ -1,5 +1,6 @@
 <?php
-final class PrivacyException extends RuntimeException {}
+require_once __DIR__.'/UserFacingException.php';
+final class PrivacyException extends UserFacingException {}
 final class PrivacyService
 {
     public const AGE_BLOCK_COOKIE='__Host-toinky-age-block';

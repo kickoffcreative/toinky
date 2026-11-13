@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__.'/UserFacingException.php';
 /** Account links are delivered only by email. Never return their bearer tokens. */
 final class AccountSecurityService
 {
@@ -6,7 +7,7 @@ final class AccountSecurityService
     {
         $q=db()->prepare('SELECT 1 FROM users WHERE user_id=? AND status="ACTIVE" AND email_verified_at_utc IS NOT NULL');
         $q->execute([$userId]);
-        if(!$q->fetchColumn())throw new RuntimeException('Verify your email in My Profile before hosting, inviting players, or sending friend requests.');
+        if(!$q->fetchColumn())throw new UserFacingException('Verify your email in My Profile before hosting, inviting players, or sending friend requests.');
     }
 
     public static function requestPasswordReset(string $email): array
@@ -53,7 +54,7 @@ final class AccountSecurityService
             self::audit($actorId,$targetId,'ADMIN_PASSWORD_RESET',$allowed?'AUTHORIZED':'DENIED');
             $pdo->commit();
         }catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw $e;}
-        if(!$allowed)throw new RuntimeException('You cannot request a password reset for that account.');
+        if(!$allowed)throw new UserFacingException('You cannot request a password reset for that account.');
         // Separate notice is attempted even when sending the reset message fails.
         try{return self::deliverReset($target,$reset);}
         finally{
@@ -67,13 +68,13 @@ final class AccountSecurityService
     {
         RateLimitService::resetAttempt($token);self::validatePassword($password);$pdo=db();
         $q=$pdo->prepare('SELECT user_id FROM password_reset_tokens WHERE token_hash=?');$q->execute([hash('sha256',$token)]);$id=(int)$q->fetchColumn();
-        if($id<1)throw new RuntimeException('This reset link is invalid or expired.');
+        if($id<1)throw new UserFacingException('This reset link is invalid or expired.');
         $pdo->beginTransaction();
         try{
             // Serialize all reset tokens for this account before checking/consuming one.
             $q=$pdo->prepare('SELECT email,status FROM users WHERE user_id=? FOR UPDATE');$q->execute([$id]);$user=$q->fetch();
             $q=$pdo->prepare('SELECT password_reset_id FROM password_reset_tokens WHERE user_id=? AND token_hash=? AND delivered_at_utc IS NOT NULL AND used_at_utc IS NULL AND expires_at_utc>UTC_TIMESTAMP() FOR UPDATE');$q->execute([$id,hash('sha256',$token)]);
-            if(!$user||$user['status']!=='ACTIVE'||!$q->fetchColumn())throw new RuntimeException('This reset link is invalid or expired.');
+            if(!$user||$user['status']!=='ACTIVE'||!$q->fetchColumn())throw new UserFacingException('This reset link is invalid or expired.');
             self::replacePassword($id,$password);$pdo->commit();
         }catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw $e;}
         self::passwordChangedNotice((string)$user['email']);
@@ -84,7 +85,7 @@ final class AccountSecurityService
         self::validatePassword($newPassword);$pdo=db();$pdo->beginTransaction();
         try{
             $q=$pdo->prepare('SELECT password_hash,email,status FROM users WHERE user_id=? FOR UPDATE');$q->execute([$userId]);$user=$q->fetch();
-            if(!$user||$user['status']!=='ACTIVE'||!password_verify($currentPassword,(string)$user['password_hash']))throw new RuntimeException('Your current password is incorrect.');
+            if(!$user||$user['status']!=='ACTIVE'||!password_verify($currentPassword,(string)$user['password_hash']))throw new UserFacingException('Your current password is incorrect.');
             self::replacePassword($userId,$newPassword);$pdo->commit();
         }catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw $e;}
         self::passwordChangedNotice((string)$user['email']);
@@ -99,7 +100,7 @@ final class AccountSecurityService
     }
     private static function validatePassword(string $password): void
     {
-        if(strlen($password)<10)throw new RuntimeException('Password must contain at least 10 characters.');
+        if(strlen($password)<10)throw new UserFacingException('Password must contain at least 10 characters.');
     }
     private static function passwordChangedNotice(string $email): void
     {
@@ -131,7 +132,7 @@ final class AccountSecurityService
         try{
             $q=$pdo->prepare('SELECT email,status FROM users WHERE user_id=? FOR UPDATE');$q->execute([$id]);$user=$q->fetch();
             $q=$pdo->prepare('SELECT verification_token_id,email_hash FROM user_email_verification_tokens WHERE user_id=? AND token_hash=? AND delivered_at_utc IS NOT NULL AND used_at_utc IS NULL AND expires_at_utc>UTC_TIMESTAMP() FOR UPDATE');$q->execute([$id,hash('sha256',$token)]);$row=$q->fetch();
-            if(!$user||$user['status']!=='ACTIVE'||!$row||!hash_equals((string)$row['email_hash'],hash('sha256',strtolower((string)$user['email']))))throw new RuntimeException('This email verification link is invalid or expired.');
+            if(!$user||$user['status']!=='ACTIVE'||!$row||!hash_equals((string)$row['email_hash'],hash('sha256',strtolower((string)$user['email']))))throw new UserFacingException('This email verification link is invalid or expired.');
             $pdo->prepare('UPDATE users SET email_verified_at_utc=UTC_TIMESTAMP() WHERE user_id=?')->execute([$id]);
             $pdo->prepare('UPDATE user_email_verification_tokens SET used_at_utc=UTC_TIMESTAMP() WHERE user_id=? AND used_at_utc IS NULL')->execute([$id]);$pdo->commit();
         }catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw $e;}

@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__.'/UserFacingException.php';
 require_once __DIR__ . '/CommerceService.php';
 require_once __DIR__ . '/AuthService.php';
 
@@ -7,12 +8,12 @@ final class LobbyService
     public static function createGame(int $hostUserId,string $plotCode,int $duration=300,?string $idempotencyKey=null): array
     {
         AccountSecurityService::requireVerifiedEmail($hostUserId);
-        $pdo=db();$adm=$pdo->prepare('SELECT is_admin FROM users WHERE user_id=?');$adm->execute([$hostUserId]);$isAdmin=(int)$adm->fetchColumn()===1;$q=$pdo->prepare('SELECT active FROM platform_game_durations WHERE duration_seconds=?');$q->execute([$duration]);$durActive=$q->fetchColumn();if($durActive===false||(!$isAdmin&&(int)$durActive!==1))throw new RuntimeException('That story duration is not available.');
+        $pdo=db();$adm=$pdo->prepare('SELECT is_admin FROM users WHERE user_id=?');$adm->execute([$hostUserId]);$isAdmin=(int)$adm->fetchColumn()===1;$q=$pdo->prepare('SELECT active FROM platform_game_durations WHERE duration_seconds=?');$q->execute([$duration]);$durActive=$q->fetchColumn();if($durActive===false||(!$isAdmin&&(int)$durActive!==1))throw new UserFacingException('That story duration is not available.');
         $q=$pdo->prepare('SELECT plot_id,published_plot_version_id FROM plots WHERE code=? AND status="active"');$q->execute([$plotCode]);$plotRow=$q->fetch();
         // Task 5 Phase 1: hosted games run the PUBLISHED version, never the live
         // draft. Fail closed when no published version is recorded.
         $publishedVersionId=$plotRow?(int)($plotRow['published_plot_version_id']??0):0;
-        if($publishedVersionId<1)throw new RuntimeException('This story has no published version yet. Ask an administrator to publish a revision first.');$a=$pdo->prepare('SELECT duration_seconds FROM plot_allowed_durations WHERE plot_id=?');$a->execute([(int)$plotRow['plot_id']]);$allowedDurations=array_map('intval',$a->fetchAll(PDO::FETCH_COLUMN));if(!$isAdmin&&$allowedDurations!==[]&&!in_array($duration,$allowedDurations,true))throw new RuntimeException('That story duration is not available.');
+        if($publishedVersionId<1)throw new UserFacingException('This story has no published version yet. Ask an administrator to publish a revision first.');$a=$pdo->prepare('SELECT duration_seconds FROM plot_allowed_durations WHERE plot_id=?');$a->execute([(int)$plotRow['plot_id']]);$allowedDurations=array_map('intval',$a->fetchAll(PDO::FETCH_COLUMN));if(!$isAdmin&&$allowedDurations!==[]&&!in_array($duration,$allowedDurations,true))throw new UserFacingException('That story duration is not available.');
         $roles=$pdo->prepare('SELECT pr.role_code FROM plot_roles pr JOIN plots p ON p.plot_id=pr.plot_id WHERE p.code=? AND p.status="active" AND pr.active=1 AND pr.simulation_active=1');$roles->execute([$plotCode]);$controllers=[];foreach($roles->fetchAll()as$r)$controllers[$r['role_code']]='AI';
         if(CommerceService::enabled())CommerceService::assertCanHost($hostUserId);
         // Task 6: idempotent retry — a resubmitted key reuses the existing
@@ -36,7 +37,7 @@ final class LobbyService
             if($pdo->inTransaction())$pdo->rollBack();
             // A concurrent duplicate with the same idempotency key: the other
             // request won the race; return its lobby instead of erroring.
-            if($idempotencyKey!==null&&$idempotencyKey!==''&&strpos($e->getMessage(),'uniq_game_idempotency')!==false){
+            if($idempotencyKey!==null&&$idempotencyKey!==''&&exception_category($e)==='duplicate_game_idempotency'){
                 $ex=$pdo->prepare('SELECT game_id FROM games WHERE idempotency_key=? AND host_user_id=? AND deleted_at_utc IS NULL');$ex->execute([$idempotencyKey,$hostUserId]);$existing=$ex->fetchColumn();
                 if($existing!==false)return self::lobbyState((int)$existing,$hostUserId);
             }
@@ -48,14 +49,14 @@ final class LobbyService
     {
         RateLimitService::checkJoin($userId);$invalidCode=false;
         $code=strtoupper(preg_replace('/[^A-Z0-9]/','',trim($code)));$pdo=db();$pdo->beginTransaction();try{
-            $q=$pdo->prepare('SELECT g.game_id,p.max_players FROM games g JOIN simulations s ON s.simulation_id=g.simulation_id JOIN plots p ON p.plot_id=s.plot_id WHERE g.join_code=? AND g.status="LOBBY" AND g.deleted_at_utc IS NULL FOR UPDATE');$q->execute([$code]);$game=$q->fetch();if(!$game){$invalidCode=true;throw new RuntimeException('That game code is invalid or the game has already started.');}$gid=(int)$game['game_id'];
-            $q=$pdo->prepare('SELECT 1 FROM game_players WHERE game_id=? AND user_id=?');$q->execute([$gid,$userId]);if(!$q->fetchColumn()){$q=$pdo->prepare('SELECT COUNT(*) FROM game_players WHERE game_id=?');$q->execute([$gid]);if((int)$q->fetchColumn()>=(int)$game['max_players'])throw new RuntimeException('That game lobby is full.');$pdo->prepare('INSERT INTO game_players(game_id,user_id) VALUES(?,?)')->execute([$gid,$userId]);}
+            $q=$pdo->prepare('SELECT g.game_id,p.max_players FROM games g JOIN simulations s ON s.simulation_id=g.simulation_id JOIN plots p ON p.plot_id=s.plot_id WHERE g.join_code=? AND g.status="LOBBY" AND g.deleted_at_utc IS NULL FOR UPDATE');$q->execute([$code]);$game=$q->fetch();if(!$game){$invalidCode=true;throw new UserFacingException('That game code is invalid or the game has already started.');}$gid=(int)$game['game_id'];
+            $q=$pdo->prepare('SELECT 1 FROM game_players WHERE game_id=? AND user_id=?');$q->execute([$gid,$userId]);if(!$q->fetchColumn()){$q=$pdo->prepare('SELECT COUNT(*) FROM game_players WHERE game_id=?');$q->execute([$gid]);if((int)$q->fetchColumn()>=(int)$game['max_players'])throw new UserFacingException('That game lobby is full.');$pdo->prepare('INSERT INTO game_players(game_id,user_id) VALUES(?,?)')->execute([$gid,$userId]);}
             $pdo->commit();
         }catch(Throwable$e){if($pdo->inTransaction())$pdo->rollBack();if($invalidCode)RateLimitService::failedJoin($userId);throw$e;}return self::lobbyState($gid,$userId);
     }
     public static function lobbyState(int $gameId,int $userId): array
     {
-        $q=db()->prepare('SELECT g.*,s.status simulation_status,s.elapsed_seconds,s.duration_seconds,s.current_phase,p.plot_id,p.code plot_code,p.title,p.genre,p.setting_name,p.scenario_text,u.display_name host_name FROM games g JOIN simulations s ON s.simulation_id=g.simulation_id JOIN plots p ON p.plot_id=s.plot_id JOIN users u ON u.user_id=g.host_user_id JOIN game_players mine ON mine.game_id=g.game_id AND mine.user_id=? WHERE g.game_id=? AND g.deleted_at_utc IS NULL');$q->execute([$userId,$gameId]);$game=$q->fetch();if(!$game)throw new RuntimeException('You are not a member of this game.');
+        $q=db()->prepare('SELECT g.*,s.status simulation_status,s.elapsed_seconds,s.duration_seconds,s.current_phase,p.plot_id,p.code plot_code,p.title,p.genre,p.setting_name,p.scenario_text,u.display_name host_name FROM games g JOIN simulations s ON s.simulation_id=g.simulation_id JOIN plots p ON p.plot_id=s.plot_id JOIN users u ON u.user_id=g.host_user_id JOIN game_players mine ON mine.game_id=g.game_id AND mine.user_id=? WHERE g.game_id=? AND g.deleted_at_utc IS NULL');$q->execute([$userId,$gameId]);$game=$q->fetch();if(!$game)throw new UserFacingException('You are not a member of this game.');
         $c=db()->prepare('SELECT c.character_id,c.name,c.description,c.private_knowledge,c.goal_text,c.fear_text,c.current_location,c.controller_type,c.actor_type,c.slot_no,pr.role_code,pr.mystery_character,gp.user_id,pu.display_name player_name FROM characters c LEFT JOIN plot_roles pr ON pr.plot_role_id=c.plot_role_id LEFT JOIN game_players gp ON gp.game_id=? AND gp.character_id=c.character_id LEFT JOIN users pu ON pu.user_id=gp.user_id WHERE c.simulation_id=? ORDER BY CASE WHEN c.actor_type="PLAYER" THEN 0 ELSE 1 END,c.slot_no');$c->execute([$gameId,$game['simulation_id']]);
         $p=db()->prepare('SELECT gp.user_id,gp.character_id,gp.joined_at_utc,gp.last_seen_at_utc,u.display_name,u.profile_image_path FROM game_players gp JOIN users u ON u.user_id=gp.user_id WHERE gp.game_id=? ORDER BY gp.joined_at_utc,gp.game_player_id');$p->execute([$gameId]);
         db()->prepare('UPDATE game_players SET last_seen_at_utc=UTC_TIMESTAMP() WHERE game_id=? AND user_id=?')->execute([$gameId,$userId]);
@@ -65,9 +66,9 @@ final class LobbyService
     public static function claimCharacter(int $gameId,int $userId,int $characterId): array
     {
         $pdo=db();$pdo->beginTransaction();try{
-            $q=$pdo->prepare('SELECT g.status,g.simulation_id FROM games g JOIN game_players gp ON gp.game_id=g.game_id AND gp.user_id=? WHERE g.game_id=? AND g.deleted_at_utc IS NULL FOR UPDATE');$q->execute([$userId,$gameId]);$game=$q->fetch();if(!$game||$game['status']!=='LOBBY')throw new RuntimeException('Characters can only be changed while the game is in the lobby.');
-            $q=$pdo->prepare('SELECT character_id,actor_type FROM characters WHERE character_id=? AND simulation_id=? FOR UPDATE');$q->execute([$characterId,$game['simulation_id']]);$claimChar=$q->fetch();if(!$claimChar)throw new RuntimeException('That character is not part of this game.');if(($claimChar['actor_type']??'')==='NPC')throw new RuntimeException('That character plays their part automatically and cannot be claimed.');
-            $q=$pdo->prepare('SELECT user_id FROM game_players WHERE game_id=? AND character_id=? FOR UPDATE');$q->execute([$gameId,$characterId]);$owner=(int)$q->fetchColumn();if($owner&&$owner!==$userId)throw new RuntimeException('Another player already chose that character.');
+            $q=$pdo->prepare('SELECT g.status,g.simulation_id FROM games g JOIN game_players gp ON gp.game_id=g.game_id AND gp.user_id=? WHERE g.game_id=? AND g.deleted_at_utc IS NULL FOR UPDATE');$q->execute([$userId,$gameId]);$game=$q->fetch();if(!$game||$game['status']!=='LOBBY')throw new UserFacingException('Characters can only be changed while the game is in the lobby.');
+            $q=$pdo->prepare('SELECT character_id,actor_type FROM characters WHERE character_id=? AND simulation_id=? FOR UPDATE');$q->execute([$characterId,$game['simulation_id']]);$claimChar=$q->fetch();if(!$claimChar)throw new UserFacingException('That character is not part of this game.');if(($claimChar['actor_type']??'')==='NPC')throw new UserFacingException('That character plays their part automatically and cannot be claimed.');
+            $q=$pdo->prepare('SELECT user_id FROM game_players WHERE game_id=? AND character_id=? FOR UPDATE');$q->execute([$gameId,$characterId]);$owner=(int)$q->fetchColumn();if($owner&&$owner!==$userId)throw new UserFacingException('Another player already chose that character.');
             $old=$pdo->prepare('SELECT character_id FROM game_players WHERE game_id=? AND user_id=? FOR UPDATE');$old->execute([$gameId,$userId]);$oldId=(int)$old->fetchColumn();
             if($oldId&&$oldId!==$characterId)$pdo->prepare('UPDATE characters SET controller_type="AI" WHERE character_id=?')->execute([$oldId]);
             $pdo->prepare('UPDATE game_players SET character_id=?,last_seen_at_utc=UTC_TIMESTAMP() WHERE game_id=? AND user_id=?')->execute([$characterId,$gameId,$userId]);
@@ -77,7 +78,7 @@ final class LobbyService
     }
     public static function releaseCharacter(int $gameId,int $userId): array
     {
-        $pdo=db();$pdo->beginTransaction();try{$q=$pdo->prepare('SELECT gp.character_id,g.status FROM game_players gp JOIN games g ON g.game_id=gp.game_id WHERE gp.game_id=? AND gp.user_id=? AND g.deleted_at_utc IS NULL FOR UPDATE');$q->execute([$gameId,$userId]);$r=$q->fetch();if(!$r||$r['status']!=='LOBBY')throw new RuntimeException('Characters can only be changed in the lobby.');if($r['character_id'])$pdo->prepare('UPDATE characters SET controller_type="AI" WHERE character_id=?')->execute([$r['character_id']]);$pdo->prepare('UPDATE game_players SET character_id=NULL WHERE game_id=? AND user_id=?')->execute([$gameId,$userId]);$pdo->commit();}catch(Throwable$e){if($pdo->inTransaction())$pdo->rollBack();throw$e;}return self::lobbyState($gameId,$userId);
+        $pdo=db();$pdo->beginTransaction();try{$q=$pdo->prepare('SELECT gp.character_id,g.status FROM game_players gp JOIN games g ON g.game_id=gp.game_id WHERE gp.game_id=? AND gp.user_id=? AND g.deleted_at_utc IS NULL FOR UPDATE');$q->execute([$gameId,$userId]);$r=$q->fetch();if(!$r||$r['status']!=='LOBBY')throw new UserFacingException('Characters can only be changed in the lobby.');if($r['character_id'])$pdo->prepare('UPDATE characters SET controller_type="AI" WHERE character_id=?')->execute([$r['character_id']]);$pdo->prepare('UPDATE game_players SET character_id=NULL WHERE game_id=? AND user_id=?')->execute([$gameId,$userId]);$pdo->commit();}catch(Throwable$e){if($pdo->inTransaction())$pdo->rollBack();throw$e;}return self::lobbyState($gameId,$userId);
     }
     public static function startGame(int $gameId,int $userId): void
     {
@@ -87,9 +88,9 @@ final class LobbyService
         // interleave with game start. A human start must not be silently
         // dropped, so a failed acquire is a retryable error, not a no-op.
         $lock='toinky_game_'.$gameId;$lq=$pdo->prepare('SELECT GET_LOCK(?,5)');$lq->execute([$lock]);
-        if((int)$lq->fetchColumn()!==1)throw new RuntimeException('The game is busy. Please try again.');
+        if((int)$lq->fetchColumn()!==1)throw new UserFacingException('The game is busy. Please try again.');
         try{
-            $q=$pdo->prepare('SELECT * FROM games WHERE game_id=? AND deleted_at_utc IS NULL');$q->execute([$gameId]);$g=$q->fetch();if(!$g||(int)$g['host_user_id']!==$userId)throw new RuntimeException('Only the host can start this game.');
+            $q=$pdo->prepare('SELECT * FROM games WHERE game_id=? AND deleted_at_utc IS NULL');$q->execute([$gameId]);$g=$q->fetch();if(!$g||(int)$g['host_user_id']!==$userId)throw new UserFacingException('Only the host can start this game.');
             // Idempotent re-entry: already RUNNING with a started simulation
             // is a success (a retried start after an interrupted first one).
             // RUNNING with the simulation still READY means the first start
@@ -100,13 +101,13 @@ final class LobbyService
                 if($s&&$s['status']==='RUNNING'&&!empty($g['started_at_utc']))return;
                 self::completeStart((int)$g['simulation_id']);return;
             }
-            if($g['status']!=='LOBBY')throw new RuntimeException('This game has already started.');
-            $q=$pdo->prepare('SELECT COUNT(*) total_players,SUM(gp.character_id IS NOT NULL) ready_players FROM game_players gp WHERE gp.game_id=? AND gp.user_id<>?');$q->execute([$gameId,(int)$g['host_user_id']]);$ready=$q->fetch();if((int)$ready['ready_players']!==(int)$ready['total_players'])throw new RuntimeException('Every player in the lobby must choose a character before the game starts.');
+            if($g['status']!=='LOBBY')throw new UserFacingException('This game has already started.');
+            $q=$pdo->prepare('SELECT COUNT(*) total_players,SUM(gp.character_id IS NOT NULL) ready_players FROM game_players gp WHERE gp.game_id=? AND gp.user_id<>?');$q->execute([$gameId,(int)$g['host_user_id']]);$ready=$q->fetch();if((int)$ready['ready_players']!==(int)$ready['total_players'])throw new UserFacingException('Every player in the lobby must choose a character before the game starts.');
             // Tx 1: short, atomic state transition only — flip to RUNNING,
             // stamp the start, consume the occasion. Nothing slow runs here.
             $pdo->beginTransaction();try{
                 $upd=$pdo->prepare('UPDATE games SET status="RUNNING",started_at_utc=UTC_TIMESTAMP() WHERE game_id=? AND status="LOBBY"');$upd->execute([$gameId]);
-                if($upd->rowCount()!==1)throw new RuntimeException('This game has already started.');
+                if($upd->rowCount()!==1)throw new UserFacingException('This game has already started.');
                 if(CommerceService::enabled())CommerceService::consumeForGame($gameId);
                 $pdo->commit();
             }catch(Throwable$e){if($pdo->inTransaction())$pdo->rollBack();throw$e;}
@@ -124,7 +125,7 @@ final class LobbyService
     {
         SimulationService::start($sid);
         $summary=CharacterAutomationService::process($sid);
-        if(!empty($summary['failed']))error_log('Toinky startGame: '.(int)$summary['failed'].' opening AI decision(s) failed for simulation '.$sid.'.');
+        if(!empty($summary['failed']))Logger::warning('Toinky startGame: '.(int)$summary['failed'].' opening AI decision(s) failed for simulation '.$sid.'.');
     }
     public static function tick(int $gameId): void
     {
@@ -147,14 +148,14 @@ final class LobbyService
     public static function advanceSolo(int $gameId,int $userId): void
     {
         $pdo=db();$lock='toinky_game_'.$gameId;$q=$pdo->prepare('SELECT GET_LOCK(?,5)');$q->execute([$lock]);
-        if((int)$q->fetchColumn()!==1)throw new RuntimeException('The game is busy. Please try again.');
+        if((int)$q->fetchColumn()!==1)throw new UserFacingException('The game is busy. Please try again.');
         try{
             $g=self::soloGame($gameId,$userId);
-            if(!$g)throw new RuntimeException('Quiet time can only be skipped by the host of a running game with one player.');
+            if(!$g)throw new UserFacingException('Quiet time can only be skipped by the host of a running game with one player.');
             $sid=(int)$g['simulation_id'];$cid=(int)$g['character_id'];
             $open=$pdo->prepare('SELECT 1 FROM decisions WHERE simulation_id=? AND character_id=? AND status="OPEN" LIMIT 1');
             $hasOpen=static function()use($open,$sid,$cid):bool{$open->execute([$sid,$cid]);return(bool)$open->fetchColumn();};
-            if($hasOpen())throw new RuntimeException('A choice is open. Decide what to do before skipping quiet time.');
+            if($hasOpen())throw new UserFacingException('A choice is open. Decide what to do before skipping quiet time.');
             $visible=$pdo->prepare('SELECT (SELECT COALESCE(MAX(event_id),0) FROM simulation_events WHERE simulation_id=? AND visibility="WORLD") AS world_id,(SELECT COALESCE(MAX(history_id),0) FROM character_history WHERE simulation_id=? AND character_id=?) AS personal_id');
             $stamp=static function()use($visible,$sid,$cid):array{$visible->execute([$sid,$sid,$cid]);return $visible->fetch();};
             $before=$stamp();$duration=max(1,(int)$g['duration_seconds']);$playDuration=max(1,(int)($g['play_duration_seconds']??$g['duration_seconds']));
@@ -189,10 +190,10 @@ final class LobbyService
         // advance/expire/process. Bounded wait; a failed acquire is a
         // retryable error, not a silent drop.
         $lock='toinky_game_'.$gameId;$lq=$pdo->prepare('SELECT GET_LOCK(?,5)');$lq->execute([$lock]);
-        if((int)$lq->fetchColumn()!==1)throw new RuntimeException('The game is busy. Please try again.');
+        if((int)$lq->fetchColumn()!==1)throw new UserFacingException('The game is busy. Please try again.');
         try{
             $q=$pdo->prepare('SELECT g.simulation_id,g.status,gp.character_id AS player_character_id,d.character_id AS decision_character_id FROM games g JOIN game_players gp ON gp.game_id=g.game_id AND gp.user_id=? JOIN decisions d ON d.decision_id=? AND d.simulation_id=g.simulation_id WHERE g.game_id=?');$q->execute([$userId,$decisionId,$gameId]);$r=$q->fetch();
-            if(!$r||$r['status']!=='RUNNING'||(int)$r['player_character_id']!==(int)$r['decision_character_id'])throw new RuntimeException('This decision does not belong to your selected character.');
+            if(!$r||$r['status']!=='RUNNING'||(int)$r['player_character_id']!==(int)$r['decision_character_id'])throw new UserFacingException('This decision does not belong to your selected character.');
             BehaviorService::chooseControlled((int)$r['simulation_id'],$decisionId,$optionCode);CharacterAutomationService::process((int)$r['simulation_id']);
         }finally{$pdo->prepare('SELECT RELEASE_LOCK(?)')->execute([$lock]);}
     }
@@ -202,7 +203,7 @@ final class LobbyService
     }
     public static function rate(int $gameId,int $userId,int $rating,string $review=''): void
     {
-        if($rating<1||$rating>5)throw new RuntimeException('Rating must be between 1 and 5.');$q=db()->prepare('SELECT g.status FROM games g JOIN game_players gp ON gp.game_id=g.game_id AND gp.user_id=? WHERE g.game_id=?');$q->execute([$userId,$gameId]);if($q->fetchColumn()!=='COMPLETE')throw new RuntimeException('Complete the game before rating it.');
+        if($rating<1||$rating>5)throw new UserFacingException('Rating must be between 1 and 5.');$q=db()->prepare('SELECT g.status FROM games g JOIN game_players gp ON gp.game_id=g.game_id AND gp.user_id=? WHERE g.game_id=?');$q->execute([$userId,$gameId]);if($q->fetchColumn()!=='COMPLETE')throw new UserFacingException('Complete the game before rating it.');
         db()->prepare('INSERT INTO story_ratings(game_id,user_id,rating,review_text) VALUES(?,?,?,?) ON DUPLICATE KEY UPDATE rating=VALUES(rating),review_text=VALUES(review_text),updated_at_utc=UTC_TIMESTAMP()')->execute([$gameId,$userId,$rating,trim($review)?:null]);
     }
     public static function userGames(int $userId): array
@@ -215,7 +216,7 @@ final class LobbyService
     }
     public static function archiveGame(int $gameId,int $userId): void
     {
-        $q=db()->prepare('SELECT g.status FROM game_players gp JOIN games g ON g.game_id=gp.game_id WHERE gp.game_id=? AND gp.user_id=? AND g.deleted_at_utc IS NULL');$q->execute([$gameId,$userId]);$game=$q->fetch();if(!$game)throw new RuntimeException('That game was not found in your games.');if($game['status']!=='COMPLETE')throw new RuntimeException('Only completed games can be archived.');
+        $q=db()->prepare('SELECT g.status FROM game_players gp JOIN games g ON g.game_id=gp.game_id WHERE gp.game_id=? AND gp.user_id=? AND g.deleted_at_utc IS NULL');$q->execute([$gameId,$userId]);$game=$q->fetch();if(!$game)throw new UserFacingException('That game was not found in your games.');if($game['status']!=='COMPLETE')throw new UserFacingException('Only completed games can be archived.');
         db()->prepare('UPDATE game_players SET archived_at_utc=UTC_TIMESTAMP() WHERE game_id=? AND user_id=?')->execute([$gameId,$userId]);
     }
     public static function unarchiveGame(int $gameId,int $userId): void
@@ -224,21 +225,21 @@ final class LobbyService
     }
     public static function deleteLobby(int $gameId,int $userId): void
     {
-        $pdo=db();$pdo->beginTransaction();try{$q=$pdo->prepare('SELECT host_user_id,status FROM games WHERE game_id=? AND deleted_at_utc IS NULL FOR UPDATE');$q->execute([$gameId]);$game=$q->fetch();if(!$game||(int)$game['host_user_id']!==$userId)throw new RuntimeException('Only the host can delete this lobby.');if($game['status']!=='LOBBY')throw new RuntimeException('Only games still in the lobby can be deleted.');$q=$pdo->prepare('SELECT COUNT(*) FROM game_players WHERE game_id=? AND character_id IS NOT NULL');$q->execute([$gameId]);if((int)$q->fetchColumn()>0)throw new RuntimeException('This lobby cannot be deleted after a character has been selected.');$pdo->prepare('UPDATE games SET deleted_at_utc=UTC_TIMESTAMP(),deleted_by_user_id=? WHERE game_id=? AND deleted_at_utc IS NULL')->execute([$userId,$gameId]);if(CommerceService::enabled())CommerceService::releaseForGame($gameId);$pdo->commit();}catch(Throwable$e){if($pdo->inTransaction())$pdo->rollBack();throw$e;}
+        $pdo=db();$pdo->beginTransaction();try{$q=$pdo->prepare('SELECT host_user_id,status FROM games WHERE game_id=? AND deleted_at_utc IS NULL FOR UPDATE');$q->execute([$gameId]);$game=$q->fetch();if(!$game||(int)$game['host_user_id']!==$userId)throw new UserFacingException('Only the host can delete this lobby.');if($game['status']!=='LOBBY')throw new UserFacingException('Only games still in the lobby can be deleted.');$q=$pdo->prepare('SELECT COUNT(*) FROM game_players WHERE game_id=? AND character_id IS NOT NULL');$q->execute([$gameId]);if((int)$q->fetchColumn()>0)throw new UserFacingException('This lobby cannot be deleted after a character has been selected.');$pdo->prepare('UPDATE games SET deleted_at_utc=UTC_TIMESTAMP(),deleted_by_user_id=? WHERE game_id=? AND deleted_at_utc IS NULL')->execute([$userId,$gameId]);if(CommerceService::enabled())CommerceService::releaseForGame($gameId);$pdo->commit();}catch(Throwable$e){if($pdo->inTransaction())$pdo->rollBack();throw$e;}
     }
     public static function adminDeleteLobby(int $gameId,int $adminUserId): void
     {
         self::requireAdminUser($adminUserId);
-        $pdo=db();$pdo->beginTransaction();try{$q=$pdo->prepare('SELECT status FROM games WHERE game_id=? AND deleted_at_utc IS NULL FOR UPDATE');$q->execute([$gameId]);$game=$q->fetch();if(!$game)throw new RuntimeException('That game was not found.');if(!in_array($game['status'],['LOBBY','COMPLETE'],true))throw new RuntimeException('Only games still in the lobby or finished games can be deleted.');if($game['status']==='LOBBY'){$q=$pdo->prepare('SELECT COUNT(*) FROM game_players WHERE game_id=? AND character_id IS NOT NULL');$q->execute([$gameId]);if((int)$q->fetchColumn()>0)throw new RuntimeException('This lobby cannot be deleted after a character has been selected. Take it over instead.');}$pdo->prepare('UPDATE games SET deleted_at_utc=UTC_TIMESTAMP(),deleted_by_user_id=? WHERE game_id=? AND deleted_at_utc IS NULL')->execute([$adminUserId,$gameId]);if(CommerceService::enabled())CommerceService::releaseForGame($gameId);$pdo->commit();}catch(Throwable$e){if($pdo->inTransaction())$pdo->rollBack();throw$e;}
+        $pdo=db();$pdo->beginTransaction();try{$q=$pdo->prepare('SELECT status FROM games WHERE game_id=? AND deleted_at_utc IS NULL FOR UPDATE');$q->execute([$gameId]);$game=$q->fetch();if(!$game)throw new UserFacingException('That game was not found.');if(!in_array($game['status'],['LOBBY','COMPLETE'],true))throw new UserFacingException('Only games still in the lobby or finished games can be deleted.');if($game['status']==='LOBBY'){$q=$pdo->prepare('SELECT COUNT(*) FROM game_players WHERE game_id=? AND character_id IS NOT NULL');$q->execute([$gameId]);if((int)$q->fetchColumn()>0)throw new UserFacingException('This lobby cannot be deleted after a character has been selected. Take it over instead.');}$pdo->prepare('UPDATE games SET deleted_at_utc=UTC_TIMESTAMP(),deleted_by_user_id=? WHERE game_id=? AND deleted_at_utc IS NULL')->execute([$adminUserId,$gameId]);if(CommerceService::enabled())CommerceService::releaseForGame($gameId);$pdo->commit();}catch(Throwable$e){if($pdo->inTransaction())$pdo->rollBack();throw$e;}
     }
     public static function takeoverGame(int $gameId,int $adminUserId): array
     {
         self::requireAdminUser($adminUserId);
         $pdo=db();$pdo->beginTransaction();try{
             $q=$pdo->prepare('SELECT g.host_user_id,g.status,g.join_code,p.title,u.display_name host_name,u.email host_email FROM games g JOIN simulations s ON s.simulation_id=g.simulation_id JOIN plots p ON p.plot_id=s.plot_id JOIN users u ON u.user_id=g.host_user_id WHERE g.game_id=? AND g.deleted_at_utc IS NULL AND g.deactivated_at_utc IS NULL FOR UPDATE');$q->execute([$gameId]);$game=$q->fetch();
-            if(!$game)throw new RuntimeException('That game was not found.');
-            if(!in_array($game['status'],['LOBBY','RUNNING'],true))throw new RuntimeException('Only an unstarted or unfinished game can be taken over.');
-            if((int)$game['host_user_id']===$adminUserId)throw new RuntimeException('You already host this game.');
+            if(!$game)throw new UserFacingException('That game was not found.');
+            if(!in_array($game['status'],['LOBBY','RUNNING'],true))throw new UserFacingException('Only an unstarted or unfinished game can be taken over.');
+            if((int)$game['host_user_id']===$adminUserId)throw new UserFacingException('You already host this game.');
             $pdo->prepare('UPDATE games SET host_user_id=? WHERE game_id=?')->execute([$adminUserId,$gameId]);
             $q=$pdo->prepare('SELECT 1 FROM game_players WHERE game_id=? AND user_id=?');$q->execute([$gameId,$adminUserId]);if(!$q->fetchColumn())$pdo->prepare('INSERT INTO game_players(game_id,user_id) VALUES(?,?)')->execute([$gameId,$adminUserId]);
             $pdo->commit();
@@ -248,7 +249,7 @@ final class LobbyService
     public static function deactivateGame(int $gameId,int $adminUserId): void
     {
         self::requireAdminUser($adminUserId);
-        $q=db()->prepare('SELECT status,deactivated_at_utc FROM games WHERE game_id=? AND deleted_at_utc IS NULL');$q->execute([$gameId]);$game=$q->fetch();if(!$game)throw new RuntimeException('That game was not found.');if($game['status']!=='COMPLETE')throw new RuntimeException('Only completed games can be deactivated.');if($game['deactivated_at_utc'])throw new RuntimeException('That game is already archived.');
+        $q=db()->prepare('SELECT status,deactivated_at_utc FROM games WHERE game_id=? AND deleted_at_utc IS NULL');$q->execute([$gameId]);$game=$q->fetch();if(!$game)throw new UserFacingException('That game was not found.');if($game['status']!=='COMPLETE')throw new UserFacingException('Only completed games can be deactivated.');if($game['deactivated_at_utc'])throw new UserFacingException('That game is already archived.');
         db()->prepare('UPDATE games SET deactivated_at_utc=UTC_TIMESTAMP(),deactivated_by_user_id=? WHERE game_id=?')->execute([$adminUserId,$gameId]);
     }
     public static function reactivateGame(int $gameId,int $adminUserId): void
@@ -258,7 +259,7 @@ final class LobbyService
     }
     private static function requireAdminUser(int $userId): void
     {
-        $q=db()->prepare('SELECT is_admin FROM users WHERE user_id=?');$q->execute([$userId]);if((int)$q->fetchColumn()!==1)throw new RuntimeException('Administrator access is required.');
+        $q=db()->prepare('SELECT is_admin FROM users WHERE user_id=?');$q->execute([$userId]);if((int)$q->fetchColumn()!==1)throw new UserFacingException('Administrator access is required.');
     }
     private static function newCode(): string
     {

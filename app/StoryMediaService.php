@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__.'/UserFacingException.php';
 require_once __DIR__.'/GenericStateService.php';
 require_once __DIR__.'/MediaLibraryService.php';
 
@@ -15,11 +16,11 @@ final class StoryMediaService
 
     public static function upload(array $user,int $plotId,array $fields,array $file): int
     {
-        if(!self::canEdit($user,$plotId))throw new RuntimeException('You may only add artwork to stories you own.');
+        if(!self::canEdit($user,$plotId))throw new UserFacingException('You may only add artwork to stories you own.');
         $placement=strtoupper(trim((string)($fields['placement']??'')));
         $placements=['PRIMARY','CHARACTER','OPENING','SCENE','TURNING_POINT','OUTCOME','ENDING','OTHER'];
-        if(!in_array($placement,$placements,true))throw new RuntimeException('Choose a valid image placement.');
-        $alt=trim((string)($fields['alt_text']??''));if($alt==='')throw new RuntimeException('Alternative text is required.');
+        if(!in_array($placement,$placements,true))throw new UserFacingException('Choose a valid image placement.');
+        $alt=trim((string)($fields['alt_text']??''));if($alt==='')throw new UserFacingException('Alternative text is required.');
         $code=strtoupper(preg_replace('/[^A-Z0-9]+/','_',trim((string)($fields['asset_code']??''))));$code=trim($code,'_');
         if($code==='')$code=$placement.'_'.strtoupper(bin2hex(random_bytes(4)));
         $title=self::nullable($fields['title_text']??null)?:str_replace('_',' ',ucwords(strtolower($code),'_'));
@@ -30,8 +31,8 @@ final class StoryMediaService
 
     public static function attachFromLibrary(array $user,int $plotId,array $fields): int
     {
-        if(!self::canEdit($user,$plotId))throw new RuntimeException('You may only add artwork to stories you own.');
-        $placement=strtoupper(trim((string)($fields['placement']??'')));$placements=['PRIMARY','CHARACTER','OPENING','SCENE','TURNING_POINT','OUTCOME','ENDING','OTHER'];if(!in_array($placement,$placements,true))throw new RuntimeException('Choose a valid image placement.');
+        if(!self::canEdit($user,$plotId))throw new UserFacingException('You may only add artwork to stories you own.');
+        $placement=strtoupper(trim((string)($fields['placement']??'')));$placements=['PRIMARY','CHARACTER','OPENING','SCENE','TURNING_POINT','OUTCOME','ENDING','OTHER'];if(!in_array($placement,$placements,true))throw new UserFacingException('Choose a valid image placement.');
         self::validateStoryValueCondition($plotId,$fields);
         $media=MediaLibraryService::requireVisible($user,(int)($fields['library_media_id']??0),$placement==='OTHER'?null:$placement);
         $code=strtoupper(preg_replace('/[^A-Z0-9]+/','_',trim((string)($fields['asset_code']??''))));$code=trim($code,'_');if($code==='')$code=$placement.'_'.strtoupper(bin2hex(random_bytes(4)));
@@ -42,15 +43,15 @@ final class StoryMediaService
     public static function deactivate(array $user,int $assetId): void
     {
         $q=db()->prepare('SELECT plot_id FROM plot_media_assets WHERE media_asset_id=?');$q->execute([$assetId]);$plotId=(int)$q->fetchColumn();
-        if($plotId<1||!self::canEdit($user,$plotId))throw new RuntimeException('You may not change that image.');
+        if($plotId<1||!self::canEdit($user,$plotId))throw new UserFacingException('You may not change that image.');
         db()->prepare('UPDATE plot_media_assets SET active=0 WHERE media_asset_id=?')->execute([$assetId]);
     }
 
     public static function updateAttachment(array $user,int $plotId,int $assetId,array $fields): void
     {
-        if(!self::canEdit($user,$plotId))throw new RuntimeException('You may only change artwork in stories you own.');
-        $q=db()->prepare('SELECT * FROM plot_media_assets WHERE media_asset_id=? AND plot_id=?');$q->execute([$assetId,$plotId]);$current=$q->fetch();if(!$current)throw new RuntimeException('Story artwork not found.');
-        $placement=strtoupper(trim((string)($fields['placement']??$current['placement'])));$placements=['PRIMARY','CHARACTER','OPENING','SCENE','TURNING_POINT','OUTCOME','ENDING','OTHER'];if(!in_array($placement,$placements,true))throw new RuntimeException('Choose a valid image placement.');
+        if(!self::canEdit($user,$plotId))throw new UserFacingException('You may only change artwork in stories you own.');
+        $q=db()->prepare('SELECT * FROM plot_media_assets WHERE media_asset_id=? AND plot_id=?');$q->execute([$assetId,$plotId]);$current=$q->fetch();if(!$current)throw new UserFacingException('Story artwork not found.');
+        $placement=strtoupper(trim((string)($fields['placement']??$current['placement'])));$placements=['PRIMARY','CHARACTER','OPENING','SCENE','TURNING_POINT','OUTCOME','ENDING','OTHER'];if(!in_array($placement,$placements,true))throw new UserFacingException('Choose a valid image placement.');
         self::validateStoryValueCondition($plotId,$fields);$mediaId=(int)($fields['library_media_id']??0);$media=null;if($mediaId>0)$media=MediaLibraryService::requireVisible($user,$mediaId,$placement==='OTHER'?null:$placement);
         $values=[$media?(int)$user['user_id']:(int)$current['uploaded_by_user_id'],$mediaId?:$current['library_media_id'],$placement,self::nullable($fields['role_code']??null),self::nullable($fields['event_code']??null),self::nullableInt($fields['resolution_fragment_id']??($current['resolution_fragment_id']??null)),self::nullableInt($fields['scene_second']??null),self::nullable($fields['condition_state_key']??null),self::nullable($fields['condition_operator']??null),self::nullable($fields['condition_value']??null),self::nullable($fields['title_text']??null)?:($media['title_text']??$current['title_text']),$media['alt_text']??$current['alt_text'],self::nullable($fields['caption_text']??null),$media['file_path']??$current['file_path'],$media['mime_type']??$current['mime_type'],$media['file_size_bytes']??$current['file_size_bytes'],(int)($fields['sort_order']??100),$assetId,$plotId];
         $pdo=db();$ownsTransaction=!$pdo->inTransaction();if($ownsTransaction)$pdo->beginTransaction();try{if($placement==='PRIMARY')db()->prepare('UPDATE plot_media_assets SET active=0 WHERE plot_id=? AND placement="PRIMARY" AND media_asset_id<>?')->execute([$plotId,$assetId]);db()->prepare('UPDATE plot_media_assets SET uploaded_by_user_id=?,library_media_id=?,placement=?,role_code=?,event_code=?,resolution_fragment_id=?,scene_second=?,condition_state_key=?,condition_operator=?,condition_value=?,title_text=?,alt_text=?,caption_text=?,file_path=?,mime_type=?,file_size_bytes=?,sort_order=?,active=1 WHERE media_asset_id=? AND plot_id=?')->execute($values);if($ownsTransaction)$pdo->commit();}catch(Throwable$e){if($ownsTransaction&&$pdo->inTransaction())$pdo->rollBack();throw$e;}
@@ -58,8 +59,8 @@ final class StoryMediaService
 
     public static function setCharacterImage(array $user,int $plotId,string $roleCode,$mediaChoice): void
     {
-        if(!self::canEdit($user,$plotId))throw new RuntimeException('You may only change character images in stories you own.');
-        $roleCode=strtoupper(trim($roleCode));$q=db()->prepare('SELECT 1 FROM plot_roles WHERE plot_id=? AND role_code=?');$q->execute([$plotId,$roleCode]);if(!$q->fetchColumn())throw new RuntimeException('Save the character before assigning an image.');
+        if(!self::canEdit($user,$plotId))throw new UserFacingException('You may only change character images in stories you own.');
+        $roleCode=strtoupper(trim($roleCode));$q=db()->prepare('SELECT 1 FROM plot_roles WHERE plot_id=? AND role_code=?');$q->execute([$plotId,$roleCode]);if(!$q->fetchColumn())throw new UserFacingException('Save the character before assigning an image.');
         if($mediaChoice==='__KEEP__')return;
         db()->prepare('UPDATE plot_media_assets SET active=0 WHERE plot_id=? AND placement="CHARACTER" AND role_code=?')->execute([$plotId,$roleCode]);
         if($mediaChoice==='__REMOVE__'||$mediaChoice===''||$mediaChoice===null)return;
@@ -68,8 +69,8 @@ final class StoryMediaService
 
     public static function setEventImage(array $user,int $plotId,string $eventCode,$mediaChoice): void
     {
-        if(!self::canEdit($user,$plotId))throw new RuntimeException('You may only change event images in stories you own.');
-        $eventCode=trim(preg_replace('/[^A-Z0-9]+/','_',strtoupper(trim($eventCode))),'_');$q=db()->prepare('SELECT 1 FROM plot_world_events WHERE plot_id=? AND event_code=?');$q->execute([$plotId,$eventCode]);if(!$q->fetchColumn())throw new RuntimeException('Save the event before assigning an image.');
+        if(!self::canEdit($user,$plotId))throw new UserFacingException('You may only change event images in stories you own.');
+        $eventCode=trim(preg_replace('/[^A-Z0-9]+/','_',strtoupper(trim($eventCode))),'_');$q=db()->prepare('SELECT 1 FROM plot_world_events WHERE plot_id=? AND event_code=?');$q->execute([$plotId,$eventCode]);if(!$q->fetchColumn())throw new UserFacingException('Save the event before assigning an image.');
         if($mediaChoice==='__KEEP__')return;
         db()->prepare('UPDATE plot_media_assets SET active=0 WHERE plot_id=? AND placement="SCENE" AND event_code=? AND (role_code IS NULL OR role_code="") AND (condition_state_key IS NULL OR condition_state_key="")')->execute([$plotId,$eventCode]);
         if($mediaChoice==='__REMOVE__'||$mediaChoice===''||$mediaChoice===null)return;
@@ -78,8 +79,8 @@ final class StoryMediaService
 
     public static function setFragmentImage(array $user,int $plotId,int $fragmentId,$mediaChoice): void
     {
-        if(!self::canEdit($user,$plotId))throw new RuntimeException('You may only change ending images in stories you own.');
-        $q=db()->prepare('SELECT 1 FROM plot_resolution_fragments WHERE resolution_fragment_id=? AND plot_id=?');$q->execute([$fragmentId,$plotId]);if(!$q->fetchColumn())throw new RuntimeException('Save the ending fragment before assigning an image.');
+        if(!self::canEdit($user,$plotId))throw new UserFacingException('You may only change ending images in stories you own.');
+        $q=db()->prepare('SELECT 1 FROM plot_resolution_fragments WHERE resolution_fragment_id=? AND plot_id=?');$q->execute([$fragmentId,$plotId]);if(!$q->fetchColumn())throw new UserFacingException('Save the ending fragment before assigning an image.');
         if($mediaChoice==='__KEEP__')return;
         db()->prepare('UPDATE plot_media_assets SET active=0 WHERE plot_id=? AND resolution_fragment_id=?')->execute([$plotId,$fragmentId]);
         if($mediaChoice==='__REMOVE__'||$mediaChoice===''||$mediaChoice===null)return;
@@ -117,5 +118,5 @@ final class StoryMediaService
 
     private static function nullable($value): ?string {$value=trim((string)$value);return$value===''?null:$value;}
     private static function nullableInt($value): ?int {$value=trim((string)$value);return$value===''?null:max(0,(int)$value);}
-    private static function validateStoryValueCondition(int$plotId,array$fields):void{$key=trim((string)($fields['condition_state_key']??''));$operator=trim((string)($fields['condition_operator']??''));if($key===''&&$operator==='')return;if($key===''||$operator==='')throw new RuntimeException('Artwork conditions need both a Story Value and an operator.');$q=db()->prepare('SELECT label_text,value_type,allowed_values_text FROM plot_state_definitions WHERE plot_id=? AND target_code=? LIMIT 1');$q->execute([$plotId,$key]);$definition=$q->fetch();if(!$definition)throw new RuntimeException('Choose an artwork Story Value managed in Story Framework.');if(in_array($operator,['EXISTS','NOT_EXISTS'],true))return;$value=trim((string)($fields['condition_value']??''));if($value==='')throw new RuntimeException($definition['label_text'].' artwork condition needs a value.');if($definition['value_type']==='NUMERIC'&&!is_numeric($value))throw new RuntimeException($definition['label_text'].' artwork condition needs a numerical value.');if($definition['value_type']!=='NUMERIC'&&in_array($operator,['LT','LTE','GT','GTE'],true))throw new RuntimeException($operator.' is only available for Numerical Story Values.');if($definition['value_type']==='PRESET'){$allowed=preg_split('/\r?\n/',trim((string)$definition['allowed_values_text']))?:[];foreach(array_map('trim',explode(',',$value))as$item)if(!in_array($item,$allowed,true))throw new RuntimeException('Choose an allowed Preset Value for '.$definition['label_text'].'.');}}
+    private static function validateStoryValueCondition(int$plotId,array$fields):void{$key=trim((string)($fields['condition_state_key']??''));$operator=trim((string)($fields['condition_operator']??''));if($key===''&&$operator==='')return;if($key===''||$operator==='')throw new UserFacingException('Artwork conditions need both a Story Value and an operator.');$q=db()->prepare('SELECT label_text,value_type,allowed_values_text FROM plot_state_definitions WHERE plot_id=? AND target_code=? LIMIT 1');$q->execute([$plotId,$key]);$definition=$q->fetch();if(!$definition)throw new UserFacingException('Choose an artwork Story Value managed in Story Framework.');if(in_array($operator,['EXISTS','NOT_EXISTS'],true))return;$value=trim((string)($fields['condition_value']??''));if($value==='')throw new UserFacingException($definition['label_text'].' artwork condition needs a value.');if($definition['value_type']==='NUMERIC'&&!is_numeric($value))throw new UserFacingException($definition['label_text'].' artwork condition needs a numerical value.');if($definition['value_type']!=='NUMERIC'&&in_array($operator,['LT','LTE','GT','GTE'],true))throw new UserFacingException($operator.' is only available for Numerical Story Values.');if($definition['value_type']==='PRESET'){$allowed=preg_split('/\r?\n/',trim((string)$definition['allowed_values_text']))?:[];foreach(array_map('trim',explode(',',$value))as$item)if(!in_array($item,$allowed,true))throw new UserFacingException('Choose an allowed Preset Value for '.$definition['label_text'].'.');}}
 }

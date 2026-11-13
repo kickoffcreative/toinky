@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__.'/UserFacingException.php';
 final class StoryCorrectionService
 {
     private const MAX_BYTES=2097152;
@@ -16,7 +17,7 @@ final class StoryCorrectionService
     public static function inspect(array $admin,int $versionId,array $file): array
     {
         require_once __DIR__.'/StoryCorrectionV2Service.php';
-        if(!StoryCorrectionV2Service::supports($file))throw new RuntimeException('Validation preview is required for Corrections v2 JSON packages. Legacy v1 packages remain prose-only and may be applied directly.');
+        if(!StoryCorrectionV2Service::supports($file))throw new UserFacingException('Validation preview is required for Corrections v2 JSON packages. Legacy v1 packages remain prose-only and may be applied directly.');
         return StoryCorrectionV2Service::inspect($admin,$versionId,$file);
     }
 
@@ -24,16 +25,16 @@ final class StoryCorrectionService
     {
         require_once __DIR__.'/StoryCorrectionV2Service.php';
         if(StoryCorrectionV2Service::supports($file))return StoryCorrectionV2Service::import($admin,$versionId,$file,$structuralConfirmed);
-        if((int)($admin['is_admin']??0)!==1)throw new RuntimeException('Administrator access is required.');
-        if(($file['error']??UPLOAD_ERR_NO_FILE)!==UPLOAD_ERR_OK)throw new RuntimeException('Choose a JSON or CSV correction package.');
-        $size=(int)($file['size']??0);if($size<1||$size>self::MAX_BYTES)throw new RuntimeException('Correction packages must be 2 MB or smaller.');
-        $name=(string)($file['name']??'corrections');$ext=strtolower(pathinfo($name,PATHINFO_EXTENSION));if(!in_array($ext,['json','csv'],true))throw new RuntimeException('Upload a .json or .csv correction package.');
-        $raw=file_get_contents((string)$file['tmp_name']);if($raw===false)throw new RuntimeException('The correction package could not be read.');
-        $package=$ext==='json'?self::parseJson($raw):self::parseCsv($raw);$changes=$package['changes'];if(!$changes)throw new RuntimeException('The correction package contains no changes.');if(count($changes)>500)throw new RuntimeException('A correction package may contain at most 500 changes.');
-        $pdo=db();$q=$pdo->prepare('SELECT v.*,p.code,p.title FROM plot_versions v JOIN plots p ON p.plot_id=v.plot_id WHERE v.plot_version_id=?');$q->execute([$versionId]);$version=$q->fetch();if(!$version)throw new RuntimeException('Submitted revision not found.');
-        $q=$pdo->prepare('SELECT plot_version_id,version_no FROM plot_versions WHERE plot_id=? ORDER BY version_no DESC LIMIT 1');$q->execute([$version['plot_id']]);$latest=$q->fetch();if((int)$latest['plot_version_id']!==$versionId)throw new RuntimeException('Corrections can only be imported into the latest story revision.');
-        if(!empty($package['plot_code'])&&strtoupper((string)$package['plot_code'])!==strtoupper((string)$version['code']))throw new RuntimeException('The correction package targets a different story.');
-        if(!empty($package['base_version'])&&(int)$package['base_version']!==(int)$version['version_no'])throw new RuntimeException('The correction package was created for a different revision.');
+        if((int)($admin['is_admin']??0)!==1)throw new UserFacingException('Administrator access is required.');
+        if(($file['error']??UPLOAD_ERR_NO_FILE)!==UPLOAD_ERR_OK)throw new UserFacingException('Choose a JSON or CSV correction package.');
+        $size=(int)($file['size']??0);if($size<1||$size>self::MAX_BYTES)throw new UserFacingException('Correction packages must be 2 MB or smaller.');
+        $name=(string)($file['name']??'corrections');$ext=strtolower(pathinfo($name,PATHINFO_EXTENSION));if(!in_array($ext,['json','csv'],true))throw new UserFacingException('Upload a .json or .csv correction package.');
+        $raw=file_get_contents((string)$file['tmp_name']);if($raw===false)throw new UserFacingException('The correction package could not be read.');
+        $package=$ext==='json'?self::parseJson($raw):self::parseCsv($raw);$changes=$package['changes'];if(!$changes)throw new UserFacingException('The correction package contains no changes.');if(count($changes)>500)throw new UserFacingException('A correction package may contain at most 500 changes.');
+        $pdo=db();$q=$pdo->prepare('SELECT v.*,p.code,p.title FROM plot_versions v JOIN plots p ON p.plot_id=v.plot_id WHERE v.plot_version_id=?');$q->execute([$versionId]);$version=$q->fetch();if(!$version)throw new UserFacingException('Submitted revision not found.');
+        $q=$pdo->prepare('SELECT plot_version_id,version_no FROM plot_versions WHERE plot_id=? ORDER BY version_no DESC LIMIT 1');$q->execute([$version['plot_id']]);$latest=$q->fetch();if((int)$latest['plot_version_id']!==$versionId)throw new UserFacingException('Corrections can only be imported into the latest story revision.');
+        if(!empty($package['plot_code'])&&strtoupper((string)$package['plot_code'])!==strtoupper((string)$version['code']))throw new UserFacingException('The correction package targets a different story.');
+        if(!empty($package['base_version'])&&(int)$package['base_version']!==(int)$version['version_no'])throw new UserFacingException('The correction package was created for a different revision.');
         $pdo->beginTransaction();try{
             foreach($changes as$i=>$change)self::applyChange($pdo,(int)$version['plot_id'],$change,$i+1);
             $audit=StoryAuthoringService::audit((int)$version['plot_id']);$snapshot=json_encode(['plot'=>StoryAuthoringService::story((int)$version['plot_id']),'content'=>$audit['workspace']],JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES|JSON_THROW_ON_ERROR);$newNo=(int)$version['version_no']+1;
@@ -46,13 +47,13 @@ final class StoryCorrectionService
 
     private static function parseJson(string $raw): array
     {
-        try{$data=json_decode($raw,true,512,JSON_THROW_ON_ERROR);}catch(Throwable $e){throw new RuntimeException('The JSON correction package is invalid: '.$e->getMessage());}
-        if(array_is_list($data))$data=['changes'=>$data];if(!is_array($data)||!is_array($data['changes']??null))throw new RuntimeException('JSON must contain a changes array.');if(isset($data['format'])&&$data['format']!=='toinky-story-corrections-v1')throw new RuntimeException('Unsupported correction-package format.');return$data;
+        try{$data=json_decode($raw,true,512,JSON_THROW_ON_ERROR);}catch(Throwable $e){throw new RuntimeException('The JSON correction package is invalid: '.public_error($e));}
+        if(array_is_list($data))$data=['changes'=>$data];if(!is_array($data)||!is_array($data['changes']??null))throw new UserFacingException('JSON must contain a changes array.');if(isset($data['format'])&&$data['format']!=='toinky-story-corrections-v1')throw new UserFacingException('Unsupported correction-package format.');return$data;
     }
 
     private static function parseCsv(string $raw): array
     {
-        $stream=fopen('php://temp','r+');fwrite($stream,$raw);rewind($stream);$headers=fgetcsv($stream);if(!$headers)throw new RuntimeException('The CSV correction package is empty.');$headers=array_map(static fn($x)=>strtolower(trim((string)$x)),$headers);foreach(['entity','key','field','value']as$required)if(!in_array($required,$headers,true))throw new RuntimeException('CSV headers must include entity, key, field, and value.');$changes=[];while(($row=fgetcsv($stream))!==false){if(count(array_filter($row,static fn($x)=>trim((string)$x)!==''))===0)continue;$row=array_pad($row,count($headers),'');$item=array_combine($headers,array_slice($row,0,count($headers)));$changes[]=['entity'=>$item['entity'],'key'=>$item['key'],'field'=>$item['field'],'value'=>$item['value']];}fclose($stream);return['changes'=>$changes];
+        $stream=fopen('php://temp','r+');fwrite($stream,$raw);rewind($stream);$headers=fgetcsv($stream);if(!$headers)throw new UserFacingException('The CSV correction package is empty.');$headers=array_map(static fn($x)=>strtolower(trim((string)$x)),$headers);foreach(['entity','key','field','value']as$required)if(!in_array($required,$headers,true))throw new UserFacingException('CSV headers must include entity, key, field, and value.');$changes=[];while(($row=fgetcsv($stream))!==false){if(count(array_filter($row,static fn($x)=>trim((string)$x)!==''))===0)continue;$row=array_pad($row,count($headers),'');$item=array_combine($headers,array_slice($row,0,count($headers)));$changes[]=['entity'=>$item['entity'],'key'=>$item['key'],'field'=>$item['field'],'value'=>$item['value']];}fclose($stream);return['changes'=>$changes];
     }
 
     private static function applyChange(PDO $pdo,int $plotId,array $change,int $line): void

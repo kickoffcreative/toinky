@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__.'/UserFacingException.php';
 final class StoryCorrectionV2Service
 {
     private const FORMAT='toinky-story-corrections-v2';
@@ -36,26 +37,26 @@ final class StoryCorrectionV2Service
     public static function import(array $admin,int $versionId,array $file,bool $confirmed): array
     {
         [$package,$name]=self::load($admin,$file);$version=self::version($versionId,$package);
-        if(!$confirmed)throw new RuntimeException('Review the validation preview and confirm the structural changes before applying a Corrections v2 package.');
+        if(!$confirmed)throw new UserFacingException('Review the validation preview and confirm the structural changes before applying a Corrections v2 package.');
         return self::execute($admin,$version,$package,$name,true);
     }
 
     private static function load(array $admin,array $file): array
     {
-        if((int)($admin['is_admin']??0)!==1)throw new RuntimeException('Administrator access is required.');
-        if(($file['error']??UPLOAD_ERR_NO_FILE)!==UPLOAD_ERR_OK)throw new RuntimeException('Choose a Corrections v2 JSON package.');
-        $size=(int)($file['size']??0);if($size<1||$size>self::MAX_BYTES)throw new RuntimeException('Correction packages must be 2 MB or smaller.');
-        $name=(string)($file['name']??'corrections-v2.json');if(strtolower(pathinfo($name,PATHINFO_EXTENSION))!=='json')throw new RuntimeException('Corrections v2 packages must use JSON.');
-        $raw=file_get_contents((string)$file['tmp_name']);if($raw===false)throw new RuntimeException('The correction package could not be read.');
-        try{$data=json_decode($raw,true,512,JSON_THROW_ON_ERROR);}catch(Throwable $e){throw new RuntimeException('The JSON correction package is invalid: '.$e->getMessage());}
-        if(!is_array($data)||array_is_list($data)||($data['format']??null)!==self::FORMAT)throw new RuntimeException('Use the toinky-story-corrections-v2 format.');
+        if((int)($admin['is_admin']??0)!==1)throw new UserFacingException('Administrator access is required.');
+        if(($file['error']??UPLOAD_ERR_NO_FILE)!==UPLOAD_ERR_OK)throw new UserFacingException('Choose a Corrections v2 JSON package.');
+        $size=(int)($file['size']??0);if($size<1||$size>self::MAX_BYTES)throw new UserFacingException('Correction packages must be 2 MB or smaller.');
+        $name=(string)($file['name']??'corrections-v2.json');if(strtolower(pathinfo($name,PATHINFO_EXTENSION))!=='json')throw new UserFacingException('Corrections v2 packages must use JSON.');
+        $raw=file_get_contents((string)$file['tmp_name']);if($raw===false)throw new UserFacingException('The correction package could not be read.');
+        try{$data=json_decode($raw,true,512,JSON_THROW_ON_ERROR);}catch(Throwable $e){throw new RuntimeException('The JSON correction package is invalid: '.public_error($e));}
+        if(!is_array($data)||array_is_list($data)||($data['format']??null)!==self::FORMAT)throw new UserFacingException('Use the toinky-story-corrections-v2 format.');
         self::onlyKeys($data,['format','plot_code','base_version','changes','advisories'],'package');
-        if(!preg_match('/^[A-Z0-9_]+$/',(string)($data['plot_code']??'')))throw new RuntimeException('Corrections v2 requires an exact plot_code.');
-        if(!is_int($data['base_version']??null)||$data['base_version']<1)throw new RuntimeException('Corrections v2 requires the exact numeric base_version.');
-        if(!is_array($data['changes']??null)||!array_is_list($data['changes'])||!$data['changes'])throw new RuntimeException('Corrections v2 requires a non-empty changes array.');
-        if(count($data['changes'])>500)throw new RuntimeException('A correction package may contain at most 500 changes.');
+        if(!preg_match('/^[A-Z0-9_]+$/',(string)($data['plot_code']??'')))throw new UserFacingException('Corrections v2 requires an exact plot_code.');
+        if(!is_int($data['base_version']??null)||$data['base_version']<1)throw new UserFacingException('Corrections v2 requires the exact numeric base_version.');
+        if(!is_array($data['changes']??null)||!array_is_list($data['changes'])||!$data['changes'])throw new UserFacingException('Corrections v2 requires a non-empty changes array.');
+        if(count($data['changes'])>500)throw new UserFacingException('A correction package may contain at most 500 changes.');
         if(isset($data['advisories'])){
-            if(!is_array($data['advisories'])||!array_is_list($data['advisories'])||count($data['advisories'])>50)throw new RuntimeException('advisories must be a list of at most 50 items.');
+            if(!is_array($data['advisories'])||!array_is_list($data['advisories'])||count($data['advisories'])>50)throw new UserFacingException('advisories must be a list of at most 50 items.');
             foreach($data['advisories']as$i=>$advisory){
                 if(is_string($advisory)){if(trim($advisory)===''||mb_strlen($advisory)>2000)throw new RuntimeException('Advisory '.($i+1).' must contain 2,000 characters or fewer.');continue;}
                 if(!is_array($advisory)||array_is_list($advisory))throw new RuntimeException('Advisory '.($i+1).' must be a string or an object.');self::onlyKeys($advisory,['key','issue','recommendation'],'advisory '.($i+1));
@@ -83,9 +84,9 @@ final class StoryCorrectionV2Service
 
     private static function version(int $versionId,array $package): array
     {
-        $q=db()->prepare('SELECT v.*,p.code,p.title FROM plot_versions v JOIN plots p ON p.plot_id=v.plot_id WHERE v.plot_version_id=?');$q->execute([$versionId]);$version=$q->fetch();if(!$version)throw new RuntimeException('Submitted revision not found.');
+        $q=db()->prepare('SELECT v.*,p.code,p.title FROM plot_versions v JOIN plots p ON p.plot_id=v.plot_id WHERE v.plot_version_id=?');$q->execute([$versionId]);$version=$q->fetch();if(!$version)throw new UserFacingException('Submitted revision not found.');
         $q=db()->prepare('SELECT plot_version_id,version_no FROM plot_versions WHERE plot_id=? ORDER BY version_no DESC LIMIT 1');$q->execute([$version['plot_id']]);$latest=$q->fetch();if((int)$latest['plot_version_id']!==$versionId)throw new RuntimeException('Corrections can only be imported into the latest story revision. Open revision '.(int)$latest['version_no'].' and try again.');
-        if(strtoupper((string)$package['plot_code'])!==strtoupper((string)$version['code']))throw new RuntimeException('The correction package targets a different story.');
+        if(strtoupper((string)$package['plot_code'])!==strtoupper((string)$version['code']))throw new UserFacingException('The correction package targets a different story.');
         if((int)$package['base_version']!==(int)$version['version_no'])throw new RuntimeException('This package expects revision '.(int)$package['base_version'].', but the latest revision is '.(int)$version['version_no'].'. Generate a fresh reviewer package before changing structural data.');
         return$version;
     }
@@ -195,7 +196,7 @@ final class StoryCorrectionV2Service
 
     private static function validateChronology(int $plotId,array $before): void
     {
-        $q=db()->prepare('SELECT event_code,trigger_percent,sort_order,phase FROM plot_world_events WHERE plot_id=? AND active=1 ORDER BY trigger_percent,sort_order,plot_world_event_id');$q->execute([$plotId]);$rows=$q->fetchAll();$after=array_column($rows,'event_code');if($after!==$before)throw new RuntimeException('Chronology protection blocked this package because it changes the existing stable event sequence. Timing may change, but event order may not.');
+        $q=db()->prepare('SELECT event_code,trigger_percent,sort_order,phase FROM plot_world_events WHERE plot_id=? AND active=1 ORDER BY trigger_percent,sort_order,plot_world_event_id');$q->execute([$plotId]);$rows=$q->fetchAll();$after=array_column($rows,'event_code');if($after!==$before)throw new UserFacingException('Chronology protection blocked this package because it changes the existing stable event sequence. Timing may change, but event order may not.');
         $rank=['EXPOSITION'=>1,'INCITING_INCIDENT'=>2,'RISING_ACTION'=>3,'CLIMAX'=>4,'RESOLUTION'=>5];$last=0;$pairs=[];foreach($rows as$row){$pair=$row['trigger_percent'].'|'.$row['sort_order'];if(isset($pairs[$pair]))throw new RuntimeException('Two active events would share the same time and same-time order: '.$pairs[$pair].' and '.$row['event_code'].'.');$pairs[$pair]=$row['event_code'];$r=$rank[$row['phase']]??0;if($r<$last)throw new RuntimeException('Chronology protection detected a phase moving backward at '.$row['event_code'].'.');$last=$r;}
     }
 

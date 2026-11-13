@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__.'/UserFacingException.php';
 final class ParallaxService
 {
     private const MAX_WIDTH=1920;
@@ -57,7 +58,7 @@ final class ParallaxService
         $ids=array_values(array_unique(array_filter(array_map('intval',explode(',',$order)),fn($id)=>$id>0)));
         $existing=array_map('intval',db()->query('SELECT parallax_layer_id FROM site_parallax_layers ORDER BY sort_order,parallax_layer_id')->fetchAll(PDO::FETCH_COLUMN));
         $sorted=$ids;$existingSorted=$existing;sort($sorted);sort($existingSorted);
-        if($sorted!==$existingSorted)throw new RuntimeException('The layer order changed before it could be saved. Refresh and try again.');
+        if($sorted!==$existingSorted)throw new UserFacingException('The layer order changed before it could be saved. Refresh and try again.');
         db()->beginTransaction();
         try{$q=db()->prepare('UPDATE site_parallax_layers SET sort_order=? WHERE parallax_layer_id=?');foreach($ids as$index=>$id)$q->execute([($index+1)*10,$id]);db()->commit();}
         catch(Throwable $e){if(db()->inTransaction())db()->rollBack();throw$e;}
@@ -66,23 +67,23 @@ final class ParallaxService
     private static function requireLayer(int $layerId): array
     {
         $q=db()->prepare('SELECT * FROM site_parallax_layers WHERE parallax_layer_id=?');$q->execute([$layerId]);$layer=$q->fetch();
-        if(!$layer)throw new RuntimeException('That parallax layer no longer exists.');return$layer;
+        if(!$layer)throw new UserFacingException('That parallax layer no longer exists.');return$layer;
     }
 
     private static function validateFields(array $fields): array
     {
-        $label=trim((string)($fields['label_text']??''));if($label==='')throw new RuntimeException('Enter a layer name.');if(mb_strlen($label)>120)throw new RuntimeException('Layer names may not exceed 120 characters.');
+        $label=trim((string)($fields['label_text']??''));if($label==='')throw new UserFacingException('Enter a layer name.');if(mb_strlen($label)>120)throw new UserFacingException('Layer names may not exceed 120 characters.');
         $values=['label_text'=>$label];
-        foreach(['offset_left_px','offset_right_px','offset_top_px','offset_bottom_px']as$key){$value=filter_var($fields[$key]??0,FILTER_VALIDATE_INT);if($value===false||$value < -1920||$value > 1920)throw new RuntimeException('Offsets must be whole pixels between -1920 and 1920.');$values[$key]=(int)$value;}
-        $movement=filter_var($fields['movement_percent']??0,FILTER_VALIDATE_FLOAT);if($movement===false||$movement < -100||$movement > 100)throw new RuntimeException('Movement must be between -100% and 100%.');$values['movement_percent']=round((float)$movement,2);
+        foreach(['offset_left_px','offset_right_px','offset_top_px','offset_bottom_px']as$key){$value=filter_var($fields[$key]??0,FILTER_VALIDATE_INT);if($value===false||$value < -1920||$value > 1920)throw new UserFacingException('Offsets must be whole pixels between -1920 and 1920.');$values[$key]=(int)$value;}
+        $movement=filter_var($fields['movement_percent']??0,FILTER_VALIDATE_FLOAT);if($movement===false||$movement < -100||$movement > 100)throw new UserFacingException('Movement must be between -100% and 100%.');$values['movement_percent']=round((float)$movement,2);
         return$values;
     }
 
     private static function storeImage(array $user,array $fields,array $file): array
     {
-        if(($file['error']??UPLOAD_ERR_NO_FILE)!==UPLOAD_ERR_OK)throw new RuntimeException('Choose a PNG or JPG image to upload.');
+        if(($file['error']??UPLOAD_ERR_NO_FILE)!==UPLOAD_ERR_OK)throw new UserFacingException('Choose a PNG or JPG image to upload.');
         $tmp=(string)($file['tmp_name']??'');$info=@getimagesize($tmp);$mime=(string)($info['mime']??'');$width=(int)($info[0]??0);$height=(int)($info[1]??0);
-        if(!in_array($mime,['image/jpeg','image/png','image/webp'],true)||$width<1||$height<1)throw new RuntimeException('Upload a valid JPEG, PNG, or WebP image.');
+        if(!in_array($mime,['image/jpeg','image/png','image/webp'],true)||$width<1||$height<1)throw new UserFacingException('Upload a valid JPEG, PNG, or WebP image.');
         $title=trim((string)($fields['label_text']??'Parallax layer'));
         $mediaId=MediaLibraryService::upload($user,['media_type'=>'PARALLAX','title_text'=>$title,'alt_text'=>$title.' parallax layer'],$file);
         $media=MediaLibraryService::requireVisible(['user_id'=>(int)$user['user_id'],'is_admin'=>1],$mediaId);

@@ -1,5 +1,8 @@
 <?php
+
 declare(strict_types=1);
+require_once __DIR__.'/UserFacingException.php';
+
 
 final class EmailTemplateService
 {
@@ -23,21 +26,21 @@ final class EmailTemplateService
 
     public static function save(array $admin,array $input): void
     {
-        if((int)($admin['is_admin']??0)!==1)throw new RuntimeException('Administrator access is required.');
+        if((int)($admin['is_admin']??0)!==1)throw new UserFacingException('Administrator access is required.');
         $from=strtolower(trim((string)($input['mail_from_address']??'')));$name=trim((string)($input['mail_from_name']??''));
-        if(!filter_var($from,FILTER_VALIDATE_EMAIL))throw new RuntimeException('Enter a valid sender email address.');
-        if($name===''||self::length($name)>120||preg_match('/[\r\n]/',$name))throw new RuntimeException('Enter a sender name up to 120 characters.');
+        if(!filter_var($from,FILTER_VALIDATE_EMAIL))throw new UserFacingException('Enter a valid sender email address.');
+        if($name===''||self::length($name)>120||preg_match('/[\r\n]/',$name))throw new UserFacingException('Enter a sender name up to 120 characters.');
         $q=db()->prepare('INSERT INTO platform_settings(setting_key,setting_value,updated_by_user_id) VALUES(?,?,?) ON DUPLICATE KEY UPDATE setting_value=VALUES(setting_value),updated_by_user_id=VALUES(updated_by_user_id)');
         $q->execute(['MAIL_FROM_ADDRESS',$from,$admin['user_id']]);$q->execute(['MAIL_FROM_NAME',$name,$admin['user_id']]);
         self::ensureDefaults();
         $update=db()->prepare('UPDATE email_templates SET subject_template=?,html_template=?,text_template=?,css_template=?,enabled=?,updated_by_user_id=? WHERE template_key=?');
-        foreach(self::defaults()as$key=>$default){$subject=trim((string)($input['email_'.$key.'_subject']??$default['subject_template']));$html=self::sanitizeHtmlTemplate((string)($input['email_'.$key.'_html']??$default['html_template']));$text=trim((string)($input['email_'.$key.'_text']??$default['text_template']));$css=self::sanitizeCss((string)($input['email_'.$key.'_css']??$default['css_template']));$enabled=!empty($input['email_'.$key.'_enabled'])?1:0;if($subject===''||self::length($subject)>255)throw new RuntimeException($default['label_text'].' needs a subject up to 255 characters.');if($text===''||self::length($text)>30000)throw new RuntimeException($default['label_text'].' needs plain-text content up to 30,000 characters.');if($html===''||self::length($html)>60000)throw new RuntimeException($default['label_text'].' needs HTML content up to 60,000 characters.');self::assertTokens($subject.' '.$html.' '.$text.' '.$css);$update->execute([$subject,$html,$text,$css,$enabled,$admin['user_id'],$key]);}
+        foreach(self::defaults()as$key=>$default){$subject=trim((string)($input['email_'.$key.'_subject']??$default['subject_template']));$html=self::sanitizeHtmlTemplate((string)($input['email_'.$key.'_html']??$default['html_template']));$text=trim((string)($input['email_'.$key.'_text']??$default['text_template']));$css=self::sanitizeCss((string)($input['email_'.$key.'_css']??$default['css_template']));$enabled=!empty($input['email_'.$key.'_enabled'])?1:0;if($subject===''||self::length($subject)>255)throw new UserFacingException($default['label_text'].' needs a subject up to 255 characters.');if($text===''||self::length($text)>30000)throw new UserFacingException($default['label_text'].' needs plain-text content up to 30,000 characters.');if($html===''||self::length($html)>60000)throw new UserFacingException($default['label_text'].' needs HTML content up to 60,000 characters.');self::assertTokens($subject.' '.$html.' '.$text.' '.$css);$update->execute([$subject,$html,$text,$css,$enabled,$admin['user_id'],$key]);}
     }
 
     public static function compose(string $key,array $data): array
     {
-        self::ensureDefaults();$key=strtoupper(trim($key));if(!in_array($key,self::KEYS,true))throw new RuntimeException('Unknown email template.');
-        $q=db()->prepare('SELECT * FROM email_templates WHERE template_key=?');$q->execute([$key]);$template=$q->fetch();if(!$template||!(int)$template['enabled'])throw new RuntimeException('The '.$key.' email is disabled.');
+        self::ensureDefaults();$key=strtoupper(trim($key));if(!in_array($key,self::KEYS,true))throw new UserFacingException('Unknown email template.');
+        $q=db()->prepare('SELECT * FROM email_templates WHERE template_key=?');$q->execute([$key]);$template=$q->fetch();if(!$template||!(int)$template['enabled'])throw new UserFacingException('The '.$key.' email is disabled.');
         $base=['recipient_name'=>'there','site_name'=>'Toinky','site_url'=>self::baseUrl(),'logo_url'=>rtrim(self::baseUrl(),'/').'/assets/toinky-logo.png','action_url'=>'','action_label'=>'Open Toinky','message'=>'','message_html'=>'','sender_name'=>'Toinky','story_title'=>'','game_code'=>'','expiry_text'=>'','brand_primary'=>'#1C242B','brand_secondary'=>'#6B2938','brand_accent'=>'#B58E46','brand_surface'=>'#F4EEE2','brand_text'=>'#35424B','brand_heading'=>'#1C242B','brand_title_font'=>'Cormorant Garamond, Georgia, serif','brand_body_font'=>'Instrument Sans, Arial, sans-serif'];$values=array_merge($base,$data);$values['message_html']=(string)($values['message_html']??'');if($values['message_html']===''&&$values['message']!=='')$values['message_html']=self::textToHtml((string)$values['message']);$subject=self::replace((string)$template['subject_template'],$values,false);$values['subject_line']=$subject;$css=self::replace((string)$template['css_template'],$values,false);return['subject'=>$subject,'html'=>'<style>'.$css.'</style>'.self::replace((string)$template['html_template'],$values,true),'text'=>self::replace((string)$template['text_template'],$values,false)];
     }
 
@@ -61,7 +64,7 @@ final class EmailTemplateService
 
     private static function assertTokens(string $value): void
     {
-        preg_match_all('/\{\{([a-z0-9_]+)\}\}/i',$value,$matches);foreach($matches[1]??[]as$token)if(!in_array(strtolower($token),self::TOKENS,true))throw new RuntimeException('Unknown email template key: {{'.$token.'}}.');
+        preg_match_all('/\{\{([a-z0-9_]+)\}\}/i',$value,$matches);foreach($matches[1]??[]as$token)if(!in_array(strtolower($token),self::TOKENS,true))throw new UserFacingException('Unknown email template key: {{'.$token.'}}.');
     }
 
     private static function sanitizeHtmlTemplate(string $html): string

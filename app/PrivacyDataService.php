@@ -98,7 +98,7 @@ final class PrivacyDataService
                 $email=$binding['email'];$from=$binding['valid_from_utc'];$until=$binding['valid_until_utc'];
                 foreach(['user_invitations'=>'email','game_invitations'=>'email','email_delivery_log'=>'recipient_email'] as $table=>$column)$pdo->prepare('DELETE FROM `'.$table.'` WHERE `'.$column.'`=? AND created_at_utc>=? AND (? IS NULL OR created_at_utc<?)')->execute([$email,$from,$until,$until]);
                 $other=$pdo->prepare('SELECT 1 FROM users WHERE email=? AND user_id<>?');$other->execute([$email,$id]);
-                if(!$other->fetchColumn())foreach(['SIGN_IN_ACCOUNT','RESET_EMAIL','INVITE_RECIPIENT'] as $action)$pdo->prepare('DELETE FROM auth_throttle WHERE throttle_key=?')->execute([RateLimitService::key($action,strtolower(trim($email)))]);
+                if(!$other->fetchColumn())foreach(['SIGN_IN_ACCOUNT','RESET_EMAIL','INVITE_RECIPIENT','REGISTER_NOTICE'] as $action)$pdo->prepare('DELETE FROM auth_throttle WHERE throttle_key=?')->execute([RateLimitService::key($action,strtolower(trim($email)))]);
             }
             $tokens=$pdo->prepare('SELECT token_hash FROM password_reset_tokens WHERE user_id=?');$tokens->execute([$id]);foreach($tokens->fetchAll(PDO::FETCH_COLUMN) as $hash)$pdo->prepare('DELETE FROM auth_throttle WHERE throttle_key=?')->execute([RateLimitService::key('RESET_TOKEN',$hash)]);
             foreach(['ADMIN_RESET_USER','EMAIL_CHANGE_USER','FRIEND_REQUEST_USER','VERIFY_EMAIL_USER','AI_USER','JOIN_USER','SIGNIN_CODE_USER','CODE_RESEND_USER','PRIVACY_PASSWORD_USER'] as $action)$pdo->prepare('DELETE FROM auth_throttle WHERE throttle_key=?')->execute([RateLimitService::key($action,(string)$id)]);
