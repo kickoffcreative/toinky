@@ -5,9 +5,10 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const assert = require('node:assert/strict');
 const source = fs.readFileSync(require('node:path').join(__dirname, '../public/play.php'), 'utf8');
-const start = source.indexOf('<script>let liveBusy=');
+const start = source.indexOf('let liveBusy=');
 assert.notEqual(start, -1);
-const script = source.slice(start + '<script>'.length, source.indexOf('</script>', start)).replaceAll('<?=$gid?>', '123');
+assert.ok(source.slice(source.lastIndexOf('<script', start), start).includes('SecurityHeaders::nonce()'));
+const script = source.slice(start, source.indexOf('</script>', start)).replaceAll('<?=$gid?>', '123');
 let checks = 0;
 function fixture() {
     const listeners = {}, windowListeners = {};
