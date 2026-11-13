@@ -44,7 +44,7 @@ try{
     }
     foreach([[0,0],[1,0],[1,1]] as $role){
         $pdo->prepare('INSERT INTO users(email,password_hash,display_name,is_admin,is_super_admin,email_verified_at_utc) VALUES(?,?,?,?,?,UTC_TIMESTAMP())')->execute(['ai-diag-'.bin2hex(random_bytes(8)).'@example.invalid','!','AI Diagnostic Fixture',$role[0],$role[1]]);$id=(int)$pdo->lastInsertId();$users[]=$id;
-        session_id('');AuthService::boot();$_SESSION=['user_id'=>$id,'session_version'=>1,'csrf_token'=>bin2hex(random_bytes(24))];$sessions[]=[session_id(),$_SESSION['csrf_token']];session_write_close();
+        session_id('');AuthService::boot();$_SESSION=['user_id'=>$id,'session_version'=>1,'csrf_token'=>bin2hex(random_bytes(24))];SessionService::register((int)$_SESSION['user_id'],true);$sessions[]=[session_id(),$_SESSION['csrf_token']];session_write_close();
         if(!$role[1]){$denied=false;try{AiSettingsService::diagnostics($id,true);}catch(RuntimeException $e){$denied=$e->getMessage()==='Super Admin access is required.';}$check($denied,'Service rejects non-Super-Admin diagnostics');}
     }
     if(defined('TOINKY_DIAGNOSTIC_FAKE_APCU')){

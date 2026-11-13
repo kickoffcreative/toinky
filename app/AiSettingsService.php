@@ -15,6 +15,7 @@ final class AiSettingsService
 
     public static function save(int $actorId,array $input): void
     {
+        if(PHP_SAPI!=='cli')SessionService::requireRecentPassword($actorId);
         $q=db()->prepare('SELECT 1 FROM users WHERE user_id=? AND status="ACTIVE" AND is_super_admin=1');$q->execute([$actorId]);if(!$q->fetchColumn())throw new UserFacingException('Super Admin access is required.');
         $target=AiEndpointPolicy::resolve(trim((string)($input['ai_endpoint']??'')));$endpoint=$target['url'];
         $serverEndpoint=AiEndpointPolicy::configuredEndpoint();if($serverEndpoint!==''&&$endpoint!==AiEndpointPolicy::validateUrl($serverEndpoint)['url'])throw new UserFacingException('The AI endpoint is managed by server configuration.');

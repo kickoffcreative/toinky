@@ -26,6 +26,7 @@ final class EmailTemplateService
 
     public static function save(array $admin,array $input): void
     {
+        if(PHP_SAPI!=='cli')SessionService::requireRecentPassword((int)$admin['user_id']);
         if((int)($admin['is_admin']??0)!==1)throw new UserFacingException('Administrator access is required.');
         $from=strtolower(trim((string)($input['mail_from_address']??'')));$name=trim((string)($input['mail_from_name']??''));
         if(!filter_var($from,FILTER_VALIDATE_EMAIL))throw new UserFacingException('Enter a valid sender email address.');

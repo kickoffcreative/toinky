@@ -43,6 +43,7 @@ final class CommerceService
 
     public static function saveSettings(int $adminId, array $input): void
     {
+        if(PHP_SAPI!=='cli')SessionService::requireRecentPassword($adminId);
         $current = self::settings();
         $bundles = [];
         foreach ($current['bundles'] as $b) {

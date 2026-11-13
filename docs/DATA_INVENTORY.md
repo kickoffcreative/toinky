@@ -16,6 +16,37 @@ Production hosting, backups, mail routing and cron schedules are not verified.
 
 ## Current Storage And Proposed Handling
 
+A-08 draft overlay (migration 145; not yet a deployment claim):
+
+- `user_two_factor_codes.email_hash` binds emailed sign-in proof to the address
+  at issuance. It has the same restricted verification access and thirty-day
+  expired/used-code cleanup as its parent record, and is deleted on identity
+  erasure. Authentication-code and mailbox hashes are excluded from exports.
+
+- `user_sessions`: owner ID, hashed bearer ID, browser user-agent description,
+  created/last-seen/absolute-expiry/revocation times, factor-proof and recent
+  password-confirmation times. Purpose: revocable authenticated access and
+  security self-service. The owner sees safe device/activity metadata; bearer
+  hashes are never returned. Private operations use the table; no external
+  recipient is added. Export includes safe own activity fields. Identity erasure
+  deletes the rows; CLI retention removes records thirty days after stored
+  maximum expiry or explicit revocation. Idle-expired records can remain until
+  that maximum/revocation retention boundary if no later request records expiry.
+- `user_totp_credentials`: owner ID, authenticated-encrypted secret, activation
+  or pending-enrollment expiry, replay-prevention step and hashed random recovery
+  codes. Purpose: authenticator/recovery verification. Secrets/hashes are excluded
+  from exports and logs; plaintext setup/recovery values are displayed only in
+  the authenticated setup response. Delete on disable or identity erasure;
+  abandoned enrollment is pruned one day after its fifteen-minute expiry.
+  No external QR/image service receives the seed. The user's selected
+  authenticator app receives the key only when the user adds it there.
+- The server encryption key is a non-personal operational secret, outside the
+  database and application/deployment directory, with an environment override.
+  It must be protected with restricted backup/recovery procedures. It is never
+  included in account exports, Git or normal CLI output. Runtime access is
+  required for verification; encryption does not protect against compromise of
+  the application server itself. See the A-08 rollout record before activation.
+
 The table below records the pre-implementation baseline through migration 143.
 The following implementation overlay takes precedence for the draft A-06
 branch; it does not assert that these controls are deployed or scheduled:

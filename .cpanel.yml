@@ -31,3 +31,5 @@ deployment:
     # config/database.php, .installed, or public/uploads/.
     - /opt/cpanel/ea-php84/root/usr/bin/php tools/deploy_manifest.php $DEPLOYPATH --apply
     - /opt/cpanel/ea-php84/root/usr/bin/php $DEPLOYPATH/tools/migrate.php
+    # Generate once outside the deploy tree; preserve existing key across deploys/rollbacks.
+    - /opt/cpanel/ea-php84/root/usr/bin/php $DEPLOYPATH/tools/create_security_key.php
