@@ -30,7 +30,7 @@ try{
     foreach(glob($source.'/app/*.php')?:[] as $file)if(basename($file)!=='PublicError.php')$check(!preg_match('/->getMessage\s*\(/',(string)file_get_contents($file)),'Exception message access confined to helper: '.basename($file));
     $pdo->prepare('INSERT INTO users(email,password_hash,display_name,email_verified_at_utc) VALUES(?,?,?,UTC_TIMESTAMP())')->execute(['error-'.$stamp.'@example.invalid',password_hash('Local-Error-Guard-Only',PASSWORD_DEFAULT),'Error Fixture']);$web=(int)$pdo->lastInsertId();$users[]=$web;
     $c=PrivacyService::config();PrivacyService::recordConsent($web,['accept_policies'=>'1','terms_version'=>$c['terms_version'],'privacy_version'=>$c['privacy_version']]);
-    $_SESSION=['user_id'=>$web,'session_version'=>1,'csrf_token'=>bin2hex(random_bytes(24))];$cookie=session_id();$csrf=$_SESSION['csrf_token'];session_write_close();
+    $_SESSION=['user_id'=>$web,'session_version'=>1,'csrf_token'=>bin2hex(random_bytes(24))];SessionService::register((int)$_SESSION['user_id'],true);$cookie=session_id();$csrf=$_SESSION['csrf_token'];session_write_close();
     $pdo->exec('CREATE TRIGGER public_error_guard_users BEFORE UPDATE ON users FOR EACH ROW BEGIN IF NEW.user_id='.$web.' THEN SIGNAL SQLSTATE "45000" SET MESSAGE_TEXT="'.$canary.'"; END IF; END');
     $pdo->exec('CREATE TRIGGER public_error_guard_preferences BEFORE INSERT ON user_inky_preferences FOR EACH ROW BEGIN IF NEW.user_id='.$web.' THEN SIGNAL SQLSTATE "45000" SET MESSAGE_TEXT="'.$canary.'"; END IF; END');
     $socket=stream_socket_server('tcp://127.0.0.1:0',$errno,$errstr);$address=stream_socket_get_name($socket,false);fclose($socket);

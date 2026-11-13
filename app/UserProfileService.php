@@ -23,6 +23,7 @@ final class UserProfileService
 
     public static function requestEmailChange(array $user,string $newEmail): array
     {
+        if(PHP_SAPI!=='cli')SessionService::requireRecentPassword((int)$user['user_id']);
         RateLimitService::emailChange((int)$user['user_id']);
         $newEmail=strtolower(trim($newEmail));if(!filter_var($newEmail,FILTER_VALIDATE_EMAIL))throw new UserFacingException('Enter a valid email address.');if($newEmail===strtolower((string)$user['email']))throw new UserFacingException('That is already your account email.');$q=db()->prepare('SELECT 1 FROM users WHERE email=? AND user_id<>?');$q->execute([$newEmail,$user['user_id']]);if($q->fetchColumn())throw new UserFacingException('That email address is already in use.');
         $token=bin2hex(random_bytes(24));db()->prepare('UPDATE user_email_change_tokens SET expires_at_utc=UTC_TIMESTAMP() WHERE user_id=? AND verified_at_utc IS NULL')->execute([$user['user_id']]);db()->prepare('INSERT INTO user_email_change_tokens(user_id,new_email,token_hash,expires_at_utc) VALUES(?,?,?,DATE_ADD(UTC_TIMESTAMP(),INTERVAL 2 HOUR))')->execute([$user['user_id'],$newEmail,hash('sha256',$token)]);

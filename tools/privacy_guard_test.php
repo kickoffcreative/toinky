@@ -101,7 +101,7 @@ try{
     // Real HTTP requests exercise consent routing, CSRF and ownership at entry points.
     $web=$makeUser('web');
     if(session_status()===PHP_SESSION_ACTIVE)session_write_close();session_id('');AuthService::boot();
-    $_SESSION=['user_id'=>$web,'session_version'=>1,'csrf_token'=>bin2hex(random_bytes(24))];$webCookie=session_id();$csrf=$_SESSION['csrf_token'];session_write_close();
+    $_SESSION=['user_id'=>$web,'session_version'=>1,'csrf_token'=>bin2hex(random_bytes(24))];SessionService::register((int)$_SESSION['user_id'],true);$webCookie=session_id();$csrf=$_SESSION['csrf_token'];session_write_close();
     $socket=stream_socket_server('tcp://127.0.0.1:0',$errno,$errstr);$address=stream_socket_get_name($socket,false);fclose($socket);
     $server=proc_open([PHP_BINARY,'-d','sendmail_path=/bin/false','-d','session.save_path='.$fixture.'/sessions','-S',$address,'-t',$fixture.'/public'],[0=>['pipe','r'],1=>['file',$fixture.'/server.log','a'],2=>['file',$fixture.'/server.log','a']],$pipes,$fixture);if(!is_resource($server))throw new RuntimeException('HTTP fixture failed');fclose($pipes[0]);
     $ready=false;for($i=0;$i<40;$i++){$connection=@stream_socket_client('tcp://'.$address,$errno,$errstr,0.1);if($connection){fclose($connection);$ready=true;break;}usleep(100000);}$check($ready,'Privacy HTTP fixture starts');

@@ -26,7 +26,7 @@ $reject=static function(callable $fn)use($check):void{$denied=false;try{$fn();}c
 $capture=static function(callable $fn)use($dir):array{file_put_contents($dir.'/mail.jsonl','');$result=$fn();$mail=[];foreach(file($dir.'/mail.jsonl',FILE_IGNORE_NEW_LINES)?:[] as $line)$mail[]=json_decode($line,true)['body'];return [$result,implode("\n",$mail)];};
 $token=static function(string $mail,string $key):string{if(!preg_match('/(?:[?&]|&amp;)'.preg_quote($key,'/').'=?([a-f0-9]{48})/',$mail,$m))throw new RuntimeException('Test mail did not contain expected link.');return $m[1];};
 $makeSession=static function(int $id,?int $version=1)use($dir):array{
-    if(session_status()===PHP_SESSION_ACTIVE)session_write_close();$cookie=bin2hex(random_bytes(16));session_id($cookie);AuthService::boot();$cookie=session_id();$_SESSION=['user_id'=>$id,'csrf_token'=>bin2hex(random_bytes(24))];if($version!==null)$_SESSION['session_version']=$version;$csrf=$_SESSION['csrf_token'];session_write_close();return [$cookie,$csrf];
+    if(session_status()===PHP_SESSION_ACTIVE)session_write_close();$cookie=bin2hex(random_bytes(16));session_id($cookie);AuthService::boot();$cookie=session_id();$_SESSION=['user_id'=>$id,'csrf_token'=>bin2hex(random_bytes(24))];if($version!==null)$_SESSION['session_version']=$version;if($id>0)SessionService::register($id,true);$csrf=$_SESSION['csrf_token'];session_write_close();return [$cookie,$csrf];
 };
 try{
     foreach([[0,0,1],[1,0,1],[1,1,1],[0,0,0]] as $i=>$roles){

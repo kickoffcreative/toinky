@@ -7,7 +7,7 @@ $pdo=db();if(!str_ends_with((string)$pdo->query('SELECT DATABASE()')->fetchColum
 $dir=sys_get_temp_dir().'/toinky-headers-'.bin2hex(random_bytes(8));mkdir($dir,0700);mkdir($dir.'/sessions',0700);mkdir($dir.'/config',0700);
 ini_set('session.save_path',$dir.'/sessions');$users=[];$server=null;$checks=0;$failed=false;
 $check=static function(bool $ok,string $label)use(&$checks):void{if(!$ok)throw new RuntimeException($label);$checks++;};
-$session=static function(int $id):array{if(session_status()===PHP_SESSION_ACTIVE)session_write_close();session_id('');AuthService::boot();$_SESSION=['user_id'=>$id,'session_version'=>1,'csrf_token'=>bin2hex(random_bytes(24))];$result=[session_id(),$_SESSION['csrf_token']];session_write_close();return $result;};
+$session=static function(int $id):array{if(session_status()===PHP_SESSION_ACTIVE)session_write_close();session_id('');AuthService::boot();$_SESSION=['user_id'=>$id,'session_version'=>1,'csrf_token'=>bin2hex(random_bytes(24))];SessionService::register((int)$_SESSION['user_id'],true);$result=[session_id(),$_SESSION['csrf_token']];session_write_close();return $result;};
 try{
     foreach(glob($root.'/*.php') as $file)copy($file,$dir.'/'.basename($file));
     symlink($root.'/app',$dir.'/app');symlink($root.'/public',$dir.'/public');

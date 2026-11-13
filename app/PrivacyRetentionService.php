@@ -6,6 +6,8 @@ final class PrivacyRetentionService
     {
         if(PHP_SAPI!=='cli')throw new PrivacyException('Privacy retention is CLI only.');$pdo=db();$counts=[];
         $rules=[
+            'user_sessions'=>'absolute_expires_at_utc<DATE_SUB(UTC_TIMESTAMP(),INTERVAL 30 DAY) OR revoked_at_utc<DATE_SUB(UTC_TIMESTAMP(),INTERVAL 30 DAY)',
+            'user_totp_credentials'=>'enabled_at_utc IS NULL AND enrollment_expires_at_utc<DATE_SUB(UTC_TIMESTAMP(),INTERVAL 1 DAY)',
             'email_delivery_log'=>'created_at_utc<DATE_SUB(UTC_TIMESTAMP(),INTERVAL 90 DAY)',
             'password_reset_tokens'=>'expires_at_utc<DATE_SUB(UTC_TIMESTAMP(),INTERVAL 30 DAY) OR used_at_utc<DATE_SUB(UTC_TIMESTAMP(),INTERVAL 30 DAY)',
             'user_invitations'=>'expires_at_utc<DATE_SUB(UTC_TIMESTAMP(),INTERVAL 30 DAY) OR accepted_at_utc<DATE_SUB(UTC_TIMESTAMP(),INTERVAL 30 DAY)',

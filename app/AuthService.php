@@ -6,6 +6,8 @@ require_once __DIR__.'/PrivacyService.php';
 require_once __DIR__.'/AccountSecurityService.php';
 require_once __DIR__.'/RateLimitService.php';
 require_once __DIR__.'/BotProtectionService.php';
+require_once __DIR__.'/SessionService.php';
+require_once __DIR__.'/TotpService.php';
 final class AuthService
 {
     public const SESSION_NAME='__Host-toinky';
@@ -34,7 +36,7 @@ final class AuthService
     {
         self::boot();$id=(int)($_SESSION['user_id']??0);if($id<=0)return null;SecurityHeaders::noStore();
         $q=db()->prepare('SELECT user_id,email,display_name,is_admin,is_super_admin,status,email_verified_at_utc,session_version,terms_version,privacy_version,policy_accepted_at_utc,system_identity_key,created_at_utc,last_login_at_utc FROM users WHERE user_id=?');$q->execute([$id]);$u=$q->fetch();
-        if(!$u||$u['status']!=='ACTIVE'||$u['system_identity_key']!==null||(int)($_SESSION['session_version']??0)!==(int)$u['session_version']){self::logout();return null;}return$u;
+        if(!$u||$u['status']!=='ACTIVE'||$u['system_identity_key']!==null||(int)($_SESSION['session_version']??0)!==(int)$u['session_version']||!SessionService::valid($u)){self::logout();return null;}return$u;
     }
     public static function register(string $email,string $name,string $password,?string $inviteToken=null,?string $gameInviteToken=null,array $privacy=[]): array
     {
@@ -74,7 +76,13 @@ final class AuthService
         if($u['status']==='DISABLED')throw new UserFacingException('This account has been deactivated. Contact support if you would like to reactivate it.');
         if($u['status']!=='ACTIVE')throw new UserFacingException('Email or password is incorrect.');
         if(password_needs_rehash((string)$u['password_hash'],PASSWORD_DEFAULT))db()->prepare('UPDATE users SET password_hash=? WHERE user_id=? AND password_hash=? AND session_version=?')->execute([password_hash($password,PASSWORD_DEFAULT),$u['user_id'],$u['password_hash'],$u['session_version']]);
-        if(self::superAdminNeedsTwoFactor($u)){self::issueTwoFactorCode((int)$u['user_id']);self::boot();$_SESSION['two_factor_pending_user_id']=(int)$u['user_id'];$_SESSION['two_factor_pending_version']=(int)$u['session_version'];return ['two_factor_required'=>true,'user_id'=>(int)$u['user_id'],'email'=>(string)$u['email']];}
+        if(self::superAdminNeedsTwoFactor($u)){
+            self::boot();SessionService::revokeCurrent();session_regenerate_id(true);unset($_SESSION['user_id'],$_SESSION['session_version'],$_SESSION['view_as']);
+            $_SESSION['csrf_token']=bin2hex(random_bytes(24));$_SESSION['two_factor_pending_user_id']=(int)$u['user_id'];$_SESSION['two_factor_pending_version']=(int)$u['session_version'];$_SESSION['two_factor_started_at']=time();$_SESSION['two_factor_failed_attempts']=0;
+            $_SESSION['two_factor_method']=TotpService::enabled((int)$u['user_id'])&&TotpService::available()?'totp':'email';
+            if($_SESSION['two_factor_method']==='email')self::issueTwoFactorCode((int)$u['user_id']);
+            return ['two_factor_required'=>true,'user_id'=>(int)$u['user_id'],'email'=>(string)$u['email']];
+        }
         self::loginUserId((int)$u['user_id'],(int)$u['session_version']);return self::currentUser()??[];
     }
     public static function isSuperAdmin(int $userId): bool
@@ -83,59 +91,70 @@ final class AuthService
     }
     public static function superAdminNeedsTwoFactor(array $user): bool
     {
-        if((int)($user['is_super_admin']??0)!==1)return false;
-        $last=trim((string)($user['last_login_at_utc']??''));
-        if($last==='')return true;
-        $ts=strtotime($last.' UTC');if($ts===false)return true;
-        return (time()-$ts)>(14*24*60*60);
+        return (int)($user['is_admin']??0)===1||(int)($user['is_super_admin']??0)===1||TotpService::enabled((int)($user['user_id']??0));
     }
     public static function pendingTwoFactorUserId(): int
     {
         self::boot();$id=(int)($_SESSION['two_factor_pending_user_id']??0);
+        if($id<=0||(int)($_SESSION['two_factor_started_at']??0)<=time()-600||(int)($_SESSION['two_factor_failed_attempts']??0)>=5){self::clearPendingFactor();return 0;}
         $q=db()->prepare('SELECT session_version FROM users WHERE user_id=? AND status="ACTIVE"');$q->execute([$id]);$version=$q->fetchColumn();
-        if($version===false||(int)$version!==(int)($_SESSION['two_factor_pending_version']??0)){unset($_SESSION['two_factor_pending_user_id'],$_SESSION['two_factor_pending_version']);return 0;}return $id;
+        if($version===false||(int)$version!==(int)($_SESSION['two_factor_pending_version']??0)){self::clearPendingFactor();return 0;}return $id;
     }
     public static function issueTwoFactorCode(int $userId): void
     {
         RateLimitService::codeResend($userId);
-        $q=db()->prepare('SELECT email,display_name FROM users WHERE user_id=?');$q->execute([$userId]);$u=$q->fetch();
+        $q=db()->prepare('SELECT email,display_name FROM users WHERE user_id=? AND status="ACTIVE" AND system_identity_key IS NULL');$q->execute([$userId]);$u=$q->fetch();
         if(!$u)throw new UserFacingException('Account not found.');
         db()->prepare('UPDATE user_two_factor_codes SET used_at_utc=UTC_TIMESTAMP() WHERE user_id=? AND used_at_utc IS NULL AND expires_at_utc>UTC_TIMESTAMP()')->execute([$userId]);
         $code=str_pad((string)random_int(0,999999),6,'0',STR_PAD_LEFT);
-        db()->prepare('INSERT INTO user_two_factor_codes(user_id,code_hash,expires_at_utc) VALUES(?,?,DATE_ADD(UTC_TIMESTAMP(),INTERVAL 10 MINUTE))')->execute([$userId,hash('sha256',$code)]);
+        db()->prepare('INSERT INTO user_two_factor_codes(user_id,code_hash,email_hash,expires_at_utc) VALUES(?,?,?,DATE_ADD(UTC_TIMESTAMP(),INTERVAL 10 MINUTE))')->execute([$userId,hash('sha256',$code),hash('sha256',strtolower(trim((string)$u['email'])))]);
         $sent=self::sendTemplatedMessage((string)$u['email'],'TWO_FACTOR_CODE',['recipient_name'=>(string)($u['display_name']??'there'),'action_url'=>self::baseUrl().'/?view=login','action_label'=>'Sign in to Toinky','message'=>'Your Toinky sign-in code is '.$code.'. Enter it to finish signing in.','expiry_text'=>'This code expires in 10 minutes.'],null,$userId);
         if(!$sent)throw new UserFacingException('We could not send the sign-in code. Try again in a few minutes.');
     }
     public static function resendTwoFactorCode(int $userId): void
     {
-        self::issueTwoFactorCode($userId);
+        if(self::pendingTwoFactorUserId()!==$userId)throw new UserFacingException('Your sign-in session expired. Sign in again.');
+        self::issueTwoFactorCode($userId);$_SESSION['two_factor_method']='email';
     }
-    public static function verifyTwoFactorCode(int $userId,string $code): array
+    public static function verifyTwoFactorCode(int $userId,string $code,string $method='email'): array
     {
         if(self::pendingTwoFactorUserId()!==$userId)throw new UserFacingException('Your sign-in session expired. Sign in again.');
-        RateLimitService::codeAttempt($userId);$expectedVersion=(int)$_SESSION['two_factor_pending_version'];
+        if(!in_array($method,['email','totp','recovery'],true))throw new UserFacingException('Choose a valid second-factor method.');
+        $expectedVersion=(int)$_SESSION['two_factor_pending_version'];$passwordAt=(int)$_SESSION['two_factor_started_at'];
+        if($method!=='email'){
+            if(!TotpService::verify($userId,$code,$method==='recovery')){$_SESSION['two_factor_failed_attempts']=(int)($_SESSION['two_factor_failed_attempts']??0)+1;if($_SESSION['two_factor_failed_attempts']>=5)self::clearPendingFactor();throw new UserFacingException('That code is incorrect or expired. Sign in again if you have used five attempts.');}
+            db()->prepare('UPDATE user_two_factor_codes SET used_at_utc=UTC_TIMESTAMP() WHERE user_id=? AND used_at_utc IS NULL')->execute([$userId]);
+            self::clearPendingFactor();self::loginUserId($userId,$expectedVersion,true,$passwordAt);return self::currentUser()??[];
+        }
+        RateLimitService::codeAttempt($userId);
         $code=trim($code);$pdo=db();$pdo->beginTransaction();$valid=false;$void=false;
         try{
-            $q=$pdo->prepare('SELECT user_two_factor_code_id,code_hash,failed_attempts FROM user_two_factor_codes WHERE user_id=? AND used_at_utc IS NULL AND expires_at_utc>UTC_TIMESTAMP() ORDER BY user_two_factor_code_id DESC LIMIT 1 FOR UPDATE');$q->execute([$userId]);$row=$q->fetch();
+            $account=$pdo->prepare('SELECT email,session_version FROM users WHERE user_id=? AND status="ACTIVE" AND system_identity_key IS NULL FOR UPDATE');$account->execute([$userId]);$mailbox=$account->fetch();
+            $q=$pdo->prepare('SELECT user_two_factor_code_id,code_hash,email_hash,failed_attempts FROM user_two_factor_codes WHERE user_id=? AND used_at_utc IS NULL AND expires_at_utc>UTC_TIMESTAMP() ORDER BY user_two_factor_code_id DESC LIMIT 1 FOR UPDATE');$q->execute([$userId]);$row=$q->fetch();
             if($row){
-                $valid=preg_match('/^[0-9]{6}$/D',$code)===1&&hash_equals((string)$row['code_hash'],hash('sha256',$code));
+                $valid=$mailbox&&(int)$mailbox['session_version']===$expectedVersion&&preg_match('/^[0-9]{6}$/D',$code)===1&&hash_equals((string)$row['code_hash'],hash('sha256',$code))&&$row['email_hash']!==null&&hash_equals((string)$row['email_hash'],hash('sha256',strtolower(trim((string)$mailbox['email']))));
                 $failures=(int)$row['failed_attempts']+($valid?0:1);$void=$failures>=5;
                 $pdo->prepare('UPDATE user_two_factor_codes SET failed_attempts=?,used_at_utc=IF(?,UTC_TIMESTAMP(),NULL) WHERE user_two_factor_code_id=?')->execute([$failures,($valid||$void)?1:0,$row['user_two_factor_code_id']]);
             }else $void=true;
+            if($valid)$pdo->prepare('UPDATE users SET email_verified_at_utc=COALESCE(email_verified_at_utc,UTC_TIMESTAMP()) WHERE user_id=?')->execute([$userId]);
             $pdo->commit();
         }catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw $e;}
-        if(!$valid){if($void)unset($_SESSION['two_factor_pending_user_id'],$_SESSION['two_factor_pending_version']);throw new UserFacingException('That code is incorrect or expired. Sign in again if you have used five attempts.');}
-        unset($_SESSION['two_factor_pending_user_id'],$_SESSION['two_factor_pending_version']);self::loginUserId($userId,$expectedVersion);return self::currentUser()??[];
+        if(!$valid){$_SESSION['two_factor_failed_attempts']=(int)($_SESSION['two_factor_failed_attempts']??0)+1;if($void||$_SESSION['two_factor_failed_attempts']>=5)self::clearPendingFactor();throw new UserFacingException('That code is incorrect or expired. Sign in again if you have used five attempts.');}
+        self::clearPendingFactor();self::loginUserId($userId,$expectedVersion,true,$passwordAt);return self::currentUser()??[];
     }
-    private static function loginUserId(int $id,int $expectedVersion): void
+    private static function clearPendingFactor(): void
+    {
+        foreach(['two_factor_pending_user_id','two_factor_pending_version','two_factor_started_at','two_factor_failed_attempts','two_factor_method'] as $key)unset($_SESSION[$key]);
+    }
+    private static function loginUserId(int $id,int $expectedVersion,bool $mfa=false,?int $passwordAt=null): void
     {
         $q=db()->prepare('SELECT session_version FROM users WHERE user_id=? AND status="ACTIVE"');$q->execute([$id]);$version=$q->fetchColumn();
         if($version===false||(int)$version!==$expectedVersion)throw new UserFacingException('Your sign-in session expired. Sign in again.');
-        self::boot();session_regenerate_id(true);$_SESSION['user_id']=$id;$_SESSION['session_version']=$expectedVersion;$_SESSION['csrf_token']=bin2hex(random_bytes(24));db()->prepare('UPDATE users SET last_login_at_utc=UTC_TIMESTAMP() WHERE user_id=?')->execute([$id]);
+        self::boot();SessionService::revokeCurrent();session_regenerate_id(true);self::clearPendingFactor();unset($_SESSION['view_as']);$_SESSION['user_id']=$id;$_SESSION['session_version']=$expectedVersion;$_SESSION['csrf_token']=bin2hex(random_bytes(24));SessionService::register($id,$mfa,$passwordAt);db()->prepare('UPDATE users SET last_login_at_utc=UTC_TIMESTAMP() WHERE user_id=?')->execute([$id]);
     }
     public static function logout(): void
     {
-        self::boot();$_SESSION=[];if(ini_get('session.use_cookies')){$p=session_get_cookie_params();setcookie(session_name(),'',time()-42000,$p['path'],$p['domain'],$p['secure'],$p['httponly']);}session_destroy();
+        self::boot();try{SessionService::revokeCurrent();}catch(Throwable $e){Logger::exception($e,'Session revocation failed during sign-out');}finally{$_SESSION=[];if(ini_get('session.use_cookies')){$p=session_get_cookie_params();setcookie(session_name(),'',time()-42000,$p['path'],$p['domain'],$p['secure'],$p['httponly']);}session_destroy();}
     }
     public static function deactivateAccount(int $userId): void
     {
@@ -143,14 +162,14 @@ final class AuthService
         if(!$u||$u['status']!=='ACTIVE')throw new UserFacingException('Your account is not active.');
         if((int)($u['is_super_admin']??0)===1)throw new UserFacingException('Super Admin accounts cannot be deactivated.');
         if((int)$u['is_admin']===1)throw new UserFacingException('Administrator accounts cannot be deactivated here.');
-        db()->prepare('UPDATE users SET status="DISABLED" WHERE user_id=? AND status="ACTIVE"')->execute([$userId]);
+        $pdo=db();$own=!$pdo->inTransaction();if($own)$pdo->beginTransaction();try{$pdo->prepare('UPDATE users SET status="DISABLED" WHERE user_id=? AND status="ACTIVE"')->execute([$userId]);SessionService::revokeAll($userId);if($own)$pdo->commit();}catch(Throwable $e){if($own&&$pdo->inTransaction())$pdo->rollBack();throw $e;}
     }
     public static function requireLogin(): array
     {
         $u=self::currentUser();if(!$u){header('Location: ./?view=login');exit;}
         if(PrivacyService::needsConsent($u)){
             $script=basename((string)($_SERVER['SCRIPT_NAME']??''));$action=(string)($_POST['action']??'');
-            $privacyProfile=$script==='profile.php'&&(($_SERVER['REQUEST_METHOD']??'GET')==='GET'||in_array($action,['export_data','delete_account','withdraw_consent','update_display_name','upload_profile_photo','request_email_change'],true));
+            $privacyProfile=$script==='profile.php'&&(($_SERVER['REQUEST_METHOD']??'GET')==='GET'||in_array($action,['export_data','delete_account','withdraw_consent','update_display_name','upload_profile_photo','request_email_change','confirm_password','sign_out_everywhere','revoke_session','begin_authenticator','enable_authenticator','replace_recovery_codes','disable_authenticator'],true));
             $consentPage=in_array($script,['index.php',''],true)&&($_GET['view']??'')==='consent';
             if(!$privacyProfile&&!$consentPage){header('Cache-Control: no-store');header('Location: ./?view=consent',true,303);exit;}
         }
@@ -215,9 +234,24 @@ final class AuthService
     }
     public static function setRole(int $userId,string $roleCode,bool $enabled,int $assignedBy): void
     {
+        if(PHP_SAPI!=='cli')SessionService::requireRecentPassword($assignedBy);
         $q=db()->prepare('SELECT platform_role_id FROM platform_roles WHERE role_code=? AND scope_type="PLATFORM"');$q->execute([strtoupper(trim($roleCode))]);$roleId=(int)$q->fetchColumn();if($roleId<1)throw new UserFacingException('Unknown platform role.');
-        if($enabled)db()->prepare('INSERT IGNORE INTO user_platform_roles(user_id,platform_role_id,assigned_by_user_id) VALUES(?,?,?)')->execute([$userId,$roleId,$assignedBy]);
-        else db()->prepare('DELETE FROM user_platform_roles WHERE user_id=? AND platform_role_id=?')->execute([$userId,$roleId]);
+        $pdo=db();$own=!$pdo->inTransaction();if($own)$pdo->beginTransaction();try{
+            $q=$pdo->prepare('SELECT user_id FROM users WHERE user_id=? AND system_identity_key IS NULL FOR UPDATE');$q->execute([$userId]);if(!$q->fetchColumn())throw new UserFacingException('That account cannot be changed.');
+            if($enabled){$q=$pdo->prepare('INSERT IGNORE INTO user_platform_roles(user_id,platform_role_id,assigned_by_user_id) VALUES(?,?,?)');$q->execute([$userId,$roleId,$assignedBy]);}
+            else{$q=$pdo->prepare('DELETE FROM user_platform_roles WHERE user_id=? AND platform_role_id=?');$q->execute([$userId,$roleId]);}
+            if($q->rowCount()>0)SessionService::revokeAll($userId);if($own)$pdo->commit();
+        }catch(Throwable $e){if($own&&$pdo->inTransaction())$pdo->rollBack();throw $e;}
+    }
+    public static function toggleAccountFlag(int $actor,int $target,string $flag): void
+    {
+        $admin=self::requireAdmin();if((int)$admin['user_id']!==$actor)throw new UserFacingException('Administrator access is required.');SessionService::requireRecentPassword($actor);
+        if(!in_array($flag,['status','is_admin'],true))throw new InvalidArgumentException('Invalid account flag.');
+        if($actor===$target)throw new UserFacingException('You cannot disable or remove administrator access from your own account.');
+        $pdo=db();$pdo->beginTransaction();try{$q=$pdo->prepare('SELECT is_super_admin,system_identity_key FROM users WHERE user_id=? FOR UPDATE');$q->execute([$target]);$user=$q->fetch();
+            if(!$user||$user['system_identity_key']!==null)throw new UserFacingException('That account cannot be changed.');if((int)$user['is_super_admin']===1)throw new UserFacingException('Super Admin access cannot be disabled or removed.');
+            $sql=$flag==='status'?'UPDATE users SET status=IF(status="ACTIVE","DISABLED","ACTIVE") WHERE user_id=?':'UPDATE users SET is_admin=IF(is_admin=1,0,1) WHERE user_id=?';$pdo->prepare($sql)->execute([$target]);SessionService::revokeAll($target);$pdo->commit();
+        }catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw $e;}
     }
     public static function requestWriterAccess(int $userId,string $reason=''): void
     {

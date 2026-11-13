@@ -59,11 +59,11 @@ try{
     $limited(static fn()=>AuthService::login('login-'.$email,'Correct-Guard-Password'));$remember($before);
     // Five wrong codes void the actual stored code, not just this PHP session.
     $pdo->prepare('INSERT INTO user_two_factor_codes(user_id,code_hash,expires_at_utc) VALUES(?,?,DATE_ADD(UTC_TIMESTAMP(),INTERVAL 10 MINUTE))')->execute([$id,hash('sha256','123456')]);$codeId=(int)$pdo->lastInsertId();
-    AuthService::boot();$_SESSION['two_factor_pending_user_id']=$id;$_SESSION['two_factor_pending_version']=1;$before=$allKeys();
+    AuthService::boot();$_SESSION['two_factor_pending_user_id']=$id;$_SESSION['two_factor_pending_version']=1;$_SESSION['two_factor_started_at']=time();$_SESSION['two_factor_failed_attempts']=0;$before=$allKeys();
     for($i=0;$i<5;$i++){try{AuthService::verifyTwoFactorCode($id,'000000');throw new LogicException('Wrong code accepted');}catch(RuntimeException $e){if($e instanceof RateLimitException)throw $e;}}
     $q=$pdo->prepare('SELECT failed_attempts,used_at_utc FROM user_two_factor_codes WHERE user_two_factor_code_id=?');$q->execute([$codeId]);$row=$q->fetch();$check((int)$row['failed_attempts']===5&&$row['used_at_utc']!==null,'Fifth wrong code atomically voids code');
     $denied=false;try{AuthService::verifyTwoFactorCode($id,'123456');}catch(RuntimeException $e){$denied=true;}$check($denied&&AuthService::currentUser()===null,'Sixth code attempt refused even with correct code');$remember($before);
-    $_SESSION['two_factor_pending_user_id']=$id;$_SESSION['two_factor_pending_version']=1;$limited(static fn()=>AuthService::verifyTwoFactorCode($id,'123456'));
+    $_SESSION['two_factor_pending_user_id']=$id;$_SESSION['two_factor_pending_version']=1;$_SESSION['two_factor_started_at']=time();$_SESSION['two_factor_failed_attempts']=0;$limited(static fn()=>AuthService::verifyTwoFactorCode($id,'123456'));
     // Invalid join attempts persist after their operation transaction rolls back.
     $before=$allKeys();for($i=0;$i<10;$i++){try{LobbyService::joinByCode($id,'MISSING');throw new LogicException('Invalid join accepted');}catch(RuntimeException $e){if($e instanceof RateLimitException)throw $e;}}
     $limited(static fn()=>LobbyService::joinByCode($id,'MISSING'));$remember($before);
