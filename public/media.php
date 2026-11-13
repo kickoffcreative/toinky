@@ -22,10 +22,10 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         elseif($action==='media_delete'){MediaLibraryService::delete($admin,(int)($_POST['media_id']??0),(string)($_POST['force']??'')==='1');$notice='Media deleted.';}
         elseif($action==='media_settings'){MediaLibraryService::saveSettings($admin,$_POST);$notice='Media settings saved.';}
         elseif($action==='media_reset_all'){
-            if(trim((string)($_POST['confirm_reset']??''))!=='RESET MEDIA')throw new RuntimeException('Type RESET MEDIA to clear all managed media.');
+            if(trim((string)($_POST['confirm_reset']??''))!=='RESET MEDIA')throw new UserFacingException('Type RESET MEDIA to clear all managed media.');
             MediaLibraryService::resetAll($admin);$notice='All managed media has been cleared.';
         }
-    }catch(Throwable $e){$error=$e->getMessage();}
+    }catch(Throwable $e){$error=public_error($e);}
 }
 
 $settings=MediaLibraryService::settings();

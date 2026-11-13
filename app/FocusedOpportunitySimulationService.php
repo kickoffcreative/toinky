@@ -61,7 +61,7 @@ final class FocusedOpportunitySimulationService
                 }else{$focusError='The target choice was removed by its own option prerequisites.';$pdo->prepare('UPDATE decisions SET status="CLOSED",resolved_text=? WHERE decision_id=? AND status="OPEN"')->execute([$focusError,$decisionId]);}
             }elseif($focusError===null)$focusError='The opportunity was eligible but no decision was delivered.';
             self::completeDownstream($sid,$duration,$step,$scriptState);
-        }catch(Throwable $e){$focusError=$e->getMessage();self::completeDownstream($sid,$duration,$step,$scriptState);}
+        }catch(Throwable $e){$focusError=public_error($e);self::completeDownstream($sid,$duration,$step,$scriptState);}
         StateSyncService::reconcile($sid);ResolutionService::refresh($sid);$result=SimulationHarness::result($sid);if($scriptState!==null){$unfired=[];foreach($scriptState['entries']as$i=>$entry)if(!isset($scriptState['fired'][$i]))$unfired[]=$entry;$result['choice_script']=['entries'=>$scriptState['entries'],'fired_count'=>count($scriptState['fired']),'unfired'=>$unfired];foreach($unfired as$entry)$result['warnings'][]='Scripted choice never fired: '.(string)($entry['role_code']??$entry['character_name']??'').'/'.$entry['event_code'].' -> '.$entry['option_code'];}
         if($focusError!==null)$result['warnings'][]='Focused test: '.$focusError;
         $result['warnings']=array_values(array_unique($result['warnings']));

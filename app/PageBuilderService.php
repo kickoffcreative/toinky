@@ -1,16 +1,17 @@
 <?php
+require_once __DIR__.'/UserFacingException.php';
 final class PageBuilderService
 {
     public const MAX_DEPTH=12;
 
     public static function saveRows(array $admin,int $sectionId,array $rows): void
     {
-        if((int)($admin['is_admin']??0)!==1)throw new RuntimeException('Administrator access is required.');
+        if((int)($admin['is_admin']??0)!==1)throw new UserFacingException('Administrator access is required.');
         $q=db()->prepare('SELECT section_code FROM site_page_sections WHERE site_page_section_id=?');
         $q->execute([$sectionId]);
         $code=$q->fetchColumn();
-        if($code===false)throw new RuntimeException('Page section not found.');
-        if((string)$code==='HERO')throw new RuntimeException('Hero sections use their dedicated editor.');
+        if($code===false)throw new UserFacingException('Page section not found.');
+        if((string)$code==='HERO')throw new UserFacingException('Hero sections use their dedicated editor.');
         $normalized=self::normalizeRows($rows);
         db()->prepare('UPDATE site_page_sections SET rows_json=?,updated_by_user_id=? WHERE site_page_section_id=?')->execute([
             json_encode($normalized,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR),

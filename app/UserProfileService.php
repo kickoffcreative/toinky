@@ -1,20 +1,21 @@
 <?php
+require_once __DIR__.'/UserFacingException.php';
 require_once __DIR__.'/AuthService.php';
 final class UserProfileService
 {
     public static function profile(int $userId): array
     {
-        $q=db()->prepare('SELECT user_id,email,display_name,profile_image_path,email_verified_at_utc,created_at_utc FROM users WHERE user_id=? AND status="ACTIVE"');$q->execute([$userId]);$profile=$q->fetch();if(!$profile)throw new RuntimeException('Profile not found.');return$profile;
+        $q=db()->prepare('SELECT user_id,email,display_name,profile_image_path,email_verified_at_utc,created_at_utc FROM users WHERE user_id=? AND status="ACTIVE"');$q->execute([$userId]);$profile=$q->fetch();if(!$profile)throw new UserFacingException('Profile not found.');return$profile;
     }
 
     public static function uploadPhoto(array $user,array $file): void
     {
-        if(($file['error']??UPLOAD_ERR_NO_FILE)!==UPLOAD_ERR_OK)throw new RuntimeException('Choose a profile image.');
-        $size=(int)($file['size']??0);if($size<1||$size>5*1024*1024)throw new RuntimeException('Profile images must be 5 MB or smaller.');
-        $tmp=(string)($file['tmp_name']??'');$info=@getimagesize($tmp);$mime=(string)($info['mime']??'');$width=(int)($info[0]??0);$height=(int)($info[1]??0);$extensions=['image/jpeg'=>'jpg','image/png'=>'png','image/webp'=>'webp'];if(!isset($extensions[$mime])||$width<1||$height<1)throw new RuntimeException('Upload a valid JPG, PNG, or WebP image.');
-        $directory=dirname(__DIR__).'/public/uploads/profiles';if(!is_dir($directory)&&!mkdir($directory,0775,true)&&!is_dir($directory))throw new RuntimeException('The profile-image directory could not be created.');$filename='user-'.(int)$user['user_id'].'-'.bin2hex(random_bytes(8)).'.'.$extensions[$mime];$target=$directory.'/'.$filename;
+        if(($file['error']??UPLOAD_ERR_NO_FILE)!==UPLOAD_ERR_OK)throw new UserFacingException('Choose a profile image.');
+        $size=(int)($file['size']??0);if($size<1||$size>5*1024*1024)throw new UserFacingException('Profile images must be 5 MB or smaller.');
+        $tmp=(string)($file['tmp_name']??'');$info=@getimagesize($tmp);$mime=(string)($info['mime']??'');$width=(int)($info[0]??0);$height=(int)($info[1]??0);$extensions=['image/jpeg'=>'jpg','image/png'=>'png','image/webp'=>'webp'];if(!isset($extensions[$mime])||$width<1||$height<1)throw new UserFacingException('Upload a valid JPG, PNG, or WebP image.');
+        $directory=dirname(__DIR__).'/public/uploads/profiles';if(!is_dir($directory)&&!mkdir($directory,0775,true)&&!is_dir($directory))throw new UserFacingException('The profile-image directory could not be created.');$filename='user-'.(int)$user['user_id'].'-'.bin2hex(random_bytes(8)).'.'.$extensions[$mime];$target=$directory.'/'.$filename;
         $pdo=db();$pdo->beginTransaction();try{
-            $q=$pdo->prepare('SELECT profile_image_path FROM users WHERE user_id=? AND status="ACTIVE" AND system_identity_key IS NULL FOR UPDATE');$q->execute([$user['user_id']]);$row=$q->fetch();if(!$row)throw new RuntimeException('Your account is not available.');$old=$row['profile_image_path'];
+            $q=$pdo->prepare('SELECT profile_image_path FROM users WHERE user_id=? AND status="ACTIVE" AND system_identity_key IS NULL FOR UPDATE');$q->execute([$user['user_id']]);$row=$q->fetch();if(!$row)throw new UserFacingException('Your account is not available.');$old=$row['profile_image_path'];
             self::storeSquare($tmp,$target,$mime,$width,$height);$path='public/uploads/profiles/'.$filename;
             $pdo->prepare('UPDATE users SET profile_image_path=? WHERE user_id=?')->execute([$path,$user['user_id']]);$pdo->commit();
         }catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();if(is_file($target))unlink($target);throw $e;}self::deleteProfileFile((string)$old);
@@ -23,37 +24,37 @@ final class UserProfileService
     public static function requestEmailChange(array $user,string $newEmail): array
     {
         RateLimitService::emailChange((int)$user['user_id']);
-        $newEmail=strtolower(trim($newEmail));if(!filter_var($newEmail,FILTER_VALIDATE_EMAIL))throw new RuntimeException('Enter a valid email address.');if($newEmail===strtolower((string)$user['email']))throw new RuntimeException('That is already your account email.');$q=db()->prepare('SELECT 1 FROM users WHERE email=? AND user_id<>?');$q->execute([$newEmail,$user['user_id']]);if($q->fetchColumn())throw new RuntimeException('That email address is already in use.');
+        $newEmail=strtolower(trim($newEmail));if(!filter_var($newEmail,FILTER_VALIDATE_EMAIL))throw new UserFacingException('Enter a valid email address.');if($newEmail===strtolower((string)$user['email']))throw new UserFacingException('That is already your account email.');$q=db()->prepare('SELECT 1 FROM users WHERE email=? AND user_id<>?');$q->execute([$newEmail,$user['user_id']]);if($q->fetchColumn())throw new UserFacingException('That email address is already in use.');
         $token=bin2hex(random_bytes(24));db()->prepare('UPDATE user_email_change_tokens SET expires_at_utc=UTC_TIMESTAMP() WHERE user_id=? AND verified_at_utc IS NULL')->execute([$user['user_id']]);db()->prepare('INSERT INTO user_email_change_tokens(user_id,new_email,token_hash,expires_at_utc) VALUES(?,?,?,DATE_ADD(UTC_TIMESTAMP(),INTERVAL 2 HOUR))')->execute([$user['user_id'],$newEmail,hash('sha256',$token)]);
         $id=(int)db()->lastInsertId();$url=AuthService::baseUrl().'/profile.php?verify_email='.rawurlencode($token);$sent=AuthService::sendTemplatedMessage($newEmail,'EMAIL_CHANGE',['recipient_name'=>$user['display_name']??'there','action_url'=>$url,'action_label'=>'Verify email address','message'=>'Confirm this email address for your Toinky account.','expiry_text'=>'This link expires in 2 hours.'],null,(int)$user['user_id']);if($sent)db()->prepare('UPDATE user_email_change_tokens SET delivered_at_utc=UTC_TIMESTAMP() WHERE email_change_token_id=?')->execute([$id]);return['sent'=>$sent];
     }
 
     public static function confirmEmailChange(int $userId,string $token): void
     {
-        $pdo=db();$q=$pdo->prepare('SELECT * FROM user_email_change_tokens WHERE user_id=? AND token_hash=? AND delivered_at_utc IS NOT NULL AND verified_at_utc IS NULL AND expires_at_utc>UTC_TIMESTAMP()');$q->execute([$userId,hash('sha256',$token)]);$change=$q->fetch();if(!$change)throw new RuntimeException('This email verification link is invalid or expired.');$q=$pdo->prepare('SELECT 1 FROM users WHERE email=? AND user_id<>?');$q->execute([$change['new_email'],$userId]);if($q->fetchColumn())throw new RuntimeException('That email address is now in use by another account.');
+        $pdo=db();$q=$pdo->prepare('SELECT * FROM user_email_change_tokens WHERE user_id=? AND token_hash=? AND delivered_at_utc IS NOT NULL AND verified_at_utc IS NULL AND expires_at_utc>UTC_TIMESTAMP()');$q->execute([$userId,hash('sha256',$token)]);$change=$q->fetch();if(!$change)throw new UserFacingException('This email verification link is invalid or expired.');$q=$pdo->prepare('SELECT 1 FROM users WHERE email=? AND user_id<>?');$q->execute([$change['new_email'],$userId]);if($q->fetchColumn())throw new UserFacingException('That email address is now in use by another account.');
         $pdo->beginTransaction();try{$oldEmailQuery=$pdo->prepare('SELECT email FROM users WHERE user_id=? FOR UPDATE');$oldEmailQuery->execute([$userId]);PrivacyService::rememberEmail($userId,(string)$oldEmailQuery->fetchColumn());$pdo->prepare('UPDATE user_email_history SET valid_until_utc=UTC_TIMESTAMP() WHERE user_id=? AND valid_until_utc IS NULL')->execute([$userId]);PrivacyService::rememberEmail($userId,(string)$change['new_email']);$pdo->prepare('UPDATE users SET email=?,email_verified_at_utc=UTC_TIMESTAMP() WHERE user_id=?')->execute([$change['new_email'],$userId]);$pdo->prepare('UPDATE user_email_change_tokens SET verified_at_utc=UTC_TIMESTAMP() WHERE email_change_token_id=?')->execute([$change['email_change_token_id']]);$pdo->commit();}catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw$e;}
     }
 
     public static function requestFriend(int $userId,string $email): void
     {
         AccountSecurityService::requireVerifiedEmail($userId);RateLimitService::friendRequest($userId);
-        $email=strtolower(trim($email));if(!filter_var($email,FILTER_VALIDATE_EMAIL))throw new RuntimeException('Enter a valid email address.');$q=db()->prepare('SELECT user_id FROM users WHERE email=? AND status="ACTIVE"');$q->execute([$email]);$friendId=(int)$q->fetchColumn();if($friendId<1)throw new RuntimeException('That person does not have an active Toinky account yet. Invite them first.');if($friendId===$userId)throw new RuntimeException('You cannot add yourself as a friend.');[$low,$high]=self::pair($userId,$friendId);
-        $q=db()->prepare('SELECT status FROM user_friendships WHERE user_low_id=? AND user_high_id=?');$q->execute([$low,$high]);$status=$q->fetchColumn();if($status==='ACCEPTED')throw new RuntimeException('That player is already your friend.');db()->prepare('INSERT INTO user_friendships(user_low_id,user_high_id,requested_by_user_id,status) VALUES(?,?,?,"PENDING") ON DUPLICATE KEY UPDATE requested_by_user_id=VALUES(requested_by_user_id),status="PENDING",responded_at_utc=NULL')->execute([$low,$high,$userId]);
+        $email=strtolower(trim($email));if(!filter_var($email,FILTER_VALIDATE_EMAIL))throw new UserFacingException('Enter a valid email address.');$q=db()->prepare('SELECT user_id FROM users WHERE email=? AND status="ACTIVE"');$q->execute([$email]);$friendId=(int)$q->fetchColumn();if($friendId<1)throw new UserFacingException('That person does not have an active Toinky account yet. Invite them first.');if($friendId===$userId)throw new UserFacingException('You cannot add yourself as a friend.');[$low,$high]=self::pair($userId,$friendId);
+        $q=db()->prepare('SELECT status FROM user_friendships WHERE user_low_id=? AND user_high_id=?');$q->execute([$low,$high]);$status=$q->fetchColumn();if($status==='ACCEPTED')throw new UserFacingException('That player is already your friend.');db()->prepare('INSERT INTO user_friendships(user_low_id,user_high_id,requested_by_user_id,status) VALUES(?,?,?,"PENDING") ON DUPLICATE KEY UPDATE requested_by_user_id=VALUES(requested_by_user_id),status="PENDING",responded_at_utc=NULL')->execute([$low,$high,$userId]);
     }
 
     public static function respondToFriend(int $userId,int $friendshipId,bool $accept): void
     {
-        $q=db()->prepare('UPDATE user_friendships SET status=?,responded_at_utc=UTC_TIMESTAMP() WHERE friendship_id=? AND status="PENDING" AND requested_by_user_id<>? AND (user_low_id=? OR user_high_id=?)');$q->execute([$accept?'ACCEPTED':'DECLINED',$friendshipId,$userId,$userId,$userId]);if($q->rowCount()!==1)throw new RuntimeException('That friend request is unavailable.');
+        $q=db()->prepare('UPDATE user_friendships SET status=?,responded_at_utc=UTC_TIMESTAMP() WHERE friendship_id=? AND status="PENDING" AND requested_by_user_id<>? AND (user_low_id=? OR user_high_id=?)');$q->execute([$accept?'ACCEPTED':'DECLINED',$friendshipId,$userId,$userId,$userId]);if($q->rowCount()!==1)throw new UserFacingException('That friend request is unavailable.');
     }
 
     public static function removeFriend(int $userId,int $friendshipId): void
     {
-        $q=db()->prepare('DELETE FROM user_friendships WHERE friendship_id=? AND (user_low_id=? OR user_high_id=?)');$q->execute([$friendshipId,$userId,$userId]);if($q->rowCount()!==1)throw new RuntimeException('That friendship is unavailable.');
+        $q=db()->prepare('DELETE FROM user_friendships WHERE friendship_id=? AND (user_low_id=? OR user_high_id=?)');$q->execute([$friendshipId,$userId,$userId]);if($q->rowCount()!==1)throw new UserFacingException('That friendship is unavailable.');
     }
 
     public static function saveFriendLabel(int $userId,int $friendshipId,string $label): void
     {
-        $q=db()->prepare('SELECT 1 FROM user_friendships WHERE friendship_id=? AND status="ACCEPTED" AND (user_low_id=? OR user_high_id=?)');$q->execute([$friendshipId,$userId,$userId]);if(!$q->fetchColumn())throw new RuntimeException('That friendship is unavailable.');$label=trim($label);if(mb_strlen($label)>80)throw new RuntimeException('Group labels may not exceed 80 characters.');db()->prepare('INSERT INTO user_friend_labels(friendship_id,user_id,label_text) VALUES(?,?,?) ON DUPLICATE KEY UPDATE label_text=VALUES(label_text)')->execute([$friendshipId,$userId,$label?:null]);
+        $q=db()->prepare('SELECT 1 FROM user_friendships WHERE friendship_id=? AND status="ACCEPTED" AND (user_low_id=? OR user_high_id=?)');$q->execute([$friendshipId,$userId,$userId]);if(!$q->fetchColumn())throw new UserFacingException('That friendship is unavailable.');$label=trim($label);if(mb_strlen($label)>80)throw new UserFacingException('Group labels may not exceed 80 characters.');db()->prepare('INSERT INTO user_friend_labels(friendship_id,user_id,label_text) VALUES(?,?,?) ON DUPLICATE KEY UPDATE label_text=VALUES(label_text)')->execute([$friendshipId,$userId,$label?:null]);
     }
 
     public static function friends(int $userId): array
@@ -101,7 +102,7 @@ final class UserProfileService
 
     public static function saveInkyPosition(int $userId,string $anchor): string
     {
-        $anchor=self::allowed($anchor,['LOWER_LEFT','MIDDLE_LEFT','LOWER_RIGHT','MIDDLE_RIGHT'],'');if($anchor==='')throw new RuntimeException('Choose a valid Inky position.');$current=self::inkyPreferences($userId);$anchor=self::anchorForDock((string)$current['dock_position'],$anchor);
+        $anchor=self::allowed($anchor,['LOWER_LEFT','MIDDLE_LEFT','LOWER_RIGHT','MIDDLE_RIGHT'],'');if($anchor==='')throw new UserFacingException('Choose a valid Inky position.');$current=self::inkyPreferences($userId);$anchor=self::anchorForDock((string)$current['dock_position'],$anchor);
         db()->prepare('INSERT INTO user_inky_preferences(user_id,anchor_position) VALUES(?,?) ON DUPLICATE KEY UPDATE anchor_position=VALUES(anchor_position)')->execute([$userId,$anchor]);return$anchor;
     }
 
@@ -112,8 +113,8 @@ final class UserProfileService
     private static function selectableInkyCharacter(string $code): string{$code=self::allowed($code,array_column(self::inkyCharacters(),'character_code'),'INKY_OCTOPUS');$q=db()->prepare('SELECT 1 FROM inky_characters WHERE character_code=? AND active=1 AND selectable=1');$q->execute([$code]);return$q->fetchColumn()?$code:'INKY_OCTOPUS';}
     private static function storeSquare(string $source,string $target,string $mime,int $width,int $height): void
     {
-        if(!function_exists('imagecreatetruecolor')){if(max($width,$height)>512)throw new RuntimeException('This server needs PHP GD to resize profile images larger than 512 pixels.');if(!move_uploaded_file($source,$target)&&!rename($source,$target))throw new RuntimeException('The profile image could not be saved.');return;}
-        $load=['image/jpeg'=>'imagecreatefromjpeg','image/png'=>'imagecreatefrompng','image/webp'=>'imagecreatefromwebp'][$mime];$save=['image/jpeg'=>'imagejpeg','image/png'=>'imagepng','image/webp'=>'imagewebp'][$mime];$src=@$load($source);if(!$src)throw new RuntimeException('The profile image could not be decoded.');$side=min($width,$height);$sx=(int)(($width-$side)/2);$sy=(int)(($height-$side)/2);$out=min(512,$side);$dst=imagecreatetruecolor($out,$out);if($mime!=='image/jpeg'){imagealphablending($dst,false);imagesavealpha($dst,true);$transparent=imagecolorallocatealpha($dst,0,0,0,127);imagefilledrectangle($dst,0,0,$out,$out,$transparent);}imagecopyresampled($dst,$src,0,0,$sx,$sy,$out,$out,$side,$side);$ok=$mime==='image/png'?$save($dst,$target,7):$save($dst,$target,86);imagedestroy($src);imagedestroy($dst);if(!$ok)throw new RuntimeException('The profile image could not be saved.');
+        if(!function_exists('imagecreatetruecolor')){if(max($width,$height)>512)throw new UserFacingException('This server needs PHP GD to resize profile images larger than 512 pixels.');if(!move_uploaded_file($source,$target)&&!rename($source,$target))throw new UserFacingException('The profile image could not be saved.');return;}
+        $load=['image/jpeg'=>'imagecreatefromjpeg','image/png'=>'imagecreatefrompng','image/webp'=>'imagecreatefromwebp'][$mime];$save=['image/jpeg'=>'imagejpeg','image/png'=>'imagepng','image/webp'=>'imagewebp'][$mime];$src=@$load($source);if(!$src)throw new UserFacingException('The profile image could not be decoded.');$side=min($width,$height);$sx=(int)(($width-$side)/2);$sy=(int)(($height-$side)/2);$out=min(512,$side);$dst=imagecreatetruecolor($out,$out);if($mime!=='image/jpeg'){imagealphablending($dst,false);imagesavealpha($dst,true);$transparent=imagecolorallocatealpha($dst,0,0,0,127);imagefilledrectangle($dst,0,0,$out,$out,$transparent);}imagecopyresampled($dst,$src,0,0,$sx,$sy,$out,$out,$side,$side);$ok=$mime==='image/png'?$save($dst,$target,7):$save($dst,$target,86);imagedestroy($src);imagedestroy($dst);if(!$ok)throw new UserFacingException('The profile image could not be saved.');
     }
     private static function deleteProfileFile(string $path): void{if(!str_starts_with($path,'public/uploads/profiles/'))return;$target=dirname(__DIR__).'/public/uploads/profiles/'.basename($path);if(is_file($target))@unlink($target);}
 }

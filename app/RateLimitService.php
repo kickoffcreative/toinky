@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__.'/Logger.php';
-final class RateLimitException extends RuntimeException
+require_once __DIR__.'/UserFacingException.php';
+final class RateLimitException extends UserFacingException
 {
     public function __construct(){parent::__construct('Too many attempts. Try again later.');}
 }

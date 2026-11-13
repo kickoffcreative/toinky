@@ -57,7 +57,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         }
         if($action==='reorder_sections'){
             $order=json_decode((string)($_POST['section_order']??'[]'),true,10,JSON_THROW_ON_ERROR);
-            if(!is_array($order))throw new RuntimeException('The section order is invalid.');
+            if(!is_array($order))throw new UserFacingException('The section order is invalid.');
             PageContentService::reorderSections($admin,$pageCode,array_map('intval',$order));
             if($isAjaxSave)builder_json_exit(['ok'=>true]);
             header('Location: page-builder.php?page='.rawurlencode($pageCode).'&section='.$sectionId.'&saved=1');
@@ -99,21 +99,21 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
             header('Location: page-builder.php?page='.rawurlencode($pageCode).'&section='.$sectionId.'&saved=1');
             exit;
         }
-        if($action!=='save_page_builder')throw new RuntimeException('Unknown page builder action.');
+        if($action!=='save_page_builder')throw new UserFacingException('Unknown page builder action.');
         $sectionId=(int)($_POST['section_id']??0);
         $sectionById=null;
         foreach($sections as $candidate)if((int)$candidate['site_page_section_id']===$sectionId){$sectionById=$candidate;break;}
-        if(!$sectionById)throw new RuntimeException('Page section not found.');
-        if(($sectionById['section_code']??'')==='HERO')throw new RuntimeException('Hero sections use their dedicated editor.');
+        if(!$sectionById)throw new UserFacingException('Page section not found.');
+        if(($sectionById['section_code']??'')==='HERO')throw new UserFacingException('Hero sections use their dedicated editor.');
         $rows=json_decode((string)($_POST['rows_payload']??'[]'),true,20,JSON_THROW_ON_ERROR);
-        if(!is_array($rows))throw new RuntimeException('The builder tree is invalid.');
+        if(!is_array($rows))throw new UserFacingException('The builder tree is invalid.');
         if(!PageBuilderService::isUnchangedRowlessSection($sectionId,$rows))PageBuilderService::saveRows($admin,$sectionId,$rows);
         if($isAjaxSave)builder_json_exit(['ok'=>true]);
         header('Location: page-builder.php?page='.rawurlencode($pageCode).'&section='.$sectionId.'&saved=1');
         exit;
     }catch(Throwable $e){
-        if($isAjaxSave)builder_json_exit(['ok'=>false,'error'=>$e->getMessage()],422);
-        $error=$e->getMessage();
+        if($isAjaxSave)builder_json_exit(['ok'=>false,'error'=>public_error($e)],422);
+        $error=public_error($e);
     }
 }
 if(isset($_GET['saved']))$notice='Changes saved.';

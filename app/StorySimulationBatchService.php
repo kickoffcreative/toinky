@@ -56,7 +56,7 @@ final class StorySimulationBatchService
             }catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw$e;}
             if($complete){$summary=self::summarize($batchId);$package=self::reviewPackage($batchId,$summary);$pdo->prepare('UPDATE simulation_review_batches SET completed_runs=?,status="COMPLETE",summary_json=?,review_package=?,last_error=NULL,completed_at_utc=UTC_TIMESTAMP() WHERE simulation_review_batch_id=?')->execute([$summary['completed_runs'],json_encode($summary,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES),$package,$batchId]);}
             return self::one($batchId);
-        }catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();if($batchId>0)$pdo->prepare('UPDATE simulation_review_batches SET status="FAILED",last_error=?,completed_at_utc=UTC_TIMESTAMP() WHERE simulation_review_batch_id=?')->execute([mb_substr($e->getMessage(),0,4000),$batchId]);throw$e;}
+        }catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();if($batchId>0)$pdo->prepare('UPDATE simulation_review_batches SET status="FAILED",last_error=?,completed_at_utc=UTC_TIMESTAMP() WHERE simulation_review_batch_id=?')->execute([mb_substr(public_error($e),0,4000),$batchId]);throw$e;}
         finally{$release=$pdo->prepare('SELECT RELEASE_LOCK(?)');$release->execute([$lockName]);}
     }
 

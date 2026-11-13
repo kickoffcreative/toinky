@@ -16,7 +16,7 @@ final class StoryReasonerFactory
             public function __construct(private StoryReasoner $primary){}
             public function selectOption(array $context,array $options): array
             {
-                try{return$this->primary->selectOption($context,$options);}catch(Throwable$e){$fallback=new DeterministicStoryReasoner();$result=$fallback->selectOption($context,$options);$result['fallback_used']=true;$result['fallback_error']=$e->getMessage();return$result;}
+                try{return$this->primary->selectOption($context,$options);}catch(Throwable$e){$fallback=new DeterministicStoryReasoner();$result=$fallback->selectOption($context,$options);$result['fallback_used']=true;$result['fallback_error']=public_error($e);return$result;}
             }
         };
     }

@@ -1,5 +1,10 @@
 <?php
 require __DIR__ . '/app/runtime_check.php';
+ini_set('display_errors','0');
+ini_set('log_errors','1');
+ini_set('zend.exception_ignore_args','1');
+require_once __DIR__.'/app/PublicError.php';
+if(PHP_SAPI!=='cli')set_exception_handler('public_exception_response');
 $root = __DIR__;
 $marker = $root . '/.installed';
 $configDir = $root . '/config';
@@ -125,7 +130,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$alreadyInstalled) {
         $success = 'Installation complete. Schema statements: ' . $schemaCount . '. Seed statements: ' . $seedCount . '.';
         $alreadyInstalled = true;
     } catch (Throwable $e) {
-        $error = $e->getMessage();
+        $error = public_error($e);
     }
 }
 ?><!doctype html>

@@ -1,4 +1,11 @@
 <?php
+ini_set('display_errors','0');
+ini_set('display_startup_errors','0');
+ini_set('log_errors','1');
+ini_set('zend.exception_ignore_args','1');
+error_reporting(E_ALL);
+require_once __DIR__.'/PublicError.php';
+if(PHP_SAPI!=='cli')set_exception_handler('public_exception_response');
 date_default_timezone_set('UTC');
 require_once __DIR__.'/SecurityHeaders.php';
 SecurityHeaders::send();

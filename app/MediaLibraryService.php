@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__.'/UserFacingException.php';
 final class MediaLibraryService
 {
     public const TYPES=['BACKGROUND','DIVIDER','CARD','PRIMARY','CHARACTER','OPENING','SCENE','TURNING_POINT','OUTCOME','ENDING','PARALLAX','OTHER'];
@@ -41,7 +42,7 @@ final class MediaLibraryService
 
     public static function saveSettings(array $admin,array $fields): void
     {
-        if((int)($admin['is_admin']??0)!==1)throw new RuntimeException('Administrator access is required.');
+        if((int)($admin['is_admin']??0)!==1)throw new UserFacingException('Administrator access is required.');
         $values=[
             'MEDIA_MAX_UPLOAD_MB'=>(string)self::postedInt($fields,'max_upload_mb',1,50,10),
             'MEDIA_MASTER_MAX_PX'=>(string)self::postedInt($fields,'master_max_px',250,3840,1920),
@@ -78,15 +79,15 @@ final class MediaLibraryService
 
     public static function upload(array $user,array $fields,array $file): int
     {
-        if(($file['error']??UPLOAD_ERR_NO_FILE)!==UPLOAD_ERR_OK)throw new RuntimeException('Choose an image to upload.');
+        if(($file['error']??UPLOAD_ERR_NO_FILE)!==UPLOAD_ERR_OK)throw new UserFacingException('Choose an image to upload.');
         $settings=self::settings();$inputSize=(int)($file['size']??0);$limit=$settings['max_upload_mb']*1024*1024;
-        if($inputSize<1||$inputSize>$limit)throw new RuntimeException('Source images must be '.$settings['max_upload_mb'].' MB or smaller.');
+        if($inputSize<1||$inputSize>$limit)throw new UserFacingException('Source images must be '.$settings['max_upload_mb'].' MB or smaller.');
         $tmp=(string)($file['tmp_name']??'');$info=@getimagesize($tmp);$mime=(string)($info['mime']??'');$width=(int)($info[0]??0);$height=(int)($info[1]??0);
-        $extensions=['image/jpeg'=>'jpg','image/png'=>'png','image/webp'=>'webp'];if(!isset($extensions[$mime])||$width<1||$height<1)throw new RuntimeException('Upload a valid JPEG, PNG, or WebP image.');
-        if($width*$height>80000000)throw new RuntimeException('The source image has too many pixels to process safely.');
-        $type=strtoupper(trim((string)($fields['media_type']??'OTHER')));if(!in_array($type,self::TYPES,true))throw new RuntimeException('Choose a valid media type.');
-        $title=trim((string)($fields['title_text']??''));$alt=trim((string)($fields['alt_text']??''));if($title===''||$alt==='')throw new RuntimeException('Title and alternative text are required.');
-        $directory=dirname(__DIR__).'/public/uploads/media-library/'.(int)$user['user_id'];if(!is_dir($directory)&&!mkdir($directory,0775,true)&&!is_dir($directory))throw new RuntimeException('The media directory could not be created.');
+        $extensions=['image/jpeg'=>'jpg','image/png'=>'png','image/webp'=>'webp'];if(!isset($extensions[$mime])||$width<1||$height<1)throw new UserFacingException('Upload a valid JPEG, PNG, or WebP image.');
+        if($width*$height>80000000)throw new UserFacingException('The source image has too many pixels to process safely.');
+        $type=strtoupper(trim((string)($fields['media_type']??'OTHER')));if(!in_array($type,self::TYPES,true))throw new UserFacingException('Choose a valid media type.');
+        $title=trim((string)($fields['title_text']??''));$alt=trim((string)($fields['alt_text']??''));if($title===''||$alt==='')throw new UserFacingException('Title and alternative text are required.');
+        $directory=dirname(__DIR__).'/public/uploads/media-library/'.(int)$user['user_id'];if(!is_dir($directory)&&!mkdir($directory,0775,true)&&!is_dir($directory))throw new UserFacingException('The media directory could not be created.');
         $basename=strtolower($type).'-'.bin2hex(random_bytes(12));$filename=$basename.'.'.$extensions[$mime];$target=$directory.'/'.$filename;$path='public/uploads/media-library/'.(int)$user['user_id'].'/'.$filename;
         $created=[];$mediaId=0;
         try{
@@ -104,9 +105,9 @@ final class MediaLibraryService
 
     public static function requireVisible(array $user,int $mediaId,?string $requiredType=null): array
     {
-        $q=db()->prepare('SELECT * FROM writer_media_assets WHERE media_id=? AND active=1');$q->execute([$mediaId]);$m=$q->fetch();if(!$m)throw new RuntimeException('That media item is unavailable.');
-        if((int)($user['is_admin']??0)!==1&&(int)$m['uploaded_by_user_id']!==(int)$user['user_id'])throw new RuntimeException('You may only use media that you uploaded.');
-        if($requiredType!==null&&$m['media_type']!==$requiredType)throw new RuntimeException('Choose a '.$requiredType.' image for this field.');return$m;
+        $q=db()->prepare('SELECT * FROM writer_media_assets WHERE media_id=? AND active=1');$q->execute([$mediaId]);$m=$q->fetch();if(!$m)throw new UserFacingException('That media item is unavailable.');
+        if((int)($user['is_admin']??0)!==1&&(int)$m['uploaded_by_user_id']!==(int)$user['user_id'])throw new UserFacingException('You may only use media that you uploaded.');
+        if($requiredType!==null&&$m['media_type']!==$requiredType)throw new UserFacingException('Choose a '.$requiredType.' image for this field.');return$m;
     }
 
     public static function deactivate(array $user,int $mediaId): void
@@ -116,16 +117,16 @@ final class MediaLibraryService
 
     public static function update(array $user,int $mediaId,array $fields): void
     {
-        $m=self::requireVisible($user,$mediaId);$type=strtoupper(trim((string)($fields['media_type']??'')));if(!in_array($type,self::TYPES,true))throw new RuntimeException('Choose a valid media type.');$title=trim((string)($fields['title_text']??''));$alt=trim((string)($fields['alt_text']??''));if($title===''||$alt==='')throw new RuntimeException('Title and alternative text are required.');if(mb_strlen($title)>190||mb_strlen($alt)>500)throw new RuntimeException('Media title or alternative text is too long.');
+        $m=self::requireVisible($user,$mediaId);$type=strtoupper(trim((string)($fields['media_type']??'')));if(!in_array($type,self::TYPES,true))throw new UserFacingException('Choose a valid media type.');$title=trim((string)($fields['title_text']??''));$alt=trim((string)($fields['alt_text']??''));if($title===''||$alt==='')throw new UserFacingException('Title and alternative text are required.');if(mb_strlen($title)>190||mb_strlen($alt)>500)throw new UserFacingException('Media title or alternative text is too long.');
         $pdo=db();$ownsTransaction=!$pdo->inTransaction();if($ownsTransaction)$pdo->beginTransaction();try{db()->prepare('UPDATE writer_media_assets SET media_type=?,title_text=?,alt_text=? WHERE media_id=?')->execute([$type,$title,$alt,$mediaId]);db()->prepare('UPDATE plot_media_assets SET title_text=?,alt_text=? WHERE library_media_id=?')->execute([$title,$alt,$mediaId]);if($ownsTransaction)$pdo->commit();}catch(Throwable $e){if($ownsTransaction&&$pdo->inTransaction())$pdo->rollBack();throw$e;}
     }
 
     public static function cropResize(array $user,int $mediaId,array $fields): void
     {
-        $m=self::requireVisible($user,$mediaId);if(!function_exists('imagecreatetruecolor'))throw new RuntimeException('This server needs PHP GD for cropping and resizing.');$source=self::absolutePath((string)$m['file_path']);if(!is_file($source))throw new RuntimeException('The source image file is missing.');$width=(int)$m['width_px'];$height=(int)$m['height_px'];$x=max(0,(int)($fields['crop_x']??0));$y=max(0,(int)($fields['crop_y']??0));$cropWidth=(int)($fields['crop_width']??$width);$cropHeight=(int)($fields['crop_height']??$height);if($cropWidth<1||$cropHeight<1||$x+$cropWidth>$width||$y+$cropHeight>$height)throw new RuntimeException('Crop dimensions must stay inside the current image.');
-        $targetWidth=(int)($fields['resize_width']??0);$targetHeight=(int)($fields['resize_height']??0);if($targetWidth<1&&$targetHeight<1){$targetWidth=$cropWidth;$targetHeight=$cropHeight;}elseif($targetWidth<1)$targetWidth=max(1,(int)round($cropWidth*$targetHeight/$cropHeight));elseif($targetHeight<1)$targetHeight=max(1,(int)round($cropHeight*$targetWidth/$cropWidth));$settings=self::settings();if($targetWidth>$settings['master_max_px']||$targetHeight>$settings['master_max_px'])throw new RuntimeException('Resized media may not exceed '.$settings['master_max_px'].' pixels on either side.');
+        $m=self::requireVisible($user,$mediaId);if(!function_exists('imagecreatetruecolor'))throw new UserFacingException('This server needs PHP GD for cropping and resizing.');$source=self::absolutePath((string)$m['file_path']);if(!is_file($source))throw new UserFacingException('The source image file is missing.');$width=(int)$m['width_px'];$height=(int)$m['height_px'];$x=max(0,(int)($fields['crop_x']??0));$y=max(0,(int)($fields['crop_y']??0));$cropWidth=(int)($fields['crop_width']??$width);$cropHeight=(int)($fields['crop_height']??$height);if($cropWidth<1||$cropHeight<1||$x+$cropWidth>$width||$y+$cropHeight>$height)throw new UserFacingException('Crop dimensions must stay inside the current image.');
+        $targetWidth=(int)($fields['resize_width']??0);$targetHeight=(int)($fields['resize_height']??0);if($targetWidth<1&&$targetHeight<1){$targetWidth=$cropWidth;$targetHeight=$cropHeight;}elseif($targetWidth<1)$targetWidth=max(1,(int)round($cropWidth*$targetHeight/$cropHeight));elseif($targetHeight<1)$targetHeight=max(1,(int)round($cropHeight*$targetWidth/$cropWidth));$settings=self::settings();if($targetWidth>$settings['master_max_px']||$targetHeight>$settings['master_max_px'])throw new UserFacingException('Resized media may not exceed '.$settings['master_max_px'].' pixels on either side.');
         self::writeResampled($source,$source.'.processing',(string)$m['mime_type'],$x,$y,$cropWidth,$cropHeight,$targetWidth,$targetHeight,$settings);
-        if(!rename($source.'.processing',$source)){@unlink($source.'.processing');throw new RuntimeException('The processed image could not be saved.');}
+        if(!rename($source.'.processing',$source)){@unlink($source.'.processing');throw new UserFacingException('The processed image could not be saved.');}
         self::afterMasterChanged((int)$m['media_id'],(string)$m['file_path'],(string)$m['mime_type'],$targetWidth,$targetHeight,(int)filesize($source),$settings);
     }
 
@@ -133,13 +134,13 @@ final class MediaLibraryService
     {
         $m=self::requireVisible($user,$mediaId);$width=(int)$m['width_px'];$height=(int)$m['height_px'];$mode=(string)($fields['resize_mode']??'pixels');
         if($mode==='scale'){$scale=max(1,min(400,(int)($fields['scale_percent']??100)))/100;$targetWidth=max(1,(int)round($width*$scale));$targetHeight=max(1,(int)round($height*$scale));}
-        else{$targetWidth=(int)($fields['resize_width']??0);$targetHeight=(int)($fields['resize_height']??0);if($targetWidth<1&&$targetHeight<1)throw new RuntimeException('Enter a width, height, or scale amount.');if($targetWidth<1)$targetWidth=max(1,(int)round($width*$targetHeight/$height));if($targetHeight<1)$targetHeight=max(1,(int)round($height*$targetWidth/$width));}
+        else{$targetWidth=(int)($fields['resize_width']??0);$targetHeight=(int)($fields['resize_height']??0);if($targetWidth<1&&$targetHeight<1)throw new UserFacingException('Enter a width, height, or scale amount.');if($targetWidth<1)$targetWidth=max(1,(int)round($width*$targetHeight/$height));if($targetHeight<1)$targetHeight=max(1,(int)round($height*$targetWidth/$width));}
         self::cropResize($user,$mediaId,['crop_x'=>0,'crop_y'=>0,'crop_width'=>$width,'crop_height'=>$height,'resize_width'=>$targetWidth,'resize_height'=>$targetHeight]);
     }
 
     public static function regenerateThumbnail(array $user,int $mediaId,array $fields): void
     {
-        $m=self::requireVisible($user,$mediaId);$source=self::absolutePath((string)$m['file_path']);if(!is_file($source))throw new RuntimeException('The processed image file is missing.');$width=(int)$m['width_px'];$height=(int)$m['height_px'];$size=(int)($fields['thumbnail_crop_size']??min($width,$height));$x=max(0,(int)($fields['thumbnail_crop_x']??0));$y=max(0,(int)($fields['thumbnail_crop_y']??0));if($size<1||$x+$size>$width||$y+$size>$height)throw new RuntimeException('The thumbnail square must stay inside the processed image.');$settings=self::settings();$path=(string)($m['thumbnail_path']??'');if($path===''){$extension=pathinfo((string)$m['file_path'],PATHINFO_EXTENSION);$path=preg_replace('/\.'.$extension.'$/i','-thumb.'.$extension,(string)$m['file_path']);}self::createThumbnail($source,self::absolutePath($path),(string)$m['mime_type'],$width,$height,$x,$y,$size,$settings['thumbnail_size_px'],$settings);db()->prepare('UPDATE writer_media_assets SET thumbnail_path=?,thumbnail_crop_x=?,thumbnail_crop_y=?,thumbnail_crop_size=? WHERE media_id=?')->execute([$path,$x,$y,$size,$mediaId]);self::upsertVersion($mediaId,'THUMBNAIL',$path,(string)$m['mime_type'],$settings['thumbnail_size_px'],$settings['thumbnail_size_px'],(int)filesize(self::absolutePath($path)),$x,$y,$size,$size);
+        $m=self::requireVisible($user,$mediaId);$source=self::absolutePath((string)$m['file_path']);if(!is_file($source))throw new UserFacingException('The processed image file is missing.');$width=(int)$m['width_px'];$height=(int)$m['height_px'];$size=(int)($fields['thumbnail_crop_size']??min($width,$height));$x=max(0,(int)($fields['thumbnail_crop_x']??0));$y=max(0,(int)($fields['thumbnail_crop_y']??0));if($size<1||$x+$size>$width||$y+$size>$height)throw new UserFacingException('The thumbnail square must stay inside the processed image.');$settings=self::settings();$path=(string)($m['thumbnail_path']??'');if($path===''){$extension=pathinfo((string)$m['file_path'],PATHINFO_EXTENSION);$path=preg_replace('/\.'.$extension.'$/i','-thumb.'.$extension,(string)$m['file_path']);}self::createThumbnail($source,self::absolutePath($path),(string)$m['mime_type'],$width,$height,$x,$y,$size,$settings['thumbnail_size_px'],$settings);db()->prepare('UPDATE writer_media_assets SET thumbnail_path=?,thumbnail_crop_x=?,thumbnail_crop_y=?,thumbnail_crop_size=? WHERE media_id=?')->execute([$path,$x,$y,$size,$mediaId]);self::upsertVersion($mediaId,'THUMBNAIL',$path,(string)$m['mime_type'],$settings['thumbnail_size_px'],$settings['thumbnail_size_px'],(int)filesize(self::absolutePath($path)),$x,$y,$size,$size);
     }
 
     public static function resetThumbnail(array $user,int $mediaId): void
@@ -181,11 +182,11 @@ final class MediaLibraryService
             elseif(!empty($row['event_headline']))$label.=': '.(string)$row['event_headline'];
             elseif(!empty($row['section_code']))$label.=': ending section '.(string)$row['section_code'];
             elseif($row['scene_second']!==null)$label.=' at second '.(int)$row['scene_second'];
-            $out[(int)$row['library_media_id']][]=$label;}}catch(Throwable $ignored){error_log('Media usage check failed: '.$ignored->getMessage());}
-        try{$q=db()->prepare('SELECT media_id,COUNT(*) c FROM site_parallax_layers WHERE media_id IN('.$placeholders.') GROUP BY media_id');$q->execute($ids);foreach($q->fetchAll()as$row)$out[(int)$row['media_id']][]='Homepage parallax layer';}catch(Throwable $ignored){error_log('Media usage check failed: '.$ignored->getMessage());}
-        try{$q=db()->prepare('SELECT background_media_id,divider_media_id,card_media_id,g.label_text FROM genre_themes t JOIN story_genres g ON g.genre_id=t.genre_id WHERE background_media_id IN('.$placeholders.') OR divider_media_id IN('.$placeholders.') OR card_media_id IN('.$placeholders.')');$q->execute(array_merge($ids,$ids,$ids));foreach($q->fetchAll()as$row){foreach(['background_media_id'=>'background','divider_media_id'=>'divider','card_media_id'=>'card']as$col=>$kind)if(in_array((int)$row[$col],$ids,true))$out[(int)$row[$col]][]='Genre theme \''.(string)$row['label_text'].'\' ('.$kind.' image)';}}catch(Throwable $ignored){error_log('Media usage check failed: '.$ignored->getMessage());}
-        try{$q=db()->prepare('SELECT image_media_id,background_media_id FROM site_page_sections WHERE image_media_id IN('.$placeholders.') OR background_media_id IN('.$placeholders.')');$q->execute(array_merge($ids,$ids));foreach($q->fetchAll()as$row){foreach(['image_media_id'=>'section image','background_media_id'=>'section background']as$col=>$kind)if(!empty($row[$col])&&in_array((int)$row[$col],$ids,true))$out[(int)$row[$col]][]='Site page ('.$kind.')';}}catch(Throwable $ignored){error_log('Media usage check failed: '.$ignored->getMessage());}
-        try{$q=db()->query('SELECT rows_json FROM site_page_sections WHERE rows_json IS NOT NULL AND rows_json <> ""');foreach($q->fetchAll(PDO::FETCH_COLUMN)as$json){$rows=json_decode((string)$json,true);if(!is_array($rows))continue;$found=[];self::collectMediaIds($rows,$found);foreach($ids as$id)if(!empty($found[$id])&&!in_array('Page Builder content',$out[$id]??[],true))$out[$id][]='Page Builder content';}}catch(Throwable $ignored){error_log('Media usage check failed: '.$ignored->getMessage());}
+            $out[(int)$row['library_media_id']][]=$label;}}catch(Throwable $ignored){Logger::warning('Media usage check failed: '.public_error($ignored));}
+        try{$q=db()->prepare('SELECT media_id,COUNT(*) c FROM site_parallax_layers WHERE media_id IN('.$placeholders.') GROUP BY media_id');$q->execute($ids);foreach($q->fetchAll()as$row)$out[(int)$row['media_id']][]='Homepage parallax layer';}catch(Throwable $ignored){Logger::warning('Media usage check failed: '.public_error($ignored));}
+        try{$q=db()->prepare('SELECT background_media_id,divider_media_id,card_media_id,g.label_text FROM genre_themes t JOIN story_genres g ON g.genre_id=t.genre_id WHERE background_media_id IN('.$placeholders.') OR divider_media_id IN('.$placeholders.') OR card_media_id IN('.$placeholders.')');$q->execute(array_merge($ids,$ids,$ids));foreach($q->fetchAll()as$row){foreach(['background_media_id'=>'background','divider_media_id'=>'divider','card_media_id'=>'card']as$col=>$kind)if(in_array((int)$row[$col],$ids,true))$out[(int)$row[$col]][]='Genre theme \''.(string)$row['label_text'].'\' ('.$kind.' image)';}}catch(Throwable $ignored){Logger::warning('Media usage check failed: '.public_error($ignored));}
+        try{$q=db()->prepare('SELECT image_media_id,background_media_id FROM site_page_sections WHERE image_media_id IN('.$placeholders.') OR background_media_id IN('.$placeholders.')');$q->execute(array_merge($ids,$ids));foreach($q->fetchAll()as$row){foreach(['image_media_id'=>'section image','background_media_id'=>'section background']as$col=>$kind)if(!empty($row[$col])&&in_array((int)$row[$col],$ids,true))$out[(int)$row[$col]][]='Site page ('.$kind.')';}}catch(Throwable $ignored){Logger::warning('Media usage check failed: '.public_error($ignored));}
+        try{$q=db()->query('SELECT rows_json FROM site_page_sections WHERE rows_json IS NOT NULL AND rows_json <> ""');foreach($q->fetchAll(PDO::FETCH_COLUMN)as$json){$rows=json_decode((string)$json,true);if(!is_array($rows))continue;$found=[];self::collectMediaIds($rows,$found);foreach($ids as$id)if(!empty($found[$id])&&!in_array('Page Builder content',$out[$id]??[],true))$out[$id][]='Page Builder content';}}catch(Throwable $ignored){Logger::warning('Media usage check failed: '.public_error($ignored));}
         return$out;
     }
 
@@ -197,7 +198,7 @@ final class MediaLibraryService
     public static function delete(array $user,int $mediaId,bool $force=false): void
     {
         $m=self::requireVisible($user,$mediaId);
-        if(!$force){$usage=self::usageByMediaIds($user,[$mediaId])[$mediaId]??[];if($usage)throw new RuntimeException('This media is used in '.count($usage).' place'.(count($usage)===1?'':'s').'. Use View Usage to see where, then Force Delete Media if you still want to remove it.');}
+        if(!$force){$usage=self::usageByMediaIds($user,[$mediaId])[$mediaId]??[];if($usage)throw new UserFacingException('This media is used in '.count($usage).' place'.(count($usage)===1?'':'s').'. Use View Usage to see where, then Force Delete Media if you still want to remove it.');}
         $versions=[];try{$versions=self::versionsByMediaIds($user,[$mediaId])[$mediaId]??[];}catch(Throwable $ignored){}$pdo=db();$ownsTransaction=!$pdo->inTransaction();if($ownsTransaction)$pdo->beginTransaction();try{$pdo->prepare('UPDATE plot_media_assets SET active=0 WHERE library_media_id=?')->execute([$mediaId]);$pdo->prepare('DELETE FROM site_parallax_layers WHERE media_id=?')->execute([$mediaId]);$pdo->prepare('UPDATE genre_themes SET background_image_path=IF(background_media_id=?,NULL,background_image_path),divider_image_path=IF(divider_media_id=?,NULL,divider_image_path),card_image_path=IF(card_media_id=?,NULL,card_image_path),background_media_id=IF(background_media_id=?,NULL,background_media_id),divider_media_id=IF(divider_media_id=?,NULL,divider_media_id),card_media_id=IF(card_media_id=?,NULL,card_media_id)')->execute([$mediaId,$mediaId,$mediaId,$mediaId,$mediaId,$mediaId]);$pdo->prepare('UPDATE site_page_sections SET image_media_id=IF(image_media_id=?,NULL,image_media_id),background_media_id=IF(background_media_id=?,NULL,background_media_id)')->execute([$mediaId,$mediaId]);self::cleanPageRowsForMedia($mediaId);$pdo->prepare('DELETE FROM writer_media_assets WHERE media_id=?')->execute([$mediaId]);if($ownsTransaction)$pdo->commit();}catch(Throwable $e){if($ownsTransaction&&$pdo->inTransaction())$pdo->rollBack();throw$e;}
         foreach([(string)$m['file_path'],(string)($m['thumbnail_path']??'')]as$filePath)self::unlinkUpload($filePath);
         foreach($versions as$version)self::unlinkUpload((string)$version['file_path']);
@@ -205,7 +206,7 @@ final class MediaLibraryService
 
     public static function resetAll(array $admin): void
     {
-        if((int)($admin['is_admin']??0)!==1)throw new RuntimeException('Administrator access is required.');
+        if((int)($admin['is_admin']??0)!==1)throw new UserFacingException('Administrator access is required.');
         $paths=[];
         foreach(db()->query('SELECT file_path,thumbnail_path FROM writer_media_assets')->fetchAll()as$row){$paths[]=(string)$row['file_path'];if(!empty($row['thumbnail_path']))$paths[]=(string)$row['thumbnail_path'];}
         try{foreach(db()->query('SELECT file_path FROM writer_media_versions')->fetchAll(PDO::FETCH_COLUMN)as$path)$paths[]=(string)$path;}catch(Throwable $ignored){}
@@ -259,7 +260,7 @@ final class MediaLibraryService
     private static function storeResized(string $source,string $target,string $mime,int $width,int $height,int $maxPx,array $settings): array
     {
         [$newWidth,$newHeight]=self::scaledDimensions($width,$height,$maxPx,'LONGEST');
-        if($newWidth===$width&&$newHeight===$height){if(!move_uploaded_file($source,$target)&&!rename($source,$target))throw new RuntimeException('The image could not be saved.');return[$width,$height];}
+        if($newWidth===$width&&$newHeight===$height){if(!move_uploaded_file($source,$target)&&!rename($source,$target))throw new UserFacingException('The image could not be saved.');return[$width,$height];}
         self::writeScaled($source,$target,$mime,$width,$height,$newWidth,$newHeight,$settings);return[$newWidth,$newHeight];
     }
 
@@ -270,19 +271,19 @@ final class MediaLibraryService
 
     private static function writeResampled(string $source,string $target,string $mime,int $x,int $y,int $cropWidth,int $cropHeight,int $targetWidth,int $targetHeight,array $settings): void
     {
-        if(!function_exists('imagecreatetruecolor'))throw new RuntimeException('This server needs PHP GD to resize images.');
-        $load=['image/jpeg'=>'imagecreatefromjpeg','image/png'=>'imagecreatefrompng','image/webp'=>'imagecreatefromwebp'][$mime]??null;$save=['image/jpeg'=>'imagejpeg','image/png'=>'imagepng','image/webp'=>'imagewebp'][$mime]??null;if(!$load||!$save)throw new RuntimeException('This media format cannot be processed.');
-        $src=@$load($source);if(!$src)throw new RuntimeException('The image could not be decoded.');$dst=imagecreatetruecolor($targetWidth,$targetHeight);
+        if(!function_exists('imagecreatetruecolor'))throw new UserFacingException('This server needs PHP GD to resize images.');
+        $load=['image/jpeg'=>'imagecreatefromjpeg','image/png'=>'imagecreatefrompng','image/webp'=>'imagecreatefromwebp'][$mime]??null;$save=['image/jpeg'=>'imagejpeg','image/png'=>'imagepng','image/webp'=>'imagewebp'][$mime]??null;if(!$load||!$save)throw new UserFacingException('This media format cannot be processed.');
+        $src=@$load($source);if(!$src)throw new UserFacingException('The image could not be decoded.');$dst=imagecreatetruecolor($targetWidth,$targetHeight);
         if($mime!=='image/jpeg'){imagealphablending($dst,false);imagesavealpha($dst,true);$transparent=imagecolorallocatealpha($dst,0,0,0,127);imagefilledrectangle($dst,0,0,$targetWidth,$targetHeight,$transparent);}
         imagecopyresampled($dst,$src,0,0,$x,$y,$targetWidth,$targetHeight,$cropWidth,$cropHeight);
         $ok=$mime==='image/png'?$save($dst,$target,$settings['png_compression']):$save($dst,$target,$settings['jpeg_quality']);
-        imagedestroy($src);imagedestroy($dst);if(!$ok)throw new RuntimeException('The processed image could not be saved.');
+        imagedestroy($src);imagedestroy($dst);if(!$ok)throw new UserFacingException('The processed image could not be saved.');
     }
 
     private static function createThumbnail(string $source,string $target,string $mime,int $width,int $height,int $x,int $y,int $size,int $targetSize,array $settings): void
     {
         self::writeResampled($source,$target.'.processing',$mime,$x,$y,$size,$size,$targetSize,$targetSize,$settings);
-        if(!rename($target.'.processing',$target)){@unlink($target.'.processing');throw new RuntimeException('The thumbnail could not be saved.');}
+        if(!rename($target.'.processing',$target)){@unlink($target.'.processing');throw new UserFacingException('The thumbnail could not be saved.');}
     }
 
     private static function scaledDimensions(int $width,int $height,int $maxPx,string $mode): array
