@@ -132,7 +132,7 @@ $check(strpos($adminPhp,'$pageSections')===false,'Task 10: dead $pageSections in
 $check(strpos($adminPhp,'$pageMedia')===false,'Task 10: dead $pageMedia/$pageMediaUsage initializers are gone');
 $check(strpos($adminPhp,'$pageCode')===false,'Task 10: dead $pageCode assignment is gone');
 $check(strpos($adminPhp,"if(\$view==='pages'){header('Location: page-builder.php');exit;}")!==false,'Task 10: admin.php?view=pages redirects to the Page Builder');
-$check(strpos($adminPhp,"throw new RuntimeException('Unknown admin action.');")!==false,'Task 10: unknown admin POST actions are rejected');
+$check(strpos($adminPhp,"throw new UserFacingException('Unknown admin action.');")!==false,'Task 10: unknown admin POST actions are rejected');
 $check(strpos($adminPhp,'MigrationService::run()')===false,'Task 10: admin.php no longer runs migrations on page load');
 $check(strpos($adminPhp,'MigrationService')===false,'Task 10: admin.php no longer references MigrationService at all');
 
