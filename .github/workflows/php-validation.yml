@@ -37,6 +37,8 @@ jobs:
         run: php tools/play_feedback_guard_test.php
       - name: Guard theme font options
         run: php tools/theme_font_guard_test.php
+      - name: Verify asset integrity across Windows-style checkouts
+        run: node tools/font_checkout_test.js
       - name: Guard Now heading chapter
         run: php tools/now_heading_guard_test.php
       - name: Guard Task 5 Phase 4 state metadata pinning
