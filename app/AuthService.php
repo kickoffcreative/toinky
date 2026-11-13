@@ -1,15 +1,18 @@
 <?php
 require_once __DIR__.'/EmailTemplateService.php';
+require_once __DIR__.'/SecurityHeaders.php';
 require_once __DIR__.'/AccountSecurityService.php';
 require_once __DIR__.'/RateLimitService.php';
 require_once __DIR__.'/BotProtectionService.php';
 final class AuthService
 {
+    public const SESSION_NAME='__Host-toinky';
     public static function boot(): void
     {
         if(session_status()===PHP_SESSION_ACTIVE)return;
-        $secure=!empty($_SERVER['HTTPS'])&&$_SERVER['HTTPS']!=='off';
-        session_set_cookie_params(['lifetime'=>0,'path'=>'/','secure'=>$secure,'httponly'=>true,'samesite'=>'Lax']);
+        ini_set('session.use_strict_mode','1');ini_set('session.use_only_cookies','1');ini_set('session.use_trans_sid','0');
+        session_name(self::SESSION_NAME);
+        session_set_cookie_params(['lifetime'=>0,'path'=>'/','domain'=>'','secure'=>true,'httponly'=>true,'samesite'=>'Lax']);
         session_start();
     }
     public static function csrfToken(): string
@@ -27,7 +30,7 @@ final class AuthService
     }
     public static function currentUser(): ?array
     {
-        self::boot();$id=(int)($_SESSION['user_id']??0);if($id<=0)return null;
+        self::boot();$id=(int)($_SESSION['user_id']??0);if($id<=0)return null;SecurityHeaders::noStore();
         $q=db()->prepare('SELECT user_id,email,display_name,is_admin,is_super_admin,status,email_verified_at_utc,session_version,created_at_utc,last_login_at_utc FROM users WHERE user_id=?');$q->execute([$id]);$u=$q->fetch();
         if(!$u||$u['status']!=='ACTIVE'||(int)($_SESSION['session_version']??0)!==(int)$u['session_version']){self::logout();return null;}return$u;
     }

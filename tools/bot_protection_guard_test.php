@@ -26,12 +26,12 @@ try{
     $ready=false;for($i=0;$i<50;$i++){$probe=@stream_socket_client('tcp://'.$address,$errno,$errstr,0.1);if($probe){fclose($probe);$ready=true;break;}usleep(100000);}$check($ready,'Local HTTP fixture starts');
     $testClientIp='127.'.hexdec(substr($stamp,0,2)).'.'.hexdec(substr($stamp,2,2)).'.'.hexdec(substr($stamp,4,2));
     $http=static function(string $path,string $cookie='',array $post=[])use($address,$testClientIp):array{
-        $options=['ignore_errors'=>true,'follow_location'=>0,'timeout'=>15,'header'=>'Cookie: PHPSESSID='.$cookie."\r\n"];
+        $options=['ignore_errors'=>true,'follow_location'=>0,'timeout'=>15,'header'=>'Cookie: '.AuthService::SESSION_NAME.'='.$cookie."\r\n"];
         if($post){$options['method']='POST';$options['header'].="Content-Type: application/x-www-form-urlencoded\r\n";$options['content']=http_build_query($post);}
         $body=file_get_contents('http://'.$address.$path,false,stream_context_create(['http'=>$options,'socket'=>['bindto'=>$testClientIp.':0']]));return [$body===false?'':$body,$http_response_header??[]];
     };
     $value=static function(string $html,string $name):string{if(!preg_match('/name="'.preg_quote($name,'/').'" value="([^"]+)"/',$html,$match))throw new RuntimeException('Expected hidden form field missing');return html_entity_decode($match[1],ENT_QUOTES,'UTF-8');};
-    [$page,$headers]=$http('/?view=login');$cookie='';foreach($headers as $header)if(preg_match('/^Set-Cookie: PHPSESSID=([^;]+)/i',$header,$m))$cookie=$m[1];$check($cookie!=='','Browser receives session cookie');$pages=['login'=>$page];
+    [$page,$headers]=$http('/?view=login');$cookie='';foreach($headers as $header)if(preg_match('/^Set-Cookie: __Host-toinky=([^;]+)/i',$header,$m))$cookie=$m[1];$check($cookie!=='','Browser receives session cookie');$pages=['login'=>$page];
     foreach(['register','forgot'] as $action)[$pages[$action]]=$http('/?view='.$action,$cookie);
     foreach($pages as $action=>$html){$check(str_contains($html,'name="auth_form_token"')&&str_contains($html,'name="company_website"'),'Every public auth form contains protection fields');$check(!preg_match('/captcha_answer|g-recaptcha|recaptcha\/api\.js|captcha-image\.php|What is [0-9]/i',$html),'No cognitive puzzle or third-party challenge rendered');}
     $data=['action'=>'register','csrf_token'=>$value($pages['register'],'csrf_token'),'email'=>'bot-'.$stamp.'@example.invalid','display_name'=>'Bot Fixture','password'=>'Never-Creates-An-Account'];

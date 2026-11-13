@@ -24,7 +24,7 @@ $reject=static function(callable $fn)use($check):void{$denied=false;try{$fn();}c
 $capture=static function(callable $fn)use($dir):array{file_put_contents($dir.'/mail.jsonl','');$result=$fn();$mail=[];foreach(file($dir.'/mail.jsonl',FILE_IGNORE_NEW_LINES)?:[] as $line)$mail[]=json_decode($line,true)['body'];return [$result,implode("\n",$mail)];};
 $token=static function(string $mail,string $key):string{if(!preg_match('/(?:[?&]|&amp;)'.preg_quote($key,'/').'=?([a-f0-9]{48})/',$mail,$m))throw new RuntimeException('Test mail did not contain expected link.');return $m[1];};
 $makeSession=static function(int $id,?int $version=1)use($dir):array{
-    if(session_status()===PHP_SESSION_ACTIVE)session_write_close();$cookie=bin2hex(random_bytes(16));session_id($cookie);AuthService::boot();$_SESSION=['user_id'=>$id,'csrf_token'=>bin2hex(random_bytes(24))];if($version!==null)$_SESSION['session_version']=$version;$csrf=$_SESSION['csrf_token'];session_write_close();return [$cookie,$csrf];
+    if(session_status()===PHP_SESSION_ACTIVE)session_write_close();$cookie=bin2hex(random_bytes(16));session_id($cookie);AuthService::boot();$cookie=session_id();$_SESSION=['user_id'=>$id,'csrf_token'=>bin2hex(random_bytes(24))];if($version!==null)$_SESSION['session_version']=$version;$csrf=$_SESSION['csrf_token'];session_write_close();return [$cookie,$csrf];
 };
 try{
     foreach([[0,0,1],[1,0,1],[1,1,1],[0,0,0]] as $i=>$roles){
@@ -94,7 +94,7 @@ try{
     $server=proc_open([PHP_BINARY,'-d','sendmail_path='.$transport,'-d','session.save_path='.$dir,'-S',$address,'-t',$root.'/public'],[0=>['pipe','r'],1=>['file',$dir.'/server.log','a'],2=>['file',$dir.'/server.log','a']],$pipes,$root);fclose($pipes[0]);
     $ready=false;for($i=0;$i<50;$i++){$probe=@stream_socket_client('tcp://'.$address,$errno,$errstr,0.1);if($probe){fclose($probe);$ready=true;break;}usleep(100000);}$check($ready,'Local HTTP server starts');
     $http=static function(string $path,string $cookie,array $data=[])use($address,$testClientIp):array{
-        $headers='Cookie: PHPSESSID='.$cookie."\r\n";$options=['ignore_errors'=>true,'follow_location'=>0,'timeout'=>20,'header'=>$headers];
+        $headers='Cookie: '.AuthService::SESSION_NAME.'='.$cookie."\r\n";$options=['ignore_errors'=>true,'follow_location'=>0,'timeout'=>20,'header'=>$headers];
         if($data){$options['method']='POST';$options['header'].="Content-Type: application/x-www-form-urlencoded\r\n";$options['content']=http_build_query($data);}
         $body=file_get_contents('http://'.$address.$path,false,stream_context_create(['http'=>$options,'socket'=>['bindto'=>$testClientIp.':0']]));return [$body===false?'':$body,$http_response_header??[]];
     };
@@ -115,10 +115,11 @@ try{
     [$cookie]=$makeSession($users[1]);[$body,$headers]=$http('/?view=reset&token='.$firstToken,$cookie);$check(str_contains($headers[0]??'','302')&&!str_contains($body,$firstToken),'Incoming reset token redirects without response exposure');[$body]=$http('/?view=reset',$cookie);$check(!str_contains($body,$firstToken),'Reset form contains no hidden bearer token');
     // Account existence and throttle state must not change the forgot-password response.
     [$cookie,$csrf]=$makeSession(0,null);[$forgotPage]=$http('/?view=forgot',$cookie);if(!preg_match('/name="auth_form_token" value="([^"]+)"/',$forgotPage,$formMatch))throw new RuntimeException('Forgot-password form protection field missing');$formToken=html_entity_decode($formMatch[1],ENT_QUOTES,'UTF-8');usleep(2100000);$forgot=['auth_form_token'=>$formToken,'action'=>'forgot','email'=>'a01-forgot-'.$stamp.'@example.invalid','csrf_token'=>$csrf];
+    $normalizeNonce=static fn(string $html):string=>(string)preg_replace('/nonce="[^"]+"/','nonce="per-request"',$html);
     [$ordinaryForgot]=$http('/?view=forgot',$cookie,$forgot);for($i=0;$i<3;$i++)[$limitedForgot]=$http('/?view=forgot',$cookie,$forgot);
-    $check($ordinaryForgot===$limitedForgot,'Forgot-password response is identical when email throttle is exhausted');
+    $check($normalizeNonce($ordinaryForgot)===$normalizeNonce($limitedForgot),'Forgot-password response is identical when email throttle is exhausted');
     $forgot['email']='a01-other-forgot-'.$stamp.'@example.invalid';[$unknownForgot]=$http('/?view=forgot',$cookie,$forgot);
-    $check($ordinaryForgot===$unknownForgot,'Forgot-password response is identical across unknown account addresses');
+    $check($normalizeNonce($ordinaryForgot)===$normalizeNonce($unknownForgot),'Forgot-password response is identical across unknown account addresses');
     unlink($dir.'/fail-mail');
     [$cookie,$csrf]=$makeSession($users[1]);[$body,$headers]=$http('/profile.php',$cookie,['action'=>'change_password','current_password'=>'Original-Test-Password','new_password'=>'Http-Replacement-Password','csrf_token'=>$csrf]);
     $check(str_contains($headers[0]??'','302')&&str_contains(implode(' ', $headers),'password_changed=1'),'Profile changes password with current password and signs out');
