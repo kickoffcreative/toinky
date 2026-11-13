@@ -1,0 +1,4 @@
+# Preserve the bytes verified by the local-asset integrity guard on every OS.
+public/assets/fonts/*.woff2 binary
+public/assets/fonts/licenses/*.txt text eol=lf
+public/assets/vendor/pixi-csp.min.js text eol=lf
