@@ -10,7 +10,7 @@ require_once $root.'/app/CommerceService.php';
 require_once $root.'/app/StripeService.php';
 
 $pdo=db();
-$host=$pdo->query('SELECT user_id FROM users WHERE is_admin=0 ORDER BY user_id LIMIT 1')->fetch();
+$host=$pdo->query('SELECT user_id FROM users WHERE is_admin=0 AND status="ACTIVE" AND system_identity_key IS NULL AND email_verified_at_utc IS NOT NULL ORDER BY user_id LIMIT 1')->fetch();
 if(!$host)throw new RuntimeException('Commerce checkout test needs a non-admin user fixture.');
 $hostId=(int)$host['user_id'];
 
