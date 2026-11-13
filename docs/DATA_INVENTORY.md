@@ -1,6 +1,6 @@
 # Toinky Personal Data Inventory
 
-November 12, 2026. **A-06 implementation draft, not a published privacy policy or
+November 13, 2026. **A-06 implementation draft, not a published privacy policy or
 legal sign-off.** Baseline: main `01c5222`; schema and foreign-key metadata from
 an isolated database built through migration 143, plus the referenced services.
 No production personal records or private credentials were read for this file.
@@ -15,6 +15,45 @@ Production hosting, backups, mail routing and cron schedules are not verified.
   counsel approval, or a completed privacy assessment.
 
 ## Current Storage And Proposed Handling
+
+The table below records the pre-implementation baseline through migration 143.
+The following implementation overlay takes precedence for the draft A-06
+branch; it does not assert that these controls are deployed or scheduled:
+
+- Migration 144 adds `users.terms_version`, `privacy_version`,
+  `policy_accepted_at_utc`, `privacy_erasure_hold_until_utc`,
+  `privacy_erasure_hold_note` and `system_identity_key`; purposes are versioned
+  consent, reviewed erasure exceptions and a shared disabled anonymous actor.
+  Account/private operations access these fields; holds need a documented reason
+  and review date. They are removed with the account except the system actor.
+- `user_policy_acceptances` stores owner ID, policy versions and acceptance
+  time. `user_email_history` stores owner ID, email and start/end ownership times.
+  These support renewed consent, correct scoped access/erasure and email changes.
+  No external recipient is added; authenticated exports contain only the owner's
+  rows. Both histories are removed with account identity. Legacy address history
+  before migration 144 cannot be reconstructed from the current address alone;
+  seeded legacy bindings begin at migration time, never an assumed creation date.
+- `ai_reasoner_interactions.actor_user_id` and `actor_attribution_version` track
+  verified active actors/background/legacy attribution. They are internal; own
+  exports include safe activity metadata. Own/legacy text is cleared during
+  erasure, while ninety-day retention removes all text and identity/game links.
+- The owner chose retained shared fiction/media/game history with account
+  identity removed and a privacy-request process for personal details inside
+  prose/images. Direct actors in snapshots are scrubbed; free text is not
+  automatically treated as anonymous. This is a documented owner decision that
+  requires Auditor/legal review against the original erasure requirements.
+- Password-confirmed JSON export and identity deletion, correction/withdrawal,
+  age-first registration and versioned acceptance are implemented on the draft
+  branch. Proposed disabled erasure is **365 days**, requires prior policy
+  acceptance and excludes active holds, Super Admin and the system actor.
+  This period still requires legal/operational approval.
+- The CLI privacy job supplies ninety-day email/AI cleanup and thirty-day
+  expired/used token/invitation cleanup. No production schedule has been set
+  or apply run claimed. Policy/terms acceptance and new registration remain
+  unavailable until the explicit server approval flag is set after review.
+
+See [A-06 Privacy Controls](A-06%20Privacy%20Controls.md) for exact behavior,
+validation, deployment gate, financial-ledger exception and remaining limits.
 
 The tables below identify personal, pseudonymous and user-authored data. Row
 IDs and timestamps inherit the same purpose, access and retention as their

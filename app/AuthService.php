@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__.'/EmailTemplateService.php';
 require_once __DIR__.'/SecurityHeaders.php';
+require_once __DIR__.'/PrivacyService.php';
 require_once __DIR__.'/AccountSecurityService.php';
 require_once __DIR__.'/RateLimitService.php';
 require_once __DIR__.'/BotProtectionService.php';
@@ -31,14 +32,14 @@ final class AuthService
     public static function currentUser(): ?array
     {
         self::boot();$id=(int)($_SESSION['user_id']??0);if($id<=0)return null;SecurityHeaders::noStore();
-        $q=db()->prepare('SELECT user_id,email,display_name,is_admin,is_super_admin,status,email_verified_at_utc,session_version,created_at_utc,last_login_at_utc FROM users WHERE user_id=?');$q->execute([$id]);$u=$q->fetch();
-        if(!$u||$u['status']!=='ACTIVE'||(int)($_SESSION['session_version']??0)!==(int)$u['session_version']){self::logout();return null;}return$u;
+        $q=db()->prepare('SELECT user_id,email,display_name,is_admin,is_super_admin,status,email_verified_at_utc,session_version,terms_version,privacy_version,policy_accepted_at_utc,system_identity_key,created_at_utc,last_login_at_utc FROM users WHERE user_id=?');$q->execute([$id]);$u=$q->fetch();
+        if(!$u||$u['status']!=='ACTIVE'||$u['system_identity_key']!==null||(int)($_SESSION['session_version']??0)!==(int)$u['session_version']){self::logout();return null;}return$u;
     }
-    public static function register(string $email,string $name,string $password,?string $inviteToken=null,?string $gameInviteToken=null): array
+    public static function register(string $email,string $name,string $password,?string $inviteToken=null,?string $gameInviteToken=null,array $privacy=[]): array
     {
-        RateLimitService::registration();
+        PrivacyService::requireRegistrationConsent($privacy);RateLimitService::registration();
         $email=strtolower(trim($email));$name=trim($name);
-        if(!filter_var($email,FILTER_VALIDATE_EMAIL))throw new RuntimeException('Enter a valid email address.');
+        if(!filter_var($email,FILTER_VALIDATE_EMAIL)||$email==='privacy-anonymous@toinky.invalid')throw new RuntimeException('Enter a valid email address.');
         if(mb_strlen($name)<2||mb_strlen($name)>120)throw new RuntimeException('Display name must be between 2 and 120 characters.');
         if(strlen($password)<10)throw new RuntimeException('Password must contain at least 10 characters.');
         $pdo=db();$invite=null;$gameInvite=null;
@@ -48,8 +49,8 @@ final class AuthService
         }
         if($gameInviteToken){$q=$pdo->prepare('SELECT gi.game_invitation_id,gi.game_id,gi.email,g.status,p.max_players,(SELECT COUNT(*) FROM game_players gp WHERE gp.game_id=g.game_id) player_count FROM game_invitations gi JOIN games g ON g.game_id=gi.game_id JOIN simulations s ON s.simulation_id=g.simulation_id JOIN plots p ON p.plot_id=s.plot_id WHERE gi.token_hash=? AND gi.delivered_at_utc IS NOT NULL AND gi.accepted_at_utc IS NULL AND gi.expires_at_utc>UTC_TIMESTAMP() AND g.deleted_at_utc IS NULL');$q->execute([hash('sha256',$gameInviteToken)]);$gameInvite=$q->fetch();if(!$gameInvite||strtolower((string)$gameInvite['email'])!==$email||$gameInvite['status']!=='LOBBY')throw new RuntimeException('The game invitation is invalid, expired, or belongs to another email.');if((int)$gameInvite['player_count']>=(int)$gameInvite['max_players'])throw new RuntimeException('That game lobby is already full.');}
         // Only a successfully emailed, address-matched invitation proves mailbox ownership.
-        $pdo->beginTransaction();try{$pdo->prepare('INSERT INTO users(email,password_hash,display_name,email_verified_at_utc) VALUES(?,?,?,?)')->execute([$email,password_hash($password,PASSWORD_DEFAULT),$name,($invite||$gameInvite)?gmdate('Y-m-d H:i:s'):null]);$id=(int)$pdo->lastInsertId();if($invite)$pdo->prepare('UPDATE user_invitations SET accepted_at_utc=UTC_TIMESTAMP() WHERE invitation_id=?')->execute([$invite['invitation_id']]);$gameId=0;if($gameInvite){$gameId=(int)$gameInvite['game_id'];$pdo->prepare('INSERT INTO game_players(game_id,user_id) VALUES(?,?)')->execute([$gameId,$id]);$pdo->prepare('UPDATE game_invitations SET accepted_by_user_id=?,accepted_at_utc=UTC_TIMESTAMP() WHERE game_invitation_id=?')->execute([$id,$gameInvite['game_invitation_id']]);}$pdo->commit();}catch(Throwable$e){if($pdo->inTransaction())$pdo->rollBack();throw$e;}
-        self::loginUserId($id,1);if(!$invite&&!$gameInvite)AccountSecurityService::requestVerification($id);$u=self::currentUser()??[];$u['_game_id']=$gameId;self::sendTemplatedMessage($email,'WELCOME',['recipient_name'=>$name,'action_url'=>self::baseUrl().'/?view=login','action_label'=>'Sign in to Toinky','message'=>'Your Toinky account is ready. Explore stories, host a game, and build shared worlds.'],null,$id);$u['_game_id']=$gameId;return$u;
+        $pdo->beginTransaction();try{$pdo->prepare('INSERT INTO users(email,password_hash,display_name,email_verified_at_utc) VALUES(?,?,?,?)')->execute([$email,password_hash($password,PASSWORD_DEFAULT),$name,($invite||$gameInvite)?gmdate('Y-m-d H:i:s'):null]);$id=(int)$pdo->lastInsertId();PrivacyService::recordConsent($id,$privacy);PrivacyService::rememberEmail($id,$email);if($invite)$pdo->prepare('UPDATE user_invitations SET accepted_at_utc=UTC_TIMESTAMP() WHERE invitation_id=?')->execute([$invite['invitation_id']]);$gameId=0;if($gameInvite){$gameId=(int)$gameInvite['game_id'];$pdo->prepare('INSERT INTO game_players(game_id,user_id) VALUES(?,?)')->execute([$gameId,$id]);$pdo->prepare('UPDATE game_invitations SET accepted_by_user_id=?,accepted_at_utc=UTC_TIMESTAMP() WHERE game_invitation_id=?')->execute([$id,$gameInvite['game_invitation_id']]);}$pdo->commit();}catch(Throwable$e){if($pdo->inTransaction())$pdo->rollBack();throw$e;}
+        unset($_SESSION['privacy_age_eligible_until']);self::loginUserId($id,1);if(!$invite&&!$gameInvite)AccountSecurityService::requestVerification($id);$u=self::currentUser()??[];$u['_game_id']=$gameId;self::sendTemplatedMessage($email,'WELCOME',['recipient_name'=>$name,'action_url'=>self::baseUrl().'/?view=login','action_label'=>'Sign in to Toinky','message'=>'Your Toinky account is ready. Explore stories, host a game, and build shared worlds.'],null,$id);$u['_game_id']=$gameId;return$u;
     }
     public static function login(string $email,string $password): array
     {
@@ -134,7 +135,14 @@ final class AuthService
     }
     public static function requireLogin(): array
     {
-        $u=self::currentUser();if(!$u){header('Location: ./?view=login');exit;}return$u;
+        $u=self::currentUser();if(!$u){header('Location: ./?view=login');exit;}
+        if(PrivacyService::needsConsent($u)){
+            $script=basename((string)($_SERVER['SCRIPT_NAME']??''));$action=(string)($_POST['action']??'');
+            $privacyProfile=$script==='profile.php'&&(($_SERVER['REQUEST_METHOD']??'GET')==='GET'||in_array($action,['export_data','delete_account','withdraw_consent','update_display_name','upload_profile_photo','request_email_change'],true));
+            $consentPage=in_array($script,['index.php',''],true)&&($_GET['view']??'')==='consent';
+            if(!$privacyProfile&&!$consentPage){header('Cache-Control: no-store');header('Location: ./?view=consent',true,303);exit;}
+        }
+        return$u;
     }
     public static function requireAdmin(): array
     {

@@ -19,6 +19,8 @@ $dir=(string)getenv('TOINKY_ACCOUNT_LINK_TEST_DIR');$users=[];$sid=0;$server=nul
 $a01ThrottleBefore=$pdo->query('SELECT throttle_key FROM auth_throttle')->fetchAll(PDO::FETCH_COLUMN);
 $testClientIp='127.'.hexdec(substr($stamp,0,2)).'.'.hexdec(substr($stamp,2,2)).'.'.hexdec(substr($stamp,4,2));
 $failed=false;
+putenv('GAME2_PRIVACY_APPROVED=1');
+$register=static function(...$args):array{PrivacyService::checkAge('1990-01-01');while(count($args)<5)$args[]=null;$cfg=PrivacyService::config();$args[]=['accept_policies'=>'1','terms_version'=>$cfg['terms_version'],'privacy_version'=>$cfg['privacy_version']];return AuthService::register(...$args);};
 $check=static function(bool $ok,string $label)use(&$results):void{if(!$ok)throw new RuntimeException($label);$results[]=$label;};
 $reject=static function(callable $fn)use($check):void{$denied=false;try{$fn();}catch(RuntimeException $e){$denied=true;}$check($denied,'Unauthorized or invalid operation refused');};
 $capture=static function(callable $fn)use($dir):array{file_put_contents($dir.'/mail.jsonl','');$result=$fn();$mail=[];foreach(file($dir.'/mail.jsonl',FILE_IGNORE_NEW_LINES)?:[] as $line)$mail[]=json_decode($line,true)['body'];return [$result,implode("\n",$mail)];};
@@ -29,7 +31,7 @@ $makeSession=static function(int $id,?int $version=1)use($dir):array{
 try{
     foreach([[0,0,1],[1,0,1],[1,1,1],[0,0,0]] as $i=>$roles){
         $email='a01-'.$stamp.'-'.$i.'@example.invalid';
-        $pdo->prepare('INSERT INTO users(email,password_hash,display_name,is_admin,is_super_admin,email_verified_at_utc,last_login_at_utc) VALUES(?,?,?,?,?, ?,UTC_TIMESTAMP())')->execute([$email,password_hash('Original-Test-Password',PASSWORD_DEFAULT),'A01 Fixture '.$i,$roles[0],$roles[1],$roles[2]?gmdate('Y-m-d H:i:s'):null]);$users[]=(int)$pdo->lastInsertId();
+        $pdo->prepare('INSERT INTO users(email,password_hash,display_name,is_admin,is_super_admin,email_verified_at_utc,last_login_at_utc) VALUES(?,?,?,?,?, ?,UTC_TIMESTAMP())')->execute([$email,password_hash('Original-Test-Password',PASSWORD_DEFAULT),'A01 Fixture '.$i,$roles[0],$roles[1],$roles[2]?gmdate('Y-m-d H:i:s'):null]);$users[]=(int)$pdo->lastInsertId();$cfg=PrivacyService::config();PrivacyService::recordConsent((int)$pdo->lastInsertId(),['accept_policies'=>'1','terms_version'=>$cfg['terms_version'],'privacy_version'=>$cfg['privacy_version']]);
     }
     $email=static fn(int $i):string=>'a01-'.$stamp.'-'.$i.'@example.invalid';
     [$sent,$mail]=$capture(static fn()=>AuthService::createPasswordResetForEmail($email(0)));
@@ -54,21 +56,21 @@ try{
     $reject(static fn()=>UserProfileService::requestFriend($users[3],$email(0)));
     [$sent,$mail]=$capture(static fn()=>AuthService::createInvitation('a01-invite-'.$stamp.'@example.invalid',$users[1]));
     $check($sent===['sent'=>true],'Account invitation returns status only');$inviteToken=$token($mail,'invite');
-    [$registered]=$capture(static fn()=>AuthService::register('a01-invite-'.$stamp.'@example.invalid','Invited Fixture','Invited-Test-Password',$inviteToken));$users[]=(int)$registered['user_id'];
+    [$registered]=$capture(static fn()=>$register('a01-invite-'.$stamp.'@example.invalid','Invited Fixture','Invited-Test-Password',$inviteToken));$users[]=(int)$registered['user_id'];
     $check(!empty($registered['email_verified_at_utc']),'Address-matched successfully emailed invitation verifies mailbox');
-    [$ordinary,$mail]=$capture(static fn()=>AuthService::register('a01-ordinary-'.$stamp.'@example.invalid','Ordinary Fixture','Ordinary-Test-Password'));$users[]=(int)$ordinary['user_id'];
+    [$ordinary,$mail]=$capture(static fn()=>$register('a01-ordinary-'.$stamp.'@example.invalid','Ordinary Fixture','Ordinary-Test-Password'));$users[]=(int)$ordinary['user_id'];
     $check(empty($ordinary['email_verified_at_utc']),'Ordinary registration remains unverified');$verifyToken=$token($mail,'token');
     AccountSecurityService::verifyEmail($verifyToken);AccountSecurityService::requireVerifiedEmail((int)$ordinary['user_id']);$check(true,'Emailed verification unlocks verified-only actions');
     $reject(static fn()=>AccountSecurityService::verifyEmail($verifyToken));
     // A pending invitation created before the migration/on-screen fallback has no delivery proof.
     $legacyToken=bin2hex(random_bytes(24));$pdo->prepare('INSERT INTO user_invitations(email,token_hash,invited_by_user_id,expires_at_utc) VALUES(?,?,?,DATE_ADD(UTC_TIMESTAMP(),INTERVAL 7 DAY))')->execute(['a01-legacy-'.$stamp.'@example.invalid',hash('sha256',$legacyToken),$users[1]]);
-    $reject(static fn()=>AuthService::register('a01-legacy-'.$stamp.'@example.invalid','Legacy Fixture','Legacy-Test-Password',$legacyToken));
+    $reject(static fn()=>$register('a01-legacy-'.$stamp.'@example.invalid','Legacy Fixture','Legacy-Test-Password',$legacyToken));
     // A game fixture is needed for the actual lobby mail response, not a simulated playthrough.
     foreach(['BehaviorService','CausalService','DynamicOpportunityService','CharacterAutomationService','StateSyncService','SimulationService'] as $service)require_once $root.'/app/'.$service.'.php';
     $sid=SimulationService::create('EMPTY_THRONE',300,[]);$pdo->prepare('INSERT INTO games(simulation_id,host_user_id,join_code,play_duration_seconds) VALUES(?,?,?,300)')->execute([$sid,$users[1],strtoupper(substr($stamp,0,8))]);$gid=(int)$pdo->lastInsertId();$pdo->prepare('INSERT INTO game_players(game_id,user_id) VALUES(?,?)')->execute([$gid,$users[1]]);
     [$sent,$mail]=$capture(static fn()=>AuthService::createGameInvitation('a01-game-'.$stamp.'@example.invalid',$gid,$users[1]));$check($sent===['sent'=>true],'Game invitation returns status only');$gameToken=$token($mail,'game_invite');
-    [$gameUser]=$capture(static fn()=>AuthService::register('a01-game-'.$stamp.'@example.invalid','Invited Game Fixture','Invited-Game-Password',null,$gameToken));$users[]=(int)$gameUser['user_id'];$check(!empty($gameUser['email_verified_at_utc'])&&(int)$gameUser['_game_id']===$gid,'Successfully emailed game invitation verifies matching address and joins lobby');
-    $reject(static fn()=>AuthService::register('a01-other-'.$stamp.'@example.invalid','Wrong Address','Wrong-Address-Password',null,$gameToken));
+    [$gameUser]=$capture(static fn()=>$register('a01-game-'.$stamp.'@example.invalid','Invited Game Fixture','Invited-Game-Password',null,$gameToken));$users[]=(int)$gameUser['user_id'];$check(!empty($gameUser['email_verified_at_utc'])&&(int)$gameUser['_game_id']===$gid,'Successfully emailed game invitation verifies matching address and joins lobby');
+    $reject(static fn()=>$register('a01-other-'.$stamp.'@example.invalid','Wrong Address','Wrong-Address-Password',null,$gameToken));
     // Verification is bound to the mailbox at issuance, not just a user id.
     [$result,$mail]=$capture(static fn()=>AccountSecurityService::requestVerification($users[3]));$staleVerify=$token($mail,'token');
     $pdo->prepare('UPDATE users SET email=? WHERE user_id=?')->execute(['a01-snapshot-'.$stamp.'@example.invalid',$users[3]]);
@@ -87,7 +89,7 @@ try{
     [$result,$mail]=$capture(static fn()=>AuthService::createPasswordResetForEmail($email(3)));$failedToken=$token($mail,'token');$reject(static fn()=>AuthService::resetPassword($failedToken,'Failed-Mail-Password'));
     [$result,$mail]=$capture(static fn()=>AuthService::createInvitation('a01-undelivered-'.$stamp.'@example.invalid',$users[1]));$undeliveredInvite=$token($mail,'invite');
     $_SERVER['REMOTE_ADDR']='2001:db8:1::'.substr($stamp,0,4);
-    $reject(static fn()=>AuthService::register('a01-undelivered-'.$stamp.'@example.invalid','Undelivered Fixture','Undelivered-Password',$undeliveredInvite));
+    $reject(static fn()=>$register('a01-undelivered-'.$stamp.'@example.invalid','Undelivered Fixture','Undelivered-Password',$undeliveredInvite));
     // HTTP regression checks render the real admin, profile and lobby response paths.
     $socket=stream_socket_server('tcp://127.0.0.1:0',$errno,$errstr);$address=stream_socket_get_name($socket,false);fclose($socket);
     $transport=escapeshellarg(PHP_BINARY).' '.escapeshellarg(__DIR__.'/fixtures/account_link_test_mail.php');
