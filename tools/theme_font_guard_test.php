@@ -2,7 +2,7 @@
 declare(strict_types=1);
 // Guard test: Adventure theme must offer plain Alegreya Sans (not only the
 // small-caps SC variant) in the Theme Manager, and play.php must load it
-// from Google Fonts. Static checks only; no database needed.
+// from the local font catalogue. Static checks only; no database needed.
 if (PHP_SAPI !== 'cli') {
     http_response_code(403);
     exit('CLI only.');
@@ -19,8 +19,10 @@ $check = function (bool $ok, string $label) use (&$failures) {
 
 $check(str_contains($admin, "'Adventure — Alegreya Sans'=>'Alegreya Sans, Arial, sans-serif'"), 'Theme Manager offers Adventure Alegreya Sans (plain, not SC)');
 $check(str_contains($admin, "'Adventure — Alegreya Sans SC'=>'Alegreya Sans SC, Arial, sans-serif'"), 'Theme Manager keeps the SC option');
-$check(str_contains($admin, 'family=Alegreya+Sans&'), 'Admin head loads Alegreya Sans from Google Fonts');
-$check(str_contains($play, "'Alegreya Sans',"), 'Play page Google Fonts list includes Alegreya Sans');
+$check(str_contains($admin, 'assets/fonts/fonts.css'), 'Admin loads local font catalogue');
+$check(str_contains($play, 'assets/fonts/fonts.css'), 'Play loads local font catalogue');
+$manifest=json_decode((string)file_get_contents($root.'/public/assets/fonts/manifest.json'),true);
+$check(in_array('Alegreya Sans',$manifest['families']??[],true),'Local catalogue includes plain Alegreya Sans');
 
 if ($failures) {
     fwrite(STDERR, 'FAILED: ' . implode('; ', $failures) . "\n");

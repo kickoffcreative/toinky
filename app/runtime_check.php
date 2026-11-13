@@ -3,6 +3,8 @@ if (defined('TOINKY_RUNTIME_CHECKED')) {
     return;
 }
 define('TOINKY_RUNTIME_CHECKED', true);
+require_once __DIR__.'/SecurityHeaders.php';
+SecurityHeaders::send();
 
 if (PHP_VERSION_ID < 80400) {
     http_response_code(500);

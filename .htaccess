@@ -4,6 +4,25 @@ Options -Indexes
 # public wrappers for cPanel compatibility. Keep those directories callable
 # by internal includes, but prevent direct HTTP access to them.
 RewriteEngine On
+# Redirect before private-path routing. Use the known site origin, never Host input.
+RewriteCond %{HTTPS} !=on
+RewriteRule ^ https://toinky.com%{REQUEST_URI} [R=308,L,NE]
+
+<IfModule mod_headers.c>
+    Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+    Header always set Permissions-Policy "camera=(), microphone=(), geolocation=()"
+    # Multiple CSP policies are enforced together. Keep PHP's nonce policy intact.
+    <FilesMatch "^(?!builder-preview\.php$).*">
+        Header always set X-Frame-Options "DENY"
+        Header always add Content-Security-Policy "frame-ancestors 'none'; base-uri 'self'; object-src 'none'; form-action 'self' https://checkout.stripe.com"
+    </FilesMatch>
+    <Files "builder-preview.php">
+        Header always set X-Frame-Options "SAMEORIGIN"
+        Header always add Content-Security-Policy "frame-ancestors 'self'; base-uri 'self'; object-src 'none'; form-action 'self' https://checkout.stripe.com"
+    </Files>
+</IfModule>
 # Keep stored parallax files private while serving their public URL namespace.
 RewriteRule ^uploads/parallax/(.*)$ public/uploads/parallax/$1 [END]
 # Route media-library paths through the database-backed visibility check.

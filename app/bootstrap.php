@@ -1,5 +1,7 @@
 <?php
 date_default_timezone_set('UTC');
+require_once __DIR__.'/SecurityHeaders.php';
+SecurityHeaders::send();
 
 function db(): PDO {
     static $pdo = null;

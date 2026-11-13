@@ -72,13 +72,13 @@
     }
 
     let previewTimer=null;
-    let renderDraftPreview=()=>q('#page-preview').contentWindow.location.reload();
+    let renderDraftPreview=()=>{const form=q('#preview-form');q('#preview-rows-payload').value='[]';form.requestSubmit?form.requestSubmit():form.submit();};
 
     q('#page-select').addEventListener('change',event=>{
         location.href='page-builder.php?page='+encodeURIComponent(event.target.value);
     });
     q('#preview-refresh').addEventListener('click',()=>renderDraftPreview(true));
-    q('#open-preview').addEventListener('click',()=>window.open(q('#page-preview').src,'_blank','noopener'));
+    q('#open-preview').addEventListener('click',()=>window.open('./?view='+encodeURIComponent(app.page==='HOME'?'public':String(app.page).toLowerCase()),'_blank','noopener'));
 
     // Scroll preview iframe to the selected section (no highlight for now)
     const scrollPreviewToSection=(path,attempt=0)=>{
@@ -99,7 +99,7 @@
         }
     };
 
-    if(app.hero)return;
+    if(app.hero){renderDraftPreview();return;}
 
     let rows=Array.isArray(app.rows)?app.rows:[];
 
@@ -458,7 +458,7 @@
     };
     const select=(name,title,value,options)=>{
         return '<label class="builder-field">'+escapeHtml(title)+
-            '<select data-field="'+escapeHtml(name)+'" onchange="window.toinkyPBSelectSync(this)">'+options.map(option=>
+            '<select data-field="'+escapeHtml(name)+'" data-pb-select-sync>'+options.map(option=>
             '<option value="'+escapeHtml(option[0])+'" '+
             (String(option[0])===String(value)?'selected':'')+'>'+
             escapeHtml(option[1])+'</option>').join('')+'</select></label>';
@@ -1403,6 +1403,7 @@ document.addEventListener('keydown',event=>{
     });
 
     props();
+    renderDraftPreview(true);
     const savedStructure=readStructurePopupState();
     if(savedStructure.open)openStructurePopup(q('#structure-open'),savedStructure);
 

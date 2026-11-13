@@ -11,6 +11,12 @@ function checkDeployment(bool $condition, string $message): void
 }
 
 $template = file_get_contents(dirname(__DIR__).'/.htaccess');
+checkDeployment(str_contains($template, 'RewriteCond %{HTTPS} !=on') && str_contains($template, 'https://toinky.com%{REQUEST_URI} [R=308,L,NE]'), 'Canonical HTTPS redirect missing.');
+checkDeployment(strpos($template, 'https://toinky.com') < strpos($template, '^uploads/'), 'HTTPS redirect must precede application routing.');
+foreach (['Strict-Transport-Security', 'X-Content-Type-Options', 'Referrer-Policy', 'Permissions-Policy', 'Content-Security-Policy'] as $header) {
+    checkDeployment(str_contains($template, 'Header always '.($header === 'Content-Security-Policy' ? 'add' : 'set').' '.$header), 'Missing Apache header: '.$header);
+}
+checkDeployment(str_contains($template, '<Files "builder-preview.php">') && str_contains($template, 'frame-ancestors \'self\''), 'Dedicated preview framing rule missing.');
 $handler = <<<'HANDLER'
 # php -- BEGIN cPanel-generated handler, do not edit
 # Keep the hosting provider's selected version and extensions.

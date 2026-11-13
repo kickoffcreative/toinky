@@ -1,0 +1,6 @@
+{
+    "version": "8.14.0",
+    "source": "https://cdn.jsdelivr.net/npm/pixi.js@8.14.0/dist/packages/unsafe-eval.min.js",
+    "sha256": "290a928fcb6514585c14fc910fe7ab8ae6388a964d84628e1fc3a9a3f24f78e9",
+    "license": "MIT"
+}
