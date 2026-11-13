@@ -2,28 +2,35 @@
 require_once __DIR__.'/AiEndpointPolicy.php';
 final class AiConnectionService
 {
-    public static function status(): array
+    public static function status(bool $fresh=false): array
     {
         $cfg=self::connectionConfig();$settings=class_exists('AiSettingsService')?AiSettingsService::settings():[];
         $provider=strtolower(trim((string)($settings['provider']??AiInteractionLogger::setting('provider','ollama'))));
         $model=trim((string)($settings['model']??AiInteractionLogger::setting('ollama_model','qwen3:8b')));
-        $cacheKey='toinky-ai-status-'.sha1('destination-policy-v1|'.$provider.'|'.$model.'|'.(string)($settings['endpoint']??$cfg['endpoint']??'').'|'.json_encode(AiEndpointPolicy::allowedHosts()));
-        if(function_exists('apcu_fetch')){$hit=false;$cached=apcu_fetch($cacheKey,$hit);if($hit&&is_array($cached))return$cached;}
-        $finish=static function(array$result)use($cacheKey):array{if(function_exists('apcu_store'))@apcu_store($cacheKey,$result,10);return$result;};
-        if($provider!=='ollama')return$finish(['online'=>false,'provider'=>$provider,'model'=>$model,'message'=>'AI service is not enabled.']);
+        $cacheKey='toinky-ai-status-'.sha1('destination-policy-v2|'.$provider.'|'.$model.'|'.(string)($settings['endpoint']??$cfg['endpoint']??'').'|'.json_encode(AiEndpointPolicy::allowedHosts()));
+        if(!$fresh&&function_exists('apcu_fetch')){$hit=false;$cached=apcu_fetch($cacheKey,$hit);if($hit&&is_array($cached))return$cached;}
+        $finish=static function(array $result)use($cacheKey,$provider,$model):array{$result+=['provider'=>$provider,'model'=>$model];if(function_exists('apcu_store'))@apcu_store($cacheKey,$result,10);return$result;};
+        if($provider!=='ollama')return$finish(['online'=>false,'message'=>'AI service is not enabled.','diagnostic_code'=>'PROVIDER_DISABLED']);
         $base=AiEndpointPolicy::configuredEndpoint((string)($settings['endpoint']??AiInteractionLogger::setting('ollama_endpoint','')));
-        if($base==='')return $finish(['online'=>false,'provider'=>'ollama','model'=>$model,'message'=>'AI service is not configured.']);
-        try{$target=AiEndpointPolicy::resolve($base);$secureOptions=AiEndpointPolicy::curlOptions($target);}catch(Throwable $e){Logger::warning('AI destination refused',['reason'=>$e->getMessage()]);return $finish(['online'=>false,'provider'=>'ollama','model'=>$model,'message'=>'AI service is not configured or unavailable.']);}
+        if($base==='')return$finish(['online'=>false,'message'=>'AI service is not configured.','diagnostic_code'=>'NOT_CONFIGURED']);
+        if(!function_exists('curl_init'))return$finish(['online'=>false,'message'=>'AI service is unavailable right now.','diagnostic_code'=>'CURL_UNAVAILABLE']);
+        try{$target=AiEndpointPolicy::resolve($base);$secureOptions=AiEndpointPolicy::curlOptions($target);}catch(Throwable $e){Logger::warning('AI destination refused',['reason'=>$e->getMessage()]);return$finish(['online'=>false,'message'=>'AI service is not configured or unavailable.','diagnostic_code'=>'DESTINATION_REFUSED']);}
         $headers=['Accept: application/json'];self::appendHeaders($headers,$cfg);
         $ch=curl_init($target['url'].'/api/tags');$options=[CURLOPT_RETURNTRANSFER=>true,CURLOPT_HTTPHEADER=>$headers,CURLOPT_CONNECTTIMEOUT=>2,CURLOPT_TIMEOUT=>6]+$secureOptions;
         $basicUser=self::value('GAME2_AI_BASIC_USER',$cfg,'basic_user');$basicPassword=self::value('GAME2_AI_BASIC_PASSWORD',$cfg,'basic_password');
-        if($basicUser!==''&&$basicPassword!==''){$options[CURLOPT_HTTPAUTH]=CURLAUTH_BASIC;$options[CURLOPT_USERPWD]=$basicUser.':'.$basicPassword;}
-        if(!curl_setopt_array($ch,$options)){curl_close($ch);Logger::warning('AI transport settings refused');return $finish(['online'=>false,'provider'=>'ollama','model'=>$model,'message'=>'AI service is unavailable right now.']);}$raw=(string)curl_exec($ch);$curlError=curl_error($ch);$status=(int)curl_getinfo($ch,CURLINFO_HTTP_CODE);curl_close($ch);
-        if($status<200||$status>=300||$raw===''){Logger::warning('AI status request failed',['http_status'=>$status,'error'=>$curlError]);return$finish(['online'=>false,'provider'=>'ollama','model'=>$model,'message'=>'AI service is unavailable right now.']);}
-        try{$decoded=json_decode($raw,true,512,JSON_THROW_ON_ERROR);}catch(Throwable $e){return$finish(['online'=>false,'provider'=>'ollama','model'=>$model,'message'=>'AI service returned an unreadable status response.']);}
-        $models=array_values(array_filter(array_map(static fn($row)=>trim((string)($row['name']??$row['model']??'')),(array)($decoded['models']??[]))));
+        $auth=['basic_auth_configured'=>$basicUser!==''&&$basicPassword!==''];
+        if($auth['basic_auth_configured']){$options[CURLOPT_HTTPAUTH]=CURLAUTH_BASIC;$options[CURLOPT_USERPWD]=$basicUser.':'.$basicPassword;}
+        if(!curl_setopt_array($ch,$options)){curl_close($ch);Logger::warning('AI transport settings refused');return$finish(['online'=>false,'message'=>'AI service is unavailable right now.','diagnostic_code'=>'TRANSPORT_SETUP']+$auth);}
+        $raw=(string)curl_exec($ch);$curlError=curl_error($ch);$curlErrno=curl_errno($ch);$status=(int)curl_getinfo($ch,CURLINFO_HTTP_CODE);curl_close($ch);
+        if($curlErrno!==0||$status<200||$status>=300||$raw===''){
+            Logger::warning('AI status request failed',['http_status'=>$status,'error'=>$curlError]);
+            return$finish(['online'=>false,'message'=>'AI service is unavailable right now.','diagnostic_code'=>$curlErrno!==0?'TRANSPORT_ERROR':($status<200||$status>=300?'HTTP_ERROR':'EMPTY_RESPONSE'),'http_status'=>$status,'curl_errno'=>$curlErrno]+$auth);
+        }
+        try{$decoded=json_decode($raw,true,512,JSON_THROW_ON_ERROR);}catch(Throwable $e){return$finish(['online'=>false,'message'=>'AI service returned an unreadable status response.','diagnostic_code'=>'INVALID_RESPONSE','http_status'=>$status]+$auth);}
+        if(!is_array($decoded)||!isset($decoded['models'])||!is_array($decoded['models']))return$finish(['online'=>false,'message'=>'AI service returned an unreadable status response.','diagnostic_code'=>'INVALID_RESPONSE','http_status'=>$status]+$auth);
+        $models=[];foreach($decoded['models'] as $row){if(!is_array($row))continue;$name=$row['name']??$row['model']??null;if(is_string($name)&&trim($name)!=='')$models[]=trim($name);}
         $available=$model===''||in_array($model,$models,true)||(bool)array_filter($models,static fn($name)=>str_starts_with($name,$model.':')||str_starts_with($model,$name.':'));
-        return$finish(['online'=>$available,'provider'=>'ollama','model'=>$model,'message'=>$available?'AI service is ready.':'Configured model is not available at the AI service.']);
+        return$finish(['online'=>$available,'message'=>$available?'AI service is ready.':'Configured model is not available at the AI service.','diagnostic_code'=>$available?'READY':'MODEL_UNAVAILABLE','http_status'=>$status]+$auth);
     }
 
     public static function completeJson(string $purpose,string $system,string $user): array
