@@ -78,6 +78,7 @@ function buildManifest(string $repoRoot): array
     $walk($repoRoot . '/tools', function (string $rel) use ($add) { $add('tools/' . $rel, 'tools/' . $rel); });
     $add('config/database.example.php', 'config/database.example.php');
     $add('config/ai-policy.php', 'config/ai-policy.php');
+    $add('config/privacy.php', 'config/privacy.php');
     return $manifest;
 }
 

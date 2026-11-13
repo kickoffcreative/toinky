@@ -18,7 +18,18 @@ record it with the date and the source (chat, doc, or commit).
 | 7 | AI Services | `AiReasoningContextService.php`, `AiInteractionLogger.php`, `AiSettingsService.php`, `AiConnectionService.php`, `OllamaStoryReasoner.php`, `DeterministicStoryReasoner.php`, `StoryReasoner.php`, `StoryReasonerFactory.php`, `InkyCowriterService.php`, `InkyGuideService.php`, `NarratorService.php` | `public/ai-settings.php`, `public/inky-*.php` | Randi (owner) |
 | 8 | Platform & Infrastructure | `bootstrap.php`, `Logger.php`, `MigrationService.php`, `runtime_check.php` | `.cpanel.yml`, `tools/migrate.php`, `tools/deploy_htaccess.php`, `config/` | Randi (owner) |
 
-## Rules
+## Privacy And Incident Contact
+
+November 13, 2026: the owner supplied **Toinky** as operator,
+**accounts@toinky.com** as privacy contact and **13** as minimum player age.
+Randi, the accountable owner/Super Admin, coordinates privacy requests and
+incident decisions with qualified advice. No substitute has been designated;
+mailbox monitoring and an incident deputy must be confirmed before activation.
+See [Privacy Requests](PRIVACY_REQUESTS.md), [Breach Response](BREACH_RESPONSE.md)
+and [A-06 Privacy Controls](A-06%20Privacy%20Controls.md). These assignments do
+not constitute counsel approval or a determination of corporate jurisdiction.
+
+## Engineering Rules
 
 - **One accountable role per system.** If a change touches two systems, the
   owner of the system whose tables/behaviour change most is the decider.

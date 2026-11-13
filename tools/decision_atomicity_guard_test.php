@@ -117,7 +117,7 @@ try{
     // is disabled this check is skipped — the atomicity then has no ledger
     // failure to trigger it.
     if(CommerceService::enabled()){
-        $u=$pdo->query('SELECT user_id FROM users WHERE is_admin=0 ORDER BY user_id LIMIT 1')->fetch();
+        $u=$pdo->query('SELECT user_id FROM users WHERE is_admin=0 AND status="ACTIVE" AND system_identity_key IS NULL AND email_verified_at_utc IS NOT NULL ORDER BY user_id LIMIT 1')->fetch();
         if($u){
             $uid=(int)$u['user_id'];
             // Drain this user's available occasions for the test by spending

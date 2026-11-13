@@ -24,7 +24,7 @@ final class PageContentService
         if($label===''||mb_strlen($label)>120)throw new RuntimeException('Enter a page name up to 120 characters.');
         $slug=strtolower(trim($slug));
         if(!preg_match('/^[a-z0-9]+(?:-[a-z0-9]+)*$/',$slug))throw new RuntimeException('Use a simple page address: lowercase letters, numbers, and hyphens.');
-        if(in_array($slug,['home','public','login','register','forgot','reset','story','buy'],true))throw new RuntimeException('That page address is reserved.');
+        if(in_array($slug,['home','public','login','register','forgot','reset','story','buy','privacy','terms','consent'],true))throw new RuntimeException('That page address is reserved.');
         $code=strtoupper(str_replace('-','_',$slug));
         $q=db()->prepare('SELECT 1 FROM site_pages WHERE page_code=?');
         $q->execute([$code]);

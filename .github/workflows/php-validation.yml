@@ -157,6 +157,7 @@ jobs:
           php tools/version_pinning_guard_test.php
           php tools/solo_advance_test.php
           php tools/secret_link_exposure_guard_test.php
+          php tools/privacy_guard_test.php
           php tools/rate_limit_guard_test.php
           php tools/bot_protection_guard_test.php
           php tools/ai_endpoint_guard_test.php
@@ -280,6 +281,7 @@ jobs:
           php tools/version_pinning_guard_test.php
           php tools/solo_advance_test.php
           php tools/secret_link_exposure_guard_test.php
+          php tools/privacy_guard_test.php
           php tools/rate_limit_guard_test.php
           php tools/bot_protection_guard_test.php
           php tools/ai_endpoint_guard_test.php

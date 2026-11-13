@@ -5,12 +5,12 @@ final class AiInteractionLogger
     {
         $json=json_encode($request,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
         if($json===false)$json='{}';
-        $pdo=db();
-        $q=$pdo->prepare('INSERT INTO ai_reasoner_interactions(simulation_id,character_id,decision_id,purpose,provider,model_name,endpoint,request_started_at_utc,request_bytes,prompt_chars,request_json) VALUES(?,?,?,?,?,?,?,UTC_TIMESTAMP(6),?,?,?)');
+        $pdo=db();$actor=(int)($meta['actor_user_id']??($_SESSION['user_id']??0));$actorQuery=$pdo->prepare('SELECT user_id FROM users WHERE user_id=? AND status="ACTIVE" AND system_identity_key IS NULL');$actorQuery->execute([$actor]);$actorId=$actorQuery->fetchColumn()?:null;
+        $q=$pdo->prepare('INSERT INTO ai_reasoner_interactions(simulation_id,character_id,decision_id,purpose,provider,model_name,endpoint,request_started_at_utc,request_bytes,prompt_chars,request_json,actor_user_id,actor_attribution_version) VALUES(?,?,?,?,?,?,?,UTC_TIMESTAMP(6),?,?,?,?,1)');
         $q->execute([
             $meta['simulation_id']??null,$meta['character_id']??null,$meta['decision_id']??null,
             $meta['purpose']??'NPC_OPTION_SELECTION',$provider,$model,self::safeEndpoint($endpoint),
-            strlen($json),(int)($meta['prompt_chars']??0),self::storeRaw()?$json:null,
+            strlen($json),(int)($meta['prompt_chars']??0),self::storeRaw()?$json:null,$actorId,
         ]);
         return (int)$pdo->lastInsertId();
     }

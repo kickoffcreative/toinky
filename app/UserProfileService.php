@@ -13,8 +13,11 @@ final class UserProfileService
         $size=(int)($file['size']??0);if($size<1||$size>5*1024*1024)throw new RuntimeException('Profile images must be 5 MB or smaller.');
         $tmp=(string)($file['tmp_name']??'');$info=@getimagesize($tmp);$mime=(string)($info['mime']??'');$width=(int)($info[0]??0);$height=(int)($info[1]??0);$extensions=['image/jpeg'=>'jpg','image/png'=>'png','image/webp'=>'webp'];if(!isset($extensions[$mime])||$width<1||$height<1)throw new RuntimeException('Upload a valid JPG, PNG, or WebP image.');
         $directory=dirname(__DIR__).'/public/uploads/profiles';if(!is_dir($directory)&&!mkdir($directory,0775,true)&&!is_dir($directory))throw new RuntimeException('The profile-image directory could not be created.');$filename='user-'.(int)$user['user_id'].'-'.bin2hex(random_bytes(8)).'.'.$extensions[$mime];$target=$directory.'/'.$filename;
-        self::storeSquare($tmp,$target,$mime,$width,$height);$path='public/uploads/profiles/'.$filename;$old=self::profile((int)$user['user_id'])['profile_image_path']??null;
-        db()->prepare('UPDATE users SET profile_image_path=? WHERE user_id=?')->execute([$path,$user['user_id']]);self::deleteProfileFile((string)$old);
+        $pdo=db();$pdo->beginTransaction();try{
+            $q=$pdo->prepare('SELECT profile_image_path FROM users WHERE user_id=? AND status="ACTIVE" AND system_identity_key IS NULL FOR UPDATE');$q->execute([$user['user_id']]);$row=$q->fetch();if(!$row)throw new RuntimeException('Your account is not available.');$old=$row['profile_image_path'];
+            self::storeSquare($tmp,$target,$mime,$width,$height);$path='public/uploads/profiles/'.$filename;
+            $pdo->prepare('UPDATE users SET profile_image_path=? WHERE user_id=?')->execute([$path,$user['user_id']]);$pdo->commit();
+        }catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();if(is_file($target))unlink($target);throw $e;}self::deleteProfileFile((string)$old);
     }
 
     public static function requestEmailChange(array $user,string $newEmail): array
@@ -28,7 +31,7 @@ final class UserProfileService
     public static function confirmEmailChange(int $userId,string $token): void
     {
         $pdo=db();$q=$pdo->prepare('SELECT * FROM user_email_change_tokens WHERE user_id=? AND token_hash=? AND delivered_at_utc IS NOT NULL AND verified_at_utc IS NULL AND expires_at_utc>UTC_TIMESTAMP()');$q->execute([$userId,hash('sha256',$token)]);$change=$q->fetch();if(!$change)throw new RuntimeException('This email verification link is invalid or expired.');$q=$pdo->prepare('SELECT 1 FROM users WHERE email=? AND user_id<>?');$q->execute([$change['new_email'],$userId]);if($q->fetchColumn())throw new RuntimeException('That email address is now in use by another account.');
-        $pdo->beginTransaction();try{$pdo->prepare('UPDATE users SET email=?,email_verified_at_utc=UTC_TIMESTAMP() WHERE user_id=?')->execute([$change['new_email'],$userId]);$pdo->prepare('UPDATE user_email_change_tokens SET verified_at_utc=UTC_TIMESTAMP() WHERE email_change_token_id=?')->execute([$change['email_change_token_id']]);$pdo->commit();}catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw$e;}
+        $pdo->beginTransaction();try{$oldEmailQuery=$pdo->prepare('SELECT email FROM users WHERE user_id=? FOR UPDATE');$oldEmailQuery->execute([$userId]);PrivacyService::rememberEmail($userId,(string)$oldEmailQuery->fetchColumn());$pdo->prepare('UPDATE user_email_history SET valid_until_utc=UTC_TIMESTAMP() WHERE user_id=? AND valid_until_utc IS NULL')->execute([$userId]);PrivacyService::rememberEmail($userId,(string)$change['new_email']);$pdo->prepare('UPDATE users SET email=?,email_verified_at_utc=UTC_TIMESTAMP() WHERE user_id=?')->execute([$change['new_email'],$userId]);$pdo->prepare('UPDATE user_email_change_tokens SET verified_at_utc=UTC_TIMESTAMP() WHERE email_change_token_id=?')->execute([$change['email_change_token_id']]);$pdo->commit();}catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw$e;}
     }
 
     public static function requestFriend(int $userId,string $email): void
