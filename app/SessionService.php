@@ -62,11 +62,12 @@ final class SessionService
         if((int)($_SESSION['user_id']??0)!==$id||session_status()!==PHP_SESSION_ACTIVE)return false;
         $q=db()->prepare('SELECT 1 FROM user_sessions s JOIN users u ON u.user_id=s.user_id WHERE s.session_hash=? AND s.user_id=? AND u.status="ACTIVE" AND u.system_identity_key IS NULL AND u.session_version=? AND s.revoked_at_utc IS NULL AND s.absolute_expires_at_utc>UTC_TIMESTAMP() AND s.password_confirmed_at_utc>DATE_SUB(UTC_TIMESTAMP(),INTERVAL 10 MINUTE)');$q->execute([self::hash(),$id,(int)($_SESSION['session_version']??0)]);return (bool)$q->fetchColumn();
     }
-    public static function confirmPassword(int $id,string $password): void
+    public static function confirmPassword(int $id,string $password): array
     {
         $user=AuthService::currentUser();if(!$user||(int)$user['user_id']!==$id)throw new UserFacingException('Sign in again before confirming your password.');
-        PrivacyService::confirmPassword($id,$password);
+        $verified=PrivacyService::confirmPassword($id,$password);
         db()->prepare('UPDATE user_sessions SET password_confirmed_at_utc=UTC_TIMESTAMP() WHERE session_hash=? AND user_id=? AND revoked_at_utc IS NULL')->execute([self::hash(),$id]);
+        return $verified;
     }
     public static function requireRecentPassword(int $id): void
     {

@@ -97,6 +97,7 @@ final class AccountSecurityService
         db()->prepare('UPDATE users SET password_hash=?,session_version=session_version+1 WHERE user_id=?')->execute([password_hash($password,PASSWORD_DEFAULT),$id]);
         db()->prepare('UPDATE password_reset_tokens SET used_at_utc=UTC_TIMESTAMP() WHERE user_id=? AND used_at_utc IS NULL')->execute([$id]);
         db()->prepare('UPDATE user_two_factor_codes SET used_at_utc=UTC_TIMESTAMP() WHERE user_id=? AND used_at_utc IS NULL')->execute([$id]);
+        db()->prepare('UPDATE user_email_change_tokens SET expires_at_utc=UTC_TIMESTAMP() WHERE user_id=? AND verified_at_utc IS NULL')->execute([$id]);
         SessionService::revokeAll($id,false);
     }
     private static function validatePassword(string $password): void
