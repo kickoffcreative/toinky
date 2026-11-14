@@ -100,7 +100,9 @@ try{
     $case=$make('disabled');$disabledEmail=(string)$scalar('SELECT email FROM users WHERE user_id=?',[$case]);$pdo->prepare('UPDATE users SET status="DISABLED" WHERE user_id=?')->execute([$case]);
     try{AuthService::login($disabledEmail,'incorrect');throw new LogicException('Incorrect password accepted');}catch(UserFacingException $e){$check($e->getMessage()==='Email or password is incorrect.','Disabled account is hidden before password proof');}
     try{AuthService::login($disabledEmail,'Local-Email-Guard-Only');throw new LogicException('Disabled account accepted');}catch(UserFacingException $e){$check(str_contains($e->getMessage(),'deactivated'),'Correct password permits deactivation notice');}
-    $check(!preg_match('/Warning:|Fatal error:|Uncaught /',(string)file_get_contents($dir.'/server.log')),'HTTP fixture logs have no PHP warnings or uncaught errors');
+    $serverLog=(string)file_get_contents($dir.'/server.log');
+    if(preg_match_all('/(?:Warning:|Fatal error:|Uncaught )[^\r\n]*/',$serverLog,$warnings))foreach(array_slice($warnings[0],0,5) as $warning)fwrite(STDERR,preg_replace('/[a-f0-9]{32,}|[\w.+-]+@[\w.-]+/i','[redacted]',substr($warning,0,500))."\n");
+    $check(!preg_match('/Warning:|Fatal error:|Uncaught /',$serverLog),'HTTP fixture logs have no PHP warnings or uncaught errors');
 }catch(Throwable $e){$failed=true;fwrite(STDERR,'FAIL: A-09 '.$e->getMessage()."\n".$e->getTraceAsString()."\n");}
 finally{
     if(is_resource($server)){proc_terminate($server);proc_close($server);}if($pdo->inTransaction())$pdo->rollBack();if(session_status()===PHP_SESSION_ACTIVE)session_write_close();
