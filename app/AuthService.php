@@ -275,9 +275,7 @@ final class AuthService
     }
     public static function baseUrl(): string
     {
-        $env=rtrim(trim((string)getenv('GAME2_BASE_URL')),'/');if($env!=='')return$env;
-        $secure=!empty($_SERVER['HTTPS'])&&$_SERVER['HTTPS']!=='off';$host=(string)($_SERVER['HTTP_HOST']??'localhost');$path=rtrim(str_replace('\\','/',dirname((string)($_SERVER['SCRIPT_NAME']??'/'))),'/');
-        return($secure?'https':'http').'://'.$host.($path==='/'?'':$path);
+        return AppUrlService::baseUrl();
     }
     public static function sendAccountMessage(string $to,string $subject,string $body,string $type='ACCOUNT',?int $senderId=null): bool
     {
@@ -315,7 +313,7 @@ final class AuthService
         $read=static function()use($socket):string{$response='';while(($line=fgets($socket,515))!==false){$response.=$line;if(strlen($line)>=4&&$line[3]===' ')break;}return$response;};
         $expect=static function(array$codes,string$step)use($read):string{$response=$read();$code=substr($response,0,3);if(!in_array($code,$codes,true))throw new RuntimeException('SMTP '.$step.' failed: '.trim($response));return$response;};
         $send=static function(string$command)use($socket):void{fwrite($socket,$command."\r\n");};
-        $expect(['220'],'greeting');$helo=(string)($_SERVER['SERVER_NAME']??'toinky.com');$send('EHLO '.$helo);$expect(['250'],'EHLO');
+        $expect(['220'],'greeting');$helo=(string)parse_url(AppUrlService::baseUrl(),PHP_URL_HOST);$send('EHLO '.$helo);$expect(['250'],'EHLO');
         if($port===587){$send('STARTTLS');$expect(['220'],'STARTTLS');if(!stream_socket_enable_crypto($socket,true,STREAM_CRYPTO_METHOD_TLS_CLIENT))throw new UserFacingException('SMTP TLS negotiation failed.');$send('EHLO '.$helo);$expect(['250'],'EHLO after STARTTLS');}
         $send('AUTH LOGIN');$expect(['334'],'AUTH LOGIN');$send(base64_encode($user));$expect(['334'],'SMTP username');$send(base64_encode($pass));$expect(['235'],'SMTP password');
         $send('MAIL FROM:<'.$from.'>');$expect(['250'],'MAIL FROM');$send('RCPT TO:<'.$to.'>');$expect(['250','251'],'RCPT TO');$send('DATA');$expect(['354'],'DATA');

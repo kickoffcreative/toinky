@@ -11,7 +11,7 @@ foreach(['app','public'] as $part)foreach(glob($source.'/'.$part.'/*.php')?:[] a
 foreach(['privacy.php','ai-policy.php'] as $file)copy($source.'/config/'.$file,$fixture.'/config/'.$file);
 symlink($source.'/database',$fixture.'/database');file_put_contents($fixture.'/test-marker','local');
 ini_set('session.save_path',$fixture.'/sessions');ini_set('error_log',$fixture.'/diagnostics.log');
-putenv('GAME2_PRIVACY_APPROVED=1');putenv('TOINKY_ACCOUNT_LINK_TEST_DIR='.$fixture);putenv('GAME2_SMTP_HOST=');putenv('GAME2_SMTP_USERNAME=');putenv('GAME2_SMTP_PASSWORD=');putenv('GAME2_BASE_URL=http://localhost');putenv('GAME2_AI_PROVIDER=deterministic');
+putenv('GAME2_PRIVACY_APPROVED=1');putenv('TOINKY_ACCOUNT_LINK_TEST_DIR='.$fixture);putenv('GAME2_SMTP_HOST=');putenv('GAME2_SMTP_USERNAME=');putenv('GAME2_SMTP_PASSWORD=');putenv('GAME2_BASE_URL=http://127.0.0.1');putenv('GAME2_AI_PROVIDER=deterministic');
 require $fixture.'/app/bootstrap.php';require $fixture.'/app/AuthService.php';require $fixture.'/app/MigrationService.php';
 $pdo=db();MigrationService::run();AuthService::boot();
 $users=[];$server=null;$checks=[];$failed=false;$stamp=bin2hex(random_bytes(6));$canary='SQL_CANARY_password_token_email_body_'.$stamp;

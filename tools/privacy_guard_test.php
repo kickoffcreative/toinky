@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 if(PHP_SAPI!=='cli'){http_response_code(404);exit;}
+putenv('GAME2_BASE_URL=http://127.0.0.1');
 $source=dirname(__DIR__);
 $databaseConfig=(string)getenv('GAME2_DATABASE_CONFIG');
 if($databaseConfig===''||!is_file($databaseConfig))throw new RuntimeException('Explicit isolated test database configuration required.');

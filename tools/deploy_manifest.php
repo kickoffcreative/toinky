@@ -79,6 +79,7 @@ function buildManifest(string $repoRoot): array
     $add('config/database.example.php', 'config/database.example.php');
     $add('config/ai-policy.php', 'config/ai-policy.php');
     $add('config/privacy.php', 'config/privacy.php');
+    $add('config/app.php', 'config/app.php');
     return $manifest;
 }
 

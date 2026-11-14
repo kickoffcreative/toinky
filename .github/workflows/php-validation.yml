@@ -161,6 +161,7 @@ jobs:
           php tools/public_error_guard_test.php
           php tools/session_security_guard_test.php
           php tools/email_privacy_guard_test.php
+          php tools/site_address_guard_test.php
           php tools/rate_limit_guard_test.php
           php tools/bot_protection_guard_test.php
           php tools/ai_endpoint_guard_test.php
@@ -288,6 +289,7 @@ jobs:
           php tools/public_error_guard_test.php
           php tools/session_security_guard_test.php
           php tools/email_privacy_guard_test.php
+          php tools/site_address_guard_test.php
           php tools/rate_limit_guard_test.php
           php tools/bot_protection_guard_test.php
           php tools/ai_endpoint_guard_test.php

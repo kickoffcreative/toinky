@@ -9,6 +9,7 @@ if(PHP_SAPI!=='cli')set_exception_handler('public_exception_response');
 date_default_timezone_set('UTC');
 require_once __DIR__.'/SecurityHeaders.php';
 SecurityHeaders::send();
+require_once __DIR__.'/AppUrlService.php';
 
 function db(): PDO {
     static $pdo = null;
@@ -35,6 +36,7 @@ function e($value): string { return htmlspecialchars((string)$value, ENT_QUOTES,
 // in every structured log line.
 $GLOBALS['toinky_correlation_id'] = bin2hex(random_bytes(8));
 function correlationId(): string { return (string)($GLOBALS['toinky_correlation_id'] ?? ''); }
+if(PHP_SAPI!=='cli')AppUrlService::guardHost();
 
 require_once __DIR__ . '/GenericStateService.php';
 require_once __DIR__ . '/SimulationContent.php';
