@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__.'/ServerSecretsService.php';
 final class StripeService
 {
     private const API_BASE = 'https://api.stripe.com/v1';
@@ -37,11 +38,13 @@ final class StripeService
     private static function setting(string $key): string
     {
         try {
+            if(in_array($key,['STRIPE_SECRET_KEY','STRIPE_WEBHOOK_SECRET'],true))return ServerSecretsService::get($key);
             $q = db()->prepare('SELECT setting_value FROM platform_settings WHERE setting_key=?');
             $q->execute([$key]);
             $v = $q->fetchColumn();
             return $v === false ? '' : trim((string)$v);
         } catch (Throwable $e) {
+            Logger::exception($e,'Payment configuration unavailable');
             return '';
         }
     }
@@ -76,7 +79,7 @@ final class StripeService
     private static function request(string $method, string $path, array $params, ?string $idempotencyKey): array
     {
         $secret = self::secretKey();
-        if ($secret === '') throw new RuntimeException('Stripe is not configured yet. Add the Stripe keys in Commerce settings.');
+        if ($secret === '') throw new RuntimeException('Payments are not configured in server credentials.');
         if (!function_exists('curl_init')) throw new RuntimeException('The server cannot reach Stripe (cURL is unavailable).');
         $ch = curl_init(self::API_BASE . $path);
         $headers = ['Authorization: Bearer ' . $secret, 'Stripe-Version: ' . self::API_VERSION];

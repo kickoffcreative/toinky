@@ -16,6 +16,16 @@ Production hosting, backups, mail routing and cron schedules are not verified.
 
 ## Current Storage And Proposed Handling
 
+A-12 overlay (November 14; deployment verification pending): known provider
+secret fields move out of platform_settings into an owner-only external file
+or environment. The AI configuration's values move outside the web root behind
+a loader. Admins see configured status and cannot edit secrets through web
+forms. Private versions preserve migration recovery; rotate provider credentials
+and restrict/expire obsolete copies through owner operations. Encrypted backup
+tools use an independent key and require a verified private off-server copy;
+no live backup/rotation/restore is claimed. Database configuration and the A-08
+key have distinct recovery requirements described in RECOVERY.md.
+
 A-09 overlay (migration 146; deployment verification pending): email-change
 records also bind the old address and hold a hashed recovery token, seven-day
 expiry, delivery time and consumption time. No plaintext token is stored or

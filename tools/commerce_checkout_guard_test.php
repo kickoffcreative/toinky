@@ -3,6 +3,8 @@ declare(strict_types=1);
 if(PHP_SAPI!=='cli'){http_response_code(403);exit('CLI only.');}
 
 $root=dirname(__DIR__);
+$savedSecretsFile=getenv('GAME2_SECRETS_FILE');$savedStripe=getenv('GAME2_STRIPE_SECRET_KEY');
+putenv('GAME2_SECRETS_FILE='.sys_get_temp_dir().'/absent-checkout-fixture-'.bin2hex(random_bytes(8)).'.php');putenv('GAME2_STRIPE_SECRET_KEY=');
 require_once $root.'/app/bootstrap.php';
 require_once $root.'/app/MigrationService.php';
 MigrationService::run();
@@ -28,14 +30,14 @@ try{
     $trio=CommerceService::bundle('trio');
     $check($trio!==null&&(int)$trio['occasions']===3&&(int)$trio['price_cents']===1200,'trio bundle resolves to 3 occasions at $12.00');
 
-    $set('STRIPE_SECRET_KEY',null);
+    putenv('GAME2_STRIPE_SECRET_KEY=');
     $check(!StripeService::configured(),'stripe reports unconfigured without a secret key');
     $before=$countPurchases();
     $threw=false;
     try{CommerceService::startPurchase($hostId,'trio');}catch(RuntimeException $e){$threw=true;}
     $check($threw&&$countPurchases()===$before,'startPurchase refuses cleanly when Stripe is not configured');
 
-    $set('STRIPE_SECRET_KEY','sk_test_invalid_key_for_guard_test');
+    putenv('GAME2_STRIPE_SECRET_KEY=rk_test_invalid_key_for_guard_test');
     $check(StripeService::configured()&&StripeService::mode()==='TEST','stripe detects test mode from the key prefix');
     $threw=false;
     try{CommerceService::startPurchase($hostId,'trio');}catch(RuntimeException $e){$threw=true;}
@@ -49,6 +51,7 @@ try{
 }finally{
     foreach($purchaseIds as $pid)$pdo->prepare('DELETE FROM host_purchases WHERE purchase_id=?')->execute([$pid]);
     foreach($saved as $k=>$v)$set($k,$v);
+    putenv($savedSecretsFile===false?'GAME2_SECRETS_FILE':'GAME2_SECRETS_FILE='.$savedSecretsFile);putenv($savedStripe===false?'GAME2_STRIPE_SECRET_KEY':'GAME2_STRIPE_SECRET_KEY='.$savedStripe);
 }
 if($failures)throw new RuntimeException('Commerce checkout guard test failed: '.implode('; ',$failures));
 echo "COMMERCE CHECKOUT GUARD TEST PASSED\n";

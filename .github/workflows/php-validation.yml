@@ -164,6 +164,8 @@ jobs:
           php tools/site_address_guard_test.php
           php tools/webroot_hardening_guard_test.php
           php tools/upload_image_access_guard_test.php
+          php tools/provider_secrets_guard_test.php
+          php tools/backup_stream_guard_test.php
           php tools/rate_limit_guard_test.php
           php tools/bot_protection_guard_test.php
           php tools/ai_endpoint_guard_test.php
@@ -294,6 +296,8 @@ jobs:
           php tools/site_address_guard_test.php
           php tools/webroot_hardening_guard_test.php
           php tools/upload_image_access_guard_test.php
+          php tools/provider_secrets_guard_test.php
+          php tools/backup_stream_guard_test.php
           php tools/rate_limit_guard_test.php
           php tools/bot_protection_guard_test.php
           php tools/ai_endpoint_guard_test.php
