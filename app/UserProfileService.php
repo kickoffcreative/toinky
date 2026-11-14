@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__.'/UserFacingException.php';
 require_once __DIR__.'/AuthService.php';
+require_once __DIR__.'/UploadPermissions.php';
 final class UserProfileService
 {
     public static function profile(int $userId): array
@@ -13,10 +14,10 @@ final class UserProfileService
         if(($file['error']??UPLOAD_ERR_NO_FILE)!==UPLOAD_ERR_OK)throw new UserFacingException('Choose a profile image.');
         $size=(int)($file['size']??0);if($size<1||$size>5*1024*1024)throw new UserFacingException('Profile images must be 5 MB or smaller.');
         $tmp=(string)($file['tmp_name']??'');$info=@getimagesize($tmp);$mime=(string)($info['mime']??'');$width=(int)($info[0]??0);$height=(int)($info[1]??0);$extensions=['image/jpeg'=>'jpg','image/png'=>'png','image/webp'=>'webp'];if(!isset($extensions[$mime])||$width<1||$height<1)throw new UserFacingException('Upload a valid JPG, PNG, or WebP image.');
-        $directory=dirname(__DIR__).'/public/uploads/profiles';if(!is_dir($directory)&&!mkdir($directory,0775,true)&&!is_dir($directory))throw new UserFacingException('The profile-image directory could not be created.');$filename='user-'.(int)$user['user_id'].'-'.bin2hex(random_bytes(8)).'.'.$extensions[$mime];$target=$directory.'/'.$filename;
+        $directory=dirname(__DIR__).'/public/uploads/profiles';UploadPermissions::directory($directory);$filename='user-'.(int)$user['user_id'].'-'.bin2hex(random_bytes(8)).'.'.$extensions[$mime];$target=$directory.'/'.$filename;
         $pdo=db();$pdo->beginTransaction();try{
             $q=$pdo->prepare('SELECT profile_image_path FROM users WHERE user_id=? AND status="ACTIVE" AND system_identity_key IS NULL FOR UPDATE');$q->execute([$user['user_id']]);$row=$q->fetch();if(!$row)throw new UserFacingException('Your account is not available.');$old=$row['profile_image_path'];
-            self::storeSquare($tmp,$target,$mime,$width,$height);$path='public/uploads/profiles/'.$filename;
+            self::storeSquare($tmp,$target,$mime,$width,$height);UploadPermissions::file($target);$path='public/uploads/profiles/'.$filename;
             $pdo->prepare('UPDATE users SET profile_image_path=? WHERE user_id=?')->execute([$path,$user['user_id']]);$pdo->commit();
         }catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();if(is_file($target))unlink($target);throw $e;}self::deleteProfileFile((string)$old);
     }

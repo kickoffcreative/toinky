@@ -1,5 +1,7 @@
 <?php
 declare(strict_types=1);
+if(PHP_SAPI!=='cli'){http_response_code(403);exit;}
+
 
 ini_set('display_errors','1');
 error_reporting(E_ALL);

@@ -6,7 +6,7 @@ require_once __DIR__.'/ConsequencePropagationService.php';
 require_once __DIR__.'/DynamicOpportunityService.php';
 require_once __DIR__.'/StateSyncService.php';
 require_once __DIR__.'/SimulationService.php';
-require_once __DIR__.'/../tools/SimulationHarness.php';
+require_once __DIR__.'/SimulationHarness.php';
 require_once __DIR__.'/FocusedOpportunitySimulationService.php';
 
 final class StorySimulationBatchService

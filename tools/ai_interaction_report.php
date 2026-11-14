@@ -1,4 +1,6 @@
 <?php
+
+if(PHP_SAPI!=='cli'){http_response_code(403);exit;}
 $root=dirname(__DIR__);require_once $root.'/app/bootstrap.php';
 $id=(int)($argv[1]??0);$includeResponse=in_array('--response',$argv,true);if($id<=0){fwrite(STDERR,"Usage: php tools/ai_interaction_report.php <interaction_id> [--response]\n");exit(2);}
 $q=db()->prepare('SELECT * FROM ai_reasoner_interactions WHERE ai_interaction_id=?');$q->execute([$id]);$r=$q->fetch();if(!$r){fwrite(STDERR,"AI interaction not found.\n");exit(1);} 
