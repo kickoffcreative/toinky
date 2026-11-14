@@ -36,3 +36,4 @@ deployment:
     - /opt/cpanel/ea-php84/root/usr/bin/php $DEPLOYPATH/tools/migrate.php
     # Generate once outside the deploy tree; preserve existing key across deploys/rollbacks.
     - /opt/cpanel/ea-php84/root/usr/bin/php $DEPLOYPATH/tools/create_security_key.php
+    - /opt/cpanel/ea-php84/root/usr/bin/php $DEPLOYPATH/tools/migrate_provider_secrets.php --apply

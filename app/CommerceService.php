@@ -44,6 +44,8 @@ final class CommerceService
 
     public static function saveSettings(int $adminId, array $input): void
     {
+        if(array_key_exists('stripe_secret_key',$input)||array_key_exists('stripe_webhook_secret',$input))throw new UserFacingException('Provider credentials are managed in secure server configuration.');
+        $publishable=trim((string)($input['stripe_publishable_key']??''));if($publishable!==''&&!preg_match('/^pk_(?:test|live)_[A-Za-z0-9_]+$/D',$publishable))throw new UserFacingException('Enter a Stripe publishable key beginning pk_test_ or pk_live_. Keep secret credentials in server configuration.');
         if(PHP_SAPI!=='cli')SessionService::requireRecentPassword($adminId);
         $current = self::settings();
         $bundles = [];
@@ -61,8 +63,6 @@ final class CommerceService
             'COMMERCE_BUNDLES' => json_encode(['currency' => $current['currency'], 'bundles' => $bundles], JSON_UNESCAPED_SLASHES),
         ];
         $values['STRIPE_PUBLISHABLE_KEY'] = trim((string)($input['stripe_publishable_key'] ?? ''));
-        if (trim((string)($input['stripe_secret_key'] ?? '')) !== '') $values['STRIPE_SECRET_KEY'] = trim((string)$input['stripe_secret_key']);
-        if (trim((string)($input['stripe_webhook_secret'] ?? '')) !== '') $values['STRIPE_WEBHOOK_SECRET'] = trim((string)$input['stripe_webhook_secret']);
         $q = db()->prepare('INSERT INTO platform_settings(setting_key,setting_value,updated_by_user_id) VALUES(?,?,?) ON DUPLICATE KEY UPDATE setting_value=VALUES(setting_value),updated_by_user_id=VALUES(updated_by_user_id)');
         foreach ($values as $k => $v) $q->execute([$k, $v, $adminId]);
     }
@@ -190,7 +190,7 @@ public static function adminAdjust(int $adminId, int $userId, int $occasions, st
         if (!self::enabled()) throw new UserFacingException('Purchases are not open yet.');
         $bundle = self::bundle($bundleKey);
         if ($bundle === null) throw new UserFacingException('That bundle is not available.');
-        if (!StripeService::configured()) throw new UserFacingException('Stripe is not configured yet. Add the Stripe keys in Commerce settings.');
+        if (!StripeService::configured()) throw new UserFacingException('Payments are not configured yet. Contact the account owner.');
         $settings = self::settings();
         $pdo = db();
         $pdo->prepare("INSERT INTO host_purchases(user_id,bundle_key,occasions_granted,amount_cents,currency,status) VALUES(?,?,?,?,?,'PENDING')")->execute([$userId, $bundle['key'], $bundle['occasions'], $bundle['price_cents'], $settings['currency']]);
