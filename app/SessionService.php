@@ -22,7 +22,7 @@ final class SessionService
         $now=time();$limits=self::limits($user);$passwordAt??=$now;
         if($passwordAt>$now||$passwordAt<$now-600)throw new UserFacingException('Your sign-in session expired. Sign in again.');
         $agent=mb_strcut(mb_convert_encoding((string)($_SERVER['HTTP_USER_AGENT']??''),'UTF-8','UTF-8'),0,190,'UTF-8');$agent=(string)preg_replace('/[\x00-\x1f\x7f]/','',$agent);
-        db()->prepare('INSERT INTO user_sessions(session_hash,user_id,absolute_expires_at_utc,mfa_verified_at_utc,password_confirmed_at_utc,user_agent) VALUES(?,?,?,?,?,?)')->execute([self::hash(),$id,gmdate('Y-m-d H:i:s',$now+$limits['absolute']),$mfa?gmdate('Y-m-d H:i:s',$now):null,gmdate('Y-m-d H:i:s',$passwordAt),$agent]);
+        db()->prepare('INSERT INTO user_sessions(session_hash,user_id,created_at_utc,last_seen_at_utc,absolute_expires_at_utc,mfa_verified_at_utc,password_confirmed_at_utc,user_agent) VALUES(?,?,UTC_TIMESTAMP(),UTC_TIMESTAMP(),?,?,?,?)')->execute([self::hash(),$id,gmdate('Y-m-d H:i:s',$now+$limits['absolute']),$mfa?gmdate('Y-m-d H:i:s',$now):null,gmdate('Y-m-d H:i:s',$passwordAt),$agent]);
     }
     public static function valid(array $user): bool
     {
