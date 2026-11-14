@@ -162,6 +162,8 @@ jobs:
           php tools/session_security_guard_test.php
           php tools/email_privacy_guard_test.php
           php tools/site_address_guard_test.php
+          php tools/webroot_hardening_guard_test.php
+          php tools/upload_image_access_guard_test.php
           php tools/rate_limit_guard_test.php
           php tools/bot_protection_guard_test.php
           php tools/ai_endpoint_guard_test.php
@@ -290,6 +292,8 @@ jobs:
           php tools/session_security_guard_test.php
           php tools/email_privacy_guard_test.php
           php tools/site_address_guard_test.php
+          php tools/webroot_hardening_guard_test.php
+          php tools/upload_image_access_guard_test.php
           php tools/rate_limit_guard_test.php
           php tools/bot_protection_guard_test.php
           php tools/ai_endpoint_guard_test.php
@@ -322,3 +326,17 @@ jobs:
           GAME2_TEST_DB_USER: game2
           GAME2_TEST_DB_PASSWORD: game2
         run: php tools/install_smoke_test.php
+
+  apache-upload-security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build Apache With Active PHP Handler
+        run: docker build -f tools/fixtures/apache-upload.Dockerfile -t toinky-apache-fixture .
+      - name: Verify Private Paths And Upload Execution Restrictions
+        run: |
+          docker run -d --name toinky-apache-fixture toinky-apache-fixture
+          docker exec toinky-apache-fixture php /tmp/guard.php http://127.0.0.1
+      - name: Remove Disposable Apache Fixture
+        if: always()
+        run: docker rm -f toinky-apache-fixture 2>/dev/null || true

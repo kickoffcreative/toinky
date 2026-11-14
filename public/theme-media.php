@@ -12,7 +12,16 @@ $path=trim((string)($_GET['path']??''));
 $version=strtoupper(trim((string)($_GET['version']??'')));
 if($mediaId<1&&$path===''){http_response_code(404);exit;}
 
-if($mediaId>0){
+$privatePhoto=false;
+if($mediaId<1&&str_starts_with($path,'public/uploads/profiles/')){
+    if($viewerId<1){http_response_code(404);exit;}
+    $privatePhoto=true;
+    $q=db()->prepare('SELECT 0 media_id,profile_image_path file_path,NULL thumbnail_path,NULL mime_type FROM users WHERE profile_image_path=? AND status="ACTIVE" AND system_identity_key IS NULL');$q->execute([$path]);
+}elseif($mediaId<1&&str_starts_with($path,'public/uploads/parallax/')){
+    $q=db()->prepare('SELECT 0 media_id,image_path file_path,NULL thumbnail_path,mime_type FROM site_parallax_layers WHERE image_path=?');$q->execute([$path]);
+}elseif($mediaId<1&&str_starts_with($path,'public/uploads/story-media/')){
+    $q=db()->prepare('SELECT 0 media_id,m.file_path,NULL thumbnail_path,NULL mime_type,p.status plot_status FROM plot_media_assets m JOIN plots p ON p.plot_id=m.plot_id WHERE m.file_path=? AND m.active=1 AND (p.status="active" OR p.author_user_id=? OR ?=1)');$q->execute([$path,$viewerId,$viewerIsAdmin?1:0]);
+}elseif($mediaId>0){
     $q=db()->prepare("SELECT m.media_id,m.file_path,m.thumbnail_path,m.mime_type FROM writer_media_assets m WHERE m.media_id=? AND m.active=1 AND m.mime_type IN ('image/jpeg','image/png','image/webp') AND (m.media_type IN ('BACKGROUND','DIVIDER','CARD','PARALLAX') OR m.uploaded_by_user_id=? OR ?=1 OR EXISTS(SELECT 1 FROM site_page_sections s JOIN site_pages p ON p.site_page_id=s.site_page_id AND p.active=1 WHERE s.active=1 AND (s.image_media_id=m.media_id OR s.background_media_id=m.media_id OR s.rows_json LIKE CONCAT('%\"image_media_id\":',m.media_id,'%') OR s.rows_json LIKE CONCAT('%\"background_media_id\":',m.media_id,'%') OR s.rows_json LIKE CONCAT('%\"column_background_media_id\":',m.media_id,'%') OR s.rows_json LIKE CONCAT('%\"image_media_id\": ',m.media_id,'%') OR s.rows_json LIKE CONCAT('%\"background_media_id\": ',m.media_id,'%') OR s.rows_json LIKE CONCAT('%\"column_background_media_id\": ',m.media_id,'%'))))");
     $q->execute([$mediaId,$viewerId,$viewerIsAdmin?1:0]);
 }else{
@@ -21,9 +30,10 @@ if($mediaId>0){
 }
 $media=$q->fetch();
 if(!$media){http_response_code(404);exit;}
+if(isset($media['plot_status'])&&$media['plot_status']!=='active')$privatePhoto=true;
 
 $servedPath=(string)($mediaId>0?$media['file_path']:$path);
-$servedMime=(string)$media['mime_type'];
+$servedMime=(string)($media['mime_type']??'');
 $versionMediaId=(int)($media['media_id']??0);if($versionMediaId>0&&in_array($version,['THUMBNAIL','MEDIUM','LARGE'],true)){
     try{
         $q=db()->prepare('SELECT file_path,mime_type FROM writer_media_versions WHERE media_id=? AND version_code=?');
@@ -44,10 +54,10 @@ if($file&&is_file($file)){
 }
 if(!$allowed){http_response_code(404);exit;}
 
-$mime=$servedMime;
-if(!in_array($mime,['image/jpeg','image/png','image/webp'],true)){$mime='application/octet-stream';}
+$info=@getimagesize($file);$mime=(string)($info['mime']??'');
+if(!preg_match('/\.(?:jpe?g|png|webp)$/i',$file)||!in_array($mime,['image/jpeg','image/png','image/webp'],true)){http_response_code(404);exit;}
 header('Content-Type: '.$mime);
 header('Content-Length: '.filesize($file));
-header('Cache-Control: public, max-age=3600');
+header($privatePhoto?'Cache-Control: no-store':'Cache-Control: public, max-age=3600');
 header('X-Content-Type-Options: nosniff');
 readfile($file);

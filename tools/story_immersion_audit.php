@@ -1,4 +1,6 @@
 <?php
+
+if(PHP_SAPI!=='cli'){http_response_code(403);exit;}
 ini_set('display_errors','1');error_reporting(E_ALL);
 try{
 require_once __DIR__.'/../app/bootstrap.php';require_once __DIR__.'/../app/MigrationService.php';MigrationService::run();require_once __DIR__.'/../app/StoryAuthoringService.php';

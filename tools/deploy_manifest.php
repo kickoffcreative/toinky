@@ -49,6 +49,7 @@ function buildManifest(string $repoRoot): array
 {
     $manifest = [];
     $add = function (string $repoPath, string $deployRel) use (&$manifest, $repoRoot) {
+        if($repoPath==='install.php'||preg_match('~(?:^|/)[^/]*(?:_test\.php|_smoke\.php|\.example(?:\.php)?|\.test\.yml)$~',$repoPath)||str_starts_with($repoPath,'tools/fixtures/'))return;
         $full = $repoRoot . '/' . $repoPath;
         if (!is_file($full)) return;
         $hash = hash_file('sha256', $full);
@@ -75,8 +76,8 @@ function buildManifest(string $repoRoot): array
         }
     });
     $walk($repoRoot . '/database', function (string $rel) use ($add) { $add('database/' . $rel, 'database/' . $rel); });
-    $walk($repoRoot . '/tools', function (string $rel) use ($add) { $add('tools/' . $rel, 'tools/' . $rel); });
-    $add('config/database.example.php', 'config/database.example.php');
+    $walk($repoRoot . '/tools', function (string $rel) use ($add) { if(str_ends_with($rel,'.php')||$rel==='.htaccess')$add('tools/' . $rel, 'tools/' . $rel); });
+    $add('config/.htaccess', 'config/.htaccess');
     $add('config/ai-policy.php', 'config/ai-policy.php');
     $add('config/privacy.php', 'config/privacy.php');
     $add('config/app.php', 'config/app.php');
@@ -98,6 +99,8 @@ function staleCandidates(string $deployRoot): array
             $found[] = substr($file->getPathname(), strlen($deployRoot) + 1);
         }
     }
+    foreach(glob($deployRoot.'/config/*')?:[] as $file)if(is_file($file)&&preg_match('/\.example(?:\.php)?$/',basename($file)))$found[]=substr($file,strlen($deployRoot)+1);
+    if(is_file($deployRoot.'/docker-compose.test.yml'))$found[]='docker-compose.test.yml';
     foreach (glob($deployRoot . '/*.php') as $file) {
         $found[] = basename($file);
     }
@@ -133,6 +136,7 @@ function runManifest(string $repoRoot, string $deployRoot, bool $apply): array
     return ['expected' => count($manifest), 'missing' => $missing, 'mismatched' => $mismatched, 'stale' => $stale, 'deleted' => $deleted];
 }
 
+if(realpath((string)($_SERVER['SCRIPT_FILENAME']??''))!==__FILE__)return;
 $deployRoot = $argv[1] ?? '';
 $apply = in_array('--apply', array_slice($argv, 2), true);
 if ($deployRoot === '') {

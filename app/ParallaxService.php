@@ -12,6 +12,7 @@ final class ParallaxService
         foreach($layers as&$layer){
             $path=(string)$layer['image_path'];
             if((int)($layer['media_id']??0)>0)$layer['image_path']='theme-media.php?id='.(int)$layer['media_id'];
+            elseif(str_starts_with($path,'public/uploads/')||str_starts_with($path,'uploads/parallax/'))$layer['image_path']=upload_image_url($path);
             elseif(str_starts_with($path,'public/')&&!str_starts_with($path,'public/uploads/'))$layer['image_path']=substr($path,7);
         }
         unset($layer);

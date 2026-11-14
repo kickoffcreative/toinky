@@ -1,4 +1,5 @@
 <?php
+if(PHP_SAPI!=='cli'){require_once __DIR__.'/app/SecurityHeaders.php';SecurityHeaders::send();header('Cache-Control: no-store');http_response_code(404);exit;}
 require __DIR__ . '/app/runtime_check.php';
 ini_set('display_errors','0');
 ini_set('log_errors','1');
@@ -159,9 +160,9 @@ body{font-family:Inter,system-ui,sans-serif;background:#f3f4f6;color:#111827;mar
 <label for="db_port">Database Port</label>
 <input id="db_port" name="db_port" value="<?=h((string)($_POST['db_port'] ?? '3306'))?>" required>
 <label for="db_name">Database Name</label>
-<input id="db_name" name="db_name" value="<?=h((string)($_POST['db_name'] ?? 'sixpillarsadmin_game2'))?>" required>
+<input id="db_name" name="db_name" value="<?=h((string)($_POST['db_name'] ?? ''))?>" required>
 <label for="db_user">Database Username</label>
-<input id="db_user" name="db_user" value="<?=h((string)($_POST['db_user'] ?? 'sixpillarsadmin_game2'))?>" required>
+<input id="db_user" name="db_user" value="<?=h((string)($_POST['db_user'] ?? ''))?>" required>
 <label for="db_password">Database Password</label>
 <input id="db_password" name="db_password" type="password" required>
 <button type="submit">Install Toinky</button>

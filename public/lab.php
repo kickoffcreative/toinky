@@ -10,7 +10,7 @@ require_once $root.'/app/DynamicOpportunityService.php';
 require_once $root.'/app/CharacterAutomationService.php';
 require_once $root.'/app/StateSyncService.php';
 require_once $root.'/app/SimulationService.php';
-require_once $root.'/tools/SimulationHarness.php';
+require_once $root.'/app/SimulationHarness.php';
 
 $action=$_POST['action']??null;$sid=(int)($_GET['simulation']??($_POST['simulation_id']??0));
 // Task 2: per-simulation advisory lock serializes concurrent Lab requests

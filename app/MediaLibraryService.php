@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__.'/UserFacingException.php';
+require_once __DIR__.'/UploadPermissions.php';
 final class MediaLibraryService
 {
     public const TYPES=['BACKGROUND','DIVIDER','CARD','PRIMARY','CHARACTER','OPENING','SCENE','TURNING_POINT','OUTCOME','ENDING','PARALLAX','OTHER'];
@@ -87,7 +88,7 @@ final class MediaLibraryService
         if($width*$height>80000000)throw new UserFacingException('The source image has too many pixels to process safely.');
         $type=strtoupper(trim((string)($fields['media_type']??'OTHER')));if(!in_array($type,self::TYPES,true))throw new UserFacingException('Choose a valid media type.');
         $title=trim((string)($fields['title_text']??''));$alt=trim((string)($fields['alt_text']??''));if($title===''||$alt==='')throw new UserFacingException('Title and alternative text are required.');
-        $directory=dirname(__DIR__).'/public/uploads/media-library/'.(int)$user['user_id'];if(!is_dir($directory)&&!mkdir($directory,0775,true)&&!is_dir($directory))throw new UserFacingException('The media directory could not be created.');
+        $directory=dirname(__DIR__).'/public/uploads/media-library/'.(int)$user['user_id'];UploadPermissions::directory($directory);
         $basename=strtolower($type).'-'.bin2hex(random_bytes(12));$filename=$basename.'.'.$extensions[$mime];$target=$directory.'/'.$filename;$path='public/uploads/media-library/'.(int)$user['user_id'].'/'.$filename;
         $created=[];$mediaId=0;
         try{
@@ -260,7 +261,7 @@ final class MediaLibraryService
     private static function storeResized(string $source,string $target,string $mime,int $width,int $height,int $maxPx,array $settings): array
     {
         [$newWidth,$newHeight]=self::scaledDimensions($width,$height,$maxPx,'LONGEST');
-        if($newWidth===$width&&$newHeight===$height){if(!move_uploaded_file($source,$target)&&!rename($source,$target))throw new UserFacingException('The image could not be saved.');return[$width,$height];}
+        if($newWidth===$width&&$newHeight===$height){if(!move_uploaded_file($source,$target)&&!rename($source,$target))throw new UserFacingException('The image could not be saved.');UploadPermissions::file($target);return[$width,$height];}
         self::writeScaled($source,$target,$mime,$width,$height,$newWidth,$newHeight,$settings);return[$newWidth,$newHeight];
     }
 
@@ -277,7 +278,7 @@ final class MediaLibraryService
         if($mime!=='image/jpeg'){imagealphablending($dst,false);imagesavealpha($dst,true);$transparent=imagecolorallocatealpha($dst,0,0,0,127);imagefilledrectangle($dst,0,0,$targetWidth,$targetHeight,$transparent);}
         imagecopyresampled($dst,$src,0,0,$x,$y,$targetWidth,$targetHeight,$cropWidth,$cropHeight);
         $ok=$mime==='image/png'?$save($dst,$target,$settings['png_compression']):$save($dst,$target,$settings['jpeg_quality']);
-        imagedestroy($src);imagedestroy($dst);if(!$ok)throw new UserFacingException('The processed image could not be saved.');
+        imagedestroy($src);imagedestroy($dst);if(!$ok)throw new UserFacingException('The processed image could not be saved.');UploadPermissions::file($target);
     }
 
     private static function createThumbnail(string $source,string $target,string $mime,int $width,int $height,int $x,int $y,int $size,int $targetSize,array $settings): void

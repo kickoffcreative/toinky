@@ -1,4 +1,6 @@
 <?php
+
+if(PHP_SAPI!=='cli'){http_response_code(403);exit;}
 $root=dirname(__DIR__);require_once $root.'/app/bootstrap.php';
 $context=['purpose'=>'CONNECTIVITY_PROBE','name'=>'Prince Rowan Vale','goal'=>'Be crowned before the court can challenge his claim.','fear'=>'The abdication letter becoming authoritative.','location'=>'Council Chamber','stats'=>['AMBITION'=>94,'PRIDE'=>86],'knowledge'=>[['key'=>'ABDICATION','text'=>'You signed an abdication letter months ago and later tried to withdraw it.','confidence'=>100]],'world'=>['CROWN_HOLDER'=>'NONE','ROWAN_CLAIM'=>'DISPUTED','ELIAN_CLAIM'=>'ACTIVE','LETTER_STATUS'=>'VERIFIED','LETTER_HOLDER'=>'TOMAS'],'factors'=>['COURT_TRUST'=>52,'LEGITIMACY'=>48,'STABILITY'=>68,'UNREST'=>35]];
 $options=[

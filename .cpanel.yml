@@ -3,8 +3,8 @@ deployment:
   tasks:
     - export DEPLOYPATH=/home/toinkyadmin/public_html/
     - /opt/cpanel/ea-php84/root/usr/bin/php tools/deploy_htaccess.php $DEPLOYPATH
-    - /bin/cp -f index.php builder-preview.php page-builder.php media.php install.php admin.php ai-settings.php lab.php lobby.php lobby-state.php play.php writer.php profile.php inky-status.php inky-preferences.php inky-action.php inky-starter.php inky-draft-dependencies.php theme-media.php brand-fonts.php captcha-image.php stripe-webhook.php $DEPLOYPATH
-    - /bin/chmod 0644 $DEPLOYPATH/index.php $DEPLOYPATH/builder-preview.php $DEPLOYPATH/page-builder.php $DEPLOYPATH/media.php $DEPLOYPATH/install.php $DEPLOYPATH/admin.php $DEPLOYPATH/ai-settings.php $DEPLOYPATH/lab.php $DEPLOYPATH/lobby.php $DEPLOYPATH/lobby-state.php $DEPLOYPATH/play.php $DEPLOYPATH/profile.php $DEPLOYPATH/inky-status.php $DEPLOYPATH/inky-preferences.php $DEPLOYPATH/inky-action.php $DEPLOYPATH/inky-starter.php $DEPLOYPATH/inky-draft-dependencies.php $DEPLOYPATH/theme-media.php $DEPLOYPATH/brand-fonts.php $DEPLOYPATH/captcha-image.php $DEPLOYPATH/stripe-webhook.php
+    - /bin/cp -f index.php builder-preview.php page-builder.php media.php admin.php ai-settings.php lab.php lobby.php lobby-state.php play.php writer.php profile.php inky-status.php inky-preferences.php inky-action.php inky-starter.php inky-draft-dependencies.php theme-media.php brand-fonts.php captcha-image.php stripe-webhook.php $DEPLOYPATH
+    - /bin/chmod 0644 $DEPLOYPATH/index.php $DEPLOYPATH/builder-preview.php $DEPLOYPATH/page-builder.php $DEPLOYPATH/media.php $DEPLOYPATH/admin.php $DEPLOYPATH/ai-settings.php $DEPLOYPATH/lab.php $DEPLOYPATH/lobby.php $DEPLOYPATH/lobby-state.php $DEPLOYPATH/play.php $DEPLOYPATH/profile.php $DEPLOYPATH/inky-status.php $DEPLOYPATH/inky-preferences.php $DEPLOYPATH/inky-action.php $DEPLOYPATH/inky-starter.php $DEPLOYPATH/inky-draft-dependencies.php $DEPLOYPATH/theme-media.php $DEPLOYPATH/brand-fonts.php $DEPLOYPATH/captcha-image.php $DEPLOYPATH/stripe-webhook.php
     - /bin/cp -Rf app $DEPLOYPATH
     - /bin/cp -Rf public $DEPLOYPATH
     # The wholesale public/ copy above also copies public/assets/ into a
@@ -21,9 +21,10 @@ deployment:
     - /bin/rm -f $DEPLOYPATH/assets/inky/lantern/rig/body_blank.png $DEPLOYPATH/assets/inky/lantern/rig/broken_halo.png $DEPLOYPATH/assets/inky/lantern/rig/cape_left.png $DEPLOYPATH/assets/inky/lantern/rig/cape_right.png $DEPLOYPATH/assets/inky/lantern/rig/eye_left.png $DEPLOYPATH/assets/inky/lantern/rig/eye_right.png $DEPLOYPATH/assets/inky/lantern/rig/halo.png $DEPLOYPATH/assets/inky/lantern/rig/inner_glow.png $DEPLOYPATH/assets/inky/lantern/rig/lid_left.png $DEPLOYPATH/assets/inky/lantern/rig/lid_right.png $DEPLOYPATH/assets/inky/lantern/rig/mouth_o.png $DEPLOYPATH/assets/inky/lantern/rig/mouth_open.png $DEPLOYPATH/assets/inky/lantern/rig/mouth_smile.png $DEPLOYPATH/assets/inky/lantern/rig/scarf.png $DEPLOYPATH/assets/inky/lantern/rig/sparks.png
     - /bin/rm -rf $DEPLOYPATH/assets/inky/lantern/source
     - /bin/cp -Rf database $DEPLOYPATH
-    - /bin/cp -Rf tools $DEPLOYPATH
+    - /opt/cpanel/ea-php84/root/usr/bin/php tools/deploy_runtime_tools.php $DEPLOYPATH
     - /bin/mkdir -p $DEPLOYPATH/config
-    - /bin/cp -f config/database.example.php $DEPLOYPATH/config/database.example.php
+    - /bin/rm -f $DEPLOYPATH/install.php
+    - /bin/cp -f config/.htaccess $DEPLOYPATH/config/.htaccess
     - /bin/cp -f config/ai-policy.php $DEPLOYPATH/config/ai-policy.php
     - /bin/cp -f config/privacy.php $DEPLOYPATH/config/privacy.php
     - /bin/cp -f config/app.php $DEPLOYPATH/config/app.php
@@ -31,6 +32,7 @@ deployment:
     # (code first, migrations last). The manifest never deletes
     # config/database.php, .installed, or public/uploads/.
     - /opt/cpanel/ea-php84/root/usr/bin/php tools/deploy_manifest.php $DEPLOYPATH --apply
+    - /opt/cpanel/ea-php84/root/usr/bin/php $DEPLOYPATH/tools/harden_storage.php $DEPLOYPATH --apply
     - /opt/cpanel/ea-php84/root/usr/bin/php $DEPLOYPATH/tools/migrate.php
     # Generate once outside the deploy tree; preserve existing key across deploys/rollbacks.
     - /opt/cpanel/ea-php84/root/usr/bin/php $DEPLOYPATH/tools/create_security_key.php
