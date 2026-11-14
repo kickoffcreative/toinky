@@ -5,6 +5,20 @@ November 13, 2026. Implementation draft from main `768e873` (A-07). Migration
 
 ## Sign-In And Session Controls
 
+### Post-Deployment UTC Hotfix
+
+The owner deployed `d4f5a34` November 13 and reported immediate sign-out after
+verification. Isolated reproduction with connection timezone `-06:00` showed
+a newly verified session appearing 360 minutes old and being rejected. Session
+creation inherited `CURRENT_TIMESTAMP` defaults while expiry interpreted those
+DATETIME values as UTC. The production database timezone was not directly read.
+
+The hotfix pins application database connections to numeric UTC and writes
+session creation/activity explicitly with `UTC_TIMESTAMP()`. It changes no
+global database setting, timeout or MFA requirement. Regression checks cover
+negative and positive connection offsets. No historical timestamps are rewritten;
+sign in again after deploying the fix. The prior runbook was archived first.
+
 Every administrator/Super Admin sign-in now requires a second factor, regardless
 of the previous sign-in date. A configured authenticator is preferred; single-use
 recovery codes or emailed codes are available. If the authenticator key/runtime

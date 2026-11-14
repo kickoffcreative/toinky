@@ -23,6 +23,8 @@ function db(): PDO {
         PDO::ATTR_EMULATE_PREPARES => false,
     ]);
     $pdo->exec("SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci");
+    // Keep UTC-named timestamps independent of the database host timezone.
+    $pdo->exec("SET time_zone = '+00:00'");
     return $pdo;
 }
 

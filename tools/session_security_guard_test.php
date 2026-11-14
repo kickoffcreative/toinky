@@ -25,6 +25,9 @@ $age=static function(string $hash,int $created,int $seen,int $absolute=86400)use
 $clearCodeLimit=static function(int $id)use($pdo):void{foreach(['SIGNIN_CODE_USER'=>(string)$id,'SIGNIN_CODE_IP'=>RateLimitService::clientIp()] as $action=>$subject)$pdo->prepare('DELETE FROM auth_throttle WHERE throttle_key=?')->execute([RateLimitService::key($action,$subject)]);};
 try{
     $player=$make('player');$admin=$make('admin',true);$writer=$make('writer');$peer=$make('peer');$factorUser=$make('factor');
+    $check($scalar('SELECT @@session.time_zone')==='+00:00','Database factory explicitly selects UTC');
+    try{foreach(['-06:00','+05:30'] as $offset){$pdo->exec('SET time_zone='.$pdo->quote($offset));[,,$offsetHash]=$open($admin);$ageSeconds=(int)$scalar('SELECT ABS(TIMESTAMPDIFF(SECOND,created_at_utc,UTC_TIMESTAMP())) FROM user_sessions WHERE session_hash=?',[$offsetHash]);$check($ageSeconds<=2,'New session timestamps remain UTC at connection offset '.$offset);$check(AuthService::currentUser()!==null,'Fresh verified administrator remains signed in at connection offset '.$offset);}}
+    finally{$pdo->exec("SET time_zone='+00:00'");}
     $role=(int)$scalar('SELECT platform_role_id FROM platform_roles WHERE role_code="WRITER"');$pdo->prepare('INSERT INTO user_platform_roles(user_id,platform_role_id,assigned_by_user_id) VALUES(?,?,?)')->execute([$writer,$role,$admin]);
     $check(SessionService::limits($user($player))===['idle'=>86400,'absolute'=>2592000],'Player timeout policy is twenty-four idle hours and thirty days maximum');
     foreach([$admin,$writer] as $id)$check(SessionService::limits($user($id))===['idle'=>1800,'absolute'=>43200],'Privileged timeout policy is thirty idle minutes and twelve hours maximum');
