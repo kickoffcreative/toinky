@@ -5,8 +5,8 @@ $root=dirname(__DIR__);
 if(($argv[1]??'')!=='--worker'){
     $dir=sys_get_temp_dir().'/toinky-a09-'.bin2hex(random_bytes(8));mkdir($dir,0700);file_put_contents($dir.'/test-marker','local');
     putenv('TOINKY_ACCOUNT_LINK_TEST_DIR='.$dir);putenv('GAME2_SMTP_HOST=');putenv('GAME2_SMTP_USERNAME=');putenv('GAME2_SMTP_PASSWORD=');putenv('GAME2_BASE_URL=http://localhost');putenv('GAME2_PRIVACY_APPROVED=1');
-    $transport=escapeshellarg(PHP_BINARY).' '.escapeshellarg(__DIR__.'/fixtures/account_link_test_mail.php');
-    $process=proc_open([PHP_BINARY,'-d','sendmail_path='.$transport,'-d','session.save_path='.$dir,__FILE__,'--worker'],[0=>['pipe','r'],1=>STDOUT,2=>STDERR],$pipes,$root);
+    $transport=escapeshellarg(PHP_BINARY).' -n '.escapeshellarg(__DIR__.'/fixtures/account_link_test_mail.php');
+    $process=proc_open([PHP_BINARY,'-d','opcache.jit=0','-d','opcache.jit_buffer_size=0','-d','sendmail_path='.$transport,'-d','session.save_path='.$dir,__FILE__,'--worker'],[0=>['pipe','r'],1=>STDOUT,2=>STDERR],$pipes,$root);
     if(!is_resource($process))throw new RuntimeException('Could not start isolated guard.');fclose($pipes[0]);$status=proc_close($process);
     foreach(glob($dir.'/*')?:[] as $file)if(is_file($file))unlink($file);rmdir($dir);exit($status);
 }
@@ -30,8 +30,8 @@ try{
     $reject(static fn()=>AccountEmailService::request($sender,$fresh,''),'Email change requires current password');
     $check(!(int)$scalar('SELECT COUNT(*) FROM user_email_change_tokens WHERE user_id=?',[$sender]),'Missing password creates no pending change');
     $socket=stream_socket_server('tcp://127.0.0.1:0',$errno,$errstr);$address=stream_socket_get_name($socket,false);fclose($socket);
-    $transport=escapeshellarg(PHP_BINARY).' '.escapeshellarg(__DIR__.'/fixtures/account_link_test_mail.php');
-    $server=proc_open([PHP_BINARY,'-d','sendmail_path='.$transport,'-d','session.save_path='.$dir,'-S',$address,'-t',$root.'/public'],[0=>['pipe','r'],1=>['file',$dir.'/server.log','a'],2=>['file',$dir.'/server.log','a']],$pipes,$root);fclose($pipes[0]);
+    $transport=escapeshellarg(PHP_BINARY).' -n '.escapeshellarg(__DIR__.'/fixtures/account_link_test_mail.php');
+    $server=proc_open([PHP_BINARY,'-d','opcache.jit=0','-d','opcache.jit_buffer_size=0','-d','sendmail_path='.$transport,'-d','session.save_path='.$dir,'-S',$address,'-t',$root.'/public'],[0=>['pipe','r'],1=>['file',$dir.'/server.log','a'],2=>['file',$dir.'/server.log','a']],$pipes,$root);fclose($pipes[0]);
     $ready=false;for($i=0;$i<40;$i++){$c=@stream_socket_client('tcp://'.$address,$errno,$errstr,0.1);if($c){fclose($c);$ready=true;break;}usleep(100000);}$check($ready,'Local HTTP fixture starts');
     $testIp='127.'.hexdec(substr($stamp,0,2)).'.'.hexdec(substr($stamp,2,2)).'.'.hexdec(substr($stamp,4,2));
     $http=static function(string $path,string $cookie,array $post=[])use($address,$testIp):array{$o=['ignore_errors'=>true,'follow_location'=>0,'timeout'=>20,'header'=>'Cookie: '.AuthService::SESSION_NAME.'='.$cookie."\r\n"];if($post){$o['method']='POST';$o['header'].="Content-Type: application/x-www-form-urlencoded\r\n";$o['content']=http_build_query($post);}$body=file_get_contents('http://'.$address.$path,false,stream_context_create(['http'=>$o,'socket'=>['bindto'=>$testIp.':0']]));return [$body===false?'':$body,$http_response_header??[]];};
