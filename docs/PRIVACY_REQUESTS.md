@@ -23,6 +23,13 @@ the applicable law, while protecting the other person's information.
 
 My Profile supplies current-password-confirmed JSON export, display-name/photo
 correction, verified email change, consent withdrawal and identity deletion.
+Email changes require the current password and verification at the new mailbox.
+The old mailbox receives a seven-day undo link. Explicit undo revokes sessions,
+authenticator/recovery codes and the password; the restored owner uses Forgot
+Password. Do not bypass verification, reactivate a disabled account, or reassign
+an address claimed by someone else. Failed notification delivery and address
+conflicts require proportionate manual recovery. Do not request bearer links
+or codes in support messages.
 The export deliberately excludes credentials, other players' private character
 information and raw mixed-person AI context. It is a self-service starting point,
 not the full answer to every statutory access request.

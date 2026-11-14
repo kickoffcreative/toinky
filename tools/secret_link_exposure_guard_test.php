@@ -81,7 +81,7 @@ try{
         static fn()=>AuthService::createPasswordResetForEmail($email(0)),
         static fn()=>AuthService::createInvitation('a01-failed-'.$stamp.'@example.invalid',$users[1]),
         static fn()=>AuthService::createGameInvitation('a01-failed-game-'.$stamp.'@example.invalid',$gid,$users[1]),
-        static fn()=>UserProfileService::requestEmailChange(['user_id'=>$users[0],'email'=>$email(0)],'a01-changed-'.$stamp.'@example.invalid'),
+        static fn()=>UserProfileService::requestEmailChange(['user_id'=>$users[0],'email'=>$email(0)],'a01-changed-'.$stamp.'@example.invalid','Replacement-Test-Password'),
         static fn()=>AccountSecurityService::requestVerification($users[3])
     ] as $producer){[$result,$mail]=$capture($producer);$check($result===['sent'=>false],'Failed delivery returns no secret');}
     [$result,$mail]=$capture(static fn()=>AccountSecurityService::adminPasswordReset($users[2],$users[1]));
@@ -105,10 +105,11 @@ try{
         ['/admin.php?view=invitations',$users[1],['action'=>'invite','email'=>'a01-http-'.$stamp.'@example.invalid']],
         ['/profile.php',$users[1],['action'=>'send_password_reset']],
         ['/profile.php',$users[1],['action'=>'invite_player','email'=>'a01-http-profile-'.$stamp.'@example.invalid']],
-        ['/profile.php',$users[1],['action'=>'request_email_change','new_email'=>'a01-http-change-'.$stamp.'@example.invalid']]
+        ['/profile.php',$users[1],['action'=>'request_email_change','new_email'=>'a01-http-change-'.$stamp.'@example.invalid','current_password'=>'Original-Test-Password']]
     ] as [$path,$uid,$data]){
         [$cookie,$csrf]=$makeSession($uid);$data['csrf_token']=$csrf;file_put_contents($dir.'/mail.jsonl','');[$body,$headers]=$http($path,$cookie,$data);
-        $check(str_contains($headers[0]??'','200')&&str_contains($body,'Email could not be sent. Try again later.'),'Real response renders fixed mail failure');
+        $expected=match($data['action']){'invite','invite_player'=>'If that address can receive an invitation, we sent one.','request_email_change'=>'If that address can be used, we sent a verification link.',default=>'Email could not be sent. Try again later.'};
+        $check(str_contains($headers[0]??'','200')&&str_contains($body,$expected),'Real response renders fixed non-secret outcome');
         $mail=file_get_contents($dir.'/mail.jsonl');preg_match_all('/[a-f0-9]{48}/',$mail,$matches);foreach($matches[0] as $secret)$check(!str_contains($body,$secret),'Secret never appears in rendered response');
     }
     [$cookie,$csrf]=$makeSession($users[1]);[$body,$headers]=$http('/lobby.php?game='.$gid,$cookie,['action'=>'invite_player','emails'=>'a01-http-game-'.$stamp.'@example.invalid','csrf_token'=>$csrf]);

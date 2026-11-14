@@ -188,7 +188,14 @@ final class AuthService
         AccountSecurityService::requireVerifiedEmail($adminId);RateLimitService::invitation($adminId,$email);
         $email=strtolower(trim($email));if(!filter_var($email,FILTER_VALIDATE_EMAIL))throw new UserFacingException('Enter a valid email address.');
         $token=bin2hex(random_bytes(24));db()->prepare('INSERT INTO user_invitations(email,token_hash,invited_by_user_id,expires_at_utc) VALUES(?,?,?,DATE_ADD(UTC_TIMESTAMP(),INTERVAL 7 DAY))')->execute([$email,hash('sha256',$token),$adminId]);
-        $id=(int)db()->lastInsertId();$url=self::baseUrl().'/?view=register&invite='.rawurlencode($token);$sent=self::sendTemplatedMessage($email,'INVITATION',['recipient_name'=>'there','action_url'=>$url,'action_label'=>'Create your account','message'=>'An administrator invited you to create a Toinky account.','expiry_text'=>'This link expires in 7 days.'],null,$adminId);if($sent)db()->prepare('UPDATE user_invitations SET delivered_at_utc=UTC_TIMESTAMP() WHERE invitation_id=?')->execute([$id]);return['sent'=>$sent];
+        $id=(int)db()->lastInsertId();
+        $q=db()->prepare('SELECT 1 FROM users WHERE email=?');$q->execute([$email]);
+        if($q->fetchColumn()){
+            $sent=self::sendAccountMessage($email,'You Were Invited To Toinky','Someone invited this email address to Toinky. You already have an account; open Toinky directly to sign in. Your account, password and memberships have not changed.','INVITATION',$adminId);
+            if($sent)db()->prepare('UPDATE user_invitations SET delivered_at_utc=UTC_TIMESTAMP() WHERE invitation_id=?')->execute([$id]);
+            return ['sent'=>$sent];
+        }
+        $url=self::baseUrl().'/?view=register&invite='.rawurlencode($token);$sent=self::sendTemplatedMessage($email,'INVITATION',['recipient_name'=>'there','action_url'=>$url,'action_label'=>'Create your account','message'=>'An administrator invited you to create a Toinky account.','expiry_text'=>'This link expires in 7 days.'],null,$adminId);if($sent)db()->prepare('UPDATE user_invitations SET delivered_at_utc=UTC_TIMESTAMP() WHERE invitation_id=?')->execute([$id]);return['sent'=>$sent];
     }
     public static function createPasswordResetForEmail(string $email): array
     {

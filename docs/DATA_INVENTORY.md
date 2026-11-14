@@ -16,6 +16,14 @@ Production hosting, backups, mail routing and cron schedules are not verified.
 
 ## Current Storage And Proposed Handling
 
+A-09 overlay (migration 146; deployment verification pending): email-change
+records also bind the old address and hold a hashed recovery token, seven-day
+expiry, delivery time and consumption time. No plaintext token is stored or
+exported. Existing expired/verified-token cleanup after thirty days preserves
+the recovery window; account erasure deletes these rows. Unaccepted outgoing
+friend identities and pending email-change delivery records are excluded from
+self-service exports. Support can review necessary records after identity proof.
+
 A-08 draft overlay (migration 145; not yet a deployment claim):
 
 - `user_two_factor_codes.email_hash` binds emailed sign-in proof to the address

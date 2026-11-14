@@ -21,26 +21,23 @@ final class UserProfileService
         }catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();if(is_file($target))unlink($target);throw $e;}self::deleteProfileFile((string)$old);
     }
 
-    public static function requestEmailChange(array $user,string $newEmail): array
+    public static function requestEmailChange(array $user,string $newEmail,string $password=''): array
     {
-        if(PHP_SAPI!=='cli')SessionService::requireRecentPassword((int)$user['user_id']);
-        RateLimitService::emailChange((int)$user['user_id']);
-        $newEmail=strtolower(trim($newEmail));if(!filter_var($newEmail,FILTER_VALIDATE_EMAIL))throw new UserFacingException('Enter a valid email address.');if($newEmail===strtolower((string)$user['email']))throw new UserFacingException('That is already your account email.');$q=db()->prepare('SELECT 1 FROM users WHERE email=? AND user_id<>?');$q->execute([$newEmail,$user['user_id']]);if($q->fetchColumn())throw new UserFacingException('That email address is already in use.');
-        $token=bin2hex(random_bytes(24));db()->prepare('UPDATE user_email_change_tokens SET expires_at_utc=UTC_TIMESTAMP() WHERE user_id=? AND verified_at_utc IS NULL')->execute([$user['user_id']]);db()->prepare('INSERT INTO user_email_change_tokens(user_id,new_email,token_hash,expires_at_utc) VALUES(?,?,?,DATE_ADD(UTC_TIMESTAMP(),INTERVAL 2 HOUR))')->execute([$user['user_id'],$newEmail,hash('sha256',$token)]);
-        $id=(int)db()->lastInsertId();$url=AuthService::baseUrl().'/profile.php?verify_email='.rawurlencode($token);$sent=AuthService::sendTemplatedMessage($newEmail,'EMAIL_CHANGE',['recipient_name'=>$user['display_name']??'there','action_url'=>$url,'action_label'=>'Verify email address','message'=>'Confirm this email address for your Toinky account.','expiry_text'=>'This link expires in 2 hours.'],null,(int)$user['user_id']);if($sent)db()->prepare('UPDATE user_email_change_tokens SET delivered_at_utc=UTC_TIMESTAMP() WHERE email_change_token_id=?')->execute([$id]);return['sent'=>$sent];
+        require_once __DIR__.'/AccountEmailService.php';
+        return AccountEmailService::request((int)$user['user_id'],$newEmail,$password);
     }
 
     public static function confirmEmailChange(int $userId,string $token): void
     {
-        $pdo=db();$q=$pdo->prepare('SELECT * FROM user_email_change_tokens WHERE user_id=? AND token_hash=? AND delivered_at_utc IS NOT NULL AND verified_at_utc IS NULL AND expires_at_utc>UTC_TIMESTAMP()');$q->execute([$userId,hash('sha256',$token)]);$change=$q->fetch();if(!$change)throw new UserFacingException('This email verification link is invalid or expired.');$q=$pdo->prepare('SELECT 1 FROM users WHERE email=? AND user_id<>?');$q->execute([$change['new_email'],$userId]);if($q->fetchColumn())throw new UserFacingException('That email address is now in use by another account.');
-        $pdo->beginTransaction();try{$oldEmailQuery=$pdo->prepare('SELECT email FROM users WHERE user_id=? FOR UPDATE');$oldEmailQuery->execute([$userId]);PrivacyService::rememberEmail($userId,(string)$oldEmailQuery->fetchColumn());$pdo->prepare('UPDATE user_email_history SET valid_until_utc=UTC_TIMESTAMP() WHERE user_id=? AND valid_until_utc IS NULL')->execute([$userId]);PrivacyService::rememberEmail($userId,(string)$change['new_email']);$pdo->prepare('UPDATE users SET email=?,email_verified_at_utc=UTC_TIMESTAMP() WHERE user_id=?')->execute([$change['new_email'],$userId]);$pdo->prepare('UPDATE user_email_change_tokens SET verified_at_utc=UTC_TIMESTAMP() WHERE email_change_token_id=?')->execute([$change['email_change_token_id']]);$pdo->commit();}catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw$e;}
+        require_once __DIR__.'/AccountEmailService.php';
+        AccountEmailService::confirm($userId,$token);
     }
 
     public static function requestFriend(int $userId,string $email): void
     {
         AccountSecurityService::requireVerifiedEmail($userId);RateLimitService::friendRequest($userId);
-        $email=strtolower(trim($email));if(!filter_var($email,FILTER_VALIDATE_EMAIL))throw new UserFacingException('Enter a valid email address.');$q=db()->prepare('SELECT user_id FROM users WHERE email=? AND status="ACTIVE"');$q->execute([$email]);$friendId=(int)$q->fetchColumn();if($friendId<1)throw new UserFacingException('That person does not have an active Toinky account yet. Invite them first.');if($friendId===$userId)throw new UserFacingException('You cannot add yourself as a friend.');[$low,$high]=self::pair($userId,$friendId);
-        $q=db()->prepare('SELECT status FROM user_friendships WHERE user_low_id=? AND user_high_id=?');$q->execute([$low,$high]);$status=$q->fetchColumn();if($status==='ACCEPTED')throw new UserFacingException('That player is already your friend.');db()->prepare('INSERT INTO user_friendships(user_low_id,user_high_id,requested_by_user_id,status) VALUES(?,?,?,"PENDING") ON DUPLICATE KEY UPDATE requested_by_user_id=VALUES(requested_by_user_id),status="PENDING",responded_at_utc=NULL')->execute([$low,$high,$userId]);
+        $email=strtolower(trim($email));if(!filter_var($email,FILTER_VALIDATE_EMAIL))throw new UserFacingException('Enter a valid email address.');$q=db()->prepare('SELECT user_id FROM users WHERE email=? AND status="ACTIVE"');$q->execute([$email]);$friendId=(int)$q->fetchColumn();if($friendId<1||$friendId===$userId)return;[$low,$high]=self::pair($userId,$friendId);
+        $q=db()->prepare('SELECT status FROM user_friendships WHERE user_low_id=? AND user_high_id=?');$q->execute([$low,$high]);$status=$q->fetchColumn();if($status==='ACCEPTED'||$status==='PENDING')return;db()->prepare('INSERT INTO user_friendships(user_low_id,user_high_id,requested_by_user_id,status) VALUES(?,?,?,"PENDING") ON DUPLICATE KEY UPDATE requested_by_user_id=VALUES(requested_by_user_id),status="PENDING",responded_at_utc=NULL')->execute([$low,$high,$userId]);
     }
 
     public static function respondToFriend(int $userId,int $friendshipId,bool $accept): void
@@ -60,7 +57,7 @@ final class UserProfileService
 
     public static function friends(int $userId): array
     {
-        $q=db()->prepare('SELECT f.friendship_id,f.status,f.requested_by_user_id,u.user_id friend_user_id,u.display_name,u.email,u.profile_image_path,l.label_text FROM user_friendships f JOIN users u ON u.user_id=IF(f.user_low_id=?,f.user_high_id,f.user_low_id) LEFT JOIN user_friend_labels l ON l.friendship_id=f.friendship_id AND l.user_id=? WHERE (f.user_low_id=? OR f.user_high_id=?) ORDER BY FIELD(f.status,"PENDING","ACCEPTED","DECLINED"),l.label_text,u.display_name');$q->execute([$userId,$userId,$userId,$userId]);return$q->fetchAll();
+        $q=db()->prepare('SELECT f.friendship_id,f.status,f.requested_by_user_id,u.user_id friend_user_id,u.display_name,u.email,u.profile_image_path,l.label_text FROM user_friendships f JOIN users u ON u.user_id=IF(f.user_low_id=?,f.user_high_id,f.user_low_id) LEFT JOIN user_friend_labels l ON l.friendship_id=f.friendship_id AND l.user_id=? WHERE (f.user_low_id=? OR f.user_high_id=?) AND (f.status="ACCEPTED" OR (f.status="PENDING" AND f.requested_by_user_id<>?)) ORDER BY FIELD(f.status,"PENDING","ACCEPTED","DECLINED"),l.label_text,u.display_name');$q->execute([$userId,$userId,$userId,$userId,$userId]);return$q->fetchAll();
     }
 
     public static function acceptedFriends(int $userId): array
