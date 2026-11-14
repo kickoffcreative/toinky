@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 require_once __DIR__.'/UserFacingException.php';
+require_once __DIR__.'/AppUrlService.php';
 
 
 final class EmailTemplateService
@@ -82,6 +83,6 @@ final class EmailTemplateService
     private static function length(string $value): int{return function_exists('mb_strlen')?mb_strlen($value):strlen($value);}
     private static function baseUrl(): string
     {
-        $env=rtrim(trim((string)getenv('GAME2_BASE_URL')),'/');if($env!=='')return$env;$secure=!empty($_SERVER['HTTPS'])&&$_SERVER['HTTPS']!=='off';$host=(string)($_SERVER['HTTP_HOST']??'toinky.com');return($secure?'https':'http').'://'.$host;
+        return AppUrlService::baseUrl();
     }
 }

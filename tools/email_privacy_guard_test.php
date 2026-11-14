@@ -4,7 +4,7 @@ if(PHP_SAPI!=='cli'){http_response_code(404);exit;}
 $root=dirname(__DIR__);
 if(($argv[1]??'')!=='--worker'){
     $dir=sys_get_temp_dir().'/toinky-a09-'.bin2hex(random_bytes(8));mkdir($dir,0700);file_put_contents($dir.'/test-marker','local');
-    putenv('TOINKY_ACCOUNT_LINK_TEST_DIR='.$dir);putenv('GAME2_SMTP_HOST=');putenv('GAME2_SMTP_USERNAME=');putenv('GAME2_SMTP_PASSWORD=');putenv('GAME2_BASE_URL=http://localhost');putenv('GAME2_PRIVACY_APPROVED=1');
+    putenv('TOINKY_ACCOUNT_LINK_TEST_DIR='.$dir);putenv('GAME2_SMTP_HOST=');putenv('GAME2_SMTP_USERNAME=');putenv('GAME2_SMTP_PASSWORD=');putenv('GAME2_BASE_URL=http://127.0.0.1');putenv('GAME2_PRIVACY_APPROVED=1');
     $transport=escapeshellarg(PHP_BINARY).' -n '.escapeshellarg(__DIR__.'/fixtures/account_link_test_mail.php');
     $process=proc_open([PHP_BINARY,'-d','opcache.jit=0','-d','opcache.jit_buffer_size=0','-d','sendmail_path='.$transport,'-d','session.save_path='.$dir,__FILE__,'--worker'],[0=>['pipe','r'],1=>STDOUT,2=>STDERR],$pipes,$root);
     if(!is_resource($process))throw new RuntimeException('Could not start isolated guard.');fclose($pipes[0]);$status=proc_close($process);

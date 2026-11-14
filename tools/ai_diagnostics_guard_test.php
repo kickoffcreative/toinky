@@ -7,6 +7,7 @@ if(!function_exists('apcu_fetch')){
     function apcu_fetch(string $key,?bool &$success=null):mixed{$GLOBALS['diagnostic_cache_reads']=($GLOBALS['diagnostic_cache_reads']??0)+1;$success=isset($GLOBALS['diagnostic_cached']);return $GLOBALS['diagnostic_cached']??false;}
     function apcu_store(string $key,mixed $value,int $ttl=0):bool{return true;}
 }
+putenv('GAME2_BASE_URL=http://127.0.0.1');
 $root=dirname(__DIR__);require_once $root.'/app/bootstrap.php';require_once $root.'/app/AuthService.php';require_once $root.'/app/AiConnectionService.php';require_once $root.'/app/AiSettingsService.php';
 $pdo=db();if(!str_ends_with((string)$pdo->query('SELECT DATABASE()')->fetchColumn(),'_test')||is_file($root.'/config/ai.php'))throw new RuntimeException('Use isolated _test database and checkout without private AI configuration.');
 putenv('GAME2_AI_ENDPOINT=https://unapproved.invalid');putenv('GAME2_AI_PROVIDER=deterministic');

@@ -2,6 +2,7 @@
 declare(strict_types=1);
 if(PHP_SAPI!=='cli'){http_response_code(404);exit;}
 set_error_handler(static function(int $level,string $message,string $file,int $line):bool{if(!(error_reporting()&$level))return false;throw new ErrorException($message,0,$level,$file,$line);});
+putenv('GAME2_BASE_URL=http://127.0.0.1');
 $root=dirname(__DIR__);require_once $root.'/app/bootstrap.php';require_once $root.'/app/AuthService.php';
 $pdo=db();if(!str_ends_with((string)$pdo->query('SELECT DATABASE()')->fetchColumn(),'_test'))throw new RuntimeException('Use an isolated _test database.');
 $dir=sys_get_temp_dir().'/toinky-headers-'.bin2hex(random_bytes(8));mkdir($dir,0700);mkdir($dir.'/sessions',0700);mkdir($dir.'/config',0700);

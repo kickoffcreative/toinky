@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__.'/UserFacingException.php';
+require_once __DIR__.'/AppUrlService.php';
 require_once __DIR__ . '/StripeService.php';
 
 final class CommerceService
@@ -185,6 +186,7 @@ public static function adminAdjust(int $adminId, int $userId, int $occasions, st
 
     public static function startPurchase(int $userId, string $bundleKey): string
     {
+        $base = AppUrlService::baseUrl();
         if (!self::enabled()) throw new UserFacingException('Purchases are not open yet.');
         $bundle = self::bundle($bundleKey);
         if ($bundle === null) throw new UserFacingException('That bundle is not available.');
@@ -193,7 +195,6 @@ public static function adminAdjust(int $adminId, int $userId, int $occasions, st
         $pdo = db();
         $pdo->prepare("INSERT INTO host_purchases(user_id,bundle_key,occasions_granted,amount_cents,currency,status) VALUES(?,?,?,?,?,'PENDING')")->execute([$userId, $bundle['key'], $bundle['occasions'], $bundle['price_cents'], $settings['currency']]);
         $purchaseId = (int)$pdo->lastInsertId();
-        $base = 'https://' . (string)($_SERVER['HTTP_HOST'] ?? 'toinky.com');
         $description = $bundle['occasions'] === 1 ? 'One occasion to host a Toinky story. Occasions never expire.' : $bundle['occasions'] . ' occasions to host Toinky stories. Occasions never expire.';
         try {
             $session = StripeService::createCheckoutSession([
